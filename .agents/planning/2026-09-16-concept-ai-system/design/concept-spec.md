@@ -8,6 +8,8 @@ Companion to `ir-spec.md`, which specifies the expression language. This documen
 the thing the expressions name. Read Part 2 of the IR spec first if you have not: residual
 evaluation is assumed throughout.
 
+`seed-concepts.md` lists the Concepts the network starts with, derived from both documents.
+
 This document is derived from the stated requirements in `../rough-idea.md` and
 `../idea-honing.md`, not from the current implementation. Where a requirement was ambiguous
 or self-contradicting, Part 18 records the contradiction and the resolution.
@@ -1322,9 +1324,34 @@ Everything above it is Concepts, including the entry point through which a turn 
 
 ### 17.1 Minimality criterion
 
-The loop is correctly minimal when it contains **no knowledge of any specific Concept**. It
-knows how to match, substitute, select by specificity, evaluate, count steps, and record
-events. It does not know that `Multiply` exists.
+The loop knows how to match, substitute, select, evaluate, count steps, and record events.
+It does not know that `Multiply` exists, or `Describe`, or `Execution`.
+
+It is **not** true, however, that it knows no identity at all. A machine that reads a unit
+needs some fixed words in that vocabulary, and there are exactly six:
+
+| Concept | Why it is unavoidable |
+|---|---|
+| `Concept(identity, relations, realizations)` | the declaration form it saves |
+| `Realization(pattern, context?, body)` | it must locate patterns and bodies |
+| `Code(...)` | it must recognise an executable body |
+| `Context(...)` | it must subset-match facets |
+| `Suppresses(x)` | it applies the suppression rule generically |
+| `IsA(x)` | selection orders by inheritance distance |
+
+The criterion is therefore sharper than "knows nothing": **every identity the loop knows
+must be structural, about the form of a unit, and never semantic, about what something
+means.** All six describe shape. None describes a subject.
+
+Two details make the point. `Suppresses(x)` is known but `Effectful()` and `Lossy()` are
+not, because the rule is generic over whatever property is named. And `IsA` is known only as
+an input to ordering — its transitivity is still a realization on the relation Concept
+(Part 5.7), not host code.
+
+The list is closed. A seventh identity appearing in the harness is a regression, and
+Part 2.1 is the test that catches it. Enumerating the six is deliberate: the prior attempts
+did not fail because they had a boundary, they failed because the boundary was never written
+down and so quietly grew.
 
 The facilities it exposes — store access, the cell store, trace writing, code execution —
 are available uniformly to every realization. That uniformity is what distinguishes a host

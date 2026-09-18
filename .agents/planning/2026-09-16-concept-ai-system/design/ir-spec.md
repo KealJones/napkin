@@ -11,7 +11,8 @@ Audience: humans, and future readers trying to understand why the IR looks like 
 is not the parser's system prompt. The parser prompt is generated from Part 9.
 
 Companion: `concept-spec.md` specifies what a Concept is, how realization and evaluation
-work, how context selects behaviour, and how anything persists. This document specifies the
+work, how context selects behaviour, and how anything persists. `seed-concepts.md` lists the
+Concepts the network starts with, including one for every node the Ears can emit. This document specifies the
 expression language that names those things. The two share one foundation, residual
 evaluation, stated in Part 2 here and Part 8.1 there.
 
