@@ -237,7 +237,7 @@ duplicated.
 #### Which relations
 
 The default description does not lead with every relation. A summary of `Happy` that opens
-with its `SynonymOf` list, or a summary of `Describe` that mentions `SuppressesEffects()`,
+with its `SynonymOf` list, or a summary of `Describe` that mentions `Suppresses(Lossy())`,
 is worse than one without.
 
 But **whether a relation is interesting is a property of the question, not of the
@@ -281,11 +281,26 @@ A rendered description may present relations as a list, but relations are not ar
 the Concept. `Chess()` takes no arguments; its relations are one of its three parts
 (Part 1). The list is the description's shape, not the Concept's.
 
-#### Effectful, not merely code
+#### Two properties are withheld, not one
 
-The line is effects, not bodies. `Add(2, 3)` has a code body but no effect, and `5` is a
+**Effectful, not merely code.** `Add(2, 3)` has a code body but no effect, and `5` is a
 better description of it than `Add(2, 3)` is. So pure code still runs; only effectful
 bodies are withheld.
+
+**Lossy, as well as effectful.** A realization may also declare itself `Lossy()`: it
+discards part of its input. The projecting realizations of the source markers in
+`ir-spec.md` Part 7 are the motivating case — `Correction` throws away the retracted value,
+`Misspelling` throws away what was written, `Fuzzy` throws away the fact that the user was
+vague.
+
+Suppressing effects alone is not enough for those, because dropping a value is perfectly
+pure. A rule withholding only effectful bodies would let a correction disappear from its
+own description, which is the one thing that structure was recorded for. Nor does naming
+`Execution()` on the projection help: `Context(Describe(), Execution())` legitimately means
+"describe what this does when run", and subset matching would let the projection through.
+
+`Lossy()` is independently useful — it is what caching and replay need to know about a
+realization — so it is not a special case invented for describing.
 
 This requires realizations to declare their effects. That is not new work: the autonomy
 modes in Part 16 need the same declaration to decide what may run unattended. Describing
@@ -300,12 +315,13 @@ If the evaluator checked whether a facet *is* `Describe()`, that would be precis
 special case Part 2.1 forbids. Instead the context declares the property:
 
 ```
-Describe()   with relation   SuppressesEffects()
+Describe()   with relations   Suppresses(Effectful()),  Suppresses(Lossy())
 ```
 
-The evaluator's rule is general — *if any active facet declares effect suppression,
-effectful bodies are unavailable* — so the harness never learns that `Describe` exists, and
-another suppressing facet can be added without touching it.
+The evaluator's rule is general — *if any active facet declares that it suppresses a
+property, realizations declaring that property are unavailable* — so the harness never
+learns that `Describe`, `Effectful`, or `Lossy` exists. Another property, or another
+suppressing facet, can be added without touching it.
 
 #### Unbound variables denote themselves
 
@@ -1347,13 +1363,14 @@ Recorded so the resolutions are not silently re-litigated.
 | 17 | Can a realization require two contexts at once, like describing *and* dog? | Yes. A context is an unordered set of facets, matched by subset, and conjunction is the normal case. Nesting was rejected: it forces an arbitrary facet order, and two realizations nesting differently would silently never match the same context. Part 7.1. |
 | 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
 | 19 | Must a description exist as its own realization, or can behaviour serve as one? | Behaviour serves. A composed body is already a description, so `Describe()` only suppresses effectful bodies and ordinary evaluation plus the residual rule do the rest. Explicit describing realizations are for effectful leaves. Part 4.0. |
-| 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `SuppressesEffects()` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
+| 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `Suppresses(Effectful())` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
 | 21 | Composition describes operations, but most Concepts are not operations. What describes `Chess`? | Its relations. A default describing realization presents them, delivered by inheritance from a universal parent rather than wired into the evaluator. Relations stay the only source of the facts; the description is produced by traversing them. Part 4.0. |
 | 22 | With a default inherited description, does it outrank a Concept's own composition? | No, and fixing this reordered selection: inheritance distance now dominates context specificity. Otherwise the generic inherited description outranks a local composition on facet count, and `Double` describes as relations instead of `Multiply($x, 2)`. Part 9.2. |
 | 23 | Machinery relations should be kept out of descriptions, but "give me synonyms for happy" wants exactly one of them. | Interest is a property of the question, not the relation. `SynonymOf` is machinery when forwarding and content when asked about, so the exclusion is a soft default, every relation stays directly queryable, and a lexical facet selects a describing realization that leads with synonyms. Part 4.0. |
 | 24 | A relation can imply its converse — married-to is symmetric, older-than inverts to younger-than. Nothing handled that. | A relation Concept is a Concept, so it declares `Symmetric()`, `InverseOf(...)`, `Transitive()`, and the implied relation is **derived at query time, never materialized**: storing both directions would record one truth twice and let a retraction be applied to only one. Part 5.3. |
 | 25 | If a symmetric relation is stored in Keal's unit, how is it "derived" for Emmy, whose unit has nothing? | Querying a Concept's relations is a query over the two-directional index, not a read of its unit. The subject of a stored relation is implicit, so the triple is findable from either end and reoriented by the predicate's properties. The authoring home is consequently asymmetric even when the fact is not. Part 5.1.1. |
-| 26 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 26 | Suppressing effectful bodies under `Describe()` does not keep a `Correction` from projecting, since dropping a value is pure. | A second declared property. A projection declares `Lossy()`, and `Describe()` suppresses both `Effectful()` and `Lossy()` under one general rule. Naming `Execution()` on the projection would not work, because `Context(Describe(), Execution())` is a legitimate context. Part 4.0. |
+| 27 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 

@@ -130,15 +130,21 @@ stay misspelled. Conversion is realization's job.
 
 ## 4. Concepts
 
-A Concept is one self-contained unit:
+A Concept is one self-contained unit of three parts. See `concept-spec.md` Part 1 for the
+full treatment; what matters here is the shape an expression must produce.
 
 - **identity** — its `CapitalizedName`.
-- **gloss** — plain-language description. Exists for human reading and for search. It is
-  not a second source of truth about meaning; meaning lives in realizations.
 - **relations** — Concept expressions asserting facts about it, e.g. `IsA(Bird())`,
-  `SynonymOf(Multiply())`.
+  `SynonymOf(Multiply())`. Authored in the unit, queried through a two-directional index,
+  and carrying their own properties (`Symmetric()`, `InverseOf(...)`, `Transitive()`) which
+  license inference. Append-only.
 - **realizations** — one or more. Each has a pattern, an optional usage context, and a body.
-  A body either composes other Concepts or is executable code.
+  A body either composes other Concepts or is executable code. Append-only.
+
+There is **no gloss and no `meaning` field.** A Concept describes itself through its
+composition, through its relations, or through a realization under a `Describe()` context,
+and searchable text is derived from those rather than stored. So a declaration expression
+carries identity, relations, and realizations — nothing else.
 
 Nothing is privileged. File access, network access, model calls, and the evaluator's own
 entry point are ordinary Concepts whose realizations happen to be code.
@@ -296,16 +302,38 @@ Five markers record what the input actually did. All five follow one rule.
 
 ### 7.1 The one rule that governs all of them
 
-**A marker is transparent under execution and opaque under discussion.**
+**A marker projects when the usage wants a value, and stays intact when the usage wants
+the structure.**
 
-- Under an execution context, each marker has a realization that projects to the operative
-  value: `Correction` yields `new`, `Misspelling` yields `Meant()`, `Fuzzy` yields a
-  loosened match, `Emphasis` yields its payload unchanged.
-- Under a discussion context, the markers have no realization, so they stay as residuals
-  and the system can reason about them, including about the mistake itself.
+- Where a value is wanted, each marker has a realization that projects to the operative
+  one: `Correction` yields `new`, `Misspelling` yields `Meant()`, `Fuzzy` yields a loosened
+  match, `Emphasis` yields its payload unchanged.
+- Where the structure is wanted, those realizations are unavailable, so the markers stay as
+  residuals and the system can reason about them, including about the mistake itself.
 
 That is the entire specification for all five. There is no per-marker special casing, and
 new markers can be added later by following the same rule.
+
+#### What makes a projection unavailable
+
+A marker's projecting realization declares itself **`Lossy()`**: it discards part of its
+input. `Correction` throws away the retracted value, `Misspelling` throws away what was
+written, `Fuzzy` throws away the fact that the user was vague.
+
+`Describe()` declares that it suppresses lossy realizations as well as effectful ones
+(`concept-spec.md` Part 4.0), so describing an expression leaves its markers standing.
+
+This matters because **effect suppression alone is not enough.** A `Correction` projection
+is perfectly pure — dropping a value touches nothing — so a rule that withheld only
+effectful bodies would let the correction quietly disappear from its own description, which
+is the one thing this part exists to prevent. Nor does naming `Execution()` on the
+projection fix it, since `Context(Describe(), Execution())` is a legitimate context meaning
+"describe what this does when run", and subset matching would let the projection through.
+
+No new mechanism is required. The suppression rule is already general: *if any active facet
+declares suppression of a property, realizations declaring that property are unavailable.*
+`Effectful()` and `Lossy()` are two properties under one rule, and `Lossy()` is
+independently useful — it is what caching and replay need to know.
 
 ### 7.2 Aside takes verbatim text
 
@@ -604,12 +632,17 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 `If` is used for both statement and expression position. The IR does not need a separate
 ternary, because an `If` that yields a value is the same idea.
 
-### 10.3 Target language is a context, not a node
+### 10.3 Target language is a context facet, not a node
 
 Code IR nodes carry realizations per target language, selected by usage context:
 `If(...)` realized under `JavaScript()` emits JavaScript, under `Rust()` emits Rust. The
 IR itself is language-neutral, which is what makes the eventual Rust port a realization
 change rather than a rewrite.
+
+A usage context is a **set of facets**, not a single nested expression
+(`concept-spec.md` Part 7.1), so a target language is one facet among others and composes
+with the rest: `Context(Describe(), Rust())` asks what a node means as Rust, without
+replacing whatever else the situation already carried.
 
 ### 10.4 Worked translation
 
@@ -840,14 +873,16 @@ The IR above needs these. Each is small, and none is a workaround.
 - **Host-object mutation.** Resolved for the runtime's own state by the cells in Part 10.5.
   What remains is mutation of foreign host objects, which is deliberately out of scope and
   left to code realizations. Revisit only if self-modification turns out to need it.
-- **Preserving genuine ambiguity.** The design calls for the system to sometimes keep an
-  ambiguity and explore multiple readings rather than pick one. `Ambiguous(a, b)` is the
-  obvious shape and follows the Part 7.1 rule, but nothing is measured yet and it is not
-  yet specified.
-- **Competing realizations.** When several realizations match with equal context
-  specificity, the current tie-break is declaration order, which makes behaviour depend on
-  array position. Success-weighted selection was wanted; what counts as success is not
-  defined.
+- **Preserving genuine ambiguity.** `concept-spec.md` Part 9.5 settles the *policy* — pick,
+  ask, or explore is itself a realization selected by context. What is still unspecified is
+  the *IR node*: `Ambiguous(a, b)` is the obvious shape and follows the Part 7.1 rule, but
+  nothing is measured and the Ears has no rule for emitting it.
+- **Competing realizations.** Resolved in `concept-spec.md`: selection orders by
+  inheritance distance, then context specificity (facet count, then structural depth), then
+  success evidence used only to break remaining ties (Part 9). Success is defined as a
+  preference among tied candidates with blame narrowed to realizations that were actually
+  tie-broken (Part 9.4). What remains open there is generalising a preference across
+  similar contexts.
 - **Self-reference.** A message that talks about itself ("look how long this is") needs a
   `Self()` referent. Straightforward, unspecified.
 - **Depth budget under lifting.** Lifting N lines into nested scopes makes evaluation depth
