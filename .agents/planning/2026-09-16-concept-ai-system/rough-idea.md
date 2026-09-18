@@ -1,0 +1,19 @@
+# Rough idea: Concept-centered AI system
+
+I want to create an AI system that can have conversations, solve problems, write and update code, do research, and perform the work of a modern LLM. Its architecture is centered entirely around **Concepts**. Everything in its brain is a Concept: it thinks using Concepts, speaks using Concepts, and acts using Concepts. Concepts are composable units for understanding, expressing, and doing things.
+
+A Concept is a self-contained unit with a description expressed in Concepts, relations that are also Concepts (for example, `SynonymOf(X())`), and one or more realizations. A realization can be a rule that expands a Concept into other composed Concepts (for example, `Double := Multiply(x, 2)` or `WikidataSearch(text=t, kind=k) := Json(Fetch(Url(scheme="https", host="www.wikidata.org", path="/w/api.php", query=Object(action="wbsearchentities", search=t, type=k, language="en", uselang="en", limit=10, format="json", formatversion=1))))`). A realization can also be executable code.
+
+The system needs foundational Concepts for capabilities such as file I/O, internet fetch/get/post/put, shell and CLI execution, JSON parsing, and running or using external programs. These building blocks should be Concepts rather than a privileged subsystem. Concepts can take other Concepts as inputs. A Concept's contextual usage should help select the appropriate realization. For example, `Fetch` may mean retrieving something in ordinary language, a network operation in code, or an activity involving a dog. Language is ambiguous, and no Concept should be forced to have one universal realization; the selected realization should fit the usage context.
+
+The system should not only run in response to requests. An always-running `Exist` Concept should let it think, learn, act, or do nothing continuously. The system should record its activity: which Concepts were used, which Concept invoked each one, arguments, outputs, and destinations.
+
+The system should be able to update, change, and extend itself. As much of the AI architecture as possible should be represented as Concepts; only components that cannot reasonably be expressed that way should sit outside the Concept system. The harness that keeps it running should be minimal. The web interface is an exception: it should let a person browse the Concept graph, inspect and edit realizations, relations, and usage data; view what the system is thinking about and doing; and use a conventional chat interface.
+
+A user prompt should be converted into a Conceptual representation. That representation should preserve the exact intent and structure of the original message, including corrections to prior references. It should include a `PromptVariable` Concept for things that may change or be acted on throughout the prompt. Instead of sending the entire chat history every time, the system should use Concepts to look up relevant prior messages and infer ambiguous references. A possible memory model has a `Memory` Concept related to recent thoughts and conversations, with each conversation represented as a Concept containing prior conversation, parsing, execution, conceptualization data, and the original prompt. The exact memory model is open for discussion.
+
+Language processing is difficult, so prompt-to-Concept conversion should initially depend on a small local model. This conversion should itself happen through a Concept, perhaps using a foundational `OllamaLocalLLM` Concept that can prompt local models with a system prompt and other inputs.
+
+The project should initially be implemented in TypeScript so its behavior can be examined carefully, with the intention of eventually rewriting it in Rust.
+
+We should discuss the idea, ask follow-up questions needed to clarify it, and draft an implementation plan.
