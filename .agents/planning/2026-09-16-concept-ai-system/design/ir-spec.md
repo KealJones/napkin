@@ -315,8 +315,8 @@ There is no separate `Utterance`, `Prompt`, `Block`, or `Statements` node. One c
 
 ### 6.1 A single step is not wrapped
 
-**One step is that step, bare.** `Question(Today())` is a complete IR. It is not
-`Sequence(Question(Today()))`, and it is not `Utterance(Question(Today()))`.
+**One step is that step, bare.** `WhatIs(Date())` is a complete IR. It is not
+`Sequence(WhatIs(Date()))`, and it is not `Utterance(WhatIs(Date()))`.
 
 `Sequence` appears only when there are two or more steps.
 
@@ -325,15 +325,31 @@ that is mandatory even when it wraps one thing is pure failure surface. It costs
 it costs a paren the producer must remember to close, and it carries no information. The
 consumer can trivially treat a bare expression as a one-step sequence.
 
-The same rule retires the `ConceptRelations(...)` and `Realizations(...)` wrappers: a
-single relation is a relation, and the reader normalizes.
+The same rule retires the `ConceptRelations(...)` and `Realizations(...)` wrappers as far as
+it goes: a single relation is a relation, and the reader normalizes. Part 6.2 retires them
+for a stronger reason that also covers the multi-item case.
 
-### 6.2 Ordered collections
+### 6.2 Ordered collections are all `List`
 
-Because the grammar has no list syntax, an ordered collection is a Concept with one
-argument per item: `List(a, b, c)`, `Params($x, $y)`, `Names($a, $b)`.
+Because the grammar has no list syntax, an ordered collection is a Concept with one argument
+per item. There is **one** such Concept: `List(a, b, c)`.
 
-`Sequence` is the specific case of that where the items are steps to perform in order.
+> **A collection Concept earns its own identity only when it has a realization. Otherwise it
+> is `List`.**
+
+`Sequence` earns its name: it has behaviour — ordered steps, unevaluated arguments, its own
+realization. `List` is inert ordered data and is the default for everything else.
+
+This retires a family of wrappers that never earned anything: `ConceptRelations`,
+`Realizations`, `Params`, `Names`. Each was an inert list under a *named argument of the
+same meaning*, so `relations=ConceptRelations(...)` stated "relations" twice. The slot name
+already carries it, and a second label on the value is cost with no information: more
+tokens, more identities to look up and describe and eventually forget, and — as the mismatch
+between `ConceptRelations` and `Realizations` shows — a vocabulary invented one case at a
+time rather than designed.
+
+So a declaration reads `relations=List(...)`, `realizations=List(...)`, and a function reads
+`Func($f, List($a, $b), body)`.
 
 ---
 
@@ -563,29 +579,62 @@ mis-derived on every request.
 
 ### 9.7 Worked examples
 
-All in the final line form. The first five are what `qwen3.5:4b` actually produces under
-this contract; the sixth is the intended target it does not yet reach.
+All in the final line form. The first five are the intended targets for the measured
+inputs; the sixth is a target not yet reached (Part 11.4).
+
+Each question carries its **interrogative**, which is what marks it as a question. There is
+no `Question(...)` wrapper: `WhatIs`, `When`, `Where`, `Who`, `Why`, `How`, `HowMany`,
+`WhichOf`, and `Whether` each say both that a question is being asked and what kind. Wrapping
+one in `Question(...)` would state "question" twice, the same redundancy Part 6.2 retires
+for collections.
 
 **"What is 5 times three?"** — one line, so no `Sequence`. Note `5` stays a digit and
 `three` stays a word: the producer never normalizes.
 
 ```
-Question(Multiply(5, Number("three")))
+WhatIs(Multiply(5, Number("three")))
 ```
 
 **"What is todays date?"** — the missing apostrophe is a grammar slip, not a content word,
-so it is not marked (Part 7.3).
+so it is not marked (Part 7.3). The subject is `Date`; `Today` is a separate temporal
+qualifier and must not be conflated with it:
 
 ```
-Question(Today())
+WhatIs(Date(Today()))
 ```
 
-**"how many r's are in strawberry"** — `Count` need not exist. If it does not, realization
-produces a residual and the learning loop supplies an executable realization, which then
-counts characters correctly rather than guessing from tokens.
+Three nearby utterances stay distinct, where a normalizer would collapse all three:
+
+| source | IR |
+|---|---|
+| "What is today's date?" | `WhatIs(Date(Today()))` |
+| "What is the date?" | `WhatIs(Date())` — deictic default; no `Today` is invented |
+| "What is today?" | `WhatIs(Today())` — an odd question, still expressible |
+
+`Date(Today())` looks redundant, because `Today()` is already a date. "Today's date" is
+redundant in English too, and preserving that is the point.
+
+A requested format **wraps** the subject rather than parameterising it, so `Date` never has
+to know that formats exist (`concept-spec.md` Part 10.2):
 
 ```
-Question(Count("r", "strawberry"))
+WhatIs(Format(Date(Today()), "MM-DD-YYYY"))
+```
+
+**"how many r's are in strawberry"** — the source says "how many", so the interrogative is
+`HowMany`. `Count` need not exist; if it does not, realization produces a residual and the
+learning loop supplies an executable realization, which then counts characters correctly
+rather than guessing from tokens.
+
+```
+HowMany(Count("r", "strawberry"))
+```
+
+**"Is chess a sport?"** — a yes/no question has no question word, so the bare proposition
+would be indistinguishable from asserting it. `Whether` supplies the marking:
+
+```
+Whether(IsA(Chess(), Sport()))
 ```
 
 **"i went to virginya to visit my mom. She has lived there 5 years. I havent been there for
@@ -613,7 +662,7 @@ the hardest measured input, reproduced three times out of three at full marker c
 $weights = Correction(Field("weights"), Fuzzy(Field("scores")))
 $probes  = Qualify(Ref("those probe things i sent you"), Not(Ordinal(1)), Ordinal(2))
 $total   = Sum(Property($probes, $weights))
-Question(GreaterThan($total, Ref("this time")))
+Do(Tell(Me(), Whether(GreaterThan($total, Ref("this time")))))
 ```
 
 Reading it against the source: the retraction is a `Correction` holding both terms, so the
@@ -622,6 +671,16 @@ the intended field. "Not the first batch" and "the second one" are two qualifica
 accumulated onto one binding in the order spoken, via the shadowing rule in Part 5.2. Two
 phrases refer outside the message and become `Ref` with the text copied verbatim. `Sum` and
 `GreaterThan` may not exist in the graph; the producer writes them anyway (Part 8.1).
+
+The last line is worth reading closely, because an earlier draft wrote it as
+`Question(GreaterThan(...))` and that silently dropped **two** pieces of the utterance. "Tell
+me" is an imperative, so the frame is `Do(Tell(Me(), ...))`; and "if it's more than" is an
+embedded yes/no question, so the content is `Whether(...)`. Neither survives a bare
+`Question`.
+
+Note also that "tell me the date" has no interrogative at all — `Do(Tell(Me(), Date()))` —
+because the source contains a noun phrase rather than a question word. An interrogative
+appears only where the source has one.
 
 **A long, self-referential, mid-sentence-corrected request** — the known weak spot from
 Part 11.4. Target parse, using the `Self()` referent that Part 13 lists as unspecified:
@@ -661,10 +720,10 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 | Node | Shape |
 |---|---|
 | module | `Module(Sequence(...))` |
-| import | `Import(Names($a, $b), "module")` |
+| import | `Import(List($a, $b), "module")` |
 | export | `Export($name)` |
-| function | `Func($name, Params($a, $b), body)` |
-| anonymous function | `Lambda(Params($a), body)` |
+| function | `Func($name, List($a, $b), body)` |
+| anonymous function | `Lambda(List($a), body)` |
 | call | `Call(callee, arg, arg, ...)` |
 | member / index | `Member(obj, "prop")` / `Index(obj, expr)` |
 | assignment | `Assign(target, value)` |
@@ -672,7 +731,7 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 | loop control | `Continue()` / `Break()` |
 | try | `Try(body, Catch($e, handler))` |
 | iteration | `ForOf($item, iterable, body)` / `While(cond, body)` |
-| object / array | `Object(Pair("k", v), ...)` / `List(a, b, c)` |
+| object / array | `Object(k=v, ...)` / `List(a, b, c)` |
 | async | `Await(x)` / `Async(f)` |
 | misc | `New(c, args...)` / `TypeOf(x)` / `In("k", obj)` / `Undefined()` |
 | mutable binding | `Var($x, initial)` |
@@ -702,7 +761,7 @@ import { whatever } from 'some-fake-package';
 ```
 
 ```
-Import(Names($whatever), "some-fake-package")
+Import(List($whatever), "some-fake-package")
 ```
 
 ```js
@@ -714,12 +773,12 @@ function field(value, name) {
 ```
 
 ```
-Func($field, Params($value, $name),
+Func($field, List($value, $name),
   Sequence(
     If(Not(Call($isApplication, $value)), Return(Undefined())),
     Let($argument,
       Call(Member(Member(Member($value, "apply"), "args"), "find"),
-           Lambda(Params($item), Equals(Member($item, "name"), $name)))),
+           Lambda(List($item), Equals(Member($item, "name"), $name)))),
     Return(And($argument, Member($argument, "value")))))
 ```
 
@@ -732,13 +791,13 @@ function specificity(value) {
 ```
 
 ```
-Func($specificity, Params($value),
+Func($specificity, List($value),
   Sequence(
     If(Or(NotEquals(TypeOf($value), "object"), Equals($value, null)), Return(1)),
     If(In("variable", $value), Return(0)),
     Return(Add(1,
       Call(Member(Member(Member($value, "apply"), "args"), "reduce"),
-           Lambda(Params($sum, $a), Add($sum, Call($specificity, Member($a, "value")))),
+           Lambda(List($sum, $a), Add($sum, Call($specificity, Member($a, "value")))),
            0)))))
 ```
 

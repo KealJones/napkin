@@ -150,6 +150,34 @@ $total   = Sum(Property($probes, $weights))
 Question(GreaterThan($total, Ref("this time")))
 ```
 
+## Correction: the `deictic` fidelity target was under-specified
+
+The `deictic` input ("What is todays date?") was scored against required markers
+`["Question", "Today"]`, and every model scored 100% on it. **That score measured almost
+nothing.**
+
+`Question(Today())` carries no interrogative, so "when is today", "what is today", and "who
+is today" all satisfy it, and it conflates the subject (`Date`) with a temporal qualifier
+(`Today`). The design has since replaced it: the interrogative marks the question and there
+is no `Question` wrapper, so the correct target is `WhatIs(Date(Today()))` — see
+`../../design/ir-spec.md` Part 9.7.
+
+What this does and does not affect:
+
+- **The `deictic` fidelity column overstates.** Treat its 100% as unmeasured rather than
+  passed.
+- **Every `Question`-based target is now stale**, since the vocabulary changed after these
+  runs. Re-measuring fidelity requires updating the prompts as well as the targets and
+  re-running.
+- **The decisive findings are unaffected**, because they rest on validity and repairability,
+  which do not depend on the marker targets at all, and on `hard` and `multi`, whose targets
+  were structural. Specifically: nested bindings failing silently, assignment lines beating
+  one wrapped expression, 4b beating 9b, and the completeness-instruction gain all stand.
+
+The scripts are deliberately left as they were run. Editing them to targets that were never
+used would make the stored JSON inconsistent with the code that produced it, which is worse
+than a documented overstatement.
+
 ## Known weak spot
 
 The `meta` input scores 13-43% fidelity at every model size. It is the only input that

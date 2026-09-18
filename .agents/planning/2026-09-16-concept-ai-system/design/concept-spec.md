@@ -674,7 +674,34 @@ Language is ambiguous and so are Concepts. There is no canonical realization for
 and the question "what does `Fetch` really do" has no answer. Whichever realization fits the
 usage is the right one for that usage.
 
-### 6.4 Argument evaluation
+### 6.4 Defaults are lower-arity realizations
+
+A Concept needs no default-argument feature. Patterns match on exact arity, so `Date()` and
+`Date($when)` are already distinct patterns, and a default is simply the shorter one
+delegating to the longer:
+
+```
+Date()  :=  Date(Today())
+```
+
+That is strictly better than a default-argument syntax, because the default is an ordinary
+realization: visible in the graph, editable, describable, and **selectable by context**. The
+same Concept can default differently in different situations, which a syntactic default
+could not express.
+
+#### Defaults are not deixis
+
+They are often confused because they meet in the same expression.
+
+| | what it is | how |
+|---|---|---|
+| **default** | a missing argument acquires a value | a lower-arity realization delegating to a fuller one |
+| **deictic** | a Concept resolves from ambient state | a realization whose body reads the environment, not its arguments |
+
+`Date()` is a default. `Today()` is deictic — it takes no arguments at all and its body
+reads the clock. They compose, since the default above resolves to a deictic.
+
+### 6.5 Argument evaluation
 
 By default a call's arguments are evaluated before the realization's body runs.
 
@@ -690,7 +717,7 @@ chooses or defers:
 A realization may also request that its **result** be evaluated again, for bodies that
 produce an expression meant to be run rather than returned.
 
-### 6.5 Conjunction yes, disjunction no
+### 6.6 Conjunction yes, disjunction no
 
 A realization has one context pattern, but that pattern may require **several facets at
 once** (Part 7.1):
@@ -1018,14 +1045,36 @@ for that specific value if one exists. This keeps pattern matching honest — ma
 structural, with no implicit coercion that would make two different expressions silently
 equal.
 
-### 10.2 Structured values
+### 10.2 Structured values, and rendering wraps them
 
 Timestamps, file contents, and similar data get Concepts that wrap the data and describe how
-it interacts with other Concepts. A `TimeFormat` wrapping a `Timestamp` renders it; the
-`Timestamp` itself does not need to know about formats.
+it interacts with other Concepts.
 
-The wrapper is where the behaviour lives, which keeps the data Concept simple and lets
-formats multiply without touching it.
+Rendering **wraps** its subject rather than parameterising it:
+
+```
+Format(Date(Today()), "MM-DD-YYYY")
+```
+
+not `Date(Today(), Format("MM-DD-YYYY"))`. Four reasons:
+
+- **The subject never learns about rendering.** As a parameter, every date-producing Concept
+  needs a format slot, and adding a format touches `Date`. Wrapped, formats multiply without
+  touching it at all.
+- **It composes.** The wrapper applies to anything date-shaped — a deictic, a parsed date, a
+  date read from a file. A parameter only works where the parameter exists.
+- **It mirrors the utterance.** "The date, in MM-DD-YYYY" is a transformation applied to a
+  subject, not a subject with a mode.
+- **The format is usually absent**, so a parameter would be a normally-empty slot.
+
+One `Format` serves every subject, with realizations selected by what is inside it, so
+formatting a number needs no second Concept. `DateFormat` may exist as
+`SynonymOf(Format())` if someone says it that way — synonyms are free (Part 5.4).
+
+A format spec written as a bare string is **inert**: nothing can realize, relate to, or
+describe `"MM-DD-YYYY"`. Source fidelity says keep it as written when the user wrote it, and
+the primitive rule in Part 10.1 then applies — lift it to a named format Concept such as
+`ISO8601()` where one exists. Faithful on the way in, resolvable on the way out.
 
 ---
 
@@ -1391,7 +1440,7 @@ Recorded so the resolutions are not silently re-litigated.
 | 15 | Relations are Concept expressions, so should they just be realizations? | No. Relations are *stated* and traversed by a terminating walk; realizations are *produced* and evaluated under budget. Making relations realizations would turn every cyclic relation into a bounded infinite loop. Part 1.0. |
 | 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan. What counts as a contradiction is fixed by the relation's own declared properties, and relations are indexed in both directions, so the check is a small constant. Without those indexes the guarantee is theatre. Part 5.2. |
 | 17 | Can a realization require two contexts at once, like describing *and* dog? | Yes. A context is an unordered set of facets, matched by subset, and conjunction is the normal case. Nesting was rejected: it forces an arbitrary facet order, and two realizations nesting differently would silently never match the same context. Part 7.1. |
-| 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
+| 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.6. |
 | 19 | Must a description exist as its own realization, or can behaviour serve as one? | Behaviour serves. A composed body is already a description, so `Describe()` only suppresses effectful bodies and ordinary evaluation plus the residual rule do the rest. Explicit describing realizations are for effectful leaves. Part 4.0. |
 | 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `Suppresses(Effectful())` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
 | 21 | Composition describes operations, but most Concepts are not operations. What describes `Chess`? | Its relations. A default describing realization presents them, delivered by inheritance from a universal parent rather than wired into the evaluator. Relations stay the only source of the facts; the description is produced by traversing them. Part 4.0. |

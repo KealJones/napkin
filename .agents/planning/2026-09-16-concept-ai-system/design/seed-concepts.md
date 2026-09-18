@@ -183,8 +183,8 @@ All of these take their arguments **unevaluated**; that is the point of them.
 | `If(cond, then, otherwise)` | 3 | evaluates one branch; also serves as expression-position ternary |
 | `Try(body, Catch($e, handler))` | 2 | binds the failure expression |
 | `Catch($var, handler)` | 2 | handler shape for `Try` |
-| `Lambda(Params(...), body)` | 2 | anonymous function |
-| `Params(...)` | variadic | parameter list; pure data |
+| `Lambda(List(...), body)` | 2 | anonymous function |
+
 | `InContext(concept, use)` | 2 named | evaluate in an explicitly named context (`concept-spec.md` Part 7.4) |
 
 `Sequence` needs unbounded arity in patterns, which is item 1 of `ir-spec.md` Part 12.
@@ -245,12 +245,33 @@ resolves them rather than quietly evaluating to anything.
 
 ## 10. Request vocabulary
 
+**Interrogatives.** Each marks that a question is being asked *and* what kind, so there is
+no `Question(...)` wrapper — that would state "question" twice.
+
 | Identity | Shape | Notes |
 |---|---|---|
-| `Question(x)` | 1 | a request for an answer |
+| `WhatIs(x)` | 1 | `InContext(x, Describe())`; the same operation, not a second one (`concept-spec.md` Part 4.0) |
+| `When(x)`, `Where(x)`, `Who(x)`, `Why(x)`, `How(x)` | 1 | the corresponding question word |
+| `HowMany(x)` | 1 | a count is wanted |
+| `WhichOf(x, options)` | 2 | selection among alternatives |
+| `Whether(proposition)` | 1 | a yes/no question, which has no question word of its own and so would otherwise be indistinguishable from asserting the proposition |
+
+`WhatIs` needs no rule to tell a definition apart from a value. `WhatIs(Parakeet())` finds
+no execution realization, goes residual, and describes; `WhatIs(Date())` finds one and
+computes. The graph decides, not the parse.
+
+**Frames.** Written only when the source has one.
+
+| Identity | Shape | Notes |
+|---|---|---|
 | `Fact(x)` | 1 | the user asserting something |
 | `Do(x)` | 1 | the user requesting an action |
-| `WhatIs(x)` | 1 | `InContext(x, Describe())`; same operation, not a second one (`concept-spec.md` Part 4.0) |
+| `Tell(to, content)` | 2 | delivery; `Do(Tell(Me(), Whether(...)))` is "tell me if..." |
+
+**Modifiers.**
+
+| Identity | Shape | Notes |
+|---|---|---|
 | `Qualify(thing, q, ...)` | variadic | progressive narrowing |
 | `Ordinal(n)` | 1 | positional selection |
 | `Not(x)` | 1 | negation |
@@ -264,17 +285,28 @@ resolves them rather than quietly evaluating to anything.
 |---|---|
 | `String(x)`, `Number(x)`, `Boolean(x)` | wrappers; a bare primitive needs no wrapping (`concept-spec.md` Part 10) |
 | `Lift(x)` | primitive → its specific-value Concept, if one exists (`concept-spec.md` Part 10.1) |
-| `List(...)` | ordered collection; the grammar has no list syntax, so collections are Concepts (`ir-spec.md` Parts 3.2 and 6.2) |
+| `List(...)` | the **only** inert ordered collection; a collection earns its own identity only when it has a realization (`ir-spec.md` Part 6.2) |
 | `Object(k=v, ...)` | keyed collection, built from the named arguments the grammar already has (`ir-spec.md` Part 3.3) |
 | `Pair(k, v)` | fallback entry for `Object` when a key is computed or not identifier-shaped |
+| `Format(subject, spec)` | rendering wraps its subject rather than parameterising it, so `Date` never learns that formats exist (`concept-spec.md` Part 10.2) |
+| `Date(when)` / `Date()` | a calendar date; the zero-argument form is a default realization delegating to `Date(Today())` (`concept-spec.md` Part 6.4) |
 | `CurrentTimestamp()` | code body, `Effectful()` — reads the clock |
 | `Today()` | composed from `CurrentTimestamp()`; **not** a parser special case |
 | `Now()`, `Me()`, `You()` | deictic, resolved from ambient state |
 | `Self()` | **omitted from the seed** — see Part 12 |
 
-`Today()` existing as a seeded Concept with a composed realization is what deletes the
-hardcoded calendar rule the old parser prompt carried. The Ears emits `Question(Today())`
-because `Today` is a Concept, not because a sentence told it to.
+`Today()` existing as a seeded Concept is what deletes the hardcoded calendar rule the old
+parser prompt carried. The Ears emits `WhatIs(Date(Today()))` because those are Concepts,
+not because a sentence told it to.
+
+Note that `Date` and `Today` are **separate**: `Date` is the subject, `Today` a temporal
+qualifier. Conflating them — as `Question(Today())` did — loses the interrogative and the
+subject at once, so "when is today", "what is today", and "what is today's date" all
+collapse into one expression.
+
+`Today()` is **deictic**: it takes no arguments and its realization reads the clock.
+`Date()` is a **default**: a lower-arity realization delegating to `Date(Today())`. The two
+compose, and they are different mechanisms (`concept-spec.md` Part 6.4).
 
 ---
 

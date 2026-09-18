@@ -36,10 +36,10 @@ for the seven function declarations rather than repeating them.
 |---|---|
 | `Var($x, v)` | mutable declaration (`let`), as opposed to `Let` for `const` |
 | `Index(obj, i)` | computed member access, `obj[i]` |
-| `Pair("k", v)` | an `Object(...)` entry whose key is computed or not identifier-shaped; a known identifier key uses a named argument instead (`ir-spec.md` Part 3.3) |
+| `Pair(k, v)` | an `Object(...)` entry whose key is computed or not identifier-shaped; a known identifier key uses a named argument instead (`ir-spec.md` Part 3.3) |
 | `Add`, `Sub` | JavaScript `+` and `-`, including string concatenation for `+` |
 | `Or`, `NotEquals` | `||` and `!==` |
-| `Async(f)` | marks a function async; wraps the `Func` or `Lambda`, not its `Params` |
+| `Async(f)` | marks a function async; wraps the `Func` or `Lambda`, not its parameter list |
 
 `If` appears in both statement and expression position; the IR does not need a separate
 ternary node.
@@ -68,8 +68,8 @@ export const runtimeEntrySource = async (args, api) => {
 
 ```
 Module(Sequence(
-  Import(Names($whatever), "some-fake-package"),
-  Export(Let($runtimeEntrySource, Async(Lambda(Params($args, $api), Sequence(
+  Import(List($whatever), "some-fake-package"),
+  Export(Let($runtimeEntrySource, Async(Lambda(List($args, $api), Sequence(
     Let($input, Index($args, 0)),
     Let($useContext, Index($args, 1)),
     Var($steps, 0),
@@ -100,13 +100,13 @@ function expression(head, fields) {
 ```
 
 ```
-Func($expression, Params($head, $fields),
+Func($expression, List($head, $fields),
   Return(Object(
     Pair("apply", Object(
       Pair("head", $head),
       Pair("args",
         Call(Member(Call(Member($Object, "keys"), $fields), "map"),
-          Lambda(Params($name),
+          Lambda(List($name),
             Object(
               Pair("name", $name),
               Pair("value", Index($fields, $name)))))))))))
@@ -129,7 +129,7 @@ function raise(head, fields, message) {
 ```
 
 ```
-Func($raise, Params($head, $fields, $message),
+Func($raise, List($head, $fields, $message),
   Sequence(
     Let($error, New($Error, $message)),
     Call($whatever),
@@ -151,7 +151,7 @@ function isApplication(value) {
 ```
 
 ```
-Func($isApplication, Params($value),
+Func($isApplication, List($value),
   Return(And(
     And(Equals(TypeOf($value), "object"),
         NotEquals($value, null)),
@@ -174,12 +174,12 @@ function field(value, name) {
 ```
 
 ```
-Func($field, Params($value, $name),
+Func($field, List($value, $name),
   Sequence(
     If(Not(Call($isApplication, $value)), Return(Undefined())),
     Let($argument,
       Call(Member(Member(Member($value, "apply"), "args"), "find"),
-        Lambda(Params($item), Equals(Member($item, "name"), $name)))),
+        Lambda(List($item), Equals(Member($item, "name"), $name)))),
     Return(And($argument, Member($argument, "value")))))
 ```
 
@@ -202,14 +202,14 @@ function argumentsInPatternOrder(pattern, actual) {
 ```
 
 ```
-Func($argumentsInPatternOrder, Params($pattern, $actual),
+Func($argumentsInPatternOrder, List($pattern, $actual),
   Sequence(
     If(Not(Call(Member($actual, "every"),
-            Lambda(Params($argument),
+            Lambda(List($argument),
               NotEquals(Member($argument, "name"), Undefined())))),
       Return($actual)),
     Return(Call(Member(Member(Member($pattern, "apply"), "args"), "map"),
-      Lambda(Params($expected), Sequence(
+      Lambda(List($expected), Sequence(
         Let($formalName,
           Or(Member($expected, "name"),
              If(And(And(Member($expected, "value"),
@@ -218,7 +218,7 @@ Func($argumentsInPatternOrder, Params($pattern, $actual),
                 Member(Member($expected, "value"), "variable"),
                 Undefined()))),
         Return(Call(Member($actual, "find"),
-          Lambda(Params($argument),
+          Lambda(List($argument),
             Equals(Member($argument, "name"), $formalName))))))))))
 ```
 
@@ -241,13 +241,13 @@ function specificity(value) {
 ```
 
 ```
-Func($specificity, Params($value),
+Func($specificity, List($value),
   Sequence(
     If(Or(NotEquals(TypeOf($value), "object"), Equals($value, null)), Return(1)),
     If(In("variable", $value), Return(0)),
     Return(Add(1,
       Call(Member(Member(Member($value, "apply"), "args"), "reduce"),
-        Lambda(Params($sum, $argument),
+        Lambda(List($sum, $argument),
           Add($sum, Call($specificity, Member($argument, "value")))),
         0)))))
 ```
@@ -308,7 +308,7 @@ function select(unit, call, useContext) {
 ```
 
 ```
-Func($select, Params($unit, $call, $useContext),
+Func($select, List($unit, $call, $useContext),
   Sequence(
     Let($candidates, List()),
 
@@ -373,7 +373,7 @@ Func($select, Params($unit, $call, $useContext),
                Call($specificity, $contextPattern))))))),
 
     Call(Member($candidates, "sort"),
-      Lambda(Params($left, $right),
+      Lambda(List($left, $right),
         Sub(Member($right, "specificity"), Member($left, "specificity")))),
 
     Return(Index($candidates, 0))))
@@ -408,7 +408,7 @@ async function evaluate(value, caller, parentEventId, depth, activeContext) {
 ```
 
 ```
-Async(Func($evaluate, Params($value, $caller, $parentEventId, $depth, $activeContext),
+Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeContext),
   Sequence(
     If(Or(Equals($value, null), NotEquals(TypeOf($value), "object")),
       Return($value)),
@@ -429,7 +429,7 @@ Async(Func($evaluate, Params($value, $caller, $parentEventId, $depth, $activeCon
         Pair("input", $value),
         Pair("arguments",
           Call(Member(Member(Member($value, "apply"), "args"), "map"),
-            Lambda(Params($argument), Member($argument, "value"))))))),
+            Lambda(List($argument), Member($argument, "value"))))))),
 
     Try(
       Sequence(
@@ -468,7 +468,7 @@ Async(Func($evaluate, Params($value, $caller, $parentEventId, $depth, $activeCon
           Assign($bodyArguments,
             Await(Call(Member($Promise, "all"),
               Call(Member(Member(Member($value, "apply"), "args"), "map"),
-                Async(Lambda(Params($argument), Sequence(
+                Async(Lambda(List($argument), Sequence(
                   Let($evaluated,
                     Await(Call($evaluate,
                       Member($argument, "value"),
@@ -485,7 +485,7 @@ Async(Func($evaluate, Params($value, $caller, $parentEventId, $depth, $activeCon
           Call(Member($api, "updateEvent"), $eventId,
             Object(Pair("evaluatedArguments",
               Call(Member($bodyArguments, "map"),
-                Lambda(Params($argument), Member($argument, "value")))))),
+                Lambda(List($argument), Member($argument, "value")))))),
 
           Assign($bindings, Object()),
 
@@ -518,7 +518,7 @@ Async(Func($evaluate, Params($value, $caller, $parentEventId, $depth, $activeCon
               Call($argumentsInPatternOrder, Member($selected, "pattern"), $bodyArguments),
               $activeContext,
               $eventId,
-              Async(Lambda(Params($expression, $context),
+              Async(Lambda(List($expression, $context),
                 Call($evaluate, $expression, $head, $eventId, Add($depth, 1),
                   If(Equals($context, Undefined()), $activeContext, $context)))))),
             Await(Call($evaluate, $body, $head, $eventId, Add($depth, 1), $resultContext)))),
@@ -635,7 +635,7 @@ fragment above; it is abbreviated here only to keep the contrast with `push` rea
 
 ```
 Set($candidates, SortBy(Get($candidates),
-  Lambda(Params($left, $right),
+  Lambda(List($left, $right),
     Sub(Member($right, "specificity"), Member($left, "specificity")))))
 ```
 
