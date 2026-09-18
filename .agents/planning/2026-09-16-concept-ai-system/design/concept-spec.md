@@ -90,23 +90,57 @@ An increment counts as implemented only when it works end to end and can be demo
 
 The identity is the Concept. Two units with the same identity are the same Concept.
 
-**Concepts are not versioned.** Editing a realization changes the Concept in place. There
-is no version history, no staging, and no rollback in the Concept store.
+**Concepts are not versioned.** There is no version history of a Concept, no staging, and
+no rollback.
 
-Multiple realizations coexisting (Part 9) is the mechanism that replaces versioning. A new
-way of doing something is an additional realization with its own context, not a new version
-superseding an old one.
+Versioning would be the wrong granularity anyway: it would version the whole unit —
+identity, gloss, relations, and every realization together — when the thing that actually
+changes is one behaviour.
 
-### 3.1 Consequence, stated plainly
+### 3.1 Append-only parts
 
-Without versioning, a self-edit that damages a realization is not revertible from inside
-the system. The mitigation is that the trace records the realization **as selected** at
-every step (Part 15), so a prior definition is recoverable forensically from the trace even
-though the store does not keep it.
+Instead, the parts of a Concept have different mutability:
 
-That is a real mitigation, not a full one. It is recorded as an open question in Part 19.
+| Part | Mutability |
+|---|---|
+| identity | immutable; it *is* the Concept |
+| realizations | **append-only**; never edited in place |
+| relations | **append-only**; retract by asserting a contradicting relation |
+| gloss | freely mutable; unchecked text, not authoritative (Part 4) |
 
-### 3.2 Identity is not canonical
+Append-only realizations do the job versioning would have done, at the right granularity
+and without the machinery. Improving a behaviour means **adding** a realization, not
+replacing one.
+
+The consequence is that **an edit never destroys anything.** Recovery from a bad change is
+the new realization losing selection, not restoring a snapshot. Nothing was overwritten, so
+nothing needs restoring.
+
+### 3.2 How realizations stop winning
+
+Appending is not enough on its own; a bad realization has to be able to lose. Three
+mechanisms, in the order they apply:
+
+- **Different context.** A realization with a more specific context wins in that context
+  (Part 9). Genuine competition, resolved by declared meaning.
+- **Success evidence.** Among equally specific candidates, outcome history breaks the tie
+  (Part 9.2). Genuine competition, resolved by observed behaviour.
+- **Shadowing.** When a new realization has the *same* pattern and the *same* context as an
+  existing one, nothing in the selection criteria can distinguish them, so they cannot
+  meaningfully compete. The newer one is selected and the older is **shadowed** — retained
+  in the store and in the trace, simply not chosen.
+
+Shadowing is the honest handling of that case. Pretending two indistinguishable
+realizations compete would just make behaviour depend on position in a list.
+
+**Retirement** covers the rest: a realization may be explicitly marked as no longer
+preferred, without being deleted. Retirement is itself recorded, so it is auditable and
+reversible.
+
+Nothing in this scheme deletes a realization. The store grows; the *active* set stays at
+one per pattern-and-context pair.
+
+### 3.3 Identity is not canonical
 
 There is no canonical identity for a meaning, no alias table, and no deduplication pass.
 `Times`, `Multiplication`, and `Multiply` may all exist. See Part 5.3 — this is intended.
@@ -476,7 +510,46 @@ Lookup is a Concept, with these surfaces:
 | relation traversal | "everything that `IsA(Bird())`" |
 | usage ranking from the trace | preferring Concepts that actually get used |
 
-### 11.1 Lookup, not bulk inclusion
+### 11.1 Search returns a cluster, not a node
+
+A text search that returns only the Concept whose name matched is broken for discovery.
+Searching "times" finds `Times` and never reveals that `Multiplication`, `Product`, and
+`Multiply` exist, even though they are all connected and one of them holds the behaviour.
+
+So a text hit **expands over equivalence relations** — `SynonymOf`, and `IsA` for the
+parent — and returns the closure, marked up with:
+
+- which Concept was the direct textual hit,
+- which others are related, and by which relation,
+- **which Concept in the cluster actually has an executable realization**, since that is
+  usually what the consumer wants.
+
+Bounded: equivalence relations only, a depth limit, and a result cap. Ranked: direct hit
+first, then the realizable core, then the rest.
+
+Two things follow from this that are worth stating.
+
+**It is the difference between the graph mattering and not.** If search is purely lexical,
+relations contribute nothing to discovery and the graph is decorative outside of inference.
+The claim in Part 5.3 that connected synonyms *raise* effective recall is only true because
+search traverses. Without cluster expansion, that claim is simply false.
+
+**It is also orphan detection.** If a cluster's closure contains no realizable behaviour,
+that cluster is a disconnected island — the actual defect defined in Part 5.3. The same
+operation that answers a search answers "is this attached to anything".
+
+### 11.2 Resolution does not expand
+
+Cluster expansion is for **discovery**: the Teacher, the learner, a human browsing. It is
+not used when the evaluator resolves a call. A call to `Times` resolves through `Times`;
+surfacing its synonyms there would be noise.
+
+The expensive failure this prevents is in Part 12 step 4. The learner searches the graph
+before escalating to the Teacher. Without cluster expansion it never discovers that
+`Multiply` already does the job, so the cheap path fails and the expensive path runs for
+nothing.
+
+### 11.3 Lookup, not bulk inclusion
 
 Neither the Teacher nor any other model consumer receives the whole library. They get a
 lookup facility and use it. The network is fully discoverable; it is just not shipped in
@@ -487,7 +560,7 @@ conclude that anything absent does not exist, and a retrieval miss is indistingu
 from a genuine absence. Lookup on demand lets the consumer ask a second question instead of
 guessing. See `ir-spec.md` Part 8.1.
 
-### 11.2 The gloss carries lexical search
+### 11.4 The gloss carries lexical search
 
 This is the practical reason the gloss is plain text rather than Concept-expressed: text is
 directly searchable. Concept-expressed descriptions would need their own index to be
@@ -581,16 +654,18 @@ references like "those probe things I sent you" routinely cross conversations.
 
 ### 14.2 Isolated conversations
 
-An isolated conversation may **read** global memory and may **add or change shared
-Concepts**. Only its own transcript is not persisted.
+Deferred. Not needed for the single-user system, and recorded here only because it is
+anticipated for eventual users who do not want persisted memory.
 
-Isolation is a choice about saving the conversation, not a separate disconnected network.
+The tentative shape, if it is built: an isolated conversation may **read** global memory and
+may **add or change shared Concepts**; only its own transcript is not persisted. Isolation
+would be a choice about saving the conversation, not a separate disconnected network.
 
-**Consequence, stated plainly:** an isolated conversation can permanently alter shared
-knowledge while leaving no record of the conversation that caused the change. The trace
-still shows what was saved, so the change is not invisible — but the reasoning behind it is
-gone. That asymmetry is deliberate per the stated requirement, and it is worth knowing
-before relying on it.
+One thing to settle before building it: under that shape, an isolated conversation can
+permanently alter shared knowledge while leaving no record of the conversation that caused
+the change. The trace still shows what was saved, so the change is not invisible, but the
+reasoning behind it is gone. Whether that asymmetry is acceptable is a question for whenever
+this becomes real, not now.
 
 ---
 
@@ -684,9 +759,10 @@ Recorded so the resolutions are not silently re-litigated.
 | 5 | Relations are Concept expressions, so are they evaluated? | No. Asserted, matched, traversed. They routinely cycle, and implicit evaluation would loop. Part 5.1. |
 | 6 | Statistical selection versus declared contextual meaning. | Specificity dominates absolutely; statistics only break ties among equally specific candidates, or meaning drifts. Part 9.1. |
 | 7 | "Decide which in different scenarios" for ambiguity, without saying how. | The policy is itself a realization selected by context, so it is inspectable and changeable. Part 9.3. |
-| 8 | No versioning, but the system edits itself. | Coexisting realizations replace versioning; the trace's record of the selected realization is the recovery path. Incomplete — Part 19. |
+| 8 | No versioning, but the system edits itself. | Realizations and relations are append-only, so an edit never destroys anything and recovery is the new realization losing selection. Versioning would be the wrong granularity. Part 3.1. |
 | 9 | Does a bare `490` match `Number(490)`? | No. Distinct expressions, distinct patterns, explicit lifting. Implicit coercion would make matching dishonest. Part 10.1. |
-| 10 | Isolated conversations may change shared Concepts but leave no transcript. | Kept as specified, with the asymmetry documented: knowledge changes durably, the reasoning behind it does not. Part 14.2. |
+| 10 | Isolated conversations may change shared Concepts but leave no transcript. | Deferred, not specified. Anticipated for future users, not needed now. The asymmetry is recorded as a question to settle before building it. Part 14.2. |
+| 12 | Synonyms "raise recall", but a lexical search only ever returns the name that matched. | Search expands a hit over equivalence relations and returns the cluster. The recall claim is false without this. Part 11.1. |
 | 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.5. |
 
 ---
@@ -697,15 +773,16 @@ Recorded so the resolutions are not silently re-litigated.
   placeholder. No universal metric should be assumed; outcome-per-context logging is the
   available starting point, and until it is settled, ties fall back to declaration order,
   which makes behaviour depend on list position.
-- **Recovering from a damaging self-edit.** The trace gives forensic recovery, not
-  operational recovery. Whether that is sufficient is untested, and the answer may
-  eventually require something version-like without becoming versioning.
+- **Unbounded realization growth.** Append-only means the store grows without limit while
+  the active set stays at one per pattern-and-context pair. Shadowed and retired
+  realizations are never collected. Probably fine for a long time; unmeasured.
 - **Gloss drift.** Nothing detects a gloss that contradicts its realizations. A check may be
   possible by generating a gloss from the realizations and comparing.
 - **Cost of open-world queries.** Distinguishing false from unknown requires searching for a
   contradicting relation, not just failing to find a supporting one. The traversal cost of
   that at scale is unmeasured.
-- **Orphan detection.** Part 5.3 defines the real defect as disconnection, but nothing
-  currently sweeps the graph for identities that reach no realizable behaviour.
+- **Orphan detection at rest.** Part 11.1 detects disconnection whenever a cluster is
+  searched, which covers discovery. Nothing sweeps the graph proactively for islands that
+  are never searched for.
 - **When `Exist` runs.** Continuous autonomous operation is in scope by requirement but
   deliberately deferred until the network can think well enough to make it useful.
