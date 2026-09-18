@@ -12,7 +12,10 @@ is not the parser's system prompt. The parser prompt is generated from Part 9.
 
 Companion: `concept-spec.md` specifies what a Concept is, how realization and evaluation
 work, how context selects behaviour, and how anything persists. `seed-concepts.md` lists the
-Concepts the network starts with, including one for every node the Ears can emit. This document specifies the
+Concepts the network starts with, including one for every node the Ears can emit.
+
+**Reference convention.** A bare `Part N` means a part of *this* document. A reference to a
+companion spec always names the file: `concept-spec.md Part 5.2`. This document specifies the
 expression language that names those things. The two share one foundation, residual
 evaluation, stated in Part 2 here and Part 8.1 there.
 
@@ -880,9 +883,9 @@ The IR above needs these. Each is small, and none is a workaround.
   nothing is measured and the Ears has no rule for emitting it.
 - **Competing realizations.** Resolved in `concept-spec.md`: selection orders by
   inheritance distance, then context specificity (facet count, then structural depth), then
-  success evidence used only to break remaining ties (Part 9). Success is defined as a
-  preference among tied candidates with blame narrowed to realizations that were actually
-  tie-broken (Part 9.4). What remains open there is generalising a preference across
+  success evidence used only to break remaining ties (that document's Part 9). Success is
+  defined as a preference among tied candidates with blame narrowed to realizations that
+  were actually tie-broken (its Part 9.4). What remains open there is generalising a preference across
   similar contexts.
 - **Self-reference.** A message that talks about itself ("look how long this is") needs a
   `Self()` referent. Straightforward, unspecified.

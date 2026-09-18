@@ -10,6 +10,9 @@ evaluation is assumed throughout.
 
 `seed-concepts.md` lists the Concepts the network starts with, derived from both documents.
 
+**Reference convention.** A bare `Part N` means a part of *this* document. A reference to a
+companion spec always names the file: `ir-spec.md Part 10.5`.
+
 This document is derived from the stated requirements in `../rough-idea.md` and
 `../idea-honing.md`, not from the current implementation. Where a requirement was ambiguous
 or self-contradicting, Part 18 records the contradiction and the resolution.
