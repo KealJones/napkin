@@ -16,18 +16,31 @@ or self-contradicting, Part 18 records the contradiction and the resolution.
 
 ## 1. The unit
 
-A Concept is **one self-contained unit**. It has exactly four parts:
+A Concept is **one self-contained unit**. It has exactly three parts:
 
 | Part | What it is |
 |---|---|
 | **identity** | A `CapitalizedName`. The Concept *is* its identity. |
-| **gloss** | Plain-language text. Human-readable, searchable. **Not** a source of meaning. |
-| **relations** | Concept expressions asserting facts about it. |
-| **realizations** | One or more. How it means, or how it acts, per context. |
+| **relations** | Concept expressions asserting facts about it. Stated, and traversed. |
+| **realizations** | One or more. How it means, or how it acts, per context. Produced, and evaluated. |
 
 There is nothing else. No separate rules table, no action registry, no fact store, no
-native-function map, no realization-kind enum, no `meaning` field competing with the
-realizations.
+native-function map, no realization-kind enum, no `meaning` field, and no `gloss` field
+competing with the realizations. Searchable text exists, but it is **derived** from the
+realizations rather than stored beside them (Part 4).
+
+### 1.0 Stated versus produced
+
+The line between the two non-identity parts is worth naming, because it is the reason there
+are two and not one:
+
+- **Relations are stated.** They are asserted facts, walked by a terminating graph
+  operation. They routinely cycle.
+- **Realizations are produced.** They are behaviour, run by evaluation, which does not
+  terminate in general and is bounded by budget.
+
+Anything you *assert* is a relation. Anything the system *produces* is a realization. That
+rule decides where new things go, and Part 4 and Part 5.1 are both consequences of it.
 
 Everything the system knows and everything it can do is a Concept of this shape:
 arithmetic, HTTP, file access, shell execution, JSON parsing, model calls, memory lookup,
@@ -94,7 +107,7 @@ The identity is the Concept. Two units with the same identity are the same Conce
 no rollback.
 
 Versioning would be the wrong granularity anyway: it would version the whole unit —
-identity, gloss, relations, and every realization together — when the thing that actually
+identity, relations, and every realization together — when the thing that actually
 changes is one behaviour.
 
 ### 3.1 Append-only parts
@@ -106,7 +119,7 @@ Instead, the parts of a Concept have different mutability:
 | identity | immutable; it *is* the Concept |
 | realizations | **append-only**; never edited in place |
 | relations | **append-only**; retract by asserting a contradicting relation |
-| gloss | freely mutable; unchecked text, not authoritative (Part 4) |
+| describing realizations | append-only, like any realization (Part 4) |
 
 Append-only realizations do the job versioning would have done, at the right granularity
 and without the machinery. Improving a behaviour means **adding** a realization, not
@@ -147,25 +160,64 @@ There is no canonical identity for a meaning, no alias table, and no deduplicati
 
 ---
 
-## 4. The gloss
+## 4. Description
 
-A short plain-language description. It exists for two consumers: humans reading the graph,
-and lexical search (Part 11).
+A Concept describes itself through an ordinary realization under a **describing** context:
 
-**The gloss is not the meaning.** A Concept's semantic content is expressed by its ordinary
-realizations, including realizations whose bodies compose other Concepts to express what it
-means. There is no privileged `meaning` field standing beside the realizations and competing
-with them.
+```
+Describing()                  ->  a description, in no particular usage
+Describing(Execution())       ->  what it does when run
+Describing(Walking(Dog()))    ->  what it means in that situation
+```
 
-The reason is single source of truth. A Concept-expressed description that duplicates what
-the realizations already say would need to be kept in sync with them, and would eventually
-disagree. Two answers to "what does this mean" is one too many.
+There is no `gloss` field. Description is behaviour like everything else.
 
-### 4.1 Consequence, stated plainly
+### 4.1 Why a single text field could not work
 
-The gloss is unchecked text. It can drift from the realizations and nothing detects it. It
-is documentation and a search key, and it should be treated with exactly the trust you
-would give a code comment.
+A stored description has three defects, and the first is fatal:
+
+- **A Concept does not have one meaning.** `Fetch` means retrieve in ordinary language, an
+  HTTP request in code, and an activity when paired with a dog. One text field has to pick
+  one and be wrong about the rest, or be so vague it says nothing. Context-dependent meaning
+  is the whole premise of Part 6.2, and a single description contradicts it.
+- **It is a second source of truth.** It duplicates what the realizations already say, needs
+  syncing, and eventually disagrees.
+- **Nothing checks it.** It can contradict the realizations silently, with the same
+  reliability as a stale code comment.
+
+Describing realizations have none of these. They are contextual by construction, they are
+the only source, and they cannot drift from the realizations because they *are*
+realizations.
+
+### 4.2 Search uses a derived index, not a field
+
+Lexical search needs text, and realizing a description on every query would be slow. So the
+searchable text is a **derived index**: describing realizations are evaluated once, their
+output is cached as text, and the cache is invalidated when the Concept's realizations
+change.
+
+| | stored field | derived index |
+|---|---|---|
+| sources of truth | two | one |
+| contextual | no | yes, one entry per describing context |
+| can drift | yes, undetectably | no, it is regenerated |
+| search speed | fast | fast |
+
+An index entry carries the context it was produced under, so search can prefer the
+description matching the caller's situation.
+
+This is what makes the claim in Part 1 true rather than aspirational: meaning is the
+realizations, with no exception smuggled in through a text field.
+
+### 4.3 What this cost, honestly
+
+A Concept with no describing realization has no searchable text, so it is findable only by
+identity or by relation traversal. Under a stored-gloss design every Concept had at least
+some text.
+
+That is an acceptable trade, and arguably a feature: a Concept nobody described is a
+Concept nobody explained, and Part 2.2 already prefers an honest gap over a filled-in
+placeholder. It also gives the learner something concrete to fix.
 
 ---
 
@@ -204,6 +256,15 @@ deny everything it has not yet been taught.
 - **unknown** — neither. This is the trigger for learning (Part 12), not an answer to
   return.
 
+Establishing **false** means finding a contradiction, which sounds like it requires scanning
+the graph. It does not. A contradiction can only take a small number of shapes — a direct
+negation of the relation, or a relation to something declared disjoint from the target — so
+the check is a keyed lookup, not a traversal.
+
+This requires relations to be indexed by subject and predicate. With that index, the cost of
+distinguishing false from unknown is a small constant, independent of graph size. Without
+it, the distinction is unaffordable and the open-world guarantee is theatre.
+
 ### 5.3 Synonyms are a success, not a defect
 
 If the input says "times", the faithful parse names `Times`, not `Multiply`. `Times` then
@@ -234,7 +295,39 @@ Resolution: the relation is the source of truth, and the forwarding realization 
 The same applies to other structural relations: `IsA` supplies inherited behaviour where
 none is declared locally.
 
-### 5.5 Traversal is a realization, not a host feature
+### 5.5 Context does not follow synonyms
+
+If `Times` carries `SynonymOf(Multiply())`, and some Concept has a realization written for
+the context `Multiply()` but not for `Times()`, a call naming `Times` does **not** match
+that realization.
+
+Context matching is on the identity **as written**, never on what it forwards to.
+
+The reason is that `SynonymOf` asserts *these compute the same result*, not *these mean the
+same thing in every situation*. Forwarding happens at realization, which is behaviour. It
+does not happen at context matching, which is meaning.
+
+`GoesInto` and `DividedBy` make the danger concrete. They compute the same division, so
+they are reasonably synonyms. But "3 goes into 12" and "12 divided by 3" put the operands in
+**opposite orders** in ordinary speech. A context realization written for one and silently
+applied to the other would flip the arguments and be confidently wrong.
+
+#### When you do want sharing
+
+Use `IsA`, not `SynonymOf`. Inheritance shares context and behaviour deliberately
+(Part 5.4), so a realization written for a shared parent applies to every child. That makes
+the two structural relations mean clearly different things:
+
+| Relation | Shares computation | Shares context |
+|---|---|---|
+| `SynonymOf(X())` | yes, by forwarding | **no** |
+| `IsA(X())` | yes, by inheritance | **yes** |
+
+If a contextual realization should cover several identities, declare their common parent and
+write it there. The convenience of automatic synonym sharing is not worth reintroducing the
+`GoesInto` bug.
+
+### 5.6 Traversal is a realization, not a host feature
 
 `IsA` transitivity — concluding `IsA(Animal())` from `IsA(Bird())` and `Bird IsA Animal` —
 is performed by a realization of the relation Concept itself, not by special traversal code
@@ -312,6 +405,26 @@ chooses or defers:
 
 A realization may also request that its **result** be evaluated again, for bodies that
 produce an expression meant to be run rather than returned.
+
+### 6.5 One context pattern per realization
+
+A realization has at most one context pattern. There is no disjunction: no
+`AnyOf(Execution(), Teaching())`.
+
+Two ways to cover more than one situation, both already available:
+
+- **Generalize with a variable.** `Describing($use)` matches every describing context and
+  binds which one it was.
+- **Compose the context.** A context is an expression, so `Describing(Execution())` is a
+  single structured context matched by a single pattern. Nesting is how "describing, in the
+  execution sense" is said.
+- **Write two realizations.** Two situations that genuinely differ should say so separately.
+
+Disjunction is excluded for a specific reason: Part 9 orders candidates by context
+specificity, and that ordering has to be total. `AnyOf(A(), B())` has no well-defined
+specificity — it is more specific than no context, but not comparable to either branch
+alone. Admitting it would make selection depend on tie-break in cases where meaning should
+have decided.
 
 ---
 
@@ -449,14 +562,54 @@ That is the crutch failure mode in a new costume: behaviour drifting away from t
 meaning because a side mechanism outvoted it. Specificity is a statement of meaning;
 statistics are a preference among things that already mean the right thing.
 
-### 9.2 What counts as success is unresolved
+### 9.2 Success is a preference among ties, not a score
 
-Success is not defined here, and no universal metric is assumed. What the trace can record
-now is outcome per step — succeeded, failed, produced a residual — together with the
-context. That is enough to break ties and not much more.
+There is no universal success metric and none is assumed. Success is deliberately the
+weakest possible thing: **a preference ordering among candidates that were already tied.**
 
-Open question in Part 19. Until it is settled, ties fall back to declaration order, which
-is a weakness worth naming: it makes behaviour depend on position in a list.
+Three signals, cheapest first:
+
+| Signal | Strength | Cost |
+|---|---|---|
+| Outcome — the realization failed, or produced a residual where a value was wanted | unambiguous | free, already traced |
+| Implicit negative — the user's next turn corrects, negates, or retries the same request | weak and noisy | free |
+| Explicit choice — the user is shown two results and picks | strong | interrupts, so rare |
+
+The implicit negative signal needs no new machinery to detect. The IR already represents a
+retraction as `Correction` and a back-reference as `Ref`, so a following turn that corrects
+the previous one is visible in the parse itself.
+
+#### Blame has to be narrow
+
+A single turn runs dozens of realizations. A negative signal about the answer does not say
+which one was at fault, and penalising everything in the trace punishes the twenty
+realizations that behaved correctly. Done naively this produces noise, not evidence.
+
+So feedback only ever adjusts realizations that were **selected by tie-break**. If
+specificity picked a realization uniquely, no choice was made and there is nothing to learn
+from the outcome.
+
+This makes the mechanism cheap as well as sound: most steps have exactly one candidate, so
+most steps record nothing.
+
+#### Asking is the ambiguity policy, not a new feature
+
+"Show the user both results and let them pick" is the `ask` branch of Part 9.3 applied to
+realization selection instead of to reading ambiguity. It is the same policy Concept, so it
+is already inspectable and changeable, and it is already context-dependent — a background
+task with nobody watching must not ask.
+
+Reserve it for ties that are both unresolved and consequential. It buys the strongest
+signal available at the highest cost.
+
+#### What is still missing
+
+Preference is recorded per exact (Concept, realization, context) triple. Nothing generalises
+across contexts, so a preference learned in one situation teaches nothing about a similar
+one. That is a real limit, and it is the remaining part of this question in Part 19.
+
+Until any preference is recorded, ties fall back to declaration order, which makes behaviour
+depend on position in a list.
 
 ### 9.3 Genuine ambiguity
 
@@ -510,7 +663,7 @@ Lookup is a Concept, with these surfaces:
 | Surface | Use |
 |---|---|
 | exact identity | resolving a call |
-| text over identity and gloss | what the Teacher and the learner use |
+| text over identity and derived descriptions | what the Teacher and the learner use |
 | relation traversal | "everything that `IsA(Bird())`" |
 | usage ranking from the trace | preferring Concepts that actually get used |
 
@@ -564,13 +717,17 @@ conclude that anything absent does not exist, and a retrieval miss is indistingu
 from a genuine absence. Lookup on demand lets the consumer ask a second question instead of
 guessing. See `ir-spec.md` Part 8.1.
 
-### 11.4 The gloss carries lexical search
+### 11.4 Lexical search runs on the derived index
 
-This is the practical reason the gloss is plain text rather than Concept-expressed: text is
-directly searchable. Concept-expressed descriptions would need their own index to be
-searched lexically, which is a second structure to maintain for no gain over the text.
+Descriptions are realizations (Part 4), so lexical search runs over the **derived index**
+built from them, not over a stored field.
 
-Meaning still lives in the realizations. The gloss is an index, not an authority.
+The index is a cache, not a source. It is regenerated when a Concept's realizations change,
+so it cannot disagree with them. And because each entry carries the describing context it
+came from, search can prefer the description matching the caller's situation instead of
+matching one flattened summary.
+
+Meaning lives in the realizations. The index is an index.
 
 ---
 
@@ -634,7 +791,41 @@ A Concept does not hold mutable data in its definition. Data goes to one of four
 - **Conversations** become Concepts (Part 14).
 - **Observations** go to the trace (Part 15).
 
-### 13.2 No fourth store
+### 13.2 Forgetting
+
+Append-only would otherwise grow without limit. So realizations are collected, and the
+policy is deliberately conservative — a realization is collectible only when **all** of
+these hold:
+
+1. it is shadowed or retired, and
+2. another realization covers the same pattern and context, so the capability does not
+   disappear, and
+3. it has not been selected for a long period.
+
+Condition 2 is the safety property: the only way to do something is never collected, no
+matter how old. Forgetting can lose an alternative; it can never lose a capability.
+
+There is no separate store of forgotten Concepts. Collected means gone.
+
+#### The trace must snapshot, not point
+
+Collection is only safe because the trace records the selected realization **by value**
+(Part 15.2). If it held a reference, collecting a realization would leave dangling history
+and destroy the forensic record that Part 3 relies on for recovery.
+
+#### Orphan sweeping rides along
+
+The collection pass is already walking the graph for things nothing uses, so it is the
+natural place to also flag clusters whose closure contains no realizable behaviour
+(Part 11.1). One pass, not a second mechanism and not a second database.
+
+#### Forgetting is a Concept
+
+The policy above — the thresholds, the conditions, what counts as long — is a realization,
+not host code. Otherwise it could not be tuned without editing the harness, which Part 2.1
+forbids.
+
+### 13.3 No fourth store
 
 Anything that looks like it needs a new store should first be checked against these. A new
 special-purpose store for one capability is the Part 2 failure mode arriving quietly.
@@ -716,7 +907,25 @@ write in and may always research and learn; access to the wider machine is off u
 explicitly granted. Modes are user-controlled — ask for approval, act except where judged
 unsafe, full access.
 
-### 16.1 Why this needs Part 2 to hold
+### 16.1 The agenda comes from the trace
+
+Continuous autonomous operation needs something to do next, and the obvious failure is a
+system that wanders or needs a goal invented for it.
+
+It does not need one. **The system's to-do list is already recorded.** Every residual is a
+Concept it could not realize; every failure is a realization that broke; every orphan is a
+cluster attached to nothing; every un-described Concept is a gap in its own understanding.
+All of it is in the trace and the graph already, as a by-product of ordinary operation.
+
+So autonomous work is reading its own history for the things it could not do, and working
+on them. Pointed at a directory, the same mechanism applies: conceptualizing the contents
+produces residuals for everything it does not yet understand, and those residuals are the
+agenda.
+
+Choosing what to work on next is itself a realization, selected by context, so the policy
+is inspectable and changeable rather than being a scheduler in host code.
+
+### 16.2 Why this needs Part 2 to hold
 
 Self-modification is the reason the no-privilege rule is not aesthetic. If a capability
 lives in host code, the system cannot change it — it can only ask a human to. Every
@@ -756,7 +965,7 @@ Recorded so the resolutions are not silently re-litigated.
 
 | # | The contradiction | Resolution |
 |---|---|---|
-| 1 | Descriptions should be "expressed in Concepts", but lookup needs searchable text. | No privileged `meaning` field. Meaning is the realizations; the gloss is plain searchable text and not an authority. Part 4. |
+| 1 | Descriptions should be "expressed in Concepts", but lookup needs searchable text. | Description is a realization under a describing context. Searchable text is a **derived index** over those realizations, so there is one source of truth and search is still fast. No `meaning` or `gloss` field. Part 4. |
 | 2 | Everything is a Concept, but the trace "does not have to be". | Writing is an ambient effect; reading is a Concept. Otherwise selection policy and self-analysis leak into host code. Part 15.1. |
 | 3 | An unknown Concept raised an error, but the parser is supposed to invent freely. | An absent Concept yields a residual, exactly like a missing realization. Raising would make invention fatal. Part 8.2. |
 | 4 | `SynonymOf(X())` as a relation and a forwarding realization say the same thing twice. | The relation is the source of truth; the forwarding realization is derived from it. Part 5.4. |
@@ -767,26 +976,29 @@ Recorded so the resolutions are not silently re-litigated.
 | 9 | Does a bare `490` match `Number(490)`? | No. Distinct expressions, distinct patterns, explicit lifting. Implicit coercion would make matching dishonest. Part 10.1. |
 | 10 | Isolated conversations may change shared Concepts but leave no transcript. | Deferred, not specified. Anticipated for future users, not needed now. The asymmetry is recorded as a question to settle before building it. Part 14.2. |
 | 12 | Synonyms "raise recall", but a lexical search only ever returns the name that matched. | Search expands a hit over equivalence relations and returns the cluster. The recall claim is false without this. Part 11.1. |
+| 13 | A single stored description cannot be right for a Concept whose meaning is context-dependent. | It cannot, so there is no stored description. Contextual describing realizations replace it, which makes gloss drift structurally impossible rather than merely detectable. Part 4.1. |
+| 14 | If `Times` forwards to `Multiply`, does a context realization for `Multiply` fire for `Times`? | No. Context matches the identity as written. `SynonymOf` shares computation, not context; `IsA` shares both. Otherwise `GoesInto` inherits `DividedBy`'s context and silently flips the operands. Part 5.5. |
+| 15 | Relations are Concept expressions, so should they just be realizations? | No. Relations are *stated* and traversed by a terminating walk; realizations are *produced* and evaluated under budget. Making relations realizations would turn every cyclic relation into a bounded infinite loop. Part 1.0. |
+| 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan: contradictions take few shapes, so an index on subject and predicate makes it a small constant. Without that index the guarantee is theatre. Part 5.2. |
+| 17 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 | 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.5. |
 
 ---
 
 ## 19. Open questions
 
-- **What counts as success.** Required before statistical tie-breaking is more than a
-  placeholder. No universal metric should be assumed; outcome-per-context logging is the
-  available starting point, and until it is settled, ties fall back to declaration order,
-  which makes behaviour depend on list position.
-- **Unbounded realization growth.** Append-only means the store grows without limit while
-  the active set stays at one per pattern-and-context pair. Shadowed and retired
-  realizations are never collected. Probably fine for a long time; unmeasured.
-- **Gloss drift.** Nothing detects a gloss that contradicts its realizations. A check may be
-  possible by generating a gloss from the realizations and comparing.
-- **Cost of open-world queries.** Distinguishing false from unknown requires searching for a
-  contradicting relation, not just failing to find a supporting one. The traversal cost of
-  that at scale is unmeasured.
-- **Orphan detection at rest.** Part 11.1 detects disconnection whenever a cluster is
-  searched, which covers discovery. Nothing sweeps the graph proactively for islands that
-  are never searched for.
-- **When `Exist` runs.** Continuous autonomous operation is in scope by requirement but
-  deliberately deferred until the network can think well enough to make it useful.
+- **Generalising preference across contexts.** Part 9.2 defines success as a preference
+  among ties, recorded per exact (Concept, realization, context) triple. Nothing
+  generalises: a preference learned in one context teaches nothing about a similar one.
+  Whether that matters depends on how often near-identical contexts recur, which is
+  unmeasured.
+- **Forgetting thresholds.** Part 13.2 settles the conditions for collecting a realization
+  but not the numbers. How long is long, and whether time-since-selection is the right
+  measure at all, needs real usage to answer.
+- **Describing coverage.** A Concept with no describing realization has no searchable text
+  and is findable only by identity or relation traversal (Part 4.3). Nothing currently
+  prompts the system to describe what it has learned, so the index can lag the graph.
+- **When `Exist` runs.** Deferred by choice until the network can think well enough to make
+  it useful, not because the design is unclear. Part 16.1 settles where the agenda comes
+  from; what is unsettled is the budget and safety envelope for unattended operation, and
+  how it decides to stop working on something.
