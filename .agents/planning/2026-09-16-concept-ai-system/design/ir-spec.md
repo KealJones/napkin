@@ -101,8 +101,9 @@ number  := JSON number
 
 Notes and deliberate omissions:
 
-- **No list syntax.** No `[a, b]`. Ordered collections are Concepts (Part 6).
-- **No object syntax.** No `{k: v}`. Keyed collections are Concepts (Part 10).
+- **No list syntax.** No `[a, b]`. Ordered collections are Concepts (Part 6.2).
+- **No object literal syntax.** No `{k: v}`. Keyed collections are Concepts built from the
+  named arguments the grammar already has (Part 3.2).
 - **No infix operators.** No `a + b`, no `a === b`. Operators are Concepts.
 - **No statements, no semicolons, no blocks.** Sequencing is a Concept (Part 6).
 - **Arity is unbounded.** A call may take any number of arguments. See Part 12 for the
@@ -129,6 +130,50 @@ Wrap a primitive only when the wrapper carries information the bare value cannot
 
 Rule: **the producer never normalizes.** Digits stay digits, words stay words, misspellings
 stay misspelled. Conversion is realization's job.
+
+### 3.2 Why no brackets
+
+Three reasons, and one real cost.
+
+**A bracket literal is not a Concept.** `[a, b]` is a value nothing can realize, relate to,
+or describe. `List(a, b)` is a Concept: it can carry realizations (map, fold, length),
+relations (`IsA(Collection())`), and a description of itself. In a system whose premise is
+that meaning lives in Concepts, a literal is a dead end.
+
+**One form is measurably easier to write.** Every expression is `Head(args)`. Adding `[...]`
+and `{...}` would give a small model three delimiter types to balance and three forms to
+choose between, and the only hard failure measured in Part 11 was paren balancing. More
+delimiter types multiply the worst existing failure mode.
+
+**One node shape means one case.** The evaluator, matcher, substituter, tracer, and
+describer each handle a single shape. A native list or object would need its own case in all
+five — five special cases bought with syntax sugar.
+
+**The cost, stated plainly.** `List(1, 2, 3)` is more tokens than `[1, 2, 3]`, and it is
+noisier in translated code. More significantly, this choice is what *creates* the
+unbounded-arity requirement in Part 12: a native list type would not need variadic patterns.
+That is judged the better trade, since a native list would instead need destructuring
+syntax, but the requirement is a consequence of this decision rather than an independent
+need.
+
+### 3.3 Keyed collections use named arguments
+
+The grammar already has `name=value`, so a keyed collection needs no new syntax at all:
+
+```
+Object(action="wbsearchentities", search=$text, type=$kind, language="en", limit=10)
+```
+
+That is the normal form. `Pair` is the fallback for the cases named arguments cannot cover:
+
+| form | when |
+|---|---|
+| `Object(action="x", limit=10)` | keys are known, identifier-shaped — the common case |
+| `Object(Pair($key, $value), ...)` | keys are computed, or are not identifier-shaped, e.g. `"foo-bar"` |
+
+The fallback is principled rather than arbitrary: an object whose keys are not known in
+advance has to be walked by a code body, and a named-argument pattern cannot capture a key
+it does not already name.
 
 ---
 

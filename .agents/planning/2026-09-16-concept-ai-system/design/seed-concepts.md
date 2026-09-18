@@ -264,7 +264,9 @@ resolves them rather than quietly evaluating to anything.
 |---|---|
 | `String(x)`, `Number(x)`, `Boolean(x)` | wrappers; a bare primitive needs no wrapping (`concept-spec.md` Part 10) |
 | `Lift(x)` | primitive → its specific-value Concept, if one exists (`concept-spec.md` Part 10.1) |
-| `List(...)`, `Object(...)`, `Pair(k, v)` | ordered and keyed collections; the grammar has no list or object syntax, so collections are Concepts (`ir-spec.md` Parts 3 and 6.2) |
+| `List(...)` | ordered collection; the grammar has no list syntax, so collections are Concepts (`ir-spec.md` Parts 3.2 and 6.2) |
+| `Object(k=v, ...)` | keyed collection, built from the named arguments the grammar already has (`ir-spec.md` Part 3.3) |
+| `Pair(k, v)` | fallback entry for `Object` when a key is computed or not identifier-shaped |
 | `CurrentTimestamp()` | code body, `Effectful()` — reads the clock |
 | `Today()` | composed from `CurrentTimestamp()`; **not** a parser special case |
 | `Now()`, `Me()`, `You()` | deictic, resolved from ambient state |

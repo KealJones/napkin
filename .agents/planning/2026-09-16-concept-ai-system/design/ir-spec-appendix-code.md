@@ -36,13 +36,19 @@ for the seven function declarations rather than repeating them.
 |---|---|
 | `Var($x, v)` | mutable declaration (`let`), as opposed to `Let` for `const` |
 | `Index(obj, i)` | computed member access, `obj[i]` |
-| `Pair("k", v)` | one entry of an `Object(...)` |
+| `Pair("k", v)` | an `Object(...)` entry whose key is computed or not identifier-shaped; a known identifier key uses a named argument instead (`ir-spec.md` Part 3.3) |
 | `Add`, `Sub` | JavaScript `+` and `-`, including string concatenation for `+` |
 | `Or`, `NotEquals` | `||` and `!==` |
 | `Async(f)` | marks a function async; wraps the `Func` or `Lambda`, not its `Params` |
 
 `If` appears in both statement and expression position; the IR does not need a separate
 ternary node.
+
+Object literals below are written with `Pair` throughout, because these fragments were
+translated before the named-argument form in `ir-spec.md` Part 3.3 was settled. Every key
+here is a known identifier, so `Object(apply=Object(head=$head, args=...))` is the preferred
+spelling and reads closer to the source; the `Pair` form remains correct and is retained so
+the validated blocks are not invalidated by a cosmetic rewrite.
 
 ---
 
