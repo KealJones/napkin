@@ -236,13 +236,39 @@ duplicated.
 
 #### Which relations
 
-Not all of them. `SynonymOf` and `SuppressesEffects()` are machinery, not content, and a
-description listing them is worse than one without.
+The default description does not lead with every relation. A summary of `Happy` that opens
+with its `SynonymOf` list, or a summary of `Describe` that mentions `SuppressesEffects()`,
+is worse than one without.
 
-Filtering them by a hardcoded list would be exactly the privilege Part 2.1 forbids. Instead
-a relation Concept **declares itself structural**, and the default description skips those —
-the same move `SuppressesEffects()` itself uses. Which relations count as content is then a
-property of the relation, editable like anything else.
+But **whether a relation is interesting is a property of the question, not of the
+relation.** `SynonymOf` is machinery when it is forwarding a call and content when someone
+asks "give me synonyms for happy". It is the same relation in both cases, so nothing
+attached to the relation can decide which role the caller wants. Only the request can.
+
+Three consequences.
+
+**Exclusion is a soft default, never a prohibition.** A relation may declare itself
+*incidental*, meaning it is not usually worth leading with in a general summary. It never
+means unreachable. Filtering by a hardcoded list would in any case be exactly the privilege
+Part 2.1 forbids.
+
+**Every relation stays directly queryable.** Relation traversal is a search surface in its
+own right (Part 11), and it is pure, so a lexical question is answerable descriptively. It
+is simply a *different query* from the general description rather than a competing one:
+`WhatIs(Happy())` summarizes and omits the synonym list, while a traversal over `SynonymOf`
+returns precisely that list.
+
+**Context already selects which description runs**, so this needs no new mechanism. The
+describing realization is a realization matching `Describe()`, and facets do the rest:
+
+| active context | describing realization | leads with |
+|---|---|---|
+| `Describe()` | the inherited default | content relations; synonyms omitted |
+| `Context(Describe(), Lexical())` | a more specific one | the synonym relations |
+
+Two facets beat one (Part 9), so the lexical description wins when the question is lexical.
+Which relations matter is therefore decided by context, like everything else in this
+document, rather than by a binary property baked onto each relation.
 
 #### Asking a question is describing
 
@@ -1206,7 +1232,8 @@ Recorded so the resolutions are not silently re-litigated.
 | 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `SuppressesEffects()` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
 | 21 | Composition describes operations, but most Concepts are not operations. What describes `Chess`? | Its relations. A default describing realization presents them, delivered by inheritance from a universal parent rather than wired into the evaluator. Relations stay the only source of the facts; the description is produced by traversing them. Part 4.0. |
 | 22 | With a default inherited description, does it outrank a Concept's own composition? | No, and fixing this reordered selection: inheritance distance now dominates context specificity. Otherwise the generic inherited description outranks a local composition on facet count, and `Double` describes as relations instead of `Multiply($x, 2)`. Part 9.2. |
-| 23 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 23 | Machinery relations should be kept out of descriptions, but "give me synonyms for happy" wants exactly one of them. | Interest is a property of the question, not the relation. `SynonymOf` is machinery when forwarding and content when asked about, so the exclusion is a soft default, every relation stays directly queryable, and a lexical facet selects a describing realization that leads with synonyms. Part 4.0. |
+| 24 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
