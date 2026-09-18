@@ -162,17 +162,88 @@ There is no canonical identity for a meaning, no alias table, and no deduplicati
 
 ## 4. Description
 
-A Concept describes itself through an ordinary realization under a **describing** context:
+A Concept describes itself in two ways, and the first one is free.
+
+**A composed realization is already a description.** If behaviour is expressed in Concepts,
+behaviour is readable:
 
 ```
-Describing()                              ->  a description, in no particular usage
-Context(Describing(), Execution())        ->  what it does when run
-Context(Describing(), Walking(Dog()))     ->  what it means in that situation
+Double($x)                     := Multiply($x, 2)
+WikidataSearch($text, $kind)   := JsonParse(Fetch(Url(...)))
 ```
 
-Describing is a facet of the usage context, not a wrapper around one. See Part 7.1.
+Those say what the Concept means. Nothing needs to be written alongside them.
+
+**An explicit describing realization** covers what composition cannot: a Concept whose only
+body is code, or one whose composition is accurate but unhelpful.
+
+```
+Describe()                              a description, in no particular usage
+Context(Describe(), Execution())        what it does when run
+Context(Describe(), Walking(Dog()))     what it means in that situation
+```
+
+`Describe()` is a facet of the usage context, not a wrapper around one (Part 7.1).
 
 There is no `gloss` field. Description is behaviour like everything else.
+
+### 4.0 Describing is evaluation with effects suppressed
+
+`Describe()` is not a separate mode with its own traversal. It is an ordinary facet whose
+only power is to make **effectful** bodies unavailable. Everything else follows from rules
+that already exist:
+
+- **Selection is unchanged.** A realization naming both `Describe()` and the situation wins
+  on specificity. One naming only the situation still matches, because a context pattern
+  constrains rather than enumerating (Part 7.2). So the behavioural realization is the
+  natural fallback, with no fallback machinery.
+- **Expansion is free.** Evaluating a composed body under this context expands it, and the
+  residual rule (Part 8.1) stops the expansion exactly where it should: at a Concept whose
+  body is effectful, which becomes a residual and therefore appears in the description as
+  itself.
+
+So `WikidataSearch` describes down to `JsonParse(Fetch(Url(...)))`, and `Fetch` stops there
+because its body is effectful. The description is the maximally expanded composition, and it
+terminates without anything special.
+
+#### Effectful, not merely code
+
+The line is effects, not bodies. `Add(2, 3)` has a code body but no effect, and `5` is a
+better description of it than `Add(2, 3)` is. So pure code still runs; only effectful
+bodies are withheld.
+
+This requires realizations to declare their effects. That is not new work: the autonomy
+modes in Part 16 need the same declaration to decide what may run unattended. Describing
+reuses it.
+
+**Limit, stated plainly:** an effect declaration is a claim, not an enforcement. A
+realization can declare itself pure and open a socket, and nothing detects it.
+
+#### Suppression is declared, not hardcoded
+
+If the evaluator checked whether a facet *is* `Describe()`, that would be precisely the
+special case Part 2.1 forbids. Instead the context declares the property:
+
+```
+Describe()   with relation   SuppressesEffects()
+```
+
+The evaluator's rule is general — *if any active facet declares effect suppression,
+effectful bodies are unavailable* — so the harness never learns that `Describe` exists, and
+another suppressing facet can be added without touching it.
+
+#### Unbound variables denote themselves
+
+Describing a Concept generically, rather than describing a specific call, leaves the
+pattern's variables unbound. Under evaluation that is a failure (Part 8.3). Under a
+suppressing context it is not: the result is a template, so an unbound variable stands for
+itself and is part of the description.
+
+#### Depth
+
+Expansion terminates on budget (Part 8.4), but a maximal description is not a readable one.
+A describing context wants a shallower depth limit than execution. That is a realization
+concern, not an evaluator one.
 
 ### 4.1 Why a single text field could not work
 
@@ -213,13 +284,18 @@ realizations, with no exception smuggled in through a text field.
 
 ### 4.3 What this cost, honestly
 
-A Concept with no describing realization has no searchable text, so it is findable only by
-identity or by relation traversal. Under a stored-gloss design every Concept had at least
-some text.
+Only a Concept with **neither** a composed realization nor a describing one has no
+searchable text, and is findable only by identity or relation traversal. Because composition
+self-describes (Part 4.0), that set is roughly the effectful leaves: HTTP, file access,
+shell, model calls, primitives.
 
-That is an acceptable trade, and arguably a feature: a Concept nobody described is a
-Concept nobody explained, and Part 2.2 already prefers an honest gap over a filled-in
-placeholder. It also gives the learner something concrete to fix.
+Those are exactly the Concepts worth describing by hand, since they are where the system
+touches the world and where a reader most needs telling. Everything above them is described
+for free by what it composes.
+
+Where a gap remains, it is an honest one. A Concept nobody described is a Concept nobody
+explained, and Part 2.2 prefers that to a filled-in placeholder. It also gives the learner
+something concrete to fix.
 
 ---
 
@@ -414,7 +490,7 @@ A realization has one context pattern, but that pattern may require **several fa
 once** (Part 7.1):
 
 ```
-context = Context(Describing(), Walking(Dog()))
+context = Context(Describe(), Walking(Dog()))
 ```
 
 That is conjunction: this realization applies when the usage is *both* describing *and*
@@ -465,7 +541,7 @@ other.
 So the active context is a **set of facets**:
 
 ```
-Context(Describing(), Walking(Dog()))
+Context(Describe(), Walking(Dog()))
 ```
 
 A single facet is not wrapped: a context of `Execution()` is one facet, written plainly.
@@ -474,8 +550,8 @@ A single facet is not wrapped: a context of `Execution()` is one facet, written 
 
 #### Why not nest them
 
-Nesting was considered and rejected. `Describing(Walking(Dog()))` forces an arbitrary
-ordering, and `Walking(Describing(Dog()))` is a different expression. Two realizations that
+Nesting was considered and rejected. `Describe(Walking(Dog()))` forces an arbitrary
+ordering, and `Walking(Describe(Dog()))` is a different expression. Two realizations that
 nest the same two facets in different orders would **never match the same context**, and
 nothing would report it — they would silently fail to fire.
 
@@ -499,9 +575,9 @@ A context flows down through evaluation. Every sub-expression inherits the activ
 unless a realization deliberately changes it.
 
 Changes are normally **additive**: a realization that produces an explanation adds
-`Describing()` to whatever facets are already active, rather than replacing them. So asking
+`Describe()` to whatever facets are already active, rather than replacing them. So asking
 for a description of `Fetch` inside a dog-walking situation yields the context
-`Context(Describing(), Walking(Dog()))`, and the dog survives.
+`Context(Describe(), Walking(Dog()))`, and the dog survives.
 
 This is the concrete advantage of facets over nesting. A nested context would have to be
 replaced wholesale, which means asking for a description would destroy the situation being
@@ -517,7 +593,7 @@ A request may name the facets it wants, rather than inheriting:
 
 ```
 InContext(concept=Fetch($x), use=Walking(Dog()))
-InContext(concept=Fetch($x), use=Context(Describing(), Walking(Dog())))
+InContext(concept=Fetch($x), use=Context(Describe(), Walking(Dog())))
 ```
 
 This is how a caller asks "what does this mean *here*", and it is the same mechanism the
@@ -601,8 +677,8 @@ Selection is ordered:
 
 1. **Context specificity.** The realization whose context pattern is most specific wins,
    ordered by:
-   1. **facet count** — a pattern requiring `Context(Describing(), Walking(Dog()))` beats
-      one requiring only `Describing()`, which beats one naming no context at all;
+   1. **facet count** — a pattern requiring `Context(Describe(), Walking(Dog()))` beats
+      one requiring only `Describe()`, which beats one naming no context at all;
    2. **structural depth** of the matched facets — `Walking(Dog())` beats
       `Walking($animal)`.
 2. **Success evidence**, from the trace, for that exact (Concept, realization, context)
@@ -621,7 +697,7 @@ statistics are a preference among things that already mean the right thing.
 ### 9.1.1 Incomparable context matches
 
 Two patterns with the same facet count and the same structural depth, but *different*
-facets, are genuinely incomparable. One requires `Describing()`, another requires
+facets, are genuinely incomparable. One requires `Describe()`, another requires
 `Walking($x)`; both match, and neither is more specific.
 
 No facet priority order is imposed to resolve this, because any such order would be
@@ -1056,7 +1132,9 @@ Recorded so the resolutions are not silently re-litigated.
 | 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan: contradictions take few shapes, so an index on subject and predicate makes it a small constant. Without that index the guarantee is theatre. Part 5.2. |
 | 17 | Can a realization require two contexts at once, like describing *and* dog? | Yes. A context is an unordered set of facets, matched by subset, and conjunction is the normal case. Nesting was rejected: it forces an arbitrary facet order, and two realizations nesting differently would silently never match the same context. Part 7.1. |
 | 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
-| 19 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 19 | Must a description exist as its own realization, or can behaviour serve as one? | Behaviour serves. A composed body is already a description, so `Describe()` only suppresses effectful bodies and ordinary evaluation plus the residual rule do the rest. Explicit describing realizations are for effectful leaves. Part 4.0. |
+| 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `SuppressesEffects()` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
+| 21 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
@@ -1073,9 +1151,13 @@ Recorded so the resolutions are not silently re-litigated.
 - **Forgetting thresholds.** Part 13.2 settles the conditions for collecting a realization
   but not the numbers. How long is long, and whether time-since-selection is the right
   measure at all, needs real usage to answer.
-- **Describing coverage.** A Concept with no describing realization has no searchable text
-  and is findable only by identity or relation traversal (Part 4.3). Nothing currently
-  prompts the system to describe what it has learned, so the index can lag the graph.
+- **Describing the effectful leaves.** Composition self-describes, so the Concepts needing a
+  hand-written description are roughly the effectful leaves (Part 4.3). Nothing currently
+  prompts the system to write those, so the search index can lag the graph at exactly the
+  points where the system touches the world.
+- **Honest effect declarations.** Describing and the autonomy modes both trust a
+  realization's claim about its own effects, and nothing verifies it. Whether that needs
+  enforcement, and what enforcement would even look like for a code body, is unresolved.
 - **When `Exist` runs.** Deferred by choice until the network can think well enough to make
   it useful, not because the design is unclear. Part 16.1 settles where the agenda comes
   from; what is unsettled is the budget and safety envelope for unattended operation, and
