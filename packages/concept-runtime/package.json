@@ -1,0 +1,28 @@
+{
+  "name": "@cnocept/concept-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./expression": {
+      "types": "./dist/concept/expression.d.ts",
+      "import": "./dist/concept/expression.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "test": "pnpm build && node --test dist/*.test.js",
+    "demo": "pnpm build && node dist/cli.js",
+    "chat": "pnpm build && node dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  }
+}
