@@ -165,10 +165,12 @@ There is no canonical identity for a meaning, no alias table, and no deduplicati
 A Concept describes itself through an ordinary realization under a **describing** context:
 
 ```
-Describing()                  ->  a description, in no particular usage
-Describing(Execution())       ->  what it does when run
-Describing(Walking(Dog()))    ->  what it means in that situation
+Describing()                              ->  a description, in no particular usage
+Context(Describing(), Execution())        ->  what it does when run
+Context(Describing(), Walking(Dog()))     ->  what it means in that situation
 ```
+
+Describing is a facet of the usage context, not a wrapper around one. See Part 7.1.
 
 There is no `gloss` field. Description is behaviour like everything else.
 
@@ -406,25 +408,35 @@ chooses or defers:
 A realization may also request that its **result** be evaluated again, for bodies that
 produce an expression meant to be run rather than returned.
 
-### 6.5 One context pattern per realization
+### 6.5 Conjunction yes, disjunction no
 
-A realization has at most one context pattern. There is no disjunction: no
-`AnyOf(Execution(), Teaching())`.
+A realization has one context pattern, but that pattern may require **several facets at
+once** (Part 7.1):
 
-Two ways to cover more than one situation, both already available:
+```
+context = Context(Describing(), Walking(Dog()))
+```
 
-- **Generalize with a variable.** `Describing($use)` matches every describing context and
-  binds which one it was.
-- **Compose the context.** A context is an expression, so `Describing(Execution())` is a
-  single structured context matched by a single pattern. Nesting is how "describing, in the
-  execution sense" is said.
-- **Write two realizations.** Two situations that genuinely differ should say so separately.
+That is conjunction: this realization applies when the usage is *both* describing *and*
+dog-walking. It is the normal way to write a realization that depends on more than one
+dimension of the situation.
 
-Disjunction is excluded for a specific reason: Part 9 orders candidates by context
-specificity, and that ordering has to be total. `AnyOf(A(), B())` has no well-defined
-specificity — it is more specific than no context, but not comparable to either branch
-alone. Admitting it would make selection depend on tie-break in cases where meaning should
-have decided.
+Disjunction is **not** available. There is no `AnyOf(Execution(), Teaching())`. Cover two
+unrelated situations by generalizing with a variable, or by writing two realizations.
+
+#### Why the two differ
+
+They are excluded and admitted for opposite reasons, and the reason is specificity ordering
+(Part 9):
+
+- **Conjunction narrows.** Each added facet is a strictly stronger requirement, so more
+  facets means more specific, and candidates stay comparable.
+- **Disjunction widens.** `AnyOf(A(), B())` matches more than either branch and is
+  comparable to neither. It is more specific than no context at all, but there is no answer
+  to whether it beats `A()` alone.
+
+Admitting disjunction would therefore push cases into tie-break that meaning should have
+decided, which is the one thing Part 9.1 exists to prevent.
 
 ---
 
@@ -444,27 +456,68 @@ Walking(Dog())       a structured, specific situation
 Context is not an enum. It is an expression, so it can be as structured as needed, and new
 contexts are ordinary Concepts.
 
-### 7.1 Context propagates
+### 7.1 A context is a set of facets
 
-A context flows down through evaluation. Every sub-expression inherits the active context
-unless a realization deliberately changes it for its body or its result.
+Usage has more than one independent dimension at a time. Describing something is a *mode*;
+dog-walking is a *situation*. Both can be true at once, and neither is a parameter of the
+other.
 
-This is what makes context useful rather than decorative: naming a context at the top of a
-request governs the whole tree beneath it, so `Discussion()` reliably produces explanation
-all the way down instead of accidentally executing something in the middle.
+So the active context is a **set of facets**:
 
-### 7.2 Context is matched, not compared
+```
+Context(Describing(), Walking(Dog()))
+```
 
-A realization's context is a **pattern**, matched against the active context, and it can
-bind variables from it. So a realization can apply to `Walking($animal)` generally, or to
+A single facet is not wrapped: a context of `Execution()` is one facet, written plainly.
+`Context(...)` appears only when there are two or more, which is the same rule as
+`Sequence` in `ir-spec.md` Part 6.1.
+
+#### Why not nest them
+
+Nesting was considered and rejected. `Describing(Walking(Dog()))` forces an arbitrary
+ordering, and `Walking(Describing(Dog()))` is a different expression. Two realizations that
+nest the same two facets in different orders would **never match the same context**, and
+nothing would report it — they would silently fail to fire.
+
+Facets are unordered, so that class of mistake cannot be made.
+
+### 7.2 Context is matched by subset
+
+A realization's context is a **pattern**, and it matches when every facet the pattern names
+matches some facet of the active context. Active facets the pattern does not mention are
+simply not constrained.
+
+Patterns bind variables as usual, so a realization can name `Walking($animal)` generally or
 `Walking(Dog())` specifically.
 
-### 7.3 Asking for a context explicitly
+Matching a pattern against a context asks only "are these requirements met here", which is
+why a realization can be written against one facet and still apply in a rich situation.
 
-A request may name the context it wants, rather than inheriting:
+### 7.3 Facets compose additively
+
+A context flows down through evaluation. Every sub-expression inherits the active context
+unless a realization deliberately changes it.
+
+Changes are normally **additive**: a realization that produces an explanation adds
+`Describing()` to whatever facets are already active, rather than replacing them. So asking
+for a description of `Fetch` inside a dog-walking situation yields the context
+`Context(Describing(), Walking(Dog()))`, and the dog survives.
+
+This is the concrete advantage of facets over nesting. A nested context would have to be
+replaced wholesale, which means asking for a description would destroy the situation being
+described.
+
+Naming a context at the top of a request still governs the whole tree beneath it, so
+`Discussion()` reliably produces explanation all the way down instead of accidentally
+executing something in the middle.
+
+### 7.4 Asking for a context explicitly
+
+A request may name the facets it wants, rather than inheriting:
 
 ```
 InContext(concept=Fetch($x), use=Walking(Dog()))
+InContext(concept=Fetch($x), use=Context(Describing(), Walking(Dog())))
 ```
 
 This is how a caller asks "what does this mean *here*", and it is the same mechanism the
@@ -546,9 +599,12 @@ Several realizations may match one call. They coexist; none supersedes another.
 
 Selection is ordered:
 
-1. **Context specificity.** The realization whose context pattern is most specific wins. A
-   realization naming `Walking(Dog())` beats one naming `Walking($animal)`, which beats one
-   naming no context at all.
+1. **Context specificity.** The realization whose context pattern is most specific wins,
+   ordered by:
+   1. **facet count** — a pattern requiring `Context(Describing(), Walking(Dog()))` beats
+      one requiring only `Describing()`, which beats one naming no context at all;
+   2. **structural depth** of the matched facets — `Walking(Dog())` beats
+      `Walking($animal)`.
 2. **Success evidence**, from the trace, for that exact (Concept, realization, context)
    combination — but **only to break ties** among candidates of equal specificity.
 
@@ -561,6 +617,23 @@ contexts it was never meant for.
 That is the crutch failure mode in a new costume: behaviour drifting away from the declared
 meaning because a side mechanism outvoted it. Specificity is a statement of meaning;
 statistics are a preference among things that already mean the right thing.
+
+### 9.1.1 Incomparable context matches
+
+Two patterns with the same facet count and the same structural depth, but *different*
+facets, are genuinely incomparable. One requires `Describing()`, another requires
+`Walking($x)`; both match, and neither is more specific.
+
+No facet priority order is imposed to resolve this, because any such order would be
+arbitrary and would quietly decide questions of meaning by fiat.
+
+Instead it is treated as what it is: genuine ambiguity, handed to the policy in Part 9.3,
+which may pick the best-supported reading, ask, or explore both.
+
+The important property is that this ambiguity is **detectable**. Under a nested-context
+design the same collision existed but was silent, because differently nested facets simply
+never matched. Facets make it visible, and something visible can be reported, asked about,
+or fixed by writing a more specific realization.
 
 ### 9.2 Success is a preference among ties, not a score
 
@@ -975,13 +1048,15 @@ Recorded so the resolutions are not silently re-litigated.
 | 8 | No versioning, but the system edits itself. | Realizations and relations are append-only, so an edit never destroys anything and recovery is the new realization losing selection. Versioning would be the wrong granularity. Part 3.1. |
 | 9 | Does a bare `490` match `Number(490)`? | No. Distinct expressions, distinct patterns, explicit lifting. Implicit coercion would make matching dishonest. Part 10.1. |
 | 10 | Isolated conversations may change shared Concepts but leave no transcript. | Deferred, not specified. Anticipated for future users, not needed now. The asymmetry is recorded as a question to settle before building it. Part 14.2. |
+| 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.5. |
 | 12 | Synonyms "raise recall", but a lexical search only ever returns the name that matched. | Search expands a hit over equivalence relations and returns the cluster. The recall claim is false without this. Part 11.1. |
 | 13 | A single stored description cannot be right for a Concept whose meaning is context-dependent. | It cannot, so there is no stored description. Contextual describing realizations replace it, which makes gloss drift structurally impossible rather than merely detectable. Part 4.1. |
 | 14 | If `Times` forwards to `Multiply`, does a context realization for `Multiply` fire for `Times`? | No. Context matches the identity as written. `SynonymOf` shares computation, not context; `IsA` shares both. Otherwise `GoesInto` inherits `DividedBy`'s context and silently flips the operands. Part 5.5. |
 | 15 | Relations are Concept expressions, so should they just be realizations? | No. Relations are *stated* and traversed by a terminating walk; realizations are *produced* and evaluated under budget. Making relations realizations would turn every cyclic relation into a bounded infinite loop. Part 1.0. |
 | 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan: contradictions take few shapes, so an index on subject and predicate makes it a small constant. Without that index the guarantee is theatre. Part 5.2. |
-| 17 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
-| 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.5. |
+| 17 | Can a realization require two contexts at once, like describing *and* dog? | Yes. A context is an unordered set of facets, matched by subset, and conjunction is the normal case. Nesting was rejected: it forces an arbitrary facet order, and two realizations nesting differently would silently never match the same context. Part 7.1. |
+| 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
+| 19 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
@@ -992,6 +1067,9 @@ Recorded so the resolutions are not silently re-litigated.
   generalises: a preference learned in one context teaches nothing about a similar one.
   Whether that matters depends on how often near-identical contexts recur, which is
   unmeasured.
+- **Incomparable facets.** Part 9.1.1 sends equally specific matches on different facets to
+  the ambiguity policy rather than inventing a priority order. Whether that is tolerable in
+  practice, or whether some facets genuinely dominate others, needs real contexts to answer.
 - **Forgetting thresholds.** Part 13.2 settles the conditions for collecting a realization
   but not the numbers. How long is long, and whether time-since-selection is the right
   measure at all, needs real usage to answer.
