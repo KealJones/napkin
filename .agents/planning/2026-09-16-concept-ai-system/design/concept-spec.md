@@ -21,7 +21,7 @@ A Concept is **one self-contained unit**. It has exactly three parts:
 | Part | What it is |
 |---|---|
 | **identity** | A `CapitalizedName`. The Concept *is* its identity. |
-| **relations** | Concept expressions asserting facts about it. Stated, and traversed. |
+| **relations** | Concept expressions asserting facts about it. Stated here, queried through an index (Part 5.1.1). |
 | **realizations** | One or more. How it means, or how it acts, per context. Produced, and evaluated. |
 
 There is nothing else. No separate rules table, no action registry, no fact store, no
@@ -398,6 +398,58 @@ A relation is data. `IsA(Bird())` does **not** cause `Bird()` to be realized.
 This matters for a concrete reason: relations routinely mention the Concept they belong to,
 or mention each other in cycles. Implicit evaluation would loop. Relations are matched and
 traversed; evaluating one is an explicit act.
+
+### 5.1.1 Where a relation lives, and how it is found
+
+A relation written inside a unit has an **implicit subject**: whichever Concept's unit holds
+it. So `IsMarriedTo(Emmy())` stored in Keal's unit is the triple
+
+```
+subject = Keal      predicate = IsMarriedTo      object = Emmy
+```
+
+The unit is where a relation is **authored**. It is not how relations are **queried**.
+
+Asking for a Concept's relations is a **query result, not a field read.** The query runs over
+the two-directional index (Part 5.2), gathering every triple that mentions the Concept as
+subject *or* as object, and then reorienting each result according to the predicate's
+declared properties (Part 5.3).
+
+Emmy's marriage is found like this:
+
+1. Index lookup on object = Emmy returns `(Keal, IsMarriedTo, Emmy)`.
+2. `IsMarriedTo` declares `Symmetric()`, so reoriented that triple yields
+   `(Emmy, IsMarriedTo, Keal)`.
+3. It appears in Emmy's relation set.
+
+Nothing is conjured. The fact was always *findable* from Emmy's side; it was simply not
+*authored* there. This is the reason Part 5.2 requires indexing by object as well as by
+subject — without it, "findable from either end" is false and derivation would need a scan.
+
+The index is a cache rather than a fourth store (Part 13.3), regenerated when relations
+change. It is the same arrangement as the derived description index in Part 4.2: authored in
+one place, indexed globally for query.
+
+#### Consequence: the authoring home is asymmetric
+
+**Emmy's unit does not contain her marriage.** Editing Emmy's unit alone cannot retract it;
+the assertion lives in Keal's unit, and retraction happens there or by asserting a
+contradicting relation.
+
+For a symmetric relation, which unit holds the assertion is therefore **arbitrary** —
+ordinarily whichever side was learned first — and carries no meaning. That asymmetry is the
+price of storing one truth once, and it is the right price, but it is a real edge that
+anyone editing the graph should know about rather than discover.
+
+#### The alternative, not taken
+
+The fact could be **reified**: `IsMarriedTo(Keal, Emmy)` as its own statement Concept, owned
+by neither participant. Retraction would then have one neutral home and nothing would be
+asymmetric, which is roughly what a triple store does.
+
+It is rejected because it empties the unit of what makes it readable, and because for the
+common asymmetric case — `IsA(Bird())` on `Parakeet` — filing the relation under its subject
+is plainly the right place. Recorded as a legitimate road not taken rather than a bad idea.
 
 ### 5.2 Truth is three-valued and the world is open
 
@@ -1300,7 +1352,8 @@ Recorded so the resolutions are not silently re-litigated.
 | 22 | With a default inherited description, does it outrank a Concept's own composition? | No, and fixing this reordered selection: inheritance distance now dominates context specificity. Otherwise the generic inherited description outranks a local composition on facet count, and `Double` describes as relations instead of `Multiply($x, 2)`. Part 9.2. |
 | 23 | Machinery relations should be kept out of descriptions, but "give me synonyms for happy" wants exactly one of them. | Interest is a property of the question, not the relation. `SynonymOf` is machinery when forwarding and content when asked about, so the exclusion is a soft default, every relation stays directly queryable, and a lexical facet selects a describing realization that leads with synonyms. Part 4.0. |
 | 24 | A relation can imply its converse — married-to is symmetric, older-than inverts to younger-than. Nothing handled that. | A relation Concept is a Concept, so it declares `Symmetric()`, `InverseOf(...)`, `Transitive()`, and the implied relation is **derived at query time, never materialized**: storing both directions would record one truth twice and let a retraction be applied to only one. Part 5.3. |
-| 25 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 25 | If a symmetric relation is stored in Keal's unit, how is it "derived" for Emmy, whose unit has nothing? | Querying a Concept's relations is a query over the two-directional index, not a read of its unit. The subject of a stored relation is implicit, so the triple is findable from either end and reoriented by the predicate's properties. The authoring home is consequently asymmetric even when the fact is not. Part 5.1.1. |
+| 26 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
