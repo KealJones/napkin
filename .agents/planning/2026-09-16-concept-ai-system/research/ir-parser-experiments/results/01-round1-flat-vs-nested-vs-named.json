@@ -1,0 +1,1196 @@
+{
+ "model": "qwen3.5:4b",
+ "temp": 0.3,
+ "samples": 3,
+ "rows": [
+  {
+   "v": "A_flat_pos_depth",
+   "i": "simple",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 7994,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "simple",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 318,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "simple",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 313,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "deictic",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 992,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "deictic",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 202,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "deictic",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 192,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "count",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1112,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "count",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 313,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "count",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 316,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "multi",
+   "s": 0,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1657,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me())), Fact(Lived(Me(), Misspelling(\"virginya\", Virginia()), Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Lived",
+    "Misspelling",
+    "Virginia",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "multi",
+   "s": 1,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 834,
+   "len": 140,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Ago(Years(5), You())), Fact(Ago(Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Ago",
+    "Years",
+    "You",
+    "Aside"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "multi",
+   "s": 2,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1156,
+   "len": 221,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Misspelling(\"virginya\", Virginia()), Years(5))), Fact(Ago(Me(), Misspelling(\"virginya\", Virginia()), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "hard",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1979,
+   "len": 230,
+   "err": "",
+   "text": "Utterance(Let($weights, Correction(Field(\"weights\"), Field(\"scores\"))), Let($probes, Qualify(Ref(\"those probe things i sent you\"), Fuzzy(\"the second one\"))), Let($sum, Sum($weights)), Question(GreaterThan($sum, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Fuzzy",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "hard",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1057,
+   "len": 216,
+   "err": "",
+   "text": "Utterance(Let($measure, Correction(Field(\"weights\"), Field(\"scores\"))), Let($batch, Qualify(Ref(\"those probe things i sent you\"), Ordinal(2))), Let($sum, Sum($measure)), Question(GreaterThan($sum, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "A_flat_pos_depth",
+   "i": "hard",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1125,
+   "len": 226,
+   "err": "",
+   "text": "Utterance(Let($measure, Correction(Field(\"weights\"), Field(\"scores\"))), Let($batch, Qualify(Ref(\"those probe things i sent you\"), Ordinal(2))), Let($sum, Sum($measure, $measure)), Question(GreaterThan($sum, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "simple",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 1141,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "simple",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 309,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "simple",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 305,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "deictic",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1001,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "deictic",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 190,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "deictic",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 191,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "count",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1106,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "count",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 312,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "count",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 309,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "multi",
+   "s": 0,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1656,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "multi",
+   "s": 1,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 808,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "multi",
+   "s": 2,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 808,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "hard",
+   "s": 0,
+   "ok": true,
+   "d": 5,
+   "cl": 1,
+   "ms": 2275,
+   "len": 287,
+   "err": "",
+   "text": "Utterance(Let(name=$weights, value=Correction(Field(\"weights\"), Field(\"scores\")), body=Let(name=$probes, value=Qualify(Ref(\"those probe things i sent you\"), Fuzzy(\"the second one\"))), body=Let(name=$sum, value=Sum($weights, $probes)), body=Question(GreaterThan($sum, Ref(\"this time\")))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Fuzzy",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "hard",
+   "s": 1,
+   "ok": true,
+   "d": 7,
+   "cl": 1,
+   "ms": 1374,
+   "len": 270,
+   "err": "",
+   "text": "Utterance(Let(name=$measure, value=Correction(Field(\"weights\"), Field(\"scores\")), body=Let(name=$data, value=Qualify(Ref(\"those probe things i sent you\"), Ordinal(2)), body=Let(name=$sum, value=Sum($data, $measure), body=Question(GreaterThan($sum, Ref(\"this time\")))))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "B_nested_pos_depth",
+   "i": "hard",
+   "s": 2,
+   "ok": true,
+   "d": 7,
+   "cl": 1,
+   "ms": 1382,
+   "len": 270,
+   "err": "",
+   "text": "Utterance(Let(name=$measure, value=Correction(Field(\"weights\"), Field(\"scores\")), body=Let(name=$data, value=Qualify(Ref(\"those probe things i sent you\"), Ordinal(2)), body=Let(name=$sum, value=Sum($data, $measure), body=Question(GreaterThan($sum, Ref(\"this time\")))))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "simple",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 1290,
+   "len": 74,
+   "err": "",
+   "text": "Utterance(Question(answer=Multiply(left=5, right=Number(source=\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "simple",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 394,
+   "len": 74,
+   "err": "",
+   "text": "Utterance(Question(answer=Multiply(left=5, right=Number(source=\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "simple",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 384,
+   "len": 74,
+   "err": "",
+   "text": "Utterance(Question(answer=Multiply(left=5, right=Number(source=\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "deictic",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1103,
+   "len": 35,
+   "err": "",
+   "text": "Utterance(Question(answer=Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "deictic",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 217,
+   "len": 35,
+   "err": "",
+   "text": "Utterance(Question(answer=Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "deictic",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 210,
+   "len": 35,
+   "err": "",
+   "text": "Utterance(Question(answer=Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "count",
+   "s": 0,
+   "ok": false,
+   "d": 0,
+   "cl": 0,
+   "ms": 1233,
+   "len": 66,
+   "err": "bare identifier strawberry @63",
+   "text": "Utterance(Question(answer=Count(needle=\"r\", haystack=strawberry)))",
+   "hs": []
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "count",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 439,
+   "len": 83,
+   "err": "",
+   "text": "Utterance(Question(answer=Count(needle=\"r\", haystack=Number(source=\"strawberry\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count",
+    "Number"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "count",
+   "s": 2,
+   "ok": false,
+   "d": 0,
+   "cl": 0,
+   "ms": 581,
+   "len": 107,
+   "err": "head must be Capitalized: strawberry @101",
+   "text": "Utterance(Question(answer=Count(needle=\"r\", haystack=Misspelling(wrote=\"strawberry\", meant=strawberry()))))",
+   "hs": []
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "multi",
+   "s": 0,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 2843,
+   "len": 346,
+   "err": "",
+   "text": "Utterance(Fact(claim=Visited(who=Me(), where=Misspelling(wrote=\"virginya\", meant=Virginia()))), Fact(claim=Lived(who=You(), where=Misspelling(wrote=\"virginya\", meant=Virginia()), for=Years(count=5))), Fact(claim=Ago(when=Years(count=3)), from=Visited(who=Me(), where=Misspelling(wrote=\"virginya\", meant=Virginia()))), Aside(text=\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "You",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "multi",
+   "s": 1,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1282,
+   "len": 221,
+   "err": "",
+   "text": "Utterance(Fact(claim=Visited(who=Me(), where=Misspelling(wrote=\"virginya\", meant=Virginia()))), Fact(claim=Ago(when=Years(count=5), who=You())), Fact(claim=Ago(when=Years(count=3), who=Me())), Aside(text=\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Ago",
+    "Years",
+    "You",
+    "Aside"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "multi",
+   "s": 2,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1763,
+   "len": 323,
+   "err": "",
+   "text": "Utterance(Fact(claim=Visited(who=Me(), where=Misspelling(wrote=\"virginya\", meant=Virginia()))), Fact(claim=Lived(who=You(), where=Misspelling(wrote=\"virginya\", meant=Virginia()), when=Years(count=5))), Fact(claim=Ago(when=Years(count=3), where=Misspelling(wrote=\"virginya\", meant=Virginia()))), Aside(text=\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "You",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "hard",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 2414,
+   "len": 299,
+   "err": "",
+   "text": "Utterance(Let(name=$weights, value=Correction(old=Field(name=\"weights\"), new=Field(name=\"scores\"))), Let(name=$probes, value=Qualify(thing=Ref(text=\"those probe things i sent you\"), q1=Ordinal(n=2))), Let(name=$sum, value=Sum(items=$weights)), Question(answer=GreaterThan(left=$sum, right=Today())))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan",
+    "Today"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "hard",
+   "s": 1,
+   "ok": true,
+   "d": 6,
+   "cl": 4,
+   "ms": 1849,
+   "len": 367,
+   "err": "",
+   "text": "Utterance(Let(name=$measure, value=Correction(old=Field(name=\"weights\"), new=Field(name=\"scores\"))), Let(name=$probes, value=Qualify(thing=Ref(text=\"those probe things i sent you\"), q1=Ordinal(n=2))), Let(name=$sum, value=Sum(items=Map(items=$probes, Lambda($x, Property(obj=$x, key=$measure))))), Question(answer=GreaterThan(left=$sum, right=Ref(text=\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Map",
+    "Lambda",
+    "Property",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "C_flat_named_depth",
+   "i": "hard",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1474,
+   "len": 299,
+   "err": "",
+   "text": "Utterance(Let(name=$weights, value=Correction(old=Field(name=\"weights\"), new=Field(name=\"scores\"))), Let(name=$probes, value=Qualify(thing=Ref(text=\"those probe things i sent you\"), q1=Ordinal(n=2))), Let(name=$sum, value=Sum(items=$weights)), Question(answer=GreaterThan(left=$sum, right=Today())))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan",
+    "Today"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "simple",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 1153,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "simple",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 300,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "simple",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 1,
+   "ms": 378,
+   "len": 49,
+   "err": "",
+   "text": "Utterance(Question(Multiply(5, Number(\"three\"))))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Multiply",
+    "Number"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "deictic",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1003,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "deictic",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 204,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "deictic",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 198,
+   "len": 28,
+   "err": "",
+   "text": "Utterance(Question(Today()))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Today"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "count",
+   "s": 0,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 1132,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "count",
+   "s": 1,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 321,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "count",
+   "s": 2,
+   "ok": true,
+   "d": 3,
+   "cl": 1,
+   "ms": 317,
+   "len": 45,
+   "err": "",
+   "text": "Utterance(Question(Count(\"r\", \"strawberry\")))",
+   "hs": [
+    "Utterance",
+    "Question",
+    "Count"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "multi",
+   "s": 0,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 1708,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived($mom, Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "multi",
+   "s": 1,
+   "ok": true,
+   "d": 5,
+   "cl": 4,
+   "ms": 821,
+   "len": 147,
+   "err": "",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Years(5))), Fact(Ago(Me(), Years(3))), Aside(\"it was crazy.\"))",
+   "hs": [
+    "Utterance",
+    "Fact",
+    "Visited",
+    "Me",
+    "Misspelling",
+    "Virginia",
+    "Lived",
+    "Years",
+    "Ago",
+    "Aside"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "multi",
+   "s": 2,
+   "ok": false,
+   "d": 0,
+   "cl": 0,
+   "ms": 1020,
+   "len": 186,
+   "err": "expected , or ) @186",
+   "text": "Utterance(Fact(Visited(Me(), Misspelling(\"virginya\", Virginia()))), Fact(Lived(Me(), Qualify(Misspelling(\"virginya\", Virginia()), Years(5))), Fact(Ago(Years(3))), Aside(\"it was crazy.\"))",
+   "hs": []
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "hard",
+   "s": 0,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 2289,
+   "len": 250,
+   "err": "",
+   "text": "Utterance(Let($measure, Correction(Field(\"weights\"), Field(\"scores\"))), Let($data, Qualify(Ref(\"those probe things i sent you\"), Misspelling(\"the first batch\", \"the second one\"))), Let($sum, Sum($data)), Question(GreaterThan($sum, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Misspelling",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "hard",
+   "s": 1,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1142,
+   "len": 220,
+   "err": "",
+   "text": "Utterance(Let($measure, Correction(Field(\"weights\"), Field(\"scores\"))), Let($batch, Qualify(Ref(\"those probe things i sent you\"), Ordinal(2))), Let($total, Sum($measure)), Question(GreaterThan($total, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  },
+  {
+   "v": "D_flat_pos_nodepth",
+   "i": "hard",
+   "s": 2,
+   "ok": true,
+   "d": 4,
+   "cl": 4,
+   "ms": 1127,
+   "len": 216,
+   "err": "",
+   "text": "Utterance(Let($measure, Correction(Field(\"weights\"), Field(\"scores\"))), Let($batch, Qualify(Ref(\"those probe things i sent you\"), Ordinal(2))), Let($sum, Sum($measure)), Question(GreaterThan($sum, Ref(\"this time\"))))",
+   "hs": [
+    "Utterance",
+    "Let",
+    "Correction",
+    "Field",
+    "Qualify",
+    "Ref",
+    "Ordinal",
+    "Sum",
+    "Question",
+    "GreaterThan"
+   ]
+  }
+ ]
+}
