@@ -137,7 +137,7 @@ mechanisms, in the order they apply:
 - **Different context.** A realization with a more specific context wins in that context
   (Part 9). Genuine competition, resolved by declared meaning.
 - **Success evidence.** Among equally specific candidates, outcome history breaks the tie
-  (Part 9.2). Genuine competition, resolved by observed behaviour.
+  (Part 9.4). Genuine competition, resolved by observed behaviour.
 - **Shadowing.** When a new realization has the *same* pattern and the *same* context as an
   existing one, nothing in the selection criteria can distinguish them, so they cannot
   meaningfully compete. The newer one is selected and the older is **shadowed** — retained
@@ -162,7 +162,7 @@ There is no canonical identity for a meaning, no alias table, and no deduplicati
 
 ## 4. Description
 
-A Concept describes itself in two ways, and the first one is free.
+A Concept describes itself from three sources. The first two are free.
 
 **A composed realization is already a description.** If behaviour is expressed in Concepts,
 behaviour is readable:
@@ -174,8 +174,21 @@ WikidataSearch($text, $kind)   := JsonParse(Fetch(Url(...)))
 
 Those say what the Concept means. Nothing needs to be written alongside them.
 
-**An explicit describing realization** covers what composition cannot: a Concept whose only
-body is code, or one whose composition is accurate but unhelpful.
+**Relations are already a description.** Most Concepts are not computations and have no
+composition to read. `Chess` is not an operation; everything it *is* lives in its relations:
+
+```
+IsA(BoardGame())
+IsA(Sport())
+MinimumNumberOfPlayers(2)
+```
+
+Read together, those answer "what is chess". This is the common case for learned knowledge:
+research produces a Concept with relations and no realization, because there is nothing to
+compute.
+
+**An explicit describing realization** covers what neither of the above can: a Concept whose
+only body is effectful, or one whose composition is accurate but unhelpful.
 
 ```
 Describe()                              a description, in no particular usage
@@ -205,6 +218,42 @@ that already exist:
 So `WikidataSearch` describes down to `JsonParse(Fetch(Url(...)))`, and `Fetch` stops there
 because its body is effectful. The description is the maximally expanded composition, and it
 terminates without anything special.
+
+#### Relations describe by inheritance, not by special case
+
+A Concept with no composition still has relations, so there is a **default describing
+realization** whose body presents them. `Chess` has no behaviour to read, and this is what
+answers a question about it.
+
+That default is not a fallback wired into the evaluator. It is one realization on a
+universal parent that every Concept is an `IsA` descendant of, delivered by ordinary
+inheritance (Part 5.4). Editing that single realization changes how everything describes
+itself, which is what Part 2.1 requires of anything that behaves like a default.
+
+It is also consistent with Part 1.0. Relations are *stated*; the description is *produced*,
+by traversing them. The relations remain the only source of those facts, so nothing is
+duplicated.
+
+#### Which relations
+
+Not all of them. `SynonymOf` and `SuppressesEffects()` are machinery, not content, and a
+description listing them is worse than one without.
+
+Filtering them by a hardcoded list would be exactly the privilege Part 2.1 forbids. Instead
+a relation Concept **declares itself structural**, and the default description skips those —
+the same move `SuppressesEffects()` itself uses. Which relations count as content is then a
+property of the relation, editable like anything else.
+
+#### Asking a question is describing
+
+`WhatIs(Chess())` and describing `Chess` are the same operation: the question form is
+`InContext(concept=Chess(), use=Describe())`. They should not be built twice.
+
+#### Relations are part of the unit, not arguments
+
+A rendered description may present relations as a list, but relations are not arguments to
+the Concept. `Chess()` takes no arguments; its relations are one of its three parts
+(Part 1). The list is the description's shape, not the Concept's.
 
 #### Effectful, not merely code
 
@@ -284,14 +333,17 @@ realizations, with no exception smuggled in through a text field.
 
 ### 4.3 What this cost, honestly
 
-Only a Concept with **neither** a composed realization nor a describing one has no
-searchable text, and is findable only by identity or relation traversal. Because composition
-self-describes (Part 4.0), that set is roughly the effectful leaves: HTTP, file access,
-shell, model calls, primitives.
+A Concept is dark to search only when it has **no composition, no relations, and no
+describing realization**. Composition self-describes and relations self-describe, so that
+set is small: essentially a freshly invented identity that nothing has been attached to yet.
 
-Those are exactly the Concepts worth describing by hand, since they are where the system
-touches the world and where a reader most needs telling. Everything above them is described
-for free by what it composes.
+Which is precisely the set the learning path is about to fill in (Part 12), and precisely
+what an orphan is (Part 5.3). So a Concept with no searchable text is not a coverage gap so
+much as a work item that is already queued.
+
+The remaining weak case is an effectful leaf whose relations are thin — `HttpRequest` with
+only `IsA(NetworkOperation())` produces a true but unhelpful description. Those are worth
+describing by hand, since they are where the system touches the world.
 
 Where a gap remains, it is an honest one. A Concept nobody described is a Concept nobody
 explained, and Part 2.2 prefers that to a filled-in placeholder. It also gives the learner
@@ -675,16 +727,17 @@ Several realizations may match one call. They coexist; none supersedes another.
 
 Selection is ordered:
 
-1. **Context specificity.** The realization whose context pattern is most specific wins,
-   ordered by:
+1. **Where the realization is declared.** A realization declared on the Concept itself
+   beats one inherited from a parent, and a nearer ancestor beats a farther one.
+2. **Context specificity**, among realizations at the same inheritance distance, ordered by:
    1. **facet count** — a pattern requiring `Context(Describe(), Walking(Dog()))` beats
       one requiring only `Describe()`, which beats one naming no context at all;
    2. **structural depth** of the matched facets — `Walking(Dog())` beats
       `Walking($animal)`.
-2. **Success evidence**, from the trace, for that exact (Concept, realization, context)
+3. **Success evidence**, from the trace, for that exact (Concept, realization, context)
    combination — but **only to break ties** among candidates of equal specificity.
 
-### 9.1 Why specificity must dominate
+### 9.1 Why declared meaning must dominate statistics
 
 Success statistics must never override a more specific contextual match. If they could, a
 realization that happens to succeed often would capture the Concept and start answering in
@@ -694,7 +747,24 @@ That is the crutch failure mode in a new costume: behaviour drifting away from t
 meaning because a side mechanism outvoted it. Specificity is a statement of meaning;
 statistics are a preference among things that already mean the right thing.
 
-### 9.1.1 Incomparable context matches
+### 9.2 Why inheritance distance comes first
+
+A Concept's own declarations are statements about *itself*. An inherited realization is a
+statement about a *category*. The specific thing knows itself better than its category does,
+so locality has to outrank context specificity rather than compete with it.
+
+The concrete case that forces this is description (Part 4.0). The default relations-based
+description is inherited and names the `Describe()` facet, so it has one facet. A Concept's
+own composed realization often names no context at all, so it has none. Ordering by facet
+count first would make the generic inherited description beat the Concept's own composition,
+and `Double` would describe as a list of relations instead of as `Multiply($x, 2)`.
+
+**Honest counter-case:** a parent's highly specific contextual realization now loses to a
+child's generic one. `Parakeet`'s plain composition beats `Bird`'s ornithology-specific
+description even in an ornithology context. That is judged correct — the child is the more
+specific claim — but it is a judgement, not a derivation, and it is recorded in Part 19.
+
+### 9.3 Incomparable context matches
 
 Two patterns with the same facet count and the same structural depth, but *different*
 facets, are genuinely incomparable. One requires `Describe()`, another requires
@@ -703,7 +773,7 @@ facets, are genuinely incomparable. One requires `Describe()`, another requires
 No facet priority order is imposed to resolve this, because any such order would be
 arbitrary and would quietly decide questions of meaning by fiat.
 
-Instead it is treated as what it is: genuine ambiguity, handed to the policy in Part 9.3,
+Instead it is treated as what it is: genuine ambiguity, handed to the policy in Part 9.5,
 which may pick the best-supported reading, ask, or explore both.
 
 The important property is that this ambiguity is **detectable**. Under a nested-context
@@ -711,7 +781,7 @@ design the same collision existed but was silent, because differently nested fac
 never matched. Facets make it visible, and something visible can be reported, asked about,
 or fixed by writing a more specific realization.
 
-### 9.2 Success is a preference among ties, not a score
+### 9.4 Success is a preference among ties, not a score
 
 There is no universal success metric and none is assumed. Success is deliberately the
 weakest possible thing: **a preference ordering among candidates that were already tied.**
@@ -743,7 +813,7 @@ most steps record nothing.
 
 #### Asking is the ambiguity policy, not a new feature
 
-"Show the user both results and let them pick" is the `ask` branch of Part 9.3 applied to
+"Show the user both results and let them pick" is the `ask` branch of Part 9.5 applied to
 realization selection instead of to reading ambiguity. It is the same policy Concept, so it
 is already inspectable and changeable, and it is already context-dependent — a background
 task with nobody watching must not ask.
@@ -760,7 +830,7 @@ one. That is a real limit, and it is the remaining part of this question in Part
 Until any preference is recorded, ties fall back to declaration order, which makes behaviour
 depend on position in a list.
 
-### 9.3 Genuine ambiguity
+### 9.5 Genuine ambiguity
 
 When context does not resolve which reading is intended, the system has three options, and
 all three are legitimate: pick the best-supported reading, ask the user, or preserve the
@@ -1120,7 +1190,7 @@ Recorded so the resolutions are not silently re-litigated.
 | 4 | `SynonymOf(X())` as a relation and a forwarding realization say the same thing twice. | The relation is the source of truth; the forwarding realization is derived from it. Part 5.4. |
 | 5 | Relations are Concept expressions, so are they evaluated? | No. Asserted, matched, traversed. They routinely cycle, and implicit evaluation would loop. Part 5.1. |
 | 6 | Statistical selection versus declared contextual meaning. | Specificity dominates absolutely; statistics only break ties among equally specific candidates, or meaning drifts. Part 9.1. |
-| 7 | "Decide which in different scenarios" for ambiguity, without saying how. | The policy is itself a realization selected by context, so it is inspectable and changeable. Part 9.3. |
+| 7 | "Decide which in different scenarios" for ambiguity, without saying how. | The policy is itself a realization selected by context, so it is inspectable and changeable. Part 9.5. |
 | 8 | No versioning, but the system edits itself. | Realizations and relations are append-only, so an edit never destroys anything and recovery is the new realization losing selection. Versioning would be the wrong granularity. Part 3.1. |
 | 9 | Does a bare `490` match `Number(490)`? | No. Distinct expressions, distinct patterns, explicit lifting. Implicit coercion would make matching dishonest. Part 10.1. |
 | 10 | Isolated conversations may change shared Concepts but leave no transcript. | Deferred, not specified. Anticipated for future users, not needed now. The asymmetry is recorded as a question to settle before building it. Part 14.2. |
@@ -1134,27 +1204,33 @@ Recorded so the resolutions are not silently re-litigated.
 | 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
 | 19 | Must a description exist as its own realization, or can behaviour serve as one? | Behaviour serves. A composed body is already a description, so `Describe()` only suppresses effectful bodies and ordinary evaluation plus the residual rule do the rest. Explicit describing realizations are for effectful leaves. Part 4.0. |
 | 20 | Suppressing effects under `Describe()` looks like an evaluator special case. | The context *declares* `SuppressesEffects()` and the evaluator applies a general rule over that declaration, so it never knows `Describe` exists. Part 4.0. |
-| 21 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 21 | Composition describes operations, but most Concepts are not operations. What describes `Chess`? | Its relations. A default describing realization presents them, delivered by inheritance from a universal parent rather than wired into the evaluator. Relations stay the only source of the facts; the description is produced by traversing them. Part 4.0. |
+| 22 | With a default inherited description, does it outrank a Concept's own composition? | No, and fixing this reordered selection: inheritance distance now dominates context specificity. Otherwise the generic inherited description outranks a local composition on facet count, and `Double` describes as relations instead of `Multiply($x, 2)`. Part 9.2. |
+| 23 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
 ## 19. Open questions
 
-- **Generalising preference across contexts.** Part 9.2 defines success as a preference
+- **Generalising preference across contexts.** Part 9.4 defines success as a preference
   among ties, recorded per exact (Concept, realization, context) triple. Nothing
   generalises: a preference learned in one context teaches nothing about a similar one.
   Whether that matters depends on how often near-identical contexts recur, which is
   unmeasured.
-- **Incomparable facets.** Part 9.1.1 sends equally specific matches on different facets to
+- **Incomparable facets.** Part 9.3 sends equally specific matches on different facets to
   the ambiguity policy rather than inventing a priority order. Whether that is tolerable in
   practice, or whether some facets genuinely dominate others, needs real contexts to answer.
 - **Forgetting thresholds.** Part 13.2 settles the conditions for collecting a realization
   but not the numbers. How long is long, and whether time-since-selection is the right
   measure at all, needs real usage to answer.
-- **Describing the effectful leaves.** Composition self-describes, so the Concepts needing a
-  hand-written description are roughly the effectful leaves (Part 4.3). Nothing currently
-  prompts the system to write those, so the search index can lag the graph at exactly the
-  points where the system touches the world.
+- **Thinly related effectful leaves.** Composition and relations both self-describe, so the
+  Concepts needing a hand-written description are effectful leaves whose relations are thin
+  (Part 4.3). Nothing prompts the system to write those, so the index can be unhelpful at
+  exactly the points where the system touches the world.
+- **Locality outranking context.** Part 9.2 puts inheritance distance above context
+  specificity, which means a child's generic realization beats a parent's highly specific
+  contextual one. That is judged correct but it is a judgement; a real case where the parent
+  should win would overturn it.
 - **Honest effect declarations.** Describing and the autonomy modes both trust a
   realization's claim about its own effects, and nothing verifies it. Whether that needs
   enforcement, and what enforcement would even look like for a code body, is unresolved.
