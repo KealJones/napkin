@@ -10,6 +10,11 @@ constraint. The IR is not derived from the existing parser, matcher, or seed dat
 Audience: humans, and future readers trying to understand why the IR looks like this. This
 is not the parser's system prompt. The parser prompt is generated from Part 9.
 
+Companion: `concept-spec.md` specifies what a Concept is, how realization and evaluation
+work, how context selects behaviour, and how anything persists. This document specifies the
+expression language that names those things. The two share one foundation, residual
+evaluation, stated in Part 2 here and Part 8.1 there.
+
 ---
 
 ## 1. What the IR is for
@@ -339,6 +344,10 @@ This is not a concession, it is the correct division of labour:
 
 So gaps are detected at **realization** time by the component that can detect them. The
 producer's job shrinks to structure, which is the only part it is good at.
+
+An absent Concept therefore produces a residual, not an error. See `concept-spec.md`
+Part 8.2: if an unknown identity raised, invention would be fatal, and invention is the
+mechanism by which gaps are discovered at all.
 
 This retires the `MissingConcept` wrapper and every rule about it.
 
