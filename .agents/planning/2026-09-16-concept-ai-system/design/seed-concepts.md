@@ -250,15 +250,43 @@ no `Question(...)` wrapper — that would state "question" twice.
 
 | Identity | Shape | Notes |
 |---|---|---|
-| `WhatIs(x)` | 1 | `InContext(x, Describe())`; the same operation, not a second one (`concept-spec.md` Part 4.0) |
+| `What(x)` | 1 | the unknown is a thing or a value |
 | `When(x)`, `Where(x)`, `Who(x)`, `Why(x)`, `How(x)` | 1 | the corresponding question word |
 | `HowMany(x)` | 1 | a count is wanted |
 | `WhichOf(x, options)` | 2 | selection among alternatives |
 | `Whether(proposition)` | 1 | a yes/no question, which has no question word of its own and so would otherwise be indistinguishable from asserting the proposition |
+| `WhatIs(x)` | 1 | `SynonymOf(What())`; kept because people say it |
 
-`WhatIs` needs no rule to tell a definition apart from a value. `WhatIs(Parakeet())` finds
-no execution realization, goes residual, and describes; `WhatIs(Date())` finds one and
-computes. The graph decides, not the parse.
+#### A wh-question is a proposition with a hole
+
+The unknown is not always the thing being named. "What do we need" asks what fills a slot
+inside a relation, not what `Need` *is*. So an interrogative takes a proposition, and the
+hole is written `$_`:
+
+```
+What(Need(We(), $_))          what do we need
+Who(Killed($_, Him()))        who killed him
+Where(Is(Keys(), $_))         where are my keys
+When(Happened(Event(), $_))   when did it happen
+```
+
+Answering is finding what fills the hole, which is one mechanism for every interrogative
+rather than a different rule each.
+
+`$_` is written only when the hole sits **inside** a structure. When the unknown is the
+subject itself, wrapping it is enough, so the common case stays short:
+
+```
+What(Date())                  what is the date
+What(Parakeet())              what is a parakeet
+```
+
+Those two behave differently without any rule saying so. `What(Date())` finds an execution
+realization and computes; `What(Parakeet())` finds none, goes residual, and describes
+(`concept-spec.md` Part 4.0). The graph decides, not the parse.
+
+**Limit:** two holes in one proposition need distinct names rather than `$_` twice. Rare
+enough to record and not solve.
 
 **Frames.** Written only when the source has one.
 
@@ -296,7 +324,7 @@ computes. The graph decides, not the parse.
 | `Self()` | **omitted from the seed** — see Part 12 |
 
 `Today()` existing as a seeded Concept is what deletes the hardcoded calendar rule the old
-parser prompt carried. The Ears emits `WhatIs(Date(Today()))` because those are Concepts,
+parser prompt carried. The Ears emits `What(Date(Today()))` because those are Concepts,
 not because a sentence told it to.
 
 Note that `Date` and `Today` are **separate**: `Date` is the subject, `Today` a temporal
@@ -321,7 +349,7 @@ lies.
 | `Exist()` | continuous autonomous operation | the budget and safety envelope, deferred by choice |
 | `AskTeacher(...)` | needs a model call and a prompt contract | the Teacher protocol, once the IR is implemented |
 | `WebSearch`, `WikidataSearch` | real network realizations | fine to add, just not written here |
-| `Self()` | self-reference in an utterance | measured as the weak spot; shape unsettled |
+| `Self()` | a message referring to itself | measured as the weak spot; shape unsettled |
 | `Ambiguous(a, b)` | preserving multiple readings | policy is settled, the IR node is not |
 | `Forget()` | collection policy | thresholds unresolved (`concept-spec.md` Part 19) |
 | success/preference recording | tie-break evidence | generalisation across contexts unresolved |

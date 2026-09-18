@@ -311,12 +311,12 @@ It is used for every ordered group in the system:
 - a function body,
 - a list of gaps to resolve followed by the action to retake (Part 8.3).
 
-There is no separate `Utterance`, `Prompt`, `Block`, or `Statements` node. One concept.
+There is no separate `Message`, `Utterance`, `Prompt`, `Block`, or `Statements` node. One concept.
 
 ### 6.1 A single step is not wrapped
 
-**One step is that step, bare.** `WhatIs(Date())` is a complete IR. It is not
-`Sequence(WhatIs(Date()))`, and it is not `Utterance(WhatIs(Date()))`.
+**One step is that step, bare.** `What(Date())` is a complete IR. It is not
+`Sequence(What(Date()))`, and it is not wrapped in any root node.
 
 `Sequence` appears only when there are two or more steps.
 
@@ -583,8 +583,9 @@ All in the final line form. The first five are the intended targets for the meas
 inputs; the sixth is a target not yet reached (Part 11.4).
 
 Each question carries its **interrogative**, which is what marks it as a question. There is
-no `Question(...)` wrapper: `WhatIs`, `When`, `Where`, `Who`, `Why`, `How`, `HowMany`,
-`WhichOf`, and `Whether` each say both that a question is being asked and what kind. Wrapping
+no `Question(...)` wrapper: `What`, `When`, `Where`, `Who`, `Why`, `How`, `HowMany`,
+`WhichOf`, and `Whether` each say both that a question is being asked and what kind. Each
+takes a proposition, and where the unknown sits inside that proposition it is written `$_`. Wrapping
 one in `Question(...)` would state "question" twice, the same redundancy Part 6.2 retires
 for collections.
 
@@ -592,7 +593,7 @@ for collections.
 `three` stays a word: the producer never normalizes.
 
 ```
-WhatIs(Multiply(5, Number("three")))
+What(Multiply(5, Number("three")))
 ```
 
 **"What is todays date?"** — the missing apostrophe is a grammar slip, not a content word,
@@ -600,16 +601,16 @@ so it is not marked (Part 7.3). The subject is `Date`; `Today` is a separate tem
 qualifier and must not be conflated with it:
 
 ```
-WhatIs(Date(Today()))
+What(Date(Today()))
 ```
 
-Three nearby utterances stay distinct, where a normalizer would collapse all three:
+Three nearby messages stay distinct, where a normalizer would collapse all three:
 
 | source | IR |
 |---|---|
-| "What is today's date?" | `WhatIs(Date(Today()))` |
-| "What is the date?" | `WhatIs(Date())` — deictic default; no `Today` is invented |
-| "What is today?" | `WhatIs(Today())` — an odd question, still expressible |
+| "What is today's date?" | `What(Date(Today()))` |
+| "What is the date?" | `What(Date())` — deictic default; no `Today` is invented |
+| "What is today?" | `What(Today())` — an odd question, still expressible |
 
 `Date(Today())` looks redundant, because `Today()` is already a date. "Today's date" is
 redundant in English too, and preserving that is the point.
@@ -618,7 +619,14 @@ A requested format **wraps** the subject rather than parameterising it, so `Date
 to know that formats exist (`concept-spec.md` Part 10.2):
 
 ```
-WhatIs(Format(Date(Today()), "MM-DD-YYYY"))
+What(Format(Date(Today()), "MM-DD-YYYY"))
+```
+
+**"What do we need?"** — the unknown fills a slot inside a relation rather than naming the
+subject, so the hole is written `$_` (`seed-concepts.md` Part 10):
+
+```
+What(Need(We(), $_))
 ```
 
 **"how many r's are in strawberry"** — the source says "how many", so the interrogative is
@@ -673,7 +681,7 @@ phrases refer outside the message and become `Ref` with the text copied verbatim
 `GreaterThan` may not exist in the graph; the producer writes them anyway (Part 8.1).
 
 The last line is worth reading closely, because an earlier draft wrote it as
-`Question(GreaterThan(...))` and that silently dropped **two** pieces of the utterance. "Tell
+`Question(GreaterThan(...))` and that silently dropped **two** pieces of the message. "Tell
 me" is an imperative, so the frame is `Do(Tell(Me(), ...))`; and "if it's more than" is an
 embedded yes/no question, so the content is `Whether(...)`. Neither survives a bare
 `Question`.
@@ -898,7 +906,7 @@ that parses but silently drops meaning.
 
 | variant | rawValid | afterRepair | fidelity |
 |---|---|---|---|
-| one `Utterance(...)` expression | 94% | 97% | 78% |
+| one wrapped root expression | 94% | 97% | 78% |
 | **one `$name = expr` line per phrase** | **97%** | **100%** | **82%** |
 
 The aggregate margin is modest, and the single-expression form was actually better on the

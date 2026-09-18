@@ -260,7 +260,7 @@ Part 2.1 forbids.
 **Every relation stays directly queryable.** Relation traversal is a search surface in its
 own right (Part 11), and it is pure, so a lexical question is answerable descriptively. It
 is simply a *different query* from the general description rather than a competing one:
-`WhatIs(Happy())` summarizes and omits the synonym list, while a traversal over `SynonymOf`
+`What(Happy())` summarizes and omits the synonym list, while a traversal over `SynonymOf`
 returns precisely that list.
 
 **Context already selects which description runs**, so this needs no new mechanism. The
@@ -277,7 +277,7 @@ document, rather than by a binary property baked onto each relation.
 
 #### Asking a question is describing
 
-`WhatIs(Chess())` and describing `Chess` are the same operation: the question form is
+`What(Chess())` and describing `Chess` are the same operation: the question form is
 `InContext(concept=Chess(), use=Describe())`. They should not be built twice.
 
 #### Relations are part of the unit, not arguments
@@ -1063,7 +1063,7 @@ not `Date(Today(), Format("MM-DD-YYYY"))`. Four reasons:
   touching it at all.
 - **It composes.** The wrapper applies to anything date-shaped — a deictic, a parsed date, a
   date read from a file. A parameter only works where the parameter exists.
-- **It mirrors the utterance.** "The date, in MM-DD-YYYY" is a transformation applied to a
+- **It mirrors the message.** "The date, in MM-DD-YYYY" is a transformation applied to a
   subject, not a subject with a mode.
 - **The format is usually absent**, so a parameter would be a normally-empty slot.
 
