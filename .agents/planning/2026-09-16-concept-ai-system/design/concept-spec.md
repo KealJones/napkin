@@ -215,6 +215,10 @@ parse time would discard the word actually chosen, which the IR spec forbids.
 Many surface forms reaching one realizable core is the intended shape of the graph, and it
 *raises* effective recall, because more phrasings find the same behaviour.
 
+That last claim depends entirely on search expanding a hit over equivalence relations
+(Part 11.1). Under purely lexical search it is false: searching one synonym would surface
+only that synonym, and the cluster would be invisible.
+
 The real defect is **disconnection**: an identity with no relation and no realization
 reaching anything realizable. That is an orphan, and Part 12 is how orphans get attached.
 
