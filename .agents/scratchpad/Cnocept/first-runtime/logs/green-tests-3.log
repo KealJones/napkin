@@ -1,0 +1,18 @@
+$ pnpm build && node --test dist/*.test.js
+$ tsc -p tsconfig.json
+✔ expression grammar round-trips nested, named, primitive, and variable values (0.662959ms)
+✔ SQLite round-trips a complete Concept unit with relations and alternatives (2.763458ms)
+✔ direct arithmetic returns Answer(15) and persists a complete nested trace (3.928292ms)
+✔ changing the stored Multiply realization changes behavior without host edits (2.076916ms)
+✔ an unseen compositional Concept executes without adding evaluator code (1.064625ms)
+✔ ordinary Concepts can hold context-specific alternatives (1.36ms)
+✔ unknown concepts produce a visible failure result and failed trace event (0.392125ms)
+✔ generic evaluator has no branches or callable registry keyed by semantic names (3.080417ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81.298834

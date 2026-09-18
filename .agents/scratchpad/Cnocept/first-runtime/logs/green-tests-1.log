@@ -1,0 +1,10 @@
+$ pnpm build && node --test dist/*.test.js
+$ tsc -p tsconfig.json
+src/store/sqlite-store.ts(35,8): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(...anonymousParameters: SQLInputValue[]): StatementResultingChanges', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'SQLInputValue'.
+      Type 'undefined' is not assignable to type 'SQLInputValue'.
+  Overload 2 of 2, '(namedParameters: Record<string, SQLInputValue>, ...anonymousParameters: SQLInputValue[]): StatementResultingChanges', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'Record<string, SQLInputValue>'.
+[ELIFECYCLE] Command failed with exit code 2.
+[ELIFECYCLE] Test failed. See above for more details.

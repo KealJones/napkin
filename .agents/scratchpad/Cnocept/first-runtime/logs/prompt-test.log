@@ -1,0 +1,42 @@
+$ pnpm build && node --test dist/*.test.js
+$ tsc -p tsconfig.json
+✔ expression grammar round-trips nested, named, primitive, and variable values (2.476334ms)
+✔ SQLite round-trips a complete Concept unit with relations and alternatives (9.2835ms)
+✔ direct arithmetic returns Answer(15) and persists a complete nested trace (17.685042ms)
+✖ natural-language PromptInput uses Ollama Concepts and preserves its raw source (31.131584ms)
+✔ changing the stored Multiply realization changes behavior without host edits (14.658333ms)
+✔ an unseen compositional Concept executes without adding evaluator code (9.198583ms)
+✔ launcher can use an alternate runtime-entry Concept from the store (4.918125ms)
+✔ ordinary Concepts can hold context-specific alternatives (10.925125ms)
+✔ unknown concepts produce a visible failure result and failed trace event (6.941667ms)
+✔ recursive realizations stop at the generic depth budget with a traceable failure (6.871458ms)
+✔ invalid code results fail visibly instead of returning a placeholder (7.983167ms)
+✔ generic evaluator has no branches or callable registry keyed by semantic names (14.394125ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 318.08825
+
+✖ failing tests:
+
+test at dist/runtime.test.js:64:1
+✖ natural-language PromptInput uses Ollama Concepts and preserves its raw source (31.131584ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(networkEvent?.externalExchanges[0]?.responseBody?.includes(meaning))
+  
+      at TestContext.<anonymous> (file:///Users/kealjones/Git/Personal/Cnocept/dist/runtime.test.js:108:12)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+[ELIFECYCLE] Test failed. See above for more details.

@@ -1,0 +1,22 @@
+$ pnpm build && node --test dist/*.test.js
+$ tsc -p tsconfig.json
+✔ expression grammar round-trips nested, named, primitive, and variable values (2.429792ms)
+✔ SQLite round-trips a complete Concept unit with relations and alternatives (9.585667ms)
+✔ direct arithmetic returns Answer(15) and persists a complete nested trace (19.183917ms)
+✔ natural-language PromptInput uses Ollama Concepts and preserves its raw source (34.105792ms)
+✔ changing the stored Multiply realization changes behavior without host edits (11.804041ms)
+✔ an unseen compositional Concept executes without adding evaluator code (8.26075ms)
+✔ launcher can use an alternate runtime-entry Concept from the store (4.725ms)
+✔ ordinary Concepts can hold context-specific alternatives (9.614416ms)
+✔ unknown concepts produce a visible failure result and failed trace event (6.394958ms)
+✔ recursive realizations stop at the generic depth budget with a traceable failure (6.750875ms)
+✔ invalid code results fail visibly instead of returning a placeholder (6.540666ms)
+✔ generic evaluator has no branches or callable registry keyed by semantic names (12.492667ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 313.098292

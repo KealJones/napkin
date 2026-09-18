@@ -1,0 +1,592 @@
+$ pnpm build && node dist/cli.js -- 'Question(Multiply(Number(5), Number(String("three"))))' --trace --db ./.cnocept/clean-demo.sqlite
+$ tsc -p tsconfig.json
+Answer(15)
+Trace: a84ec912-a676-4196-9898-06a59dcdcd31
+{
+  "concept": "RuntimeEntry",
+  "caller": "CLI",
+  "parent": null,
+  "input": "RuntimeEntry(input=PromptInput(input=Question(Multiply(Number(5), Number(String(\"three\"))))), useContext=Execution())",
+  "arguments": [
+    {
+      "apply": {
+        "head": "PromptInput",
+        "args": [
+          {
+            "name": "input",
+            "value": {
+              "apply": {
+                "head": "Question",
+                "args": [
+                  {
+                    "value": {
+                      "apply": {
+                        "head": "Multiply",
+                        "args": [
+                          {
+                            "value": {
+                              "apply": {
+                                "head": "Number",
+                                "args": [
+                                  {
+                                    "value": 5
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          {
+                            "value": {
+                              "apply": {
+                                "head": "Number",
+                                "args": [
+                                  {
+                                    "value": {
+                                      "apply": {
+                                        "head": "String",
+                                        "args": [
+                                          {
+                                            "value": "three"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "head": "Execution",
+        "args": []
+      }
+    }
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "RuntimeEntry",
+              "args": [
+                {
+                  "name": "input",
+                  "value": {
+                    "variable": "input"
+                  }
+                },
+                {
+                  "name": "useContext",
+                  "value": {
+                    "variable": "useContext"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "apply": {
+              "head": "Code",
+              "args": [
+                {
+                  "name": "source",
+                  "value": "(args, api) => {\n  const input = args[0];\n  const useContext = args[1];\n  let steps = 0;\n\n  function expression(head, fields) {\n    return {\n      apply: {\n        head,\n        args: Object.keys(fields).map((name) => ({ name, value: fields[name] }))\n      }\n    };\n  }\n\n  function raise(head, fields, message) {\n    const error = new Error(message);\n    error.value = expression(head, fields);\n    throw error;\n  }\n\n  function isApplication(value) {\n    return typeof value === \"object\" && value !== null && \"apply\" in value;\n  }\n\n  function field(value, name) {\n    if (!isApplication(value)) return undefined;\n    const argument = value.apply.args.find((item) => item.name === name);\n    return argument && argument.value;\n  }\n\n  function specificity(value) {\n    if (typeof value !== \"object\" || value === null) return 1;\n    if (\"variable\" in value) return 0;\n    return 1 + value.apply.args.reduce(\n      (sum, argument) => sum + specificity(argument.value),\n      0\n    );\n  }\n\n  function select(unit, call) {\n    const candidates = [];\n    for (const candidate of unit.realizations) {\n      if (!isApplication(candidate) || candidate.apply.head !== \"Realization\") {\n        raise(\"InvalidRealization\", {\n          concept: unit.identity,\n          realization: candidate\n        }, \"A realization must use the generic Realization expression\");\n      }\n\n      const pattern = field(candidate, \"pattern\");\n      const body = field(candidate, \"body\");\n      const contextPattern = field(candidate, \"context\");\n      const evaluateArguments = field(candidate, \"evaluateArguments\");\n      if (pattern === undefined || body === undefined) {\n        raise(\"InvalidRealization\", {\n          concept: unit.identity,\n          realization: candidate\n        }, \"A realization requires pattern and body expressions\");\n      }\n      if (evaluateArguments !== undefined && typeof evaluateArguments !== \"boolean\") {\n        raise(\"InvalidRealization\", {\n          concept: unit.identity,\n          field: \"evaluateArguments\"\n        }, \"evaluateArguments must be a boolean\");\n      }\n\n      const bindings = {};\n      if (!api.match(pattern, call, bindings)) continue;\n      if (contextPattern !== undefined && !api.match(contextPattern, useContext, bindings)) {\n        continue;\n      }\n      candidates.push({\n        expression: candidate,\n        pattern,\n        body,\n        contextPattern,\n        bindings,\n        evaluateArguments: evaluateArguments !== false,\n        specificity: contextPattern === undefined ? 0 : specificity(contextPattern)\n      });\n    }\n    candidates.sort((left, right) => right.specificity - left.specificity);\n    return candidates[0];\n  }\n\n  function evaluate(value, caller, parentEventId, depth) {\n    if (value === null || typeof value !== \"object\") return value;\n    if (\"variable\" in value) {\n      raise(\"UnboundVariable\", { name: value.variable }, \"Unbound variable\");\n    }\n\n    const head = value.apply.head;\n    const eventId = api.startEvent({\n      concept: head,\n      caller,\n      parentEventId,\n      useContext,\n      input: value,\n      arguments: value.apply.args.map((argument) => argument.value)\n    });\n\n    try {\n      steps += 1;\n      if (depth > api.maximumDepth) {\n        raise(\"BudgetExceeded\", {\n          kind: \"depth\",\n          limit: api.maximumDepth\n        }, \"Maximum evaluation depth exceeded\");\n      }\n      if (steps > api.maximumSteps) {\n        raise(\"BudgetExceeded\", {\n          kind: \"steps\",\n          limit: api.maximumSteps\n        }, \"Maximum evaluation steps exceeded\");\n      }\n\n      const unit = api.getConcept(head);\n      if (!unit) {\n        raise(\"UnknownConcept\", { identity: head }, \"No Concept unit exists for \" + head);\n      }\n\n      const selected = select(unit, value);\n      if (!selected) {\n        api.finishEvent(eventId, { output: value, outcome: \"residual\" });\n        return value;\n      }\n\n      api.updateEvent(eventId, { selectedRealization: selected.expression });\n      let bindings = selected.bindings;\n      let bodyArguments = value.apply.args;\n\n      if (selected.evaluateArguments) {\n        bodyArguments = value.apply.args.map((argument) => {\n          const evaluated = evaluate(argument.value, head, eventId, depth + 1);\n          return argument.name === undefined\n            ? { value: evaluated }\n            : { name: argument.name, value: evaluated };\n        });\n        const evaluatedCall = { apply: { head, args: bodyArguments } };\n        api.updateEvent(eventId, {\n          evaluatedArguments: bodyArguments.map((argument) => argument.value)\n        });\n        bindings = {};\n        if (!api.match(selected.pattern, evaluatedCall, bindings)) {\n          raise(\"NoApplicableRealization\", {\n            concept: head,\n            afterArgumentEvaluation: true\n          }, \"The selected pattern no longer matches after argument evaluation\");\n        }\n        if (\n          selected.contextPattern !== undefined &&\n          !api.match(selected.contextPattern, useContext, bindings)\n        ) {\n          raise(\"NoApplicableRealization\", {\n            concept: head,\n            context: useContext\n          }, \"The selected context pattern no longer matches after argument evaluation\");\n        }\n      }\n\n      const body = api.substitute(selected.body, bindings);\n      const result = isApplication(body) && body.apply.head === \"Code\"\n        ? api.runCode(body, bodyArguments, useContext)\n        : evaluate(body, head, eventId, depth + 1);\n      api.finishEvent(eventId, { output: result, outcome: \"success\" });\n      return result;\n    } catch (caught) {\n      const message = caught instanceof Error ? caught.message : String(caught);\n      const failure = caught && caught.value\n        ? caught.value\n        : expression(\"ExecutionFailed\", { concept: head, message });\n      api.finishEvent(eventId, {\n        output: failure,\n        outcome: \"failure\",\n        error: message\n      });\n      const propagated = new Error(message);\n      propagated.value = failure;\n      throw propagated;\n    }\n  }\n\n  return evaluate(input, api.entryConcept, api.rootEventId, 0);\n}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "evaluateArguments",
+          "value": false
+        }
+      ]
+    }
+  },
+  "output": "Answer(15)",
+  "outcome": "success",
+  "durationMs": 72
+}
+{
+  "concept": "PromptInput",
+  "caller": "RuntimeEntry",
+  "parent": "9c1164a2-7bc4-43b2-a9b0-3694e94958b6",
+  "input": "PromptInput(input=Question(Multiply(Number(5), Number(String(\"three\")))))",
+  "arguments": [
+    {
+      "apply": {
+        "head": "Question",
+        "args": [
+          {
+            "value": {
+              "apply": {
+                "head": "Multiply",
+                "args": [
+                  {
+                    "value": {
+                      "apply": {
+                        "head": "Number",
+                        "args": [
+                          {
+                            "value": 5
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "value": {
+                      "apply": {
+                        "head": "Number",
+                        "args": [
+                          {
+                            "value": {
+                              "apply": {
+                                "head": "String",
+                                "args": [
+                                  {
+                                    "value": "three"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "PromptInput",
+              "args": [
+                {
+                  "name": "input",
+                  "value": {
+                    "variable": "input"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "variable": "input"
+          }
+        },
+        {
+          "name": "evaluateArguments",
+          "value": false
+        }
+      ]
+    }
+  },
+  "output": "Answer(15)",
+  "outcome": "success",
+  "durationMs": 60
+}
+{
+  "concept": "Question",
+  "caller": "PromptInput",
+  "parent": "90354a7a-6a2e-42d8-bced-f3abcdcd229e",
+  "input": "Question(Multiply(Number(5), Number(String(\"three\"))))",
+  "arguments": [
+    {
+      "apply": {
+        "head": "Multiply",
+        "args": [
+          {
+            "value": {
+              "apply": {
+                "head": "Number",
+                "args": [
+                  {
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "value": {
+              "apply": {
+                "head": "Number",
+                "args": [
+                  {
+                    "value": {
+                      "apply": {
+                        "head": "String",
+                        "args": [
+                          {
+                            "value": "three"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "Question",
+              "args": [
+                {
+                  "value": {
+                    "variable": "answer"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "apply": {
+              "head": "Answer",
+              "args": [
+                {
+                  "value": {
+                    "variable": "answer"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "context",
+          "value": {
+            "apply": {
+              "head": "Execution",
+              "args": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "output": "Answer(15)",
+  "outcome": "success",
+  "durationMs": 53
+}
+{
+  "concept": "Multiply",
+  "caller": "Question",
+  "parent": "423ea97f-f0de-4ffd-b7aa-7fd181f8a44b",
+  "input": "Multiply(Number(5), Number(String(\"three\")))",
+  "arguments": [
+    {
+      "apply": {
+        "head": "Number",
+        "args": [
+          {
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "apply": {
+        "head": "Number",
+        "args": [
+          {
+            "value": {
+              "apply": {
+                "head": "String",
+                "args": [
+                  {
+                    "value": "three"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "Multiply",
+              "args": [
+                {
+                  "value": {
+                    "variable": "left"
+                  }
+                },
+                {
+                  "value": {
+                    "variable": "right"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "apply": {
+              "head": "Code",
+              "args": [
+                {
+                  "name": "source",
+                  "value": "args => args[0] * args[1]"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "context",
+          "value": {
+            "apply": {
+              "head": "Execution",
+              "args": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "output": "15",
+  "outcome": "success",
+  "durationMs": 38
+}
+{
+  "concept": "Number",
+  "caller": "Multiply",
+  "parent": "cc2bc720-dd4b-452c-9d37-13a90adc5f29",
+  "input": "Number(5)",
+  "arguments": [
+    5
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "Number",
+              "args": [
+                {
+                  "value": {
+                    "variable": "value"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "apply": {
+              "head": "Code",
+              "args": [
+                {
+                  "name": "source",
+                  "value": "args => { const value = args[0]; if (typeof value === \"number\") return value; const text = String(value).trim().toLowerCase(); const words = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }; if (Object.prototype.hasOwnProperty.call(words, text)) return words[text]; const numeric = Number(text); if (Number.isFinite(numeric)) return numeric; throw new Error(\"Cannot interpret as a number: \" + text); }"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "context",
+          "value": {
+            "apply": {
+              "head": "Execution",
+              "args": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "output": "5",
+  "outcome": "success",
+  "durationMs": 9
+}
+{
+  "concept": "Number",
+  "caller": "Multiply",
+  "parent": "cc2bc720-dd4b-452c-9d37-13a90adc5f29",
+  "input": "Number(String(\"three\"))",
+  "arguments": [
+    {
+      "apply": {
+        "head": "String",
+        "args": [
+          {
+            "value": "three"
+          }
+        ]
+      }
+    }
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "Number",
+              "args": [
+                {
+                  "value": {
+                    "variable": "value"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "apply": {
+              "head": "Code",
+              "args": [
+                {
+                  "name": "source",
+                  "value": "args => { const value = args[0]; if (typeof value === \"number\") return value; const text = String(value).trim().toLowerCase(); const words = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }; if (Object.prototype.hasOwnProperty.call(words, text)) return words[text]; const numeric = Number(text); if (Number.isFinite(numeric)) return numeric; throw new Error(\"Cannot interpret as a number: \" + text); }"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "context",
+          "value": {
+            "apply": {
+              "head": "Execution",
+              "args": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "output": "3",
+  "outcome": "success",
+  "durationMs": 16
+}
+{
+  "concept": "String",
+  "caller": "Number",
+  "parent": "b71aa247-1b34-4d17-9451-322e1094d4c1",
+  "input": "String(\"three\")",
+  "arguments": [
+    "three"
+  ],
+  "selectedRealization": {
+    "apply": {
+      "head": "Realization",
+      "args": [
+        {
+          "name": "pattern",
+          "value": {
+            "apply": {
+              "head": "String",
+              "args": [
+                {
+                  "value": {
+                    "variable": "value"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "body",
+          "value": {
+            "variable": "value"
+          }
+        },
+        {
+          "name": "context",
+          "value": {
+            "apply": {
+              "head": "Execution",
+              "args": []
+            }
+          }
+        }
+      ]
+    }
+  },
+  "output": "\"three\"",
+  "outcome": "success",
+  "durationMs": 7
+}
+{
+  "concept": "Answer",
+  "caller": "Question",
+  "parent": "423ea97f-f0de-4ffd-b7aa-7fd181f8a44b",
+  "input": "Answer(15)",
+  "arguments": [
+    15
+  ],
+  "selectedRealization": null,
+  "output": "Answer(15)",
+  "outcome": "residual",
+  "durationMs": 2
+}

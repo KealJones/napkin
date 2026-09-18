@@ -1,0 +1,5 @@
+$ pnpm build && node dist/cli.js -- --text 'What is 5 times three?' --model qwen3.5:0.8b --db ./.cnocept/ollama-smoke3.sqlite
+$ tsc -p tsconfig.json
+ExecutionFailed(concept="PromptInput", message="ExpressionParseError: Bare identifiers are not values; use a Concept application at position 4")
+Trace: b64d498c-b866-4c71-b6bf-6c263c41a479
+[ELIFECYCLE] Command failed with exit code 1.

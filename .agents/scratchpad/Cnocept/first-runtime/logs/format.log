@@ -1,0 +1,13 @@
+$ prettier --write "src/**/*.ts" "*.json" "*.md"
+src/bootstrap/runtime-entry-source.ts 92ms (unchanged)
+src/bootstrap/seed.ts 42ms
+src/cli.ts 32ms
+src/concept/expression.ts 50ms
+src/concept/unit.ts 7ms
+src/runtime.test.ts 30ms
+src/runtime/evaluator.ts 57ms
+src/runtime/trace.ts 3ms (unchanged)
+src/store/sqlite-store.ts 12ms
+package.json 23ms (unchanged)
+tsconfig.json 2ms (unchanged)
+README.md 59ms (unchanged)
