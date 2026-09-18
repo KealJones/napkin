@@ -156,7 +156,7 @@ one per pattern-and-context pair.
 ### 3.3 Identity is not canonical
 
 There is no canonical identity for a meaning, no alias table, and no deduplication pass.
-`Times`, `Multiplication`, and `Multiply` may all exist. See Part 5.3 — this is intended.
+`Times`, `Multiplication`, and `Multiply` may all exist. See Part 5.4 — this is intended.
 
 ---
 
@@ -227,7 +227,7 @@ answers a question about it.
 
 That default is not a fallback wired into the evaluator. It is one realization on a
 universal parent that every Concept is an `IsA` descendant of, delivered by ordinary
-inheritance (Part 5.4). Editing that single realization changes how everything describes
+inheritance (Part 5.5). Editing that single realization changes how everything describes
 itself, which is what Part 2.1 requires of anything that behaves like a default.
 
 It is also consistent with Part 1.0. Relations are *stated*; the description is *produced*,
@@ -364,7 +364,7 @@ describing realization**. Composition self-describes and relations self-describe
 set is small: essentially a freshly invented identity that nothing has been attached to yet.
 
 Which is precisely the set the learning path is about to fill in (Part 12), and precisely
-what an orphan is (Part 5.3). So a Concept with no searchable text is not a coverage gap so
+what an orphan is (Part 5.4). So a Concept with no searchable text is not a coverage gap so
 much as a work item that is already queued.
 
 The remaining weak case is an effectful leaf whose relations are thin — `HttpRequest` with
@@ -413,15 +413,70 @@ deny everything it has not yet been taught.
   return.
 
 Establishing **false** means finding a contradiction, which sounds like it requires scanning
-the graph. It does not. A contradiction can only take a small number of shapes — a direct
-negation of the relation, or a relation to something declared disjoint from the target — so
-the check is a keyed lookup, not a traversal.
+the graph. It does not, because **what counts as a contradiction is determined by the
+relation's own declared properties** (Part 5.3). `Asymmetric()` on `IsOlderThan` is exactly
+what makes asserting it in both directions a contradiction rather than merely unknown; a
+direct negation and a relation to something declared disjoint are the other shapes.
 
-This requires relations to be indexed by subject and predicate. With that index, the cost of
-distinguishing false from unknown is a small constant, independent of graph size. Without
-it, the distinction is unaffordable and the open-world guarantee is theatre.
+So the check is a small set of keyed lookups rather than a traversal. It requires relations
+to be indexed **in both directions** — by subject and predicate, and by object and predicate
+— because an inverse or symmetric relation is found from either end. With those indexes the
+cost of distinguishing false from unknown is a small constant, independent of graph size.
+Without them the distinction is unaffordable and the open-world guarantee is theatre.
 
-### 5.3 Synonyms are a success, not a defect
+### 5.3 Relations have properties, and properties imply relations
+
+A relation often implies another relation, in the other direction:
+
+- `IsMarriedTo(Keal, Emmy)` implies `IsMarriedTo(Emmy, Keal)`. Same relation, swapped.
+- `IsOlderThan(Keal, Greg)` implies `IsYoungerThan(Greg, Keal)`. A different relation,
+  swapped.
+
+Both are handled the same way, and it needs nothing new: **a relation Concept is a Concept,
+so it has relations.**
+
+```
+IsMarriedTo   ->  Symmetric()
+IsOlderThan   ->  InverseOf(IsYoungerThan()),  Transitive(),  Asymmetric()
+IsA           ->  Transitive()
+SynonymOf     ->  Symmetric(),  Transitive()
+```
+
+The useful vocabulary is small: `Symmetric`, `Asymmetric`, `InverseOf`, `Transitive`,
+`Reflexive`, `Irreflexive`, `Functional`. The inference each one licenses is performed by a
+realization on the relation Concept, exactly as Part 5.7 requires — these are further
+instances of the pattern `IsA` transitivity already established, not a new mechanism.
+
+`InverseOf` is itself `Symmetric()`, so declaring it once on `IsOlderThan` is enough. The
+property vocabulary describes itself using its own mechanism, which is a good sign the
+design closes rather than needing a layer above it.
+
+#### Derive, do not materialize
+
+Asserting `IsMarriedTo(Keal, Emmy)` does **not** write `IsMarriedTo(Emmy, Keal)` into
+Emmy's relations. Only the asserted fact is stored; querying Emmy runs the symmetry rule
+and yields the implied relation.
+
+Materializing would store two records of one reality. Part 3 retracts a relation by
+asserting a contradicting one, which would then have to be done at both ends and could be
+done at only one, leaving the graph quietly inconsistent. One fact, one truth.
+
+The cost is paid by the two-directional index in Part 5.2, which keeps derivation a keyed
+lookup rather than a scan.
+
+#### Derived relations are real relations
+
+Anything that reads a Concept's relations reads the derived set, not just the stored set.
+In particular the default description (Part 4.0) must, or describing Emmy would omit her
+marriage.
+
+#### Termination
+
+Symmetry and transitivity together can cycle. Traversal carries a visited set, which is
+precisely why Part 1.0 has relations *traversed* rather than *evaluated*: a graph walk with
+a visited set terminates, and evaluation does not.
+
+### 5.4 Synonyms are a success, not a defect
 
 If the input says "times", the faithful parse names `Times`, not `Multiply`. `Times` then
 carries `SynonymOf(Multiply())`.
@@ -439,7 +494,7 @@ only that synonym, and the cluster would be invisible.
 The real defect is **disconnection**: an identity with no relation and no realization
 reaching anything realizable. That is an orphan, and Part 12 is how orphans get attached.
 
-### 5.4 Relations generate default realizations
+### 5.5 Relations generate default realizations
 
 `SynonymOf(Multiply())` as a relation and `Times($a, $b) := Multiply($a, $b)` as a
 realization assert the same thing twice, which is the duplication Part 4 rejects.
@@ -451,7 +506,7 @@ Resolution: the relation is the source of truth, and the forwarding realization 
 The same applies to other structural relations: `IsA` supplies inherited behaviour where
 none is declared locally.
 
-### 5.5 Context does not follow synonyms
+### 5.6 Context does not follow synonyms
 
 If `Times` carries `SynonymOf(Multiply())`, and some Concept has a realization written for
 the context `Multiply()` but not for `Times()`, a call naming `Times` does **not** match
@@ -471,7 +526,7 @@ applied to the other would flip the arguments and be confidently wrong.
 #### When you do want sharing
 
 Use `IsA`, not `SynonymOf`. Inheritance shares context and behaviour deliberately
-(Part 5.4), so a realization written for a shared parent applies to every child. That makes
+(Part 5.5), so a realization written for a shared parent applies to every child. That makes
 the two structural relations mean clearly different things:
 
 | Relation | Shares computation | Shares context |
@@ -483,7 +538,7 @@ If a contextual realization should cover several identities, declare their commo
 write it there. The convenience of automatic synonym sharing is not worth reintroducing the
 `GoesInto` bug.
 
-### 5.6 Traversal is a realization, not a host feature
+### 5.7 Traversal is a realization, not a host feature
 
 `IsA` transitivity — concluding `IsA(Animal())` from `IsA(Bird())` and `Bird IsA Animal` —
 is performed by a realization of the relation Concept itself, not by special traversal code
@@ -918,8 +973,13 @@ A text search that returns only the Concept whose name matched is broken for dis
 Searching "times" finds `Times` and never reveals that `Multiplication`, `Product`, and
 `Multiply` exist, even though they are all connected and one of them holds the behaviour.
 
-So a text hit **expands over equivalence relations** — `SynonymOf`, and `IsA` for the
-parent — and returns the closure, marked up with:
+So a text hit **expands over equivalence relations** and returns the closure. That
+expansion is not a bespoke search feature: it is the ordinary closure over relations
+declared `Symmetric()` and `Transitive()` (Part 5.3), which `SynonymOf` is both of, plus
+`IsA` for the parent. Cluster search is therefore a consequence of the relation properties
+rather than its own mechanism.
+
+The result is marked up with:
 
 - which Concept was the direct textual hit,
 - which others are related, and by which relation,
@@ -933,11 +993,11 @@ Two things follow from this that are worth stating.
 
 **It is the difference between the graph mattering and not.** If search is purely lexical,
 relations contribute nothing to discovery and the graph is decorative outside of inference.
-The claim in Part 5.3 that connected synonyms *raise* effective recall is only true because
+The claim in Part 5.4 that connected synonyms *raise* effective recall is only true because
 search traverses. Without cluster expansion, that claim is simply false.
 
 **It is also orphan detection.** If a cluster's closure contains no realizable behaviour,
-that cluster is a disconnected island — the actual defect defined in Part 5.3. The same
+that cluster is a disconnected island — the actual defect defined in Part 5.4. The same
 operation that answers a search answers "is this attached to anything".
 
 ### 11.2 Resolution does not expand
@@ -988,12 +1048,18 @@ The system fills its own gaps. The sequence:
 3. **Collect.** Walk the realized expression for residual identities and for unresolved
    references.
 4. **Try to learn unaided.** Search the existing graph; a `SynonymOf` or `IsA` may already
-   supply behaviour (Part 5.4). Then research: web search and structured sources, with
+   supply behaviour (Part 5.5). Then research: web search and structured sources, with
    results turned into Concepts. Then composed reasoning, which may include a conversation
    the system holds with itself.
 5. **Ask the Teacher, last.** A larger local model, given the original request, the gap, the
    research evidence, and lookup access to existing Concepts, returns complete Concept
    units. It may be asked about several gaps at once.
+
+   When the gap is a **relation**, the Teacher should also be asked for its properties —
+   whether it is symmetric, what its inverse is, whether it is transitive (Part 5.3). Those
+   answers are cheap to produce and each one licenses inference over every future use of the
+   relation, so they are the highest-value thing to ask for at learning time. A relation
+   learned without them is inert in one direction.
 6. **Save.** New Concepts enter the shared graph.
 7. **Re-evaluate**, and re-parse the original input, now that the graph is better.
 
@@ -1213,19 +1279,19 @@ Recorded so the resolutions are not silently re-litigated.
 | 1 | Descriptions should be "expressed in Concepts", but lookup needs searchable text. | Description is a realization under a describing context. Searchable text is a **derived index** over those realizations, so there is one source of truth and search is still fast. No `meaning` or `gloss` field. Part 4. |
 | 2 | Everything is a Concept, but the trace "does not have to be". | Writing is an ambient effect; reading is a Concept. Otherwise selection policy and self-analysis leak into host code. Part 15.1. |
 | 3 | An unknown Concept raised an error, but the parser is supposed to invent freely. | An absent Concept yields a residual, exactly like a missing realization. Raising would make invention fatal. Part 8.2. |
-| 4 | `SynonymOf(X())` as a relation and a forwarding realization say the same thing twice. | The relation is the source of truth; the forwarding realization is derived from it. Part 5.4. |
+| 4 | `SynonymOf(X())` as a relation and a forwarding realization say the same thing twice. | The relation is the source of truth; the forwarding realization is derived from it. Part 5.5. |
 | 5 | Relations are Concept expressions, so are they evaluated? | No. Asserted, matched, traversed. They routinely cycle, and implicit evaluation would loop. Part 5.1. |
 | 6 | Statistical selection versus declared contextual meaning. | Specificity dominates absolutely; statistics only break ties among equally specific candidates, or meaning drifts. Part 9.1. |
 | 7 | "Decide which in different scenarios" for ambiguity, without saying how. | The policy is itself a realization selected by context, so it is inspectable and changeable. Part 9.5. |
 | 8 | No versioning, but the system edits itself. | Realizations and relations are append-only, so an edit never destroys anything and recovery is the new realization losing selection. Versioning would be the wrong granularity. Part 3.1. |
 | 9 | Does a bare `490` match `Number(490)`? | No. Distinct expressions, distinct patterns, explicit lifting. Implicit coercion would make matching dishonest. Part 10.1. |
 | 10 | Isolated conversations may change shared Concepts but leave no transcript. | Deferred, not specified. Anticipated for future users, not needed now. The asymmetry is recorded as a question to settle before building it. Part 14.2. |
-| 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.5. |
+| 11 | Traversal and inference have to happen somewhere. | In realizations of the relation Concepts, not in the store or evaluator. Part 5.7. |
 | 12 | Synonyms "raise recall", but a lexical search only ever returns the name that matched. | Search expands a hit over equivalence relations and returns the cluster. The recall claim is false without this. Part 11.1. |
 | 13 | A single stored description cannot be right for a Concept whose meaning is context-dependent. | It cannot, so there is no stored description. Contextual describing realizations replace it, which makes gloss drift structurally impossible rather than merely detectable. Part 4.1. |
-| 14 | If `Times` forwards to `Multiply`, does a context realization for `Multiply` fire for `Times`? | No. Context matches the identity as written. `SynonymOf` shares computation, not context; `IsA` shares both. Otherwise `GoesInto` inherits `DividedBy`'s context and silently flips the operands. Part 5.5. |
+| 14 | If `Times` forwards to `Multiply`, does a context realization for `Multiply` fire for `Times`? | No. Context matches the identity as written. `SynonymOf` shares computation, not context; `IsA` shares both. Otherwise `GoesInto` inherits `DividedBy`'s context and silently flips the operands. Part 5.6. |
 | 15 | Relations are Concept expressions, so should they just be realizations? | No. Relations are *stated* and traversed by a terminating walk; realizations are *produced* and evaluated under budget. Making relations realizations would turn every cyclic relation into a bounded infinite loop. Part 1.0. |
-| 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan: contradictions take few shapes, so an index on subject and predicate makes it a small constant. Without that index the guarantee is theatre. Part 5.2. |
+| 16 | Open-world truth requires proving a negative, which sounds unaffordable. | It is a keyed lookup, not a scan. What counts as a contradiction is fixed by the relation's own declared properties, and relations are indexed in both directions, so the check is a small constant. Without those indexes the guarantee is theatre. Part 5.2. |
 | 17 | Can a realization require two contexts at once, like describing *and* dog? | Yes. A context is an unordered set of facets, matched by subset, and conjunction is the normal case. Nesting was rejected: it forces an arbitrary facet order, and two realizations nesting differently would silently never match the same context. Part 7.1. |
 | 18 | Conjunction was admitted after disjunction was refused. | Opposite reasons. Conjunction narrows, so candidates stay comparable and specificity holds. Disjunction widens and is comparable to neither branch, so it would push meaning into tie-break. Part 6.5. |
 | 19 | Must a description exist as its own realization, or can behaviour serve as one? | Behaviour serves. A composed body is already a description, so `Describe()` only suppresses effectful bodies and ordinary evaluation plus the residual rule do the rest. Explicit describing realizations are for effectful leaves. Part 4.0. |
@@ -1233,7 +1299,8 @@ Recorded so the resolutions are not silently re-litigated.
 | 21 | Composition describes operations, but most Concepts are not operations. What describes `Chess`? | Its relations. A default describing realization presents them, delivered by inheritance from a universal parent rather than wired into the evaluator. Relations stay the only source of the facts; the description is produced by traversing them. Part 4.0. |
 | 22 | With a default inherited description, does it outrank a Concept's own composition? | No, and fixing this reordered selection: inheritance distance now dominates context specificity. Otherwise the generic inherited description outranks a local composition on facet count, and `Double` describes as relations instead of `Multiply($x, 2)`. Part 9.2. |
 | 23 | Machinery relations should be kept out of descriptions, but "give me synonyms for happy" wants exactly one of them. | Interest is a property of the question, not the relation. `SynonymOf` is machinery when forwarding and content when asked about, so the exclusion is a soft default, every relation stays directly queryable, and a lexical facet selects a describing realization that leads with synonyms. Part 4.0. |
-| 24 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
+| 24 | A relation can imply its converse — married-to is symmetric, older-than inverts to younger-than. Nothing handled that. | A relation Concept is a Concept, so it declares `Symmetric()`, `InverseOf(...)`, `Transitive()`, and the implied relation is **derived at query time, never materialized**: storing both directions would record one truth twice and let a retraction be applied to only one. Part 5.3. |
+| 25 | Append-only growth versus forgetting. | Realizations are collected once shadowed, superseded by a live alternative, and long unused. Condition two is the safety property: an only-way-to-do-something is never collected. Part 13.2. |
 
 ---
 
