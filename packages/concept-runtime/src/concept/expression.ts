@@ -1,6 +1,19 @@
+/**
+ * The Concept expression language.
+ *
+ * Grammar (design/ir-spec.md Part 3):
+ *   expr     := number | string | boolean | null | variable | call
+ *   variable := "$" name
+ *   call     := Head "(" [ arg { "," arg } ] ")"
+ *   arg      := [ name "=" ] expr
+ *
+ * There is no list syntax, no object syntax, and no infix operators. Collections are
+ * Concepts; keyed collections use the named arguments the grammar already has.
+ */
+
 export type Primitive = string | number | boolean | null;
 
-export interface VariableExpression {
+export interface Variable {
   readonly variable: string;
 }
 
@@ -9,131 +22,134 @@ export interface Argument {
   readonly value: Expr;
 }
 
-export interface ApplicationExpression {
-  readonly apply: {
-    readonly head: string;
-    readonly args: readonly Argument[];
-  };
+export interface Call {
+  readonly head: string;
+  readonly args: readonly Argument[];
 }
 
-export type Expr = Primitive | VariableExpression | ApplicationExpression;
+export type Expr = Primitive | Variable | Call;
 
-export class ExpressionParseError extends Error {
-  constructor(
-    message: string,
-    readonly source: string,
-    readonly position: number,
-  ) {
-    super(message + " at position " + position);
-    this.name = "ExpressionParseError";
+export const isVariable = (e: Expr): e is Variable =>
+  typeof e === "object" && e !== null && "variable" in e;
+
+export const isCall = (e: Expr): e is Call =>
+  typeof e === "object" && e !== null && "head" in e;
+
+export const call = (head: string, args: readonly Argument[] = []): Call => ({ head, args });
+export const arg = (value: Expr, name?: string): Argument =>
+  name === undefined ? { value } : { name, value };
+export const v = (name: string): Variable => ({ variable: name });
+
+/** Positional call, the common case. */
+export const c = (head: string, ...values: Expr[]): Call =>
+  call(head, values.map((value) => ({ value })));
+
+export class ParseError extends Error {
+  constructor(message: string, readonly source: string, readonly position: number) {
+    super(`${message} at position ${position}`);
+    this.name = "ParseError";
   }
 }
 
-class Parser {
-  private position = 0;
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*/;
+const NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/;
+const ARG_NAME = /^([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)/;
 
-  constructor(private readonly source: string) {}
+class Parser {
+  private i = 0;
+  constructor(private readonly src: string) {}
 
   parse(): Expr {
-    this.skipWhitespace();
-    const value = this.parseValue();
-    this.skipWhitespace();
-    if (!this.atEnd()) {
-      this.fail("Unexpected input");
-    }
+    const value = this.value();
+    this.ws();
+    if (this.i !== this.src.length) this.fail("Unexpected trailing input");
     return value;
   }
 
-  private parseValue(): Expr {
-    this.skipWhitespace();
-    const current = this.peek();
-    if (current === '"') return this.parseString();
-    if (current === "$") return this.parseVariable();
-    if (current === "-" || this.isDigit(current)) return this.parseNumber();
-    if (this.isIdentifierStart(current))
-      return this.parseIdentifierOrApplication();
-    this.fail("Expected a Concept application, variable, or primitive value");
+  private value(): Expr {
+    this.ws();
+    const ch = this.src[this.i];
+    if (ch === undefined) this.fail("Unexpected end of input");
+    if (ch === '"') return this.string();
+    if (ch === "$") return this.variable();
+    if (ch === "-" || (ch >= "0" && ch <= "9")) return this.number();
+    if (/[A-Za-z_]/.test(ch)) return this.identifierOrCall();
+    this.fail(`Unexpected ${JSON.stringify(ch)}`);
   }
 
-  private parseIdentifierOrApplication(): Expr {
-    const head = this.parseIdentifier();
-    this.skipWhitespace();
-
-    if (this.peek() !== "(") {
-      if (head === "true") return true;
-      if (head === "false") return false;
-      if (head === "null") return null;
-      this.fail("Bare identifiers are not values; use a Concept application");
+  private identifierOrCall(): Expr {
+    const name = this.identifier();
+    this.ws();
+    if (this.src[this.i] !== "(") {
+      if (name === "true") return true;
+      if (name === "false") return false;
+      if (name === "null") return null;
+      this.fail(
+        `Bare identifier ${JSON.stringify(name)} is not a value; every name must be Capitalized and followed by parentheses`,
+      );
     }
-
-    this.position += 1;
+    if (!/^[A-Z]/.test(name)) {
+      this.fail(`Head ${JSON.stringify(name)} must start with a capital letter`);
+    }
+    this.i += 1;
     const args: Argument[] = [];
-    this.skipWhitespace();
-    if (this.peek() === ")") {
-      this.position += 1;
-      return { apply: { head, args } };
+    this.ws();
+    if (this.src[this.i] === ")") {
+      this.i += 1;
+      return call(name, args);
     }
-
-    while (true) {
-      this.skipWhitespace();
-      const named = this.tryParseArgumentName();
-      const value = this.parseValue();
-      args.push(named === undefined ? { value } : { name: named, value });
-      this.skipWhitespace();
-
-      if (this.peek() === ")") {
-        this.position += 1;
+    for (;;) {
+      this.ws();
+      const named = ARG_NAME.exec(this.src.slice(this.i));
+      let argName: string | undefined;
+      if (named) {
+        argName = named[1];
+        this.i += named[0].length;
+      }
+      args.push(arg(this.value(), argName));
+      this.ws();
+      if (this.src[this.i] === ")") {
+        this.i += 1;
         break;
       }
-      if (this.peek() !== ",") this.fail("Expected ',' or ')'");
-      this.position += 1;
+      if (this.src[this.i] !== ",") this.fail("Expected ',' or ')'");
+      this.i += 1;
     }
-
-    return { apply: { head, args } };
+    return call(name, args);
   }
 
-  private tryParseArgumentName(): string | undefined {
-    const rest = this.source.slice(this.position);
-    const match = /^[A-Za-z_][A-Za-z0-9_.-]*\s*=/.exec(rest);
-    if (!match) return undefined;
-    const name = match[0].slice(0, match[0].indexOf("=")).trim();
-    this.position += match[0].length;
-    return name;
+  private variable(): Variable {
+    this.i += 1;
+    return v(this.identifier());
   }
 
-  private parseVariable(): VariableExpression {
-    this.position += 1;
-    const name = this.parseIdentifier();
-    return { variable: name };
+  private identifier(): string {
+    const m = IDENT.exec(this.src.slice(this.i));
+    if (!m) this.fail("Expected a name");
+    this.i += m[0].length;
+    return m[0];
   }
 
-  private parseNumber(): number {
-    const rest = this.source.slice(this.position);
-    const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(rest);
-    if (!match) this.fail("Invalid number");
-    this.position += match[0].length;
-    const value = Number(match[0]);
+  private number(): number {
+    const m = NUMBER.exec(this.src.slice(this.i));
+    if (!m) this.fail("Invalid number");
+    this.i += m[0].length;
+    const value = Number(m[0]);
     if (!Number.isFinite(value)) this.fail("Number must be finite");
     return value;
   }
 
-  private parseString(): string {
-    const start = this.position;
-    this.position += 1;
+  private string(): string {
+    const start = this.i;
+    this.i += 1;
     let escaped = false;
-    while (!this.atEnd()) {
-      const character = this.source[this.position];
-      this.position += 1;
-      if (escaped) {
-        escaped = false;
-      } else if (character === "\\") {
-        escaped = true;
-      } else if (character === '"') {
-        const raw = this.source.slice(start, this.position);
+    while (this.i < this.src.length) {
+      const ch = this.src[this.i++];
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') {
         try {
-          const value: unknown = JSON.parse(raw);
-          if (typeof value !== "string") this.fail("Expected a string");
-          return value;
+          return JSON.parse(this.src.slice(start, this.i)) as string;
         } catch {
           this.fail("Invalid string escape");
         }
@@ -142,123 +158,57 @@ class Parser {
     this.fail("Unterminated string");
   }
 
-  private parseIdentifier(): string {
-    const rest = this.source.slice(this.position);
-    const match = /^[A-Za-z_][A-Za-z0-9_.-]*/.exec(rest);
-    if (!match) this.fail("Expected an identifier");
-    this.position += match[0].length;
-    return match[0];
-  }
-
-  private skipWhitespace(): void {
-    while (/\s/.test(this.peek() ?? "")) this.position += 1;
-  }
-
-  private peek(): string | undefined {
-    return this.source[this.position];
-  }
-
-  private atEnd(): boolean {
-    return this.position >= this.source.length;
-  }
-
-  private isDigit(value: string | undefined): boolean {
-    return value !== undefined && value >= "0" && value <= "9";
-  }
-
-  private isIdentifierStart(value: string | undefined): boolean {
-    return value !== undefined && /[A-Za-z_]/.test(value);
+  private ws(): void {
+    while (this.i < this.src.length && /\s/.test(this.src[this.i])) this.i += 1;
   }
 
   private fail(message: string): never {
-    throw new ExpressionParseError(message, this.source, this.position);
+    throw new ParseError(message, this.src, this.i);
   }
 }
 
-export function parseExpression(source: string): Expr {
-  return new Parser(source).parse();
-}
+export const parse = (source: string): Expr => new Parser(source).parse();
 
-export function formatExpression(expression: Expr): string {
-  if (expression === null) return "null";
-  if (typeof expression === "string") return JSON.stringify(expression);
-  if (typeof expression === "number" || typeof expression === "boolean") {
-    return String(expression);
-  }
-  if ("variable" in expression) return "$" + expression.variable;
-
-  const args = expression.apply.args.map((argument) => {
-    const value = formatExpression(argument.value);
-    return argument.name === undefined ? value : argument.name + "=" + value;
-  });
-  return expression.apply.head + "(" + args.join(", ") + ")";
-}
-
-export function isExpr(value: unknown): value is Expr {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object" || Array.isArray(value)) return false;
-
-  const record = value as Record<string, unknown>;
-  if (Object.keys(record).length === 1 && typeof record.variable === "string") {
-    return /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(record.variable);
-  }
-  if (Object.keys(record).length !== 1 || typeof record.apply !== "object") {
-    return false;
-  }
-
-  const application = record.apply as Record<string, unknown>;
-  if (
-    Object.keys(application).some((key) => key !== "head" && key !== "args") ||
-    typeof application.head !== "string" ||
-    !Array.isArray(application.args)
-  ) {
-    return false;
-  }
-  return application.args.every((argument: unknown) => {
-    if (typeof argument !== "object" || argument === null) return false;
-    const candidate = argument as Record<string, unknown>;
-    if (
-      Object.keys(candidate).some((key) => key !== "name" && key !== "value")
-    ) {
-      return false;
-    }
-    return (
-      (candidate.name === undefined || typeof candidate.name === "string") &&
-      "value" in candidate &&
-      isExpr(candidate.value)
-    );
-  });
-}
-
-export function application(
-  head: string,
-  args: readonly Argument[] = [],
-): ApplicationExpression {
-  return { apply: { head, args } };
-}
-
-export function namedArgument(
-  expression: Expr,
-  name: string,
-): Expr | undefined {
-  if (!isApplication(expression)) return undefined;
-  return expression.apply.args.find((argument) => argument.name === name)
-    ?.value;
-}
-
-export function isApplication(
-  expression: Expr,
-): expression is ApplicationExpression {
-  return (
-    typeof expression === "object" &&
-    expression !== null &&
-    "apply" in expression
+export function format(e: Expr): string {
+  if (e === null) return "null";
+  if (typeof e === "string") return JSON.stringify(e);
+  if (typeof e === "number" || typeof e === "boolean") return String(e);
+  if (isVariable(e)) return "$" + e.variable;
+  const args = e.args.map((a) =>
+    a.name === undefined ? format(a.value) : `${a.name}=${format(a.value)}`,
   );
+  return `${e.head}(${args.join(", ")})`;
 }
+
+/** Structural equality. */
+export function equal(a: Expr, b: Expr): boolean {
+  if (isCall(a)) {
+    if (!isCall(b) || a.head !== b.head || a.args.length !== b.args.length) return false;
+    return a.args.every((x, i) => x.name === b.args[i].name && equal(x.value, b.args[i].value));
+  }
+  if (isVariable(a)) return isVariable(b) && a.variable === b.variable;
+  return Object.is(a, b);
+}
+
+export function depth(e: Expr): number {
+  return isCall(e) ? 1 + Math.max(0, ...e.args.map((a) => depth(a.value))) : 0;
+}
+
+export function heads(e: Expr, acc = new Set<string>()): Set<string> {
+  if (!isCall(e)) return acc;
+  acc.add(e.head);
+  for (const a of e.args) heads(a.value, acc);
+  return acc;
+}
+
+/** Walk every sub-expression, outermost first. */
+export function* walk(e: Expr): Generator<Expr> {
+  yield e;
+  if (isCall(e)) for (const a of e.args) yield* walk(a.value);
+}
+
+export const named = (e: Expr, name: string): Expr | undefined =>
+  isCall(e) ? e.args.find((a) => a.name === name)?.value : undefined;
+
+/** Positional arguments, ignoring names. */
+export const positional = (e: Call): Expr[] => e.args.map((a) => a.value);
