@@ -6,16 +6,10 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "build": "pnpm -r --workspace-concurrency=1 --if-present build",
-    "typecheck": "pnpm --filter @cnocept/concept-runtime build && pnpm -r --workspace-concurrency=1 --if-present typecheck",
+    "build": "pnpm -r build",
     "test": "pnpm --filter @cnocept/concept-runtime test",
-    "start": "pnpm --filter @cnocept/studio-server start",
-    "serve": "pnpm build && pnpm start",
-    "demo": "pnpm --filter @cnocept/concept-runtime demo",
-    "chat": "pnpm --filter @cnocept/concept-runtime chat",
-    "format": "prettier --write \"apps/**/*.{ts,tsx,css,json,html}\" \"packages/**/*.{ts,tsx,json,md}\" \"scripts/**/*.mjs\" \"*.{json,yaml,md}\"",
-    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css,json,html}\" \"packages/**/*.{ts,tsx,json,md}\" \"scripts/**/*.mjs\" \"*.{json,yaml,md}\""
+    "studio": "pnpm --filter @cnocept/studio dev",
+    "cnocept": "node packages/concept-runtime/dist/cli.js"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

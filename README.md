@@ -1,78 +1,137 @@
 # Cnocept
 
-Cnocept is an experiment in an AI architecture whose shared representation for meaning and behavior is a Concept network. A Concept unit owns its identity, searchable plain-language gloss, Concept-valued relations, and context-sensitive realizations together.
+An AI architecture in which **everything is a Concept**. It thinks, speaks, and acts using
+one kind of unit, and it grows by adding more of them.
 
-## Workspace
+```
+$ cnocept "What is 5 times three?"
 
-This repository uses PNPM workspaces to keep the architecture separate from Studio:
+heard    What(Multiply(5, Number("three")))
+result   Answer(15)
 
-- `packages/concept-runtime` (`@cnocept/concept-runtime`) contains the Concept expression language, generic evaluator, SQLite graph, seed Concepts, conversation memory, and CLI.
-- `apps/studio-server` (`@cnocept/studio-server`) contains the local HTTP API and streamed chat endpoint. It consumes the runtime as a workspace package.
-- `apps/studio-client` (`@cnocept/studio-client`) contains the React dashboard and Vite development server.
-
-The Studio server does not own or redefine the Concept architecture. The client communicates with it through `/api`; during development Vite proxies those requests to the server.
-
-## Run locally
-
-Requirements: Node.js 22.13 or newer, PNPM, and Ollama with a local chat model. The parser defaults to `qwen3.5:4b`; the Teacher uses `qwen3.8:27b` when missing factual knowledge needs to be learned.
-
-```sh
-pnpm install
-ollama pull qwen3.5:4b
-ollama pull qwen3.8:27b
-pnpm dev
+trace
+  What(Multiply(5, Number("three")))   [Execution()]
+    => Answer(15)
+    Multiply(5, Number("three"))       [Execution()]
+      => 15
+      Number("three")                  [Execution()]
+        => 3
 ```
 
-Open [http://127.0.0.1:4173](http://127.0.0.1:4173). The dashboard keeps its Monokai Dark styling and current layout. Vite provides React Fast Refresh/HMR; the API server runs separately on `127.0.0.1:4174` and is reached through Vite's `/api` proxy.
+`three` stays a word until a realization converts it. Nothing normalized it on the way in,
+because the representation is supposed to keep what you actually said.
 
-For a built local run:
+## The idea
 
-```sh
-pnpm build
-pnpm start
+A Concept is one self-contained unit of three parts:
+
+| part | what it is |
+|---|---|
+| **identity** | a `CapitalizedName` |
+| **relations** | asserted facts, themselves Concepts: `IsA(Bird())`, `SynonymOf(Multiply())` |
+| **realizations** | how it means, or how it acts, per usage context |
+
+There is no separate rules table, action registry, fact store, or native-function map.
+Arithmetic, HTTP, file access, the input parser, the Teacher, and the evaluator's own entry
+are all Concepts of this shape.
+
+### Residual evaluation
+
+The load-bearing rule: **an expression with no applicable realization evaluates to itself.**
+It is not an error. It is a value.
+
+Everything leans on this. The parser can name a Concept that does not exist, because
+invention is never fatal. Structure the system cannot execute survives intact instead of
+being destroyed, which is what lets a parse record corrections, misspellings and vagueness
+and still be runnable. And a residual is exactly the signal that something needs learning.
+
+### Context selects behaviour
+
+A usage context is an unordered **set of facets**, matched by subset:
+
+```
+Fetch()  in Execution()                        an HTTP request
+Fetch()  in Walking(Dog())                     an activity
+Fetch()  in Context(Describe(), Walking(Dog()))  what it means there
 ```
 
-The production server serves the built Vite client and API from the same origin. Set `CNOCEPT_DB=./concepts.sqlite` to choose the Concept database or `CNOCEPT_PORT=4174` to change the production server port. The server binds to `127.0.0.1` by default.
+Two facets beat one. A realization naming only the situation still applies. Facets compose
+additively, so asking for a description keeps the situation being described.
 
-## Studio
+### It learns
 
-The chat view shows the input Concept expression, whether the Teacher was used and what it taught, and the resulting Answer Concept expression. Conversations are persistent by default; turn off “Persist chat” for an isolated transcript. Both modes can use the shared Concept graph.
+```
+$ cnocept --learn "what is chess?"
 
-The Concept browser searches by identity and description and lets you inspect and edit relations and realizations. Changes are saved into the live Concept store and are available to evaluation immediately.
-
-## Concept architecture
-
-The natural-language input path is a saved composition: it looks up relevant Concepts, reads the parser protocol from the graph, calls the local model Concept, parses the returned expression, and evaluates its meaning. Ordinary unknown facts follow the learning path: search Wikidata and the web, ask the local Teacher for a complete Concept unit, save the unit, then evaluate the original question against the updated graph. Missing historical references can explicitly request conversation lookup.
-
-Expressions use Capitalized Concept calls and support named arguments, primitive payloads, and variables such as `$Field`:
-
-```text
-Question(Multiply(Number(5), Number(String("three"))))
+learned  teacher: Chess — Concept(identity="Chess", relations=List(IsA(BoardGame()),
+         MinimumNumberOfPlayers(2), PlayedOn(ChessBoard()), ...)) -> Saved(Chess())
+result   Describes(Chess(), List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ...))
 ```
 
-The expression preserves the source form “three”; the `Number` realization handles conversion when arithmetic needs it. A Concept can have multiple realizations for different contexts. Realization bodies can be composed from Concepts or can use an executable leaf for a low-level effect.
+Invent, realize, collect what came back residual, try the graph, ask the Teacher last, save,
+re-answer. The graph persists to `~/.cnocept/graph.json`, so asking again in a fresh process
+needs no model call.
 
-The TypeScript harness provides expression parsing, structural matching, generic Concept lookup and composition, the executable realization ABI, SQLite persistence, and HTTP effects. Runtime behavior is selected through the stored graph rather than a semantic-name dispatch table. The current implementation is not an operating-system sandbox, does not run an autonomous `Exist` loop, and does not execute model-authored code as a secured capability.
+A gap that cannot be closed stays a residual. It is not filled in with a guess.
 
-### Composition-first implementation principle
+## Running it
 
-When behavior can be expressed by composing existing Concepts, express it as Concepts. If a capability is missing, prefer adding the needed Concept-level composition over adding semantic behavior to the TypeScript harness. This lets the system inspect, change, and extend more of its own behavior through the same Concept graph it uses to think and act.
+```bash
+pnpm install && pnpm build
 
-`Code` is a valid realization form for executable host behavior, including external effects such as database, network, model, filesystem, and process access. Keep that host code at the boundary where the effect actually happens; expose it through a Concept realization and invoke it through the generic evaluator. Do not use `Code` as an escape hatch for behavior that the Concept language can express, and do not add privileged evaluator branches keyed to Concept names.
-
-The stored Concept graph is the source of truth for active behavior. Bootstrap data may initialize a new graph, but routine startup must not overwrite live Concept edits from a parallel catalog in TypeScript.
-
-## Development checks
-
-```sh
-pnpm typecheck
+pnpm cnocept "What is 5 times three?"       # a turn, end to end
+pnpm cnocept --expr 'Add(2, 3)'             # realize an expression directly
+pnpm cnocept --learn "what is chess?"       # close gaps before answering
+pnpm cnocept --seed                         # seed a graph and report
+pnpm studio                                 # browse the graph at :4317
 pnpm test
-pnpm format
 ```
 
-Build and run a Concept expression with:
+Natural-language input needs [Ollama](https://ollama.com) with `qwen3.5:4b`, and the Teacher
+uses `qwen3.8:27b`. Everything else runs without a model.
 
-```sh
-pnpm --filter @cnocept/concept-runtime demo -- 'Question(Multiply(Number(5), Number(String("three"))))' --trace
-pnpm --filter @cnocept/concept-runtime chat -- --text "What is 5 times three?" --model qwen3.5:4b --trace
+The 4b is not a placeholder. It was measured against 9b and **won** on fidelity at 1.6x the
+speed — a larger model restructures where this job wants faithful transcription.
+
+## Layout
+
 ```
+packages/concept-runtime/src/
+  concept/     the expression language, matching, the unit
+  store/       the graph, the two-directional relation index, cells, persistence
+  runtime/     facet contexts, selection, evaluation, the trace, one turn
+  ears/        message -> Concepts: the prompt, line lifting, repair, checks
+  learn/       the Teacher, and the learning loop
+  seed/        the Concepts the network starts with
+apps/studio/   browse the graph and watch a turn happen
+```
+
+## Design
+
+The specs came first and the runtime was written from them, not the other way round.
+
+- **[concept-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/concept-spec.md)** —
+  what a Concept is; realization, evaluation, context, search, relations, persistence.
+  Part 18 tabulates 27 contradictions found in the requirements and how each resolves.
+- **[ir-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec.md)** —
+  the expression language and the parser contract.
+- **[seed-concepts.md](.agents/planning/2026-09-16-concept-ai-system/design/seed-concepts.md)** —
+  what the network starts with, and what is deliberately omitted.
+- **[the code appendix](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec-appendix-code.md)** —
+  234 lines of real JavaScript translated node for node, machine-validated.
+- **[the experiments](.agents/planning/2026-09-16-concept-ai-system/research/ir-parser-experiments/)** —
+  the parser contract is measured, not argued. Raw per-sample output included.
+
+### Nothing is privileged
+
+The rule that the three prior attempts failed, stated as a check you can run:
+
+> Can you change the system's behaviour by editing ordinary Concepts, without editing a
+> registry, a router, a dispatch switch, a model seat, or an evaluator special case?
+
+The evaluation loop knows exactly six identities — `Concept`, `Realization`, `Code`,
+`Context`, `Suppresses`, `IsA` — and every one is **structural**, about the form of a unit,
+never semantic. It does not know that `Multiply` exists. A test asserts this.
+
+Six is not zero, and pretending otherwise is how the earlier attempts drifted. The list is
+written down so a seventh is visible.

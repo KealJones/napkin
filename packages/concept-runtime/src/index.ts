@@ -4,6 +4,7 @@ export * from "./concept/unit.js";
 export * from "./store/store.js";
 export * from "./store/relations.js";
 export * from "./store/cells.js";
+export * from "./store/persist.js";
 export * from "./runtime/context.js";
 export * from "./runtime/select.js";
 export * from "./runtime/trace.js";
