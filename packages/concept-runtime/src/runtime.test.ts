@@ -271,3 +271,47 @@ test("the evaluator names only structural Concepts, never semantic ones", async 
     assert.ok(!new RegExp(`"${semantic}"`).test(source), `evaluator must not name ${semantic}`);
   }
 });
+
+/* ---------------- description ---------------- */
+
+test("relations describe a Concept that is not a computation", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept("BoardGame"));
+  store.seed(concept("Sport"));
+  store.seed(
+    concept("Chess", {
+      relations: ["IsA(BoardGame())", "IsA(Sport())", "MinimumNumberOfPlayers(2)"],
+    }),
+  );
+  const rt = new Runtime(store);
+  const out = format(await rt.evaluate(parse("What(Chess())"), EXEC));
+  assert.match(out, /IsA\(BoardGame\(\)\)/);
+  assert.match(out, /MinimumNumberOfPlayers\(2\)/);
+});
+
+test("machinery relations are not led with in a summary", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept("Chess", { relations: ["IsA(BoardGame())", "SynonymOf(Draughts())"] }));
+  const out = format(await new Runtime(store).evaluate(parse("What(Chess())"), EXEC));
+  assert.match(out, /IsA\(BoardGame\(\)\)/);
+  assert.ok(!/SynonymOf/.test(out), "SynonymOf is Incidental and should not lead");
+});
+
+test("describing expands a composition and stops at what it cannot run", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept("Double", { realizations: [realization({ pattern: "Double($x)", body: parse("Multiply($x, 2)") })] }));
+  const rt = new Runtime(store);
+  // Under Describe the arithmetic body is reached but Multiply is Execution-only, so the
+  // composition survives as structure rather than collapsing to a number.
+  const out = format(await rt.evaluate(parse("Double(21)"), c("Describe")));
+  assert.equal(out, "Multiply(21, 2)");
+});
+
+test("a question wanting a value and one wanting a definition use the same node", async () => {
+  const rt = createRuntime();
+  assert.match(format(await rt.evaluate(parse("What(Today())"), EXEC)), /^Answer\(Date\(/);
+  assert.match(format(await rt.evaluate(parse("What(Wibble())"), EXEC)), /NoDescription/);
+});

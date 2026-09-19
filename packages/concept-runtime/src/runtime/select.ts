@@ -27,7 +27,14 @@ export interface Candidate {
   readonly bindings: Bindings;
 }
 
-/** The Concept and its IsA ancestors, nearest first, with a visited set for cycles. */
+/** The universal parent. One of the six identities the loop may know (concept-spec 17.1). */
+export const UNIVERSAL = "Concept";
+
+/**
+ * The Concept and its IsA ancestors, nearest first, with a visited set for cycles.
+ * The universal parent is always last, so a default declared there is inherited by
+ * everything and still loses to anything declared locally.
+ */
 export function lineage(store: ConceptStore, identity: string, limit = 16): ConceptUnit[] {
   const out: ConceptUnit[] = [];
   const seen = new Set<string>();
@@ -47,6 +54,10 @@ export function lineage(store: ConceptStore, identity: string, limit = 16): Conc
       }
     }
     frontier = next;
+  }
+  if (identity !== UNIVERSAL && !seen.has(UNIVERSAL)) {
+    const universal = store.get(UNIVERSAL);
+    if (universal) out.push(universal);
   }
   return out;
 }

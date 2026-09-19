@@ -37,6 +37,24 @@ export function balance(text: string): string {
   return text;
 }
 
+/**
+ * Single-quoted strings are not in the grammar, but a small model writes them anyway.
+ * Converting is unambiguous when the line contains no double quotes at all.
+ */
+export function doubleQuotes(text: string): string {
+  if (text.includes('"')) return text;
+  return text.replace(/'([^']*)'/g, (_, inner: string) => JSON.stringify(inner));
+}
+
+/** Repairs to try, in order, before giving up on a line (ir-spec Part 12, item 6). */
+export const repairs: ((line: string) => string)[] = [
+  (l) => l,
+  balance,
+  doubleQuotes,
+  (l) => balance(doubleQuotes(l)),
+  (l) => balance(doubleQuotes(l.replace(/,\s*\)/g, ")"))),
+];
+
 export function stripFence(text: string): string {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, "")
@@ -57,16 +75,19 @@ export function lift(text: string): Lifted {
   for (const line of lines) {
     const assignment = ASSIGNMENT.exec(line);
     const body = assignment ? assignment[2] : line;
-    let value: Expr;
-    try {
-      value = parse(body);
-    } catch {
+    let value: Expr | undefined;
+    let reason = "";
+    for (const repair of repairs) {
       try {
-        value = parse(balance(body));
+        value = parse(repair(body));
+        break;
       } catch (e) {
-        rejected.push({ line, reason: e instanceof Error ? e.message : String(e) });
-        continue;
+        reason = e instanceof Error ? e.message : String(e);
       }
+    }
+    if (value === undefined) {
+      rejected.push({ line, reason });
+      continue;
     }
     // `$x = expr` becomes a binding scoping over everything after it, built up below.
     clauses.push(assignment ? c("Let", v(assignment[1]), value) : value);

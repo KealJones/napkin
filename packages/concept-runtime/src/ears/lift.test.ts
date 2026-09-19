@@ -41,3 +41,17 @@ test("a statement is not required to carry an interrogative", () => {
   assert.ok(!looksLikeQuestion("i went to virginya"));
   assert.deepEqual(check("i went to virginya", lift("Fact(Visited(Me()))").expression), []);
 });
+
+test("single quotes are repaired, because a small model writes them anyway", () => {
+  const e = lift("Count(String('r'), String('strawberry'))").expression!;
+  assert.equal(format(e), 'Count(String("r"), String("strawberry"))');
+});
+
+test("a trailing comma is repaired", () => {
+  assert.equal(format(lift("Fact(A(), B(),)").expression!), "Fact(A(), B())");
+});
+
+test("repair never rewrites a line that already parses", () => {
+  const e = lift('Aside("it\'s fine")').expression!;
+  assert.equal(format(e), 'Aside("it\'s fine")');
+});

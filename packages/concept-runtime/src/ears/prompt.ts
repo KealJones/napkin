@@ -56,6 +56,12 @@ Need(We(), What())
 "who ate what at the party?"
 Ate(Who(), What(), At(Party()))
 
+"how many r's are in strawberry?"
+HowMany(Count(String("r"), String("strawberry")))
+
+"is 10 greater than 3?"
+Whether(GreaterThan(10, 3))
+
 "i went to virginya to visit my mom. it was crazy."
 Fact(Visited(Me(), Misspelling("virginya", Virginia())))
 Fact(Purpose(Visit(), Mother(Me())))
@@ -71,9 +77,14 @@ const OUT = `Output only those lines. No prose, no markdown, no code fence, no n
 
 /**
  * The vocabulary is generated from the graph, so the prompt cannot drift from what the
- * network actually knows. Parameter names are deliberately omitted.
+ * network actually knows.
+ *
+ * Parameter names are deliberately omitted: `Tell(to, content)` measurably taught the
+ * model to emit `Tell(to, content)` literally, at a cost of sixteen points of fidelity.
+ * Argument order is taught by the EXAMPLES instead, using real values, which carries the
+ * same information without offering a template to copy.
  */
-export function vocabulary(store: ConceptStore, limit = 48): string {
+export function vocabulary(store: ConceptStore, limit = 120): string {
   const interesting = store
     .all()
     .map((u) => u.identity)

@@ -57,18 +57,25 @@ add(
 );
 
 /* ------------------------------------------------------------------ *
- * The universal parent. Its one describing realization is what answers
- * "what is chess" for any Concept with relations but no composition.
+ * The universal parent, and the relations fallback.
+ *
+ * Presenting a Concept's relations is what answers "what is chess" for anything with
+ * relations but no composition. It is deliberately NOT a catch-all realization on
+ * `$subject`: a catch-all under a Describe context would match every sub-expression, so
+ * nothing would ever be residual and the expansion in concept-spec Part 4.0 would stop
+ * working — describing a composed body would swallow the body instead of expanding it.
+ *
+ * So it is invoked explicitly, by name, on a subject that came back residual.
  * ------------------------------------------------------------------ */
+add(concept("Concept"));
 add(
-  concept("Concept", {
+  concept("Relations", {
     realizations: [
       realization({
-        pattern: "$subject",
-        context: "Describe()",
+        pattern: "Relations($subject)",
         evaluateArguments: false,
         body: code(`async (args, bindings, api) => {
-          const subject = bindings.get("subject");
+          const subject = args[0].value;
           if (!subject || !subject.head) return api.call("Unknown");
           const triples = api.relations.of(subject.head)
             .filter((t) => {
@@ -235,25 +242,49 @@ add(concept("Ref"));
 /* ------------------------------------------------------------------ *
  * Interrogatives. An interrogative goes where the unknown is.
  * ------------------------------------------------------------------ */
-for (const q of ["What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf", "Whether"]) {
-  add(concept(q));
-}
-add(concept("WhatIs", { relations: ["SynonymOf(What())"] }));
-
-// What(x) asks for the value of x: evaluate it. If x has no execution realization it goes
-// residual and describes instead — the graph decides, not the parse.
+// One realization serves every question word, reached by inheritance. Asking for the
+// value of something is the same operation whichever word the message used.
 add(
-  concept("What", {
+  concept("Interrogative", {
     realizations: [
       realization({
-        pattern: "What($subject)",
+        pattern: "$question",
         context: "Execution()",
         evaluateArguments: false,
         body: code(`async (args, bindings, api) => {
+          if (!args.length) return api.call("Unknown");
           const subject = args[0].value;
           const value = await api.evaluate(subject);
+          // If it computed, answer. If it did not, it is a residual, so describe instead:
+          // the graph decides whether a question wants a value or a definition.
           if (api.format(value) !== api.format(subject)) return api.call("Answer", value);
-          return await api.evaluate(api.call("Concept", subject), api.call("Describe"));
+          // It stayed residual, so the question wants a definition rather than a value.
+          return await api.evaluate(api.call("Relations", subject), api.call("Describe"));
+        }`),
+      }),
+    ],
+  }),
+);
+
+for (const q of ["What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf"]) {
+  add(concept(q, { relations: ["IsA(Interrogative())"] }));
+}
+add(concept("WhatIs", { relations: ["SynonymOf(What())"] }));
+
+// A yes/no question wants a truth value, not a subject, so it declares its own
+// realization locally — which beats the inherited one on distance.
+add(
+  concept("Whether", {
+    relations: ["IsA(Interrogative())"],
+    realizations: [
+      realization({
+        pattern: "Whether($proposition)",
+        context: "Execution()",
+        body: code(`(args, bindings, api) => {
+          const v = args[0].value;
+          if (v === true || (v && v.head === "True")) return api.call("Answer", api.call("True"));
+          if (v === false || (v && v.head === "False")) return api.call("Answer", api.call("False"));
+          return api.call("Answer", api.call("UnknownTruth"));
         }`),
       }),
     ],
