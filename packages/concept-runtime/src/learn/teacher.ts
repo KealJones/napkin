@@ -53,7 +53,15 @@ RULES
    Renaming is not realizing. If all you can say is that two names mean the same thing,
    say it as a relation -- SynonymOf(Other()) -- and leave realizations=List().
 6. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
-7. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
+   A relation's object is ONE Concept, a noun, never a phrase or a clause.
+     IsA(Obligation())                      right
+     FulfillLegalObligation()               wrong -- that is a sentence wearing a name
+7. Give a FEW relations. Eight is plenty and three is often right. A long list means you
+   have started listing whatever the word reminds you of, which is not what a relation is.
+8. SynonymOf means INTERCHANGEABLE IN EVERY CONTEXT. Money is not a synonym of Debt, or
+   of Price, or of Wealth -- those are things money is involved in. If two Concepts are
+   merely related, say how they are related, or say nothing.
+9. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
    what you recall. If the evidence describes something other than what was asked, say so
    by returning relations you can actually support and nothing more.
 

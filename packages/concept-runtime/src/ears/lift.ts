@@ -69,6 +69,31 @@ export function placeholders(text: string): string {
   return out;
 }
 
+/**
+ * Last resort for output that was cut off mid-token by a generation cap. A model that
+ * runs away -- a 27B listing SynonymOf for a thousand tokens -- produces a prefix that is
+ * perfectly good up to the cut and unparseable after it. Trimming back to the last
+ * complete argument keeps what it managed to say.
+ *
+ * Deliberately last: it discards content, so anything that parses outright must win.
+ */
+export function salvage(text: string): string {
+  let candidate = text;
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const cut = candidate.lastIndexOf(",");
+    if (cut <= 0) return text;
+    candidate = candidate.slice(0, cut);
+    const balanced = balance(candidate);
+    try {
+      parse(balanced);
+      return balanced;
+    } catch {
+      // Still inside a broken argument. Keep trimming.
+    }
+  }
+  return text;
+}
+
 /** Repairs to try, in order, before giving up on a line (ir-spec Part 12, item 6). */
 export const repairs: ((line: string) => string)[] = [
   (l) => l,
@@ -78,6 +103,7 @@ export const repairs: ((line: string) => string)[] = [
   (l) => balance(doubleQuotes(l)),
   (l) => balance(doubleQuotes(placeholders(l))),
   (l) => balance(doubleQuotes(placeholders(l.replace(/,\s*\)/g, ")")))),
+  (l) => salvage(doubleQuotes(placeholders(l))),
 ];
 
 export function stripFence(text: string): string {

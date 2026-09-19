@@ -67,3 +67,20 @@ test("a ? inside a string is the user's own words and stays put", () => {
   const lifted = lift('Aside("really?")');
   assert.equal(format(lifted.expression!), 'Aside("really?")');
 });
+
+test("output cut off by a generation cap keeps what was said before the cut", () => {
+  const truncated =
+    'Concept(identity="Money", relations=List(IsA(Asset()), IsA(MediumOfExchange()), SynonymOf(Curren';
+  const lifted = lift(truncated);
+  assert.equal(lifted.rejected.length, 0);
+  const text = format(lifted.expression!);
+  assert.match(text, /identity="Money"/);
+  assert.match(text, /IsA\(MediumOfExchange\(\)\)/);
+  // The half-written argument is gone rather than the whole declaration.
+  assert.ok(!text.includes("Curren"));
+});
+
+test("salvage never wins over something that already parses", () => {
+  const fine = 'Concept(identity="Money", relations=List(IsA(Asset())))';
+  assert.equal(format(lift(fine).expression!), fine);
+});

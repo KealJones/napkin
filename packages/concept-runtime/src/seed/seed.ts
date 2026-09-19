@@ -196,6 +196,35 @@ add(
     ],
   }),
 );
+/**
+ * Lower-arity declarations, delegating to the full form -- the same idiom Date() uses.
+ *
+ * A Teacher that runs out of tokens mid-list leaves a declaration salvaged back to its
+ * last complete argument, which is often `identity` and `relations` with `realizations`
+ * lost off the end. Requiring all three made that a residual, so everything it HAD managed
+ * to say was discarded over a field it never got to.
+ */
+add(
+  concept("Concept", {
+    realizations: [
+      realization({
+        pattern: "Concept(identity=$identity, relations=$relations)",
+        evaluateArguments: false,
+        body: parse("Concept(identity=$identity, relations=$relations, realizations=List())"),
+      }),
+      realization({
+        pattern: "Concept(identity=$identity, realizations=$realizations)",
+        evaluateArguments: false,
+        body: parse("Concept(identity=$identity, relations=List(), realizations=$realizations)"),
+      }),
+      realization({
+        pattern: "Concept(identity=$identity)",
+        evaluateArguments: false,
+        body: parse("Concept(identity=$identity, relations=List(), realizations=List())"),
+      }),
+    ],
+  }),
+);
 add(concept("Saved"));
 add(concept("Rejected"));
 add(concept("NeedsFirst"));

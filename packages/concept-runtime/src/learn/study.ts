@@ -30,6 +30,9 @@ const STRUCTURAL = new Set([
   "Concept", "Realization", "Code", "Context", "Suppresses", "IsA", "List", "Rest",
   "Saved", "Rejected", "NeedsFirst", "SelfReferential", "NotComposed", "Incomplete",
   "True", "False", "Number", "String", "Boolean",
+  // How a relation is said, not what it names. These leak in when a Teacher nests one.
+  "InverseOf", "SynonymOf", "Symmetric", "Transitive", "Asymmetric", "Functional",
+  "Irreflexive", "Disjoint", "Describes", "Relations",
 ]);
 
 /** `medium of exchange` is a topic; `MediumOfExchange` is an identity. */

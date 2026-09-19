@@ -229,3 +229,20 @@ test("a curriculum track puts foundations before what leans on them", async () =
   assert.ok(curriculum("economics").includes("medium of exchange"));
   assert.throws(() => curriculum("nonsense"), /Unknown track/);
 });
+
+test("a declaration missing realizations still saves its relations", async () => {
+  const rt = fresh();
+  // What salvage leaves when a Teacher runs out of tokens mid-list.
+  const saved = await rt.evaluate(
+    parse('Concept(identity="Cash", relations=List(IsA(Money())))'),
+    EXEC,
+  );
+  assert.match(format(saved), /Saved\(Cash\(\)/);
+  assert.equal(rt.store.get("Cash")!.relations.length, 1);
+});
+
+test("a declaration with nothing but an identity is still a Concept", async () => {
+  const rt = fresh();
+  await rt.evaluate(parse('Concept(identity="Thing")'), EXEC);
+  assert.ok(rt.store.has("Thing"));
+});
