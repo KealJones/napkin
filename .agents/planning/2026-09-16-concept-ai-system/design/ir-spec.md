@@ -584,8 +584,11 @@ inputs; the sixth is a target not yet reached (Part 11.4).
 
 Each question carries its **interrogative**, which is what marks it as a question. There is
 no `Question(...)` wrapper: `What`, `When`, `Where`, `Who`, `Why`, `How`, `HowMany`,
-`WhichOf`, and `Whether` each say both that a question is being asked and what kind. Each
-takes a proposition, and where the unknown sits inside that proposition it is written `$_`. Wrapping
+`WhichOf`, and `Whether` each say both that a question is being asked and what kind.
+
+An interrogative **goes where the unknown is**: in the argument slot when an argument is
+unknown, wrapping when the value of the whole expression is unknown. See
+`seed-concepts.md` Part 10. Wrapping
 one in `Question(...)` would state "question" twice, the same redundancy Part 6.2 retires
 for collections.
 
@@ -622,11 +625,13 @@ to know that formats exist (`concept-spec.md` Part 10.2):
 What(Format(Date(Today()), "MM-DD-YYYY"))
 ```
 
-**"What do we need?"** — the unknown fills a slot inside a relation rather than naming the
-subject, so the hole is written `$_` (`seed-concepts.md` Part 10):
+**"What do we need?"** — the unknown is an argument, so the interrogative sits in that
+argument slot rather than wrapping. Multi-hole questions then cost nothing extra:
 
 ```
-What(Need(We(), $_))
+Need(We(), What())                  what do we need
+Ate(Who(), What())                  who ate what
+Fail(WhichOf(Tests()), On(WhichOf(Platforms())))
 ```
 
 **"how many r's are in strawberry"** — the source says "how many", so the interrogative is

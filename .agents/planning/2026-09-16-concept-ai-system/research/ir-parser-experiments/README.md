@@ -214,3 +214,66 @@ MODEL=qwen3.5:4b SAMPLES=6 node lines.mjs > ../results/04-single-expression-vs-l
 
 Needs Ollama on `127.0.0.1:11434` with `qwen3.5:2b`, `qwen3.5:4b`, `qwen3.5:9b` pulled.
 Override with `MODEL`, `MODELS`, `SAMPLES`, `TEMP`.
+
+---
+
+## 8. Interrogative placement: wrapper vs in place
+
+`results/05`, qwen3.5:4b, 7 inputs x 6 samples, three variants.
+
+The question was where a question word goes. **A** wraps the proposition
+(`What(Need(We(), $_))`), **B** puts it in the argument slot when an argument is unknown and
+wraps only when the whole value is unknown, **C** always puts it in a slot and uses an
+explicit `Is(x, What())` for value questions.
+
+| variant | valid | fidelity |
+|---|---|---|
+| A, wrapper | **100%** | 65% |
+| B, in place with wrap for values | 86% | 69% |
+| C, always in place | 69% | **70%** |
+
+Per input, valid/N and fidelity:
+
+| input | A wrapper | B in place | C strict |
+|---|---|---|---|
+| "What is todays date?" | 6/6 50% | 3/6 33% | 5/6 **67%** |
+| "What is 5 times three?" | 6/6 67% | 6/6 67% | 5/6 **94%** |
+| "what do we need to finish this?" | 6/6 **100%** | 5/6 83% | 5/6 **100%** |
+| "who wrote this file?" | 6/6 58% | 6/6 **100%** | 6/6 **100%** |
+| "which tests fail on which platforms?" | 6/6 **100%** | 6/6 **100%** | 2/6 33% |
+| "who ate what at the party?" | 6/6 50% | 6/6 **100%** | 6/6 94% |
+| "tell me what changed in which files and whether it broke the build" | 6/6 **60%** | 4/6 40% | 0/6 27% |
+
+**No variant wins, and the aggregate is misleading.** A has perfect validity while producing
+the wrong meaning on the case that motivated the change:
+
+```
+"who ate what at the party?"
+A:  Who(Ate($_, $_))          valid, and wrong — only "who" is asked; the second
+                              unknown becomes an anonymous hole with no interrogative
+B:  Ate(Who(), What())        correct
+```
+
+That is the decisive observation, and it matches Finding 1: **A fails silently while B and C
+fail loudly.** A's bad output parses, satisfies every structural check, and quietly means
+something the user did not ask. B's and C's failures are malformed lines the parser rejects
+and a repair pass can attack.
+
+Where each is genuinely better:
+
+- **Argument-position holes** — in place wins decisively, 100% against 58%.
+- **Multi-hole questions** — in place wins, 100% against 50%, and A cannot express them at
+  all without losing which interrogative owns which hole.
+- **Value questions and long mixed messages** — the wrapper wins, and C collapses entirely
+  on the mixed input.
+
+B's specific failure is worth separating from its design. The bad samples look like
+`Today() = Date()`, an assignment with a call on the left, which is not legal in the line
+form at all. That is the producer garbling the surface syntax rather than misapplying the
+interrogative rule, so it is plausibly a prompt-example problem rather than an intrinsic
+cost. Untested.
+
+**Decision.** B is kept, on the design argument (a wrapper restructures the message, which
+the IR forbids elsewhere), on the two cases that motivated the change, and on the
+loud-versus-silent asymmetry. Its weakness on value questions is recorded as needing prompt
+work rather than a design change, and that is a hypothesis this run does not confirm.

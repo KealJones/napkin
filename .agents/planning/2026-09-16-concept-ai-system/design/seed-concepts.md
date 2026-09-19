@@ -257,36 +257,53 @@ no `Question(...)` wrapper — that would state "question" twice.
 | `Whether(proposition)` | 1 | a yes/no question, which has no question word of its own and so would otherwise be indistinguishable from asserting the proposition |
 | `WhatIs(x)` | 1 | `SynonymOf(What())`; kept because people say it |
 
-#### A wh-question is a proposition with a hole
+#### An interrogative is a hole, and it goes where the unknown is
 
-The unknown is not always the thing being named. "What do we need" asks what fills a slot
-inside a relation, not what `Need` *is*. So an interrogative takes a proposition, and the
-hole is written `$_`:
-
-```
-What(Need(We(), $_))          what do we need
-Who(Killed($_, Him()))        who killed him
-Where(Is(Keys(), $_))         where are my keys
-When(Happened(Event(), $_))   when did it happen
-```
-
-Answering is finding what fills the hole, which is one mechanism for every interrogative
-rather than a different rule each.
-
-`$_` is written only when the hole sits **inside** a structure. When the unknown is the
-subject itself, wrapping it is enough, so the common case stays short:
+> **The interrogative goes where the unknown is.** If the unknown is an argument, the
+> interrogative sits in that argument slot. If the unknown is the value of the whole
+> expression, it wraps.
 
 ```
-What(Date())                  what is the date
-What(Parakeet())              what is a parakeet
+What(Date())                                       the value is unknown
+What(Multiply(5, Number("three")))                 the value is unknown
+Need(We(), What())                                 an argument is unknown
+Killed(Who(), Him())                               an argument is unknown
+Ate(Who(), What())                                 two arguments unknown
+Fail(WhichOf(Tests()), On(WhichOf(Platforms())))   two arguments unknown
 ```
 
-Those two behave differently without any rule saying so. `What(Date())` finds an execution
-realization and computes; `What(Parakeet())` finds none, goes residual, and describes
-(`concept-spec.md` Part 4.0). The graph decides, not the parse.
+One rule, not two forms. Which position applies is read off the source rather than decided,
+because English already puts the question word where the unknown belongs.
 
-**Limit:** two holes in one proposition need distinct names rather than `$_` twice. Rare
-enough to record and not solve.
+#### Why in place rather than always wrapping
+
+Hoisting an interrogative to the root would **restructure the message**. "Who ate what" has
+two question words in argument positions; a wrapped form has to rearrange that into
+something the source did not say, which is the same normalization the design refuses
+everywhere else — collapsing `Times` into `Multiply`, or dropping "tell me" from
+`Do(Tell(Me(), ...))`.
+
+It also makes multi-hole questions free, and they are not rare in this domain: *which tests
+fail on which platforms*, *what changed in which files*, *who owns which service*.
+
+And a hole **is a residual.** `What()` has no realization, so it evaluates to itself and
+sits in the expression as an unknown. That is the residual rule doing the work again rather
+than a new mechanism, which a wrapper-as-operator-over-a-proposition would have been.
+
+#### Repeated holes
+
+Borrowed from logic programming, because the ambiguity is real:
+
+- An interrogative with no name is **anonymous**; each occurrence is an independent hole.
+  `Equals(What(), What())` asks what equals what.
+- An interrogative naming a variable is **that** hole wherever it recurs.
+  `Equals(What($x), What($x))` asks what equals itself.
+
+#### Definition or value, decided by the graph
+
+`What(Date())` finds an execution realization and computes. `What(Parakeet())` finds none,
+goes residual, and describes (`concept-spec.md` Part 4.0). No rule in the parse
+distinguishes them.
 
 **Frames.** Written only when the source has one.
 
