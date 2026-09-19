@@ -59,6 +59,8 @@ add(concept("Teaching", { relations: ["IsA(ContextFacet())"] }));
 add(concept("Lexical", { relations: ["IsA(ContextFacet())"] }));
 add(concept("JavaScript", { relations: ["IsA(TargetLanguage())"] }));
 add(concept("Rust", { relations: ["IsA(TargetLanguage())"] }));
+add(concept("TypeScript", { relations: ["IsA(TargetLanguage())"] }));
+add(concept("Python", { relations: ["IsA(TargetLanguage())"] }));
 add(
   concept("Describe", {
     relations: ["IsA(ContextFacet())", "Suppresses(Effectful())", "Suppresses(Lossy())"],
@@ -912,6 +914,31 @@ add(concept("Readings"));
  * claim can be traced back to where it came from.
  * ------------------------------------------------------------------ */
 add(concept("Source", { relations: ["IsA(Category())"] }));
+/**
+ * Text assembly, which is what emitting source is made of. Variadic through Rest, so a
+ * taught realization can lay out a construct without the grammar needing a list syntax.
+ *
+ * Its arguments evaluate under the SAME context it was reached in, so a TypeScript
+ * realization of If whose body is Text("if (", $c, ") {", $t, "}") emits TypeScript for
+ * $c and $t too. Composition is what makes one realization per construct enough.
+ */
+add(
+  concept("Text", {
+    relations: ["IsA(Source())"],
+    realizations: [
+      realization({
+        pattern: "Text(Rest($parts))",
+        body: code(`(args, bindings, api) => args.map((a) => {
+          const v = a.value;
+          if (typeof v === "string") return v;
+          if (v === null || v === undefined) return "";
+          if (typeof v === "number" || typeof v === "boolean") return String(v);
+          return api.format(v);
+        }).join("")`),
+      }),
+    ],
+  }),
+);
 add(concept("Web", { relations: ["IsA(Source())"] }));
 add(concept("Wikidata", { relations: ["IsA(Source())"] }));
 add(concept("SearchResult", { relations: ["IsA(Data())"] }));

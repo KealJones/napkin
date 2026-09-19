@@ -78,6 +78,22 @@ export const CURRICULUM: Record<string, readonly string[]> = {
     "algorithm", "complexity", "sorting", "searching", "hash", "encryption",
   ],
 
+  /** Leans on `programming`: these are distinctions a language makes, not a machine. */
+  typescript: [
+    "type", "type annotation", "type inference", "static type", "dynamic type",
+    "structural typing", "nominal typing", "type alias", "interface", "union type",
+    "intersection type", "literal type", "optional property", "readonly", "enum",
+    "tuple", "generic", "type parameter", "constraint", "any", "unknown", "never",
+    "void", "null", "undefined", "narrowing", "type guard", "discriminated union",
+    "mapped type", "conditional type", "keyof", "indexed access", "type assertion",
+    "declaration file", "strict mode", "transpilation", "source map", "class",
+    "constructor", "inheritance", "method", "field", "access modifier",
+    "abstract class", "closure", "higher order function", "callback", "arrow function",
+    "destructuring", "spread", "rest parameter", "template literal", "promise",
+    "async", "await", "generator", "iterator", "side effect", "pure function",
+    "immutability", "nullability", "variance", "covariance", "contravariance",
+  ],
+
   software: [
     "source code", "compiler", "interpreter", "runtime", "syntax", "semantics", "library",
     "module", "dependency", "interface", "abstraction", "implementation", "api",

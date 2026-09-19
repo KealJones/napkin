@@ -88,7 +88,7 @@ if (flag("--study")) {
   }
   // Every bare word is a topic; the flag values are not.
   const consumed = new Set(
-    ["--graph", "--limit", "--depth", "--model", "--track"].map(value).filter(Boolean),
+    ["--graph", "--limit", "--depth", "--model", "--track", "--as"].map(value).filter(Boolean),
   );
   const track = value("--track");
   const topics = track
@@ -106,10 +106,16 @@ if (flag("--study")) {
   const depth = Number(value("--depth") ?? 2);
   const before = store.size();
   const what = track ? `track ${track} (${topics.length} topics)` : topics.join(", ");
-  console.log(`studying ${what} — up to ${limit} Concepts, depth ${depth}\n`);
+  const facet = value("--as");
+  console.log(
+    facet
+      ? `expressing ${what} in ${facet} — up to ${limit} Concepts\n`
+      : `studying ${what} — up to ${limit} Concepts, depth ${depth}\n`,
+  );
   const result = await study(runtime, topics, {
     maxConcepts: limit,
     maxDepth: depth,
+    as: value("--as"),
     research: !flag("--no-research"),
     onStep: (s) => {
       const mark = { taught: "+", known: "=", refused: "~", failed: "!" }[s.how];
@@ -167,6 +173,7 @@ if (expr) {
   cnocept --learn "what is chess?"       close gaps by learning before answering
   cnocept --study money debt             learn topics, and whatever they turn out to need
   cnocept --study --track economics      learn a whole curriculum track
+  cnocept --study If Add --as TypeScript teach existing Concepts to emit a language
   cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
   cnocept --agenda                       what it would work on next, unprompted
   cnocept --exist                        work on that agenda, bounded by --budget

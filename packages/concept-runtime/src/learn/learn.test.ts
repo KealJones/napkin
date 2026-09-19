@@ -246,3 +246,32 @@ test("a declaration with nothing but an identity is still a Concept", async () =
   await rt.evaluate(parse('Concept(identity="Thing")'), EXEC);
   assert.ok(rt.store.has("Thing"));
 });
+
+test("Text joins its parts, so a taught body can lay out syntax", async () => {
+  const rt = fresh();
+  assert.equal(
+    format(await rt.evaluate(parse('Text("if (", "x > 1", ") { ", "go()", " }")'), EXEC)),
+    '"if (x > 1) { go() }"',
+  );
+});
+
+test("expressing in a context targets Concepts that work but are mute", async () => {
+  const { study } = await import("./study.js");
+  const rt = fresh();
+  const result = await study(rt, ["if", "chess"], { as: "TypeScript", teacher: false });
+  // If works and has no TypeScript realization, so it is the gap.
+  assert.ok(result.steps.some((s) => s.identity === "If" && s.detail === "no Teacher"));
+  // Chess does nothing at all, so expressing it in a language is not the job.
+  assert.ok(result.steps.some((s) => s.identity === "Chess" && /does anything/.test(s.detail)));
+});
+
+test("a Concept that already speaks the context is left alone", async () => {
+  const { study } = await import("./study.js");
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="If", realizations=List(Realization(pattern=If($c, $t, $e), context=TypeScript(), body=Text("x"))))'),
+    EXEC,
+  );
+  const result = await study(rt, ["if"], { as: "TypeScript", teacher: false });
+  assert.ok(result.steps.some((s) => s.identity === "If" && s.how === "known"));
+});

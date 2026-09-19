@@ -95,6 +95,13 @@ export interface StudyOptions extends ModelOptions {
   research?: boolean;
   /** Off means crawl what is already known without asking the Teacher anything. */
   teacher?: boolean;
+  /**
+   * Express Concepts in this context rather than learning new ones, e.g. `TypeScript`.
+   * The target inverts: a Concept the graph ALREADY has, with no realization carrying
+   * this facet, is the gap. Without this, study skips everything it already understands,
+   * so a seeded Concept like If could never be taught to emit a language.
+   */
+  as?: string;
   /** Called after each step, so a long run is watchable. */
   onStep?: (step: StudyStep) => void;
   /** Called after each Concept taught, so a long run survives being killed. */
@@ -106,6 +113,17 @@ function understood(runtime: Runtime, identity: string): boolean {
   const unit = runtime.store.get(identity);
   if (!unit) return false;
   return unit.relations.length > 0 || unit.realizations.length > 0;
+}
+
+/** Does anything this Concept can do already carry the facet? */
+function speaks(runtime: Runtime, identity: string, facet: string): boolean {
+  const unit = runtime.store.get(identity);
+  if (!unit) return false;
+  return unit.realizations.some((r) => {
+    if (r.context === undefined) return false;
+    for (const node of walk(r.context)) if (isCall(node) && node.head === facet) return true;
+    return false;
+  });
 }
 
 export async function study(
@@ -141,6 +159,58 @@ export async function study(
       if (at <= maxDepth) for (const n of added) queue.push({ identity: n, depth: at });
       return added;
     };
+
+    // Expressing rather than learning: the gap is a Concept that works but is mute in
+    // this context. One that the graph does not have at all is somebody else's job.
+    if (options.as !== undefined) {
+      const unit = runtime.store.get(identity);
+      if (!unit || !unit.realizations.length) {
+        record({ identity, depth, how: "failed", detail: "not a Concept that does anything yet", discovered: [] });
+        continue;
+      }
+      if (speaks(runtime, identity, options.as)) {
+        record({ identity, depth, how: "known", detail: `already speaks ${options.as}`, discovered: [] });
+        continue;
+      }
+      if (options.teacher === false) {
+        record({ identity, depth, how: "failed", detail: "no Teacher", discovered: [] });
+        continue;
+      }
+      const before = unit.realizations.length;
+      const lesson = await teach(
+        runtime.store,
+        {
+          identity,
+          message: `Express ${readable(identity)} in ${options.as}.`,
+          expression: `${identity}()`,
+          inContext: `${options.as}()`,
+          existing: unit.realizations.map((r) => `  ${format(r.pattern)}`).join("\n"),
+        },
+        options,
+      );
+      if (!lesson.declaration) {
+        record({ identity, depth, how: "failed", detail: lesson.problem ?? "no declaration", discovered: [] });
+        continue;
+      }
+      try {
+        const saved = await runtime.evaluate(lesson.declaration, c("Execution"));
+        const gained = (runtime.store.get(identity)?.realizations.length ?? 0) - before;
+        if (gained > 0) {
+          taught += 1;
+          record({ identity, depth, how: "taught", detail: format(saved), discovered: [] });
+          options.onProgress?.();
+        } else {
+          record({ identity, depth, how: "refused", detail: format(saved), discovered: [] });
+        }
+      } catch (caught) {
+        record({
+          identity, depth, how: "failed",
+          detail: caught instanceof ConceptError ? format(caught.value) : String(caught),
+          discovered: [],
+        });
+      }
+      continue;
+    }
 
     // Already understood: nothing to teach, but what it names is still worth following.
     if (understood(runtime, identity)) {

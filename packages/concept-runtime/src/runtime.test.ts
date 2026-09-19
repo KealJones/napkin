@@ -343,3 +343,23 @@ test("the answer is placed in time by the Concepts asked for, not the English", 
   assert.equal(tense(parse("What(Tomorrow())")), "will be");
   assert.equal(tense(undefined), "is");
 });
+
+test("one expression runs under Execution and emits source under a language facet", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  // What the Teacher writes when asked to express these in TypeScript.
+  for (const [identity, pattern, body] of [
+    ["Add", "Add($l, $r)", 'Text("(", $l, " + ", $r, ")")'],
+    ["Multiply", "Multiply($l, $r)", 'Text("(", $l, " * ", $r, ")")'],
+  ] as const) {
+    store.addRealization(identity, realization({ pattern, context: "TypeScript()", body: parse(body) }));
+  }
+  const rt = new Runtime(store);
+  const source = "Multiply(Add(1, 2), 3)";
+
+  // The interpreter is untouched: a realization with no context still wins under Execution.
+  assert.equal(format(await rt.evaluate(parse(source), c("Execution"))), "9");
+  // Under the facet, the same expression writes itself -- and the parentheses mean the
+  // code it writes computes what the Concept computes.
+  assert.equal(format(await rt.evaluate(parse(source), c("TypeScript"))), '"((1 + 2) * 3)"');
+});

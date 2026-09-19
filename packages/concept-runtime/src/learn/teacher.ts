@@ -93,6 +93,45 @@ RULES
 
 Output only the declaration. No prose, no markdown, no code fence.`;
 
+/** Teaching an existing Concept how to behave in a named context, e.g. a target language. */
+const CONTEXT_SYSTEM = `You teach a Concept network how to express a Concept it already
+knows IN A PARTICULAR CONTEXT.
+
+The Concept works already. What is missing is how it looks in the named context -- usually
+a target language. Give it ONE realization carrying that context. Return one declaration
+and nothing else.
+
+FORM
+Concept(identity="Name", relations=List(), realizations=List(
+  Realization(pattern=Name($a, $b), context=TheContext(), body=Text(...))
+))
+
+RULES
+1. The pattern must match how the Concept is already called, with variables where the
+   arguments go. Do not invent a different shape for it.
+2. context= must be exactly the context you were given. That is the whole point of the
+   realization; without it the realization applies everywhere and breaks the Concept.
+3. Build the body with Text(...), which joins its arguments into one piece of text.
+   Put the literal syntax in quoted strings and the variables between them:
+     Text("if (", $condition, ") { ", $then, " } else { ", $otherwise, " }")
+   The variables emit themselves in the same context, so you never spell out what the
+   arguments look like -- only how THIS construct is written around them.
+4. Emit idiomatic, correct syntax for that context, and nothing else. No explanation, no
+   comments, no surrounding function or file.
+5. Never write Code(...).
+6. If the construct is an OPERATOR, PARENTHESISE EVERY OPERAND:
+     Text("(", $left, " * ", $right, ")")        right
+     Text($left, " * ", $right)                  wrong
+   You cannot know what will be substituted. An operand that turns out to be a
+   lower-precedence operator silently changes what the code means -- Multiply(Add(1, 2), 3)
+   emitted without parentheses reads as 1 + 2 * 3, which is 7 where the Concept says 9.
+   Redundant parentheses are harmless. A missing one emits code that computes the wrong
+   answer and still runs.
+7. If the Concept has no sensible expression in that context, return realizations=List()
+   rather than inventing one.
+
+Output only the declaration. No prose, no markdown, no code fence.`;
+
 export interface TeachRequest {
   readonly identity: string;
   readonly message: string;
@@ -106,6 +145,8 @@ export interface TeachRequest {
   readonly unrealizedCall?: string;
   /** What the graph can already do with this Concept, so a new realization fits. */
   readonly existing?: string;
+  /** A context to express the Concept in, e.g. `TypeScript()`. Existing behaviour stands. */
+  readonly inContext?: string;
 }
 
 export interface TeachResult {
@@ -162,20 +203,26 @@ export async function teach(
   request: TeachRequest,
   options: ModelOptions = {},
 ): Promise<TeachResult> {
+  const teachingContext = request.inContext !== undefined;
   const teachingBehaviour = request.unrealizedCall !== undefined;
   const prompt = [
     `The message was: ${request.message}`,
     `It parsed to: ${request.expression}`,
-    teachingBehaviour
-      ? `${request.identity} exists, but nothing realizes this call:\n  ${request.unrealizedCall}`
-      : `The network does not know: ${request.identity}`,
+    teachingContext
+      ? `${request.identity} already works. Express it in this context: ${request.inContext}`
+      : teachingBehaviour
+        ? `${request.identity} exists, but nothing realizes this call:\n  ${request.unrealizedCall}`
+        : `The network does not know: ${request.identity}`,
     request.existing ? `${request.identity} can already do:\n${request.existing}` : "",
     nearby(store, request.identity),
     request.evidence ? `EVIDENCE\n${request.evidence}` : "",
-    teachingBehaviour
-      ? `Give ${request.identity} a realization that handles that call, composed from ` +
-        `Concepts that already exist. Keep every relation it already has.`
-      : `Teach ${request.identity}.`,
+    teachingContext
+      ? `Give ${request.identity} one realization with context=${request.inContext}, whose ` +
+        `body is Text(...) emitting how it is written in ${request.inContext}.`
+      : teachingBehaviour
+        ? `Give ${request.identity} a realization that handles that call, composed from ` +
+          `Concepts that already exist. Keep every relation it already has.`
+        : `Teach ${request.identity}.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -184,8 +231,13 @@ export async function teach(
   // carries the Ears model, and spreading it last silently demoted the Teacher to it.
   // The endpoint and timeout are shared; the model is not.
   const { model: _ears, ...shared } = options;
+  const system = teachingContext
+    ? CONTEXT_SYSTEM
+    : teachingBehaviour
+      ? BEHAVIOUR_SYSTEM
+      : SYSTEM;
   const raw = await generate(
-    teachingBehaviour ? BEHAVIOUR_SYSTEM : SYSTEM,
+    system,
     prompt,
     { maxTokens: 1024, ...shared, model: TEACHER_MODEL },
   );
