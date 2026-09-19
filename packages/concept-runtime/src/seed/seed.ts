@@ -281,7 +281,36 @@ add(concept("Emphasis", { realizations: [projection("Emphasis($x)", 0)] }));
 // visible until something resolves them rather than quietly evaluating to anything.
 add(concept("Marker", { relations: ["IsA(Category())"] }));
 add(concept("Aside", { relations: ["IsA(Marker())"] }));
-add(concept("Ref", { relations: ["IsA(Marker())"] }));
+add(
+  concept("Ref", {
+    relations: ["IsA(Marker())"],
+    realizations: [
+      // An unresolved Ref stays residual, deliberately: it should remain visible until
+      // something resolves it. Once memory has, the resolved value is what computes.
+      realization({
+        pattern: "Ref($text, resolvedTo=$value)",
+        context: "Execution()",
+        properties: ["Lossy()"],
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => {
+          const found = args.find((a) => a.name === "resolvedTo");
+          if (!found) return api.call("Ref", args[0].value);
+          const value = found.value;
+          // Memory stores what was said as text; read it back as Concepts.
+          // A stored answer is already wrapped; pointing at it means pointing at what it
+          // answered, not at the wrapper.
+          const unwrap = (x) => (x && x.head === "Answer" && x.args.length === 1 ? x.args[0].value : x);
+          if (typeof value !== "string") return unwrap(await api.evaluate(value));
+          try {
+            return unwrap(await api.evaluate(api.parse(value)));
+          } catch {
+            return value;
+          }
+        }`),
+      }),
+    ],
+  }),
+);
 
 /* ------------------------------------------------------------------ *
  * Interrogatives. An interrogative goes where the unknown is.

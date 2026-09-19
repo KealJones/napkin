@@ -18,6 +18,7 @@ import {
   format,
   isCall,
   isVariable,
+  parse,
 } from "../concept/expression.js";
 import { type Bindings, match, substitute } from "../concept/match.js";
 import { codeSource, isCodeBody, type Realization } from "../concept/unit.js";
@@ -42,6 +43,7 @@ export interface CodeApi {
   readonly trace: Trace;
   evaluate(expression: Expr, context?: Expr): Promise<Expr>;
   substitute(expression: Expr, bindings: Bindings): Expr;
+  parse(source: string): Expr;
   /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
   ambient(key: string): string | undefined;
   format(e: Expr): string;
@@ -191,6 +193,7 @@ export class Runtime {
       evaluate: (expression, ctx) =>
         this.run(expression, ctx ?? context, "Code", parent, depth + 1),
       substitute,
+      parse,
       ambient: (key) => this.context.get(key),
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),

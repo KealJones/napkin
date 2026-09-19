@@ -55,6 +55,8 @@ export function check(message: string, expression: Expr | undefined): string[] {
 }
 
 export interface HearOptions extends ModelOptions {
+  /** Recent turns, so a back-reference can be marked rather than invented. */
+  history?: readonly { message: string; result: string }[];
   /** One corrective retry when a check fails. Off by default: it was measured as not
    *  worth it — coverage moved 86% to 90%, fidelity not at all, and under correction
    *  pressure the model began copying the prompt's own vocabulary literally. */
@@ -66,7 +68,7 @@ export async function hear(
   message: string,
   options: HearOptions = {},
 ): Promise<EarsResult> {
-  const system = earsPrompt(store);
+  const system = earsPrompt(store, options.history ?? []);
   let raw = await generate(system, message, options);
   let lifted = lift(raw);
   let problems = check(message, lifted.expression);

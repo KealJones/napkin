@@ -8,7 +8,9 @@
  */
 import { type Expr, format, isCall } from "../concept/expression.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
+import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
+import { resolveReferences } from "./references.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 
@@ -27,8 +29,12 @@ export interface Gap {
 export interface TurnResult {
   readonly heard: EarsResult;
   readonly parsed: string | undefined;
+  /** References the parser marked, and what memory resolved them to. */
+  readonly resolved: { reference: string; to: string }[];
   readonly result: Expr | undefined;
   readonly rendered: string;
+  /** The result as a sentence. The graph decides the answer; this only says it. */
+  readonly spoken: string;
   readonly gaps: Gap[];
   readonly ambiguities: string[];
   readonly learned: LearnStep[];
@@ -63,6 +69,8 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
 export interface TurnOptions extends HearOptions {
   /** Close gaps by learning before answering (concept-spec Part 12). */
   learn?: boolean;
+  /** Render the result as a sentence. */
+  speak?: boolean;
   maxPasses?: number;
   research?: boolean;
 }
@@ -81,8 +89,10 @@ export async function turn(
     return {
       heard,
       parsed: undefined,
+      resolved: [],
       result: undefined,
       rendered: "(nothing parsed)",
+      spoken: "I could not read that as Concepts.",
       gaps: [],
       ambiguities: [],
       learned: [],
@@ -90,27 +100,37 @@ export async function turn(
     };
   }
 
+  // A Ref marks a reference the parser could not resolve. Resolving it is memory's job.
+  const { expression: maybe, resolved } = resolveReferences(heard.expression, options.history ?? []);
+  const expression = maybe ?? heard.expression;
+
   let result: Expr | undefined;
   let failed: string | undefined;
   let learned: LearnStep[] = [];
 
   if (options.learn) {
-    const outcome = await learn(runtime, message, heard.expression, context, options);
+    const outcome = await learn(runtime, message, expression, context, options);
     result = outcome.result;
     learned = outcome.steps;
   } else {
     try {
-      result = await runtime.evaluate(heard.expression, context);
+      result = await runtime.evaluate(expression, context);
     } catch (caught) {
       failed = caught instanceof ConceptError ? format(caught.value) : String(caught);
     }
   }
 
+  const rendered = result ? format(result) : (failed ?? "(no result)");
+  const spoken =
+    options.speak === false || !result ? rendered : await say(message, result, options);
+
   return {
     heard,
-    parsed: format(heard.expression),
+    parsed: format(expression),
+    resolved,
     result,
-    rendered: result ? format(result) : (failed ?? "(no result)"),
+    rendered,
+    spoken,
     gaps: collectGaps(runtime, result),
     ambiguities: [...runtime.ambiguities],
     learned,

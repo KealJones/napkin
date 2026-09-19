@@ -59,11 +59,25 @@ Need(We(), What())
 "who ate what at the party?"
 Ate(Who(), What(), At(Party()))
 
+"uhmm soooo what is it?"        (they are pointing back at the last answer)
+Fuzzy("uhmm")
+Fuzzy("soooo")
+What(Ref("it"))
+
+"is that bigger than the other one?"
+Whether(GreaterThan(Ref("that"), Ref("the other one")))
+
 "how many r's are in strawberry?"
 HowMany(Count(String("r"), String("strawberry")))
 
 "is 10 greater than 3?"
 Whether(GreaterThan(10, 3))
+
+"what is the day after tomorrow?"     (compose; do not reach for arithmetic)
+What(DayAfter(Tomorrow()))
+
+"what was the date two days ago?"
+What(ShiftDays(Today(), -2))
 
 "i went to virginya to visit my mom. it was crazy."
 Fact(Visited(Me(), Misspelling("virginya", Virginia())))
@@ -87,7 +101,7 @@ const OUT = `Output only those lines. No prose, no markdown, no code fence, no n
  * Argument order is taught by the EXAMPLES instead, using real values, which carries the
  * same information without offering a template to copy.
  */
-export function vocabulary(store: ConceptStore, limit = 120): string {
+export function vocabulary(store: ConceptStore, limit = 400): string {
   const interesting = store
     .all()
     .map((u) => u.identity)
@@ -99,6 +113,30 @@ export function vocabulary(store: ConceptStore, limit = 120): string {
     .join("  ")}`;
 }
 
-export function earsPrompt(store: ConceptStore): string {
-  return [FORM, MARK, RULES, QUESTIONS, vocabulary(store), EXAMPLES, OUT].join("\n\n");
+/**
+ * Recent turns, so a back-reference has something to point at. The parser is not asked to
+ * resolve them — only to notice that a reference is being made and mark it (ir-spec
+ * Part 8.2). Resolution happens later, against memory.
+ */
+export function recent(history: readonly { message: string; result: string }[], limit = 4): string {
+  if (!history.length) return "";
+  const shown = history.slice(-limit);
+  return `EARLIER IN THIS CONVERSATION — the user may refer back to any of it.
+
+A word that POINTS at something already said is not a Concept. Write it as
+Ref("the words they used") and let memory resolve it. This applies to it, that, this,
+them, those, the answer, the result, the second one, before, last time.
+  "what is it?"        -> What(Ref("it"))          NOT What(Concept()) and NOT What(It())
+  "is that bigger?"    -> Whether(Bigger(Ref("that")))
+
+${shown.map((t) => `they said: ${t.message}\nthe answer was: ${t.result}`).join("\n\n")}`;
+}
+
+export function earsPrompt(
+  store: ConceptStore,
+  history: readonly { message: string; result: string }[] = [],
+): string {
+  return [FORM, MARK, RULES, QUESTIONS, vocabulary(store), EXAMPLES, recent(history), OUT]
+    .filter(Boolean)
+    .join("\n\n");
 }

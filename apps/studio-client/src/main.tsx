@@ -47,6 +47,18 @@ type Activity = {
   complete: boolean;
   failed: boolean;
   expanded: boolean;
+  /** What the parser emitted, before lifting. */
+  heard: string | null;
+  /** References the parser marked, and what memory resolved them to. */
+  resolved: { reference: string; to: string }[];
+  /** What the graph could not realize — the learning queue. */
+  gaps: { kind: string; identity: string; expression: string }[];
+  /** How each gap was closed. */
+  learned: { how: string; identity: string; detail: string }[];
+  /** Checks the parse failed, and lines the parser could not read. */
+  problems: string[];
+  rejected: { line: string; reason: string }[];
+  events: TraceEvent[];
 };
 type ChatMessage = {
   role: "User" | "Assistant";
@@ -185,6 +197,13 @@ function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
             complete: true,
             failed: false,
             expanded: false,
+            heard: null,
+            resolved: [],
+            gaps: [],
+            learned: [],
+            problems: [],
+            rejected: [],
+            events: [],
           };
         } else if (latestUser?.activity) {
           latestUser.activity.result = message.result
@@ -446,6 +465,13 @@ function App() {
         complete: false,
         failed: false,
         expanded: true,
+        heard: null,
+        resolved: [],
+        gaps: [],
+        learned: [],
+        problems: [],
+        rejected: [],
+        events: [],
       };
       setMessages((previous) => [
         ...previous,
@@ -523,6 +549,23 @@ function App() {
                 ? "learned and saved"
                 : "used"
               : "not used",
+            heard: typeof event.heard === "string" ? event.heard : item.heard,
+            resolved: Array.isArray(event.resolved)
+              ? (event.resolved as Activity["resolved"])
+              : item.resolved,
+            gaps: Array.isArray(event.gaps) ? (event.gaps as Activity["gaps"]) : item.gaps,
+            learned: Array.isArray(event.learned)
+              ? (event.learned as Activity["learned"])
+              : item.learned,
+            problems: Array.isArray(event.problems)
+              ? (event.problems as string[])
+              : item.problems,
+            rejected: Array.isArray(event.rejected)
+              ? (event.rejected as Activity["rejected"])
+              : item.rejected,
+            events: Array.isArray(event.events)
+              ? (event.events as TraceEvent[])
+              : item.events,
           }));
           setMessages((previous) => [
             ...previous,
@@ -765,7 +808,7 @@ function App() {
                           className={`message ${message.role === "User" ? "user" : "assistant"}`}
                         >
                           {message.role === "Assistant" && (
-                            <div className="role">Spoon</div>
+                            <div className="role">cnocept</div>
                           )}
                           <div className="content">{message.content}</div>
                         </div>
@@ -1039,6 +1082,87 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             )}
           </div>
         </details>
+        {activity.heard && activity.heard !== activity.meaning && (
+          <details className="activity-step">
+            <summary>Heard · lines before lifting</summary>
+            <div className="activity-step-body">
+              <pre>
+                <Highlight value={activity.heard} />
+              </pre>
+            </div>
+          </details>
+        )}
+        {activity.resolved.length > 0 && (
+          <details className="activity-step">
+            <summary>
+              Resolved · {activity.resolved.length} reference
+              {activity.resolved.length === 1 ? "" : "s"}
+            </summary>
+            <div className="activity-step-body">
+              {activity.resolved.map((item, index) => (
+                <pre key={index}>
+                  <Highlight value={`Ref(${JSON.stringify(item.reference)})\n  => ${item.to}`} />
+                </pre>
+              ))}
+              <small className="muted">
+                The parser marks a reference; memory resolves it. Pointing is not naming.
+              </small>
+            </div>
+          </details>
+        )}
+        {activity.learned.length > 0 && (
+          <details className="activity-step" open>
+            <summary>Learned · {activity.learned.length}</summary>
+            <div className="activity-step-body">
+              {activity.learned.map((item, index) => (
+                <pre key={index}>
+                  <Highlight value={`${item.how}: ${item.identity}\n  ${item.detail}`} />
+                </pre>
+              ))}
+            </div>
+          </details>
+        )}
+        {activity.gaps.length > 0 && (
+          <details className="activity-step">
+            <summary>Gaps · {activity.gaps.length}</summary>
+            <div className="activity-step-body">
+              <pre>
+                <Highlight
+                  value={activity.gaps
+                    .map((gap) => `${gap.kind}: ${gap.expression}`)
+                    .join("\n")}
+                />
+              </pre>
+              <small className="muted">
+                Unknown is something to learn. Inert means it exists and simply does not
+                realize here, which is how markers and data are supposed to behave.
+              </small>
+            </div>
+          </details>
+        )}
+        {(activity.problems.length > 0 || activity.rejected.length > 0) && (
+          <details className="activity-step" open>
+            <summary>Checks failed</summary>
+            <div className="activity-step-body">
+              <pre>
+                <Highlight
+                  value={[
+                    ...activity.problems,
+                    ...activity.rejected.map((r) => `${r.line}  <-- ${r.reason}`),
+                  ].join("\n")}
+                />
+              </pre>
+            </div>
+          </details>
+        )}
+        {activity.events.length > 0 && (
+          <details className="activity-step">
+            <summary>Trace · {activity.events.length} steps</summary>
+            <div className="activity-step-body">
+              <TraceDetail traceId="" events={activity.events} />
+            </div>
+          </details>
+        )}
       </div>
     </details>
   );

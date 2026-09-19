@@ -297,13 +297,21 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
   });
 
   try {
+    // What was said earlier, so a back-reference has something to point at.
+    const history = conversations
+      .turns(conversationId)
+      .slice(-6)
+      .map((t) => ({ message: t.message, result: t.result }));
+
     const result = await runTurn(runtime, body.text, c("Execution"), {
       model,
       endpoint: endpoint.origin,
       learn: body.learn !== false,
+      history,
     });
 
     if (result.parsed) send({ type: "meaning", expression: result.parsed });
+    if (result.resolved.length) send({ type: "resolved", resolved: result.resolved });
 
     const taught = result.learned.filter((l) => l.how === "teacher");
     if (taught.length) {
@@ -334,7 +342,10 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
     send({
       type: "complete",
       traceId,
+      // The sentence the user reads; the graph decided the answer, this only says it.
+      message: result.spoken,
       result: result.rendered,
+      resolved: result.resolved,
       heard: result.heard.raw.trim(),
       conversation: conversations.listActive().find((x) => x.id === conversationId),
       teacherUsed: taught.length > 0,
