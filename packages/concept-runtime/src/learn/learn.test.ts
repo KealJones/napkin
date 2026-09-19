@@ -187,3 +187,45 @@ test("a Concept with no realization at all still wants behaviour when asked to d
   const gaps = learnable(rt, collectGaps(rt, undefined));
   assert.ok(gaps.some((g) => g.identity === "Weigh"));
 });
+
+test("a topic becomes an identity", async () => {
+  const { identityFor } = await import("./study.js");
+  assert.equal(identityFor("money"), "Money");
+  assert.equal(identityFor("medium of exchange"), "MediumOfExchange");
+  assert.equal(identityFor("return value"), "ReturnValue");
+  assert.equal(identityFor("garbage collection"), "GarbageCollection");
+  // Already an identity: left alone rather than mangled to Isa.
+  assert.equal(identityFor("IsA"), "IsA");
+});
+
+test("the frontier is what a Concept names but does not explain", async () => {
+  const { frontierFrom } = await import("./study.js");
+  const found = frontierFrom([
+    parse("IsA(MediumOfExchange())"),
+    parse("Symmetric()"),
+    parse("MinimumNumberOfPlayers(2)"),
+    parse("InverseOf(Credit())"),
+  ]);
+  // Objects, not predicates: IsA and InverseOf are how it is said, not what it names.
+  assert.deepEqual(found.sort(), ["Credit", "MediumOfExchange"]);
+});
+
+test("studying without a Teacher still crawls what is already known", async () => {
+  const { study } = await import("./study.js");
+  const rt = fresh();
+  // Tomorrow is seeded and names Date, Deictic and Yesterday in its relations.
+  const result = await study(rt, ["tomorrow"], { research: false, teacher: false });
+  assert.equal(result.taught, 0);
+  assert.ok(result.steps.some((s) => s.identity === "Tomorrow" && s.how === "known"));
+  // The crawl followed the relations rather than stopping at the topic.
+  assert.ok(result.visited > 1);
+});
+
+test("a curriculum track puts foundations before what leans on them", async () => {
+  const { curriculum } = await import("./curriculum.js");
+  const all = curriculum("all");
+  assert.ok(all.indexOf("thing") < all.indexOf("money"));
+  assert.ok(all.indexOf("value") < all.indexOf("debt"));
+  assert.ok(curriculum("economics").includes("medium of exchange"));
+  assert.throws(() => curriculum("nonsense"), /Unknown track/);
+});

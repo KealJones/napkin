@@ -11,6 +11,8 @@ import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
+import { study } from "./learn/study.js";
+import { curriculum, TRACKS } from "./learn/curriculum.js";
 import { forget } from "./store/forget.js";
 import { seed } from "./seed/seed.js";
 import { load, save } from "./store/persist.js";
@@ -78,6 +80,55 @@ if (flag("--exist")) {
 }
 
 const expr = value("--expr");
+
+if (flag("--study")) {
+  if (!(await modelAvailable())) {
+    console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama.");
+    process.exit(1);
+  }
+  // Every bare word is a topic; the flag values are not.
+  const consumed = new Set(
+    ["--graph", "--limit", "--depth", "--model", "--track"].map(value).filter(Boolean),
+  );
+  const track = value("--track");
+  const topics = track
+    ? curriculum(track)
+    : args.filter((a) => !a.startsWith("--") && !consumed.has(a));
+  if (!topics.length) {
+    console.error(
+      'Nothing to study.\n' +
+        '  cnocept --study money debt "medium of exchange"\n' +
+        `  cnocept --study --track economics        tracks: ${TRACKS.join(", ")}, all`,
+    );
+    process.exit(1);
+  }
+  const limit = Number(value("--limit") ?? 25);
+  const depth = Number(value("--depth") ?? 2);
+  const before = store.size();
+  const what = track ? `track ${track} (${topics.length} topics)` : topics.join(", ");
+  console.log(`studying ${what} — up to ${limit} Concepts, depth ${depth}\n`);
+  const result = await study(runtime, topics, {
+    maxConcepts: limit,
+    maxDepth: depth,
+    research: !flag("--no-research"),
+    onStep: (s) => {
+      const mark = { taught: "+", known: "=", refused: "~", failed: "!" }[s.how];
+      console.log(`${mark} ${"  ".repeat(s.depth)}${s.identity}  ${s.detail.slice(0, 120)}`);
+      if (s.discovered.length) {
+        console.log(`  ${"  ".repeat(s.depth)}\x1b[2m-> ${s.discovered.join(" ")}\x1b[0m`);
+      }
+    },
+    // Save as it goes: an overnight run that dies at hour six should keep hours one to five.
+    onProgress: () => persist(),
+  });
+  persist();
+  console.log(
+    `\n${result.taught} taught, ${result.visited} visited; graph went ${before} -> ${store.size()}` +
+      (result.remaining.length ? `\nstill queued: ${result.remaining.slice(0, 20).join(" ")}` : ""),
+  );
+  process.exit(0);
+}
+
 const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
@@ -114,6 +165,9 @@ if (expr) {
   cnocept "What is 5 times three?"        hear a message, then realize it
   cnocept --expr 'Add(2, 3)'             realize an expression directly
   cnocept --learn "what is chess?"       close gaps by learning before answering
+  cnocept --study money debt             learn topics, and whatever they turn out to need
+  cnocept --study --track economics      learn a whole curriculum track
+  cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
   cnocept --agenda                       what it would work on next, unprompted
   cnocept --exist                        work on that agenda, bounded by --budget
   cnocept --forget                       what would be forgotten (--commit to apply)
