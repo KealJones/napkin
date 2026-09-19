@@ -10,9 +10,11 @@ import { type Expr, c, format, isCall } from "../concept/expression.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
+import { reachesBehaviour } from "../runtime/select.js";
 import { collectGaps, type Gap } from "../runtime/turn.js";
 import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
+import { forwardSynonym } from "../seed/seed.js";
 import { teach } from "./teacher.js";
 
 export interface LearnStep {
@@ -36,21 +38,27 @@ export interface LearnResult {
  * teaching, and attaching is free.
  */
 function fromGraph(runtime: Runtime, identity: string): string | undefined {
-  const unit = runtime.store.get(identity);
-  if (unit && unit.realizations.length) return undefined; // already realizes; nothing to do
-  const cluster = new Relations(runtime.store).cluster(identity);
+  // Inheritance counts as connected: a Concept reaching behaviour through IsA needs
+  // nothing, and attaching a SynonymOf to it would be noise.
+  if (reachesBehaviour(runtime.store, identity)) return undefined;
+  // Equivalence only. Following an IsA edge upward would give a category its children's
+  // behaviour, which is meaningless — inheritance already runs the other way.
+  const cluster = new Relations(runtime.store).cluster(identity, 24, true);
   const realizable = cluster.find((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
   if (!realizable) return undefined;
   runtime.store.addRelation(identity, c("SynonymOf", c(realizable.identity)));
-  return `attached to ${realizable.identity} via the existing cluster`;
+  // Adding the relation is not enough: behaviour is what was missing, so derive the
+  // forwarding realization the relation implies.
+  forwardSynonym(runtime.store, identity, realizable.identity);
+  return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 
 /** Known, but reaching nothing realizable: an orphan, which attaching can fix. */
 function isOrphan(runtime: Runtime, identity: string): boolean {
-  const unit = runtime.store.get(identity);
-  if (!unit || unit.realizations.length) return false;
+  if (!runtime.store.has(identity)) return false;
+  if (reachesBehaviour(runtime.store, identity)) return false;
   return new Relations(runtime.store)
-    .cluster(identity)
+    .cluster(identity, 24, true)
     .some((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
 }
 

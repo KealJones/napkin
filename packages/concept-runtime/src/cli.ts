@@ -9,7 +9,9 @@
 import { c, format, parse } from "./concept/expression.js";
 import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
+import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
+import { forget } from "./store/forget.js";
 import { seed } from "./seed/seed.js";
 import { load, save } from "./store/persist.js";
 import { ConceptStore } from "./store/store.js";
@@ -37,6 +39,38 @@ if (flag("--seed")) {
       `${report.synonymsDerived} synonym forwardings derived; ` +
       `${loaded} loaded from disk; graph holds ${store.size()}\n${graphPath}`,
   );
+  process.exit(0);
+}
+
+if (flag("--agenda")) {
+  console.log(describeAgenda(runtime));
+  process.exit(0);
+}
+
+if (flag("--forget")) {
+  const dryRun = !flag("--commit");
+  const gone = forget(store, { dryRun, unusedForMs: Number(value("--unused-days") ?? 30) * 86_400_000 });
+  if (!dryRun) persist();
+  console.log(
+    gone.length
+      ? `${gone.length} realization(s) ${dryRun ? "would be" : "were"} forgotten:\n` +
+          gone.map((g) => `  ${g.identity}  ${g.pattern}  [${g.context}]  ${g.reason}`).join("\n") +
+          (dryRun ? "\n\nre-run with --commit to apply" : "")
+      : "nothing to forget — an only-way-to-do-something is never collected",
+  );
+  process.exit(0);
+}
+
+if (flag("--exist")) {
+  const budget = Number(value("--budget") ?? 4);
+  console.log(`existing, budget ${budget}\n`);
+  const done = await exist(runtime, {
+    budget,
+    restMs: 250,
+    onIntent: (intent, outcome) => console.log(`${intent.what} ${intent.identity}\n  why: ${intent.why}\n  did: ${outcome}\n`),
+  });
+  persist();
+  console.log(done.length ? `${done.length} intent(s) worked; graph holds ${store.size()}` : "nothing to do");
   process.exit(0);
 }
 
@@ -77,6 +111,9 @@ if (expr) {
   cnocept "What is 5 times three?"        hear a message, then realize it
   cnocept --expr 'Add(2, 3)'             realize an expression directly
   cnocept --learn "what is chess?"       close gaps by learning before answering
+  cnocept --agenda                       what it would work on next, unprompted
+  cnocept --exist                        work on that agenda, bounded by --budget
+  cnocept --forget                       what would be forgotten (--commit to apply)
   cnocept --seed                         seed a graph and report
   cnocept --fresh ...                    do not load or save the persistent graph
   cnocept --graph <path> ...             use a different graph file

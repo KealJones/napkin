@@ -42,6 +42,8 @@ export interface CodeApi {
   readonly trace: Trace;
   evaluate(expression: Expr, context?: Expr): Promise<Expr>;
   substitute(expression: Expr, bindings: Bindings): Expr;
+  /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
+  ambient(key: string): string | undefined;
   format(e: Expr): string;
   call(head: string, ...values: Expr[]): Call;
 }
@@ -54,6 +56,8 @@ export class Runtime {
   readonly maximumDepth: number;
   readonly maximumSteps: number;
   private steps = 0;
+  /** Ambient state a deictic realization reads instead of its arguments. */
+  readonly context = new Map<string, string>();
   /** Incomparable context matches, surfaced rather than silently resolved. */
   readonly ambiguities: string[] = [];
 
@@ -117,6 +121,7 @@ export class Runtime {
       }
 
       this.trace.select(id, chosen.realization);
+      this.store.recordSelection(chosen.owner, chosen.index);
       const { realization } = chosen;
       let bindings = chosen.bindings;
       let args: readonly Argument[] = target.args;
@@ -184,6 +189,7 @@ export class Runtime {
       evaluate: (expression, ctx) =>
         this.run(expression, ctx ?? context, "Code", parent, depth + 1),
       substitute,
+      ambient: (key) => this.context.get(key),
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),
     };

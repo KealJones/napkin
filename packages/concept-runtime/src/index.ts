@@ -5,6 +5,7 @@ export * from "./store/store.js";
 export * from "./store/relations.js";
 export * from "./store/cells.js";
 export * from "./store/persist.js";
+export * from "./store/forget.js";
 export * from "./runtime/context.js";
 export * from "./runtime/select.js";
 export * from "./runtime/trace.js";
@@ -19,6 +20,7 @@ export * from "./learn/learn.js";
 export * from "./research/sources.js";
 export * from "./learn/teacher.js";
 export * from "./runtime/turn.js";
+export * from "./runtime/exist.js";
 
 import { ConceptStore } from "./store/store.js";
 import { Runtime } from "./runtime/evaluator.js";

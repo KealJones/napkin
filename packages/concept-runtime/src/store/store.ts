@@ -27,6 +27,8 @@ export class ConceptStore {
   private readonly units = new Map<string, ConceptUnit>();
   private readonly bySubject = new Map<string, Triple[]>();
   private readonly byObject = new Map<string, Triple[]>();
+  /** When each realization was last chosen. Forgetting needs this, and nothing else does. */
+  private readonly lastSelected = new Map<string, number>();
 
   get(identity: string): ConceptUnit | undefined {
     return this.units.get(identity);
@@ -120,6 +122,23 @@ export class ConceptStore {
       if (kept.length) this.byObject.set(key, kept);
       else this.byObject.delete(key);
     }
+  }
+
+  /** Record that a realization was chosen, for the forgetting pass. */
+  recordSelection(identity: string, index: number, at = Date.now()): void {
+    this.lastSelected.set(`${identity}#${index}`, at);
+  }
+
+  selectedAt(identity: string, index: number): number | undefined {
+    return this.lastSelected.get(`${identity}#${index}`);
+  }
+
+  /** Replace a unit's realizations wholesale. Used only by the forgetting pass. */
+  replaceRealizations(identity: string, realizations: readonly Realization[]): void {
+    const existing = this.units.get(identity);
+    if (!existing) return;
+    this.put({ ...existing, realizations });
+    this.lastSelected.clear();
   }
 
   /** Triples with this Concept as subject. */

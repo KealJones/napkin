@@ -74,6 +74,8 @@ export async function turn(
   options: TurnOptions = {},
 ): Promise<TurnResult> {
   runtime.reset();
+  // Deixis reads ambient state: Self() needs to know which message it is inside.
+  runtime.context.set("message", message);
   const heard = await hear(runtime.store, message, options);
   if (!heard.expression) {
     return {

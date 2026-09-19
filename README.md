@@ -72,7 +72,42 @@ Invent, realize, collect what came back residual, try the graph, ask the Teacher
 re-answer. The graph persists to `~/.cnocept/graph.json`, so asking again in a fresh process
 needs no model call.
 
-A gap that cannot be closed stays a residual. It is not filled in with a guess.
+Wikidata and web search run **before** the Teacher, so it is a last resort rather than the
+only path, and its declarations are grounded in source-attributed evidence rather than
+recall. A gap that cannot be closed stays a residual. It is not filled in with a guess.
+
+### It works without being asked
+
+```
+$ cnocept --agenda
+learn     Backgammon    left residual in Backgammon()
+
+$ cnocept --exist
+learn Backgammon
+  did: research: 8 findings from Wikidata and Web; teacher: Concept(identity="Backgammon",
+       relations=List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ...)) -> Saved(Backgammon())
+```
+
+Nothing invents a goal for it. **The agenda is already written down**: every residual is
+something it could not realize, every orphan a cluster attached to nothing. It reads its own
+trace for what it could not do, and works on that. Unattended work is bounded by a budget,
+and its envelope is narrow — it may research and learn, and nothing else.
+
+Some repairs need no model at all. A Concept whose synonym relation was never turned into
+behaviour gets the forwarding realization derived, and `Multiplication(6, 7)` starts
+answering 42.
+
+### It forgets
+
+```
+$ cnocept --forget
+nothing to forget — an only-way-to-do-something is never collected
+```
+
+Append-only would grow without limit, and a brain does not keep every habit it ever formed.
+A realization is collected only when another covers the same pattern and context, it is the
+older of the pair, and it has gone unused. That middle condition is the safety property:
+forgetting can lose an alternative, never a capability.
 
 ## Running it
 
@@ -82,6 +117,9 @@ pnpm install && pnpm build
 pnpm cnocept "What is 5 times three?"       # a turn, end to end
 pnpm cnocept --expr 'Add(2, 3)'             # realize an expression directly
 pnpm cnocept --learn "what is chess?"       # close gaps before answering
+pnpm cnocept --agenda                       # what it would work on next, unprompted
+pnpm cnocept --exist                        # work on that agenda
+pnpm cnocept --forget                       # what would be collected
 pnpm cnocept --seed                         # seed a graph and report
 pnpm studio                                 # browse the graph at :4317
 pnpm test
@@ -99,9 +137,10 @@ speed — a larger model restructures where this job wants faithful transcriptio
 packages/concept-runtime/src/
   concept/     the expression language, matching, the unit
   store/       the graph, the two-directional relation index, cells, persistence
-  runtime/     facet contexts, selection, evaluation, the trace, one turn
+  runtime/     facet contexts, selection, evaluation, the trace, one turn, Exist
   ears/        message -> Concepts: the prompt, line lifting, repair, checks
   learn/       the Teacher, and the learning loop
+  research/    Wikidata and web search, as Concepts
   seed/        the Concepts the network starts with
 apps/studio/   browse the graph and watch a turn happen
 ```

@@ -192,7 +192,7 @@ export class Relations {
    * Symmetric and Transitive, plus IsA parents (concept-spec Part 11.1). Search returns
    * this rather than the single node, which is also how an orphan is detected.
    */
-  cluster(identity: string, limit = 24): { identity: string; via: string }[] {
+  cluster(identity: string, limit = 24, equivalenceOnly = false): { identity: string; via: string }[] {
     const out = new Map<string, string>();
     const queue: string[] = [identity];
     const seen = new Set<string>([identity]);
@@ -201,7 +201,7 @@ export class Relations {
       for (const t of [...this.store.asSubject(current), ...this.store.asObject(current)]) {
         const isEquivalence =
           this.declares(t.predicate, PROPERTY.symmetric) && this.declares(t.predicate, PROPERTY.transitive);
-        const isParent = t.predicate === "IsA";
+        const isParent = !equivalenceOnly && t.predicate === "IsA";
         if (!isEquivalence && !isParent) continue;
         const other = t.subject === current ? objectKey(t.object) : t.subject;
         if (!other || seen.has(other)) continue;

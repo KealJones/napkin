@@ -25,9 +25,15 @@ add(concept("IsA", { relations: ["Transitive()"] }));
 add(concept("SynonymOf", { relations: ["Symmetric()", "Transitive()"] }));
 add(concept("InverseOf", { relations: ["Symmetric()"] }));
 add(concept("Disjoint", { relations: ["Symmetric()", "Irreflexive()"] }));
-for (const p of ["Symmetric", "Asymmetric", "Transitive", "Reflexive", "Irreflexive", "Functional", "Incidental"]) {
-  add(concept(p));
+// Classified, not bare. A Concept with no relations and no realizations is
+// indistinguishable from an orphan, and Exist would keep trying to "fix" it. Saying what
+// kind of thing it is costs one relation and makes the graph self-describing.
+add(concept("Category", { relations: ["IsA(Category())"] }));
+add(concept("RelationProperty", { relations: ["IsA(Category())"] }));
+for (const p of ["Symmetric", "Asymmetric", "Transitive", "Reflexive", "Irreflexive", "Functional"]) {
+  add(concept(p, { relations: ["IsA(RelationProperty())"] }));
 }
+add(concept("Incidental", { relations: ["IsA(RelationProperty())"] }));
 // Machinery relations are not led with in a summary; interest is a property of the
 // question, so this is a soft default and never a prohibition.
 for (const p of ["SynonymOf", "Suppresses", "Symmetric", "Transitive", "InverseOf"]) {
@@ -37,22 +43,25 @@ for (const p of ["SynonymOf", "Suppresses", "Symmetric", "Transitive", "InverseO
 /* ------------------------------------------------------------------ *
  * Realization properties, read generically through Suppresses.
  * ------------------------------------------------------------------ */
-add(concept("Effectful"));
-add(concept("Lossy"));
-add(concept("Pure"));
-add(concept("Suppresses"));
+add(concept("RealizationProperty", { relations: ["IsA(Category())"] }));
+add(concept("Effectful", { relations: ["IsA(RealizationProperty())"] }));
+add(concept("Lossy", { relations: ["IsA(RealizationProperty())"] }));
+add(concept("Pure", { relations: ["IsA(RealizationProperty())"] }));
+add(concept("Suppresses", { relations: ["IsA(RelationProperty())"] }));
 
 /* ------------------------------------------------------------------ *
  * Context facets.
  * ------------------------------------------------------------------ */
-add(concept("Execution"));
-add(concept("Teaching"));
-add(concept("Lexical"));
-add(concept("JavaScript"));
-add(concept("Rust"));
+add(concept("ContextFacet", { relations: ["IsA(Category())"] }));
+add(concept("TargetLanguage", { relations: ["IsA(ContextFacet())"] }));
+add(concept("Execution", { relations: ["IsA(ContextFacet())"] }));
+add(concept("Teaching", { relations: ["IsA(ContextFacet())"] }));
+add(concept("Lexical", { relations: ["IsA(ContextFacet())"] }));
+add(concept("JavaScript", { relations: ["IsA(TargetLanguage())"] }));
+add(concept("Rust", { relations: ["IsA(TargetLanguage())"] }));
 add(
   concept("Describe", {
-    relations: ["Suppresses(Effectful())", "Suppresses(Lossy())"],
+    relations: ["IsA(ContextFacet())", "Suppresses(Effectful())", "Suppresses(Lossy())"],
   }),
 );
 
@@ -196,10 +205,10 @@ add(
     ],
   }),
 );
-add(concept("Catch"));
-add(concept("Lambda"));
-add(concept("List"));
-add(concept("Rest"));
+add(concept("Catch", { relations: ["IsA(Data())"] }));
+add(concept("Lambda", { relations: ["IsA(Data())"] }));
+add(concept("List", { relations: ["IsA(Collection())"] }));
+add(concept("Rest", { relations: ["IsA(Data())"] }));
 
 /* ------------------------------------------------------------------ *
  * State. Cells reach the store through the same interface everything else uses.
@@ -237,13 +246,18 @@ add(
     ],
   }),
 );
-add(concept("CellRef"));
+add(concept("CellRef", { relations: ["IsA(Data())"] }));
 
 /* ------------------------------------------------------------------ *
  * Failure and outcome. Pure data.
  * ------------------------------------------------------------------ */
-for (const f of ["ExecutionFailed", "UnboundVariable", "BudgetExceeded", "Unrealized", "UnknownTruth", "True", "False"]) {
-  add(concept(f));
+add(concept("Failure", { relations: ["IsA(Category())"] }));
+for (const f of ["ExecutionFailed", "UnboundVariable", "BudgetExceeded", "Unrealized"]) {
+  add(concept(f, { relations: ["IsA(Failure())"] }));
+}
+add(concept("TruthValue", { relations: ["IsA(Category())"] }));
+for (const t of ["True", "False", "UnknownTruth"]) {
+  add(concept(t, { relations: ["IsA(TruthValue())"] }));
 }
 
 /* ------------------------------------------------------------------ *
@@ -265,8 +279,9 @@ add(concept("Fuzzy", { realizations: [projection("Fuzzy($x)", 0)] }));
 add(concept("Emphasis", { realizations: [projection("Emphasis($x)", 0)] }));
 // Aside and Ref have no execution realization at all, deliberately: both should stay
 // visible until something resolves them rather than quietly evaluating to anything.
-add(concept("Aside"));
-add(concept("Ref"));
+add(concept("Marker", { relations: ["IsA(Category())"] }));
+add(concept("Aside", { relations: ["IsA(Marker())"] }));
+add(concept("Ref", { relations: ["IsA(Marker())"] }));
 
 /* ------------------------------------------------------------------ *
  * Interrogatives. An interrogative goes where the unknown is.
@@ -323,17 +338,26 @@ add(
 /* ------------------------------------------------------------------ *
  * Frames and modifiers.
  * ------------------------------------------------------------------ */
-for (const f of ["Fact", "Do", "Tell", "Qualify", "Ordinal", "Not", "Answer", "Text", "Describes", "NoDescription", "Unknown"]) {
-  add(concept(f));
+add(concept("Frame", { relations: ["IsA(Category())"] }));
+add(concept("Modifier", { relations: ["IsA(Category())"] }));
+for (const f of ["Fact", "Do", "Tell"]) add(concept(f, { relations: ["IsA(Frame())"] }));
+for (const m of ["Qualify", "Ordinal", "Not"]) add(concept(m, { relations: ["IsA(Modifier())"] }));
+add(concept("Result", { relations: ["IsA(Category())"] }));
+for (const r of ["Answer", "Describes", "NoDescription", "Readings", "Saved"]) {
+  add(concept(r, { relations: ["IsA(Result())"] }));
 }
+for (const d of ["Text", "Unknown", "Missing", "InvalidDeclaration"]) add(concept(d, { relations: ["IsA(Data())"] }));
+add(concept("Data", { relations: ["IsA(Category())"] }));
 
 /* ------------------------------------------------------------------ *
  * Primitives and collections.
  * ------------------------------------------------------------------ */
-add(concept("String"));
-add(concept("Boolean"));
-add(concept("Object"));
-add(concept("Pair"));
+add(concept("Primitive", { relations: ["IsA(Data())"] }));
+add(concept("Collection", { relations: ["IsA(Data())"] }));
+add(concept("String", { relations: ["IsA(Primitive())"] }));
+add(concept("Boolean", { relations: ["IsA(Primitive())"] }));
+add(concept("Object", { relations: ["IsA(Collection())"] }));
+add(concept("Pair", { relations: ["IsA(Collection())"] }));
 add(
   concept("Number", {
     realizations: [
@@ -397,7 +421,7 @@ add(
     ],
   }),
 );
-add(concept("Timestamp"));
+add(concept("Timestamp", { relations: ["IsA(Data())"] }));
 add(
   concept("Today", {
     relations: ["IsA(Date())"],
@@ -435,8 +459,9 @@ add(
   }),
 );
 add(concept("Now", { relations: ["SynonymOf(CurrentTimestamp())"] }));
-add(concept("Me"));
-add(concept("You"));
+add(concept("Deictic", { relations: ["IsA(Category())"] }));
+add(concept("Me", { relations: ["IsA(Deictic())"] }));
+add(concept("You", { relations: ["IsA(Deictic())"] }));
 
 /* ------------------------------------------------------------------ *
  * A little arithmetic, so the first end-to-end turn computes something real.
@@ -484,13 +509,73 @@ add(
 );
 
 /* ------------------------------------------------------------------ *
+ * Self-reference. A message that talks about itself needs a referent for itself, and
+ * without one the instruction "use this prompt as a test case" cannot be expressed at all.
+ * This was the measured weak spot: long self-referential messages scored 13-43% fidelity
+ * at every model size.
+ * ------------------------------------------------------------------ */
+add(
+  concept("Self", {
+    realizations: [
+      realization({
+        pattern: "Self()",
+        context: "Execution()",
+        body: code(`(args, bindings, api) => {
+          const message = api.ambient("message");
+          return message === undefined ? api.call("Self") : api.call("Message", message);
+        }`),
+      }),
+    ],
+  }),
+);
+add(concept("Message", { relations: ["IsA(Data())"] }));
+
+/* ------------------------------------------------------------------ *
+ * Preserved ambiguity. When context does not resolve which reading is meant, the system
+ * may pick, ask, or keep both — and which it does is itself a realization selected by
+ * context, so the policy is inspectable rather than hardcoded.
+ * ------------------------------------------------------------------ */
+add(
+  concept("Ambiguous", {
+    realizations: [
+      // Under Execution the best-supported reading wins: the first that realizes.
+      realization({
+        pattern: "Ambiguous(Rest($readings))",
+        context: "Execution()",
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => {
+          const tried = [];
+          for (const a of args) {
+            const value = await api.evaluate(a.value);
+            if (api.format(value) !== api.format(a.value)) return value;
+            tried.push(value);
+          }
+          // Nothing resolved, so the ambiguity is preserved rather than guessed at.
+          return api.call("Ambiguous", ...tried);
+        }`),
+      }),
+      // Under Describe all readings are kept and shown.
+      realization({
+        pattern: "Ambiguous(Rest($readings))",
+        context: "Describe()",
+        evaluateArguments: false,
+        body: code(`(args, bindings, api) =>
+          api.call("Readings", ...args.map((a) => a.value))`),
+      }),
+    ],
+  }),
+);
+add(concept("Readings"));
+
+/* ------------------------------------------------------------------ *
  * Research, as Concepts. Search results become Concepts with their source attached, so a
  * claim can be traced back to where it came from.
  * ------------------------------------------------------------------ */
-add(concept("Web"));
-add(concept("Wikidata"));
-add(concept("SearchResult"));
-add(concept("SearchResults"));
+add(concept("Source", { relations: ["IsA(Category())"] }));
+add(concept("Web", { relations: ["IsA(Source())"] }));
+add(concept("Wikidata", { relations: ["IsA(Source())"] }));
+add(concept("SearchResult", { relations: ["IsA(Data())"] }));
+add(concept("SearchResults", { relations: ["IsA(Collection())"] }));
 add(
   concept("WikidataSearch", {
     relations: ["IsA(Research())"],
@@ -527,30 +612,40 @@ add(
     ],
   }),
 );
-add(concept("Research"));
+add(concept("Research", { relations: ["IsA(Capability())"] }));
+add(concept("Capability", { relations: ["IsA(Category())"] }));
 
 /**
  * A SynonymOf relation is the source of truth; the forwarding realization is derived from
  * it, so the same fact is not asserted in two places that can disagree.
  */
+/**
+ * Give a Concept the forwarding behaviour its SynonymOf relation implies. The relation is
+ * the source of truth and this is derived from it, so the fact is asserted once.
+ */
+export function forwardSynonym(store: ConceptStore, identity: string, target: string): void {
+  store.addRealization(
+    identity,
+    realization({
+      pattern: `${identity}(Rest($args))`,
+      evaluateArguments: false,
+      body: code(`async (args, bindings, api) =>
+        await api.evaluate({ head: "${target}", args: args.map((a) => ({ value: a.value })) })`),
+    }),
+  );
+}
+
 function deriveSynonymForwarding(store: ConceptStore): number {
   let derived = 0;
   for (const unit of store.all()) {
+    if (unit.realizations.length) continue;
     for (const r of unit.relations) {
       if (!isCall(r) || r.head !== "SynonymOf") continue;
       const target = r.args[0]?.value;
       if (target === undefined || !isCall(target)) continue;
-      if (unit.realizations.length) continue;
-      store.addRealization(
-        unit.identity,
-        realization({
-          pattern: `${unit.identity}(Rest($args))`,
-          evaluateArguments: false,
-          body: code(`async (args, bindings, api) =>
-            await api.evaluate({ head: "${target.head}", args: args.map((a) => ({ value: a.value })) })`),
-        }),
-      );
+      forwardSynonym(store, unit.identity, target.head);
       derived += 1;
+      break;
     }
   }
   return derived;

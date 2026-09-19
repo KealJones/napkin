@@ -20,6 +20,7 @@ import { matchContext } from "./context.js";
 export interface Candidate {
   readonly realization: Realization;
   readonly owner: string;
+  readonly index: number;
   readonly distance: number;
   readonly facetCount: number;
   readonly contextDepth: number;
@@ -62,6 +63,21 @@ export function lineage(store: ConceptStore, identity: string, limit = 16): Conc
   return out;
 }
 
+/**
+ * Does this identity reach any realization at all, including by inheritance?
+ *
+ * Cluster membership is not the test. A Concept that inherits behaviour through IsA is
+ * already attached and needs nothing — using the cluster instead flagged every
+ * interrogative as broken, because each reaches Interrogative, which realizes.
+ */
+export function reachesBehaviour(store: ConceptStore, identity: string): boolean {
+  return lineage(store, identity).some(
+    // The universal parent is excluded: inheriting only the universal fallback is not
+    // having behaviour of your own, and counting it would make everything look attached.
+    (u) => u.identity !== UNIVERSAL && u.realizations.length > 0,
+  );
+}
+
 export function candidates(
   store: ConceptStore,
   target: Call,
@@ -84,6 +100,7 @@ export function candidates(
       found.push({
         realization,
         owner: unit.identity,
+        index: order,
         distance,
         facetCount: ctx.facetCount,
         contextDepth: ctx.depth,
