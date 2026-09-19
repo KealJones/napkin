@@ -264,7 +264,145 @@ Kennedy, "Vagueness and Grammar"; FrameNet Desirability frame.*
 
 ---
 
-## 8. Where this leaves the design
+## 8. What philosophy says
+
+The formal pass deliberately skipped moral philosophy. That was a mistake, because the
+formal literatures all *stop* at "incomparable" and philosophy is where the argument about
+what incomparability actually is has been happening.
+
+Philosophy does not settle this. That is not a disappointment — the specific shape of the
+disagreement is more useful here than a verdict would have been.
+
+### 8.1 The deepest version of the result
+
+**Hume's is/ought gap.** No set of descriptive premises entails an evaluative conclusion.
+The graph is entirely `is`. Six formal literatures independently rediscovering the
+structure/ordering split is arguably just this, restated in six technical vocabularies.
+
+Honest caveats, because the gap is less airtight than it is usually quoted as being. Hume's
+passage is genuinely ambiguous between a narrow logical claim and an early noncognitivism.
+Searle's promise-derivation is widely read as *relocating* the gap — smuggling the
+evaluative content in through institutional premises — rather than closing it, which is
+itself informative: the evaluative content has to enter somewhere. And Putnam argues the
+fact/value *dichotomy* is unsustainable, because thick terms and even epistemic virtues
+like "coherent" and "reasonable" are already value-laden. That last point bites: a system
+that claims to hold only facts should not assume its own vocabulary is evaluatively inert.
+
+**Moore's open question argument** reaches the same place by a different route and is now
+generally considered question-begging (Frankena), though its conclusion still has
+defenders. Worth knowing mostly so as not to lean on it.
+
+### 8.2 Anscombe: "better for what?" is constitutive, not an extra argument
+
+Earlier in this investigation, `For(...)` was treated as a context facet that evaluation
+*needs*. Anscombe's claim is stronger: you cannot simply want something. You want it under
+a **desirability characterisation**, some aspect under which wanting it is intelligible. An
+unaspected preference is not a degraded preference; it is not a preference at all.
+
+So a system that answers "better for what?" is not falling back for lack of data. It is
+giving the only coherent form the question has. That reframing is worth more than it looks:
+it makes asking the *correct* response rather than the apologetic one.
+
+### 8.3 The one that changes code: tentative vs assertive incompleteness
+
+**Amartya Sen** argues that incompleteness in a preference ordering can be the right
+answer rather than a defect to repair, and rejects completeness as a requirement of
+rationality. He distinguishes:
+
+- **tentative incompleteness** — the ordering is unsettled, and more information would
+  settle it;
+- **assertive incompleteness** — the ordering is settled *as incomplete*. There is
+  positively no fact of the matter.
+
+The system's `unknown` currently conflates these. They are different states with different
+consequences: only the first is a gap a Teacher could ever close. The learning loop
+presently treats every unresolved comparison as tentative, so it would chase an assertive
+gap forever, and any answer it eventually produced would be invented.
+
+**Ruth Chang's parity** is the same distinction argued at the level of the value relation
+rather than the ordering. Her claim: better/worse/equal is not exhaustive, and a fourth
+positive relation — *on a par* — exists. The test is the small-improvement argument. If two
+options were genuinely equal, sweetening one slightly would break the tie. For genuinely
+hard choices it does not, which Chang takes to show they were never equal, nor better, nor
+worse.
+
+**And this is contested.** Broome, Gustafsson and Espinoza each argue that vagueness in
+"better than" explains the same cases without positing a new relation. The dispute is live.
+It shows up again as the standing split on what makes a hard choice hard:
+
+| View | Hardness is | Resolvable by more information? |
+|---|---|---|
+| Vagueness | linguistic indeterminacy | yes, in principle |
+| Parity | a real, sui generis value relation | no |
+
+**The design consequence survives the disagreement**, which is why it is worth acting on. We
+cannot decide the vagueness/parity question by fiat any more than we can decide someone's
+values by fiat. But both sides agree the two states are *different*, so the system should be
+able to represent both and should not silently assume every gap is the closable kind.
+
+Concretely: an unresolved comparison the asker has declared assertive is not a learning
+target, and the loop should stop rather than teach. That is a small change with a real
+consequence — it is the difference between "I have no basis to prefer" and a fabricated
+preference.
+
+### 8.4 Holism of reasons: the weight-loss example, generalised
+
+**Jonathan Dancy's particularism** holds that reasons are *holistic*: a feature that counts
+in favour in one context can count **against** in another — not merely be outweighed. That
+is `Better(Gain(), Loss())` exactly. Gain is a reason for, on money, and a reason against,
+on bodyweight, and no defeater structure captures the flip. The mechanism is
+enablers/disablers and intensifiers/attenuators — things that act on reasons without being
+reasons themselves.
+
+Two corrections to how this is usually reached for:
+
+**Dancy's anti-principle conclusion is weaker than it sounds.** He does not derive "no
+principles" as an entailment from holism. The argument is that exceptionless principles
+would be unexplained "cosmic accidents."
+
+**The opposition is substantial and the debate is unresolved.** McKeever & Ridge argue
+holism is itself codifiable through conditioned principles. Little and Lance argue
+defeasible generalisations survive holism intact. Hooker argues principles can be
+metaphysically grounded rather than accidental. Jackson, Pettit & Smith argue particularism
+implausibly requires skill without pattern recognition. SEP treats the whole dispute as
+generative rather than settled.
+
+So: holism names the phenomenon precisely and does **not** license the conclusion that
+nothing general can ever be stored. The honest position is that the flip is real and whether
+it is codifiable is open.
+
+### 8.5 Pluralism, and the 2,400-year-old instinct
+
+**Isaiah Berlin's value pluralism**: values are irreducibly plural, genuinely conflict, and
+share no common currency. Berlin insists this is not relativism — the values are objective
+and cross-culturally intelligible, you can understand a value you do not hold. SEP flags
+real ambiguity in how he grounds that objectivity, and notes a radical reading of his own
+words threatens the distinction he wants. The distinction matters here anyway: plural
+conflicting values are not the same claim as "anything goes," and a system that surfaces a
+tension is not thereby saying the tension is arbitrary.
+
+**Nussbaum** traces the move this whole investigation kept trying to make — find the one
+measurable quantity and all conflict dissolves — back to Plato's *Protagoras*. The MAUT
+instinct is roughly 2,400 years old and has been under attack for about that long. She flags
+that her own reading of the passage is contested, which is fitting.
+
+**Williams on thick and thin concepts**: *good* and *right* are thin; *cruel* and
+*courageous* are thick, fusing description and evaluation inseparably. If he is right, the
+clean separation this document relies on — facts in the graph, values supplied by the asker
+— is cleaner in the architecture than it is in the vocabulary. `Healthy`, `Wasteful` and
+`Fair` are thick. Critics dispute whether needing evaluative competence to *apply* a term
+entails that its meaning is inseparable, so this is not settled either, but it is the
+sharpest objection to this document's own framing and belongs here rather than buried.
+
+*Sources: SEP entries on Hume's Moral Philosophy, Moral Non-Naturalism, Value Incommensurability,
+Isaiah Berlin, Moral Particularism, Thick Ethical Concepts, Practical Reason, and Aristotle's
+Ethics; Chang, "Hard Choices"; Searle, "How to Derive Ought from Is"; Putnam, "The Collapse of
+the Fact/Value Dichotomy"; McKeever & Ridge, "Principled Ethics". Full URLs in
+`research/judgment/research-metaethics.md` and `research-practical-reason.md`.*
+
+---
+
+## 9. Where this leaves the design
 
 **What the design already gets right, and should not be talked out of.**
 
@@ -306,7 +444,7 @@ NEXPTIME^NP. Defaults and DL decidability are close to mutually exclusive.
 
 ---
 
-## 9. Recommendation
+## 10. Recommendation
 
 **Do not seed `Better`, `Choose`, or any preference relation.** The literature is
 unanimous that the verdict is not a storable fact, and a seeded one would encode whoever
@@ -325,6 +463,15 @@ produce a residual.
 3. **The goal as a supplied facet.** Let a question carry `For(...)` and let the existing
    specificity machinery select on it. The system should be able to *ask* for it — the
    machinery that turns an unknown input into "What should I multiply?" already knows how.
+   On Anscombe's account this is not a fallback; it is the only coherent form of the
+   question.
+4. **Split `unknown` into tentative and assertive** (Sen). Tentative is a learning target.
+   Assertive is a settled answer that happens to be incomplete, and the loop must stop
+   rather than teach. This is the smallest change in this document with the largest
+   consequence: right now every unresolved comparison is treated as closable, so an
+   assertive gap gets chased until something is invented. The system does not need to
+   decide which kind a given case is — the vagueness/parity dispute says nobody can — it
+   only needs to stop assuming.
 
 **Do not build**, on the evidence:
 
@@ -351,7 +498,7 @@ of "depends whether you're happy with your weight."
 
 ---
 
-## 10. Spec amendments
+## 11. Spec amendments
 
 `seed-concepts.md` Part 12 already carries the row:
 
@@ -371,10 +518,13 @@ down before it was hit. Suggested amendments:
 4. Record the Allen/RCC-8 finding as a constraint on relation vocabulary design in
    `seed-concepts.md` Part 2 — closed, small, mutually exclusive families compose; open
    ones do not.
+5. Split `unknown` in `concept-spec.md`'s three-valued truth into tentative and assertive
+   incompleteness, and make only the tentative kind a learning target. This is the one
+   amendment here that changes runtime behaviour rather than documentation.
 
 ---
 
-## 11. Confidence
+## 12. Confidence
 
 Verified against fetched primary or near-primary sources: the CP-net complexity
 stratification (PSPACE-complete general, NP-complete acyclic, polynomial tree-structured);
@@ -382,6 +532,13 @@ the DL circumscription results; the ceteris paribus Γ parametrisation; the stro
 specificity distinction; Allen/RCC-8 complexity; the Dyer/Saaty AHP exchange; Wikidata
 qualifier and rank semantics; ConceptNet's relation set and self-reported error rate;
 Kennedy's relative/absolute distinction.
+
+On the philosophy: high confidence on Moore/Frankena, the small-improvement argument's
+structure, Berlin's doctrine, Williams's thesis, Dancy's holism and its major critics, and
+Aristotle on phronesis — all sourced directly from SEP. Medium confidence on the current
+balance of the Chang-versus-critics dispute and on Sen's exact terminology, which came from
+secondary summaries rather than primary texts. Wiggins and Anscombe primary texts were not
+read directly (paywalled); those points rest on secondary sources.
 
 Lower confidence, flagged by the research passes: two qualitative-reasoning PDFs (Kuipers'
 ineradicable-predictions paper and Raiman's FOG paper) did not parse, so claims about their
