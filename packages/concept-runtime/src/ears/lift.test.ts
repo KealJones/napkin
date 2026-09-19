@@ -55,3 +55,15 @@ test("repair never rewrites a line that already parses", () => {
   const e = lift('Aside("it\'s fine")').expression!;
   assert.equal(format(e), 'Aside("it\'s fine")');
 });
+
+test("a placeholder ? becomes an anonymous unknown rather than a dropped clause", () => {
+  const lifted = lift('Not(Wrong())\n$math = What(Multiply(?, ?))');
+  assert.equal(lifted.rejected.length, 0);
+  assert.equal(lifted.clauses, 2);
+  assert.match(format(lifted.expression!), /\$_/);
+});
+
+test("a ? inside a string is the user's own words and stays put", () => {
+  const lifted = lift('Aside("really?")');
+  assert.equal(format(lifted.expression!), 'Aside("really?")');
+});

@@ -19,7 +19,9 @@ to its own $name on its own line, and continue on the next line.
 
 All arguments are positional. Never write name= inside a call.
 Write plain "text" and plain numbers directly. Number("three") for a number written as a
-word. Keep the user's original wording and misspellings inside strings.`;
+word, and ONLY for an actual number. "double", "twice", "half" and "a dozen" are not
+numbers — each is its own Concept: write Double(21), never Multiply(21, Number("double")).
+Keep the user's original wording and misspellings inside strings.`;
 
 const MARK = `Mark every retraction with Correction(old, new).
 Mark every "not X" with Not(X).
@@ -43,7 +45,10 @@ const RULES = `TWO RULES YOU MUST NOT BREAK
 const QUESTIONS = `An interrogative goes WHERE THE UNKNOWN IS.
 If an ARGUMENT is unknown, put the interrogative in that argument slot.
 If the VALUE of the whole thing is unknown, wrap it.
-Two unknowns cost nothing extra.`;
+Two unknowns cost nothing extra.
+
+Never write ? for a value you do not have. Write $_ instead, or say what kind of
+unknown it is: What(Multiply($_, $_)), not What(Multiply(?, ?)).`;
 
 const EXAMPLES = `EXAMPLES
 
@@ -52,6 +57,9 @@ What(Multiply(5, Number("three")))
 
 "what is chess?"
 What(Chess())
+
+"what is double 21?"                  (a word that is not a number is its own Concept)
+What(Double(21))
 
 "what do we need to finish this?"
 Need(We(), What())
@@ -78,6 +86,12 @@ What(DayAfter(Tomorrow()))
 
 "what time is it?"                    (the clock, not the calendar)
 What(Time())
+
+"and if we add 5 hours?"              (clock arithmetic, not numeric addition)
+What(ShiftHours(Ref("it"), 5))
+
+"what was it an hour ago?"
+What(HourBefore(Ref("it")))
 
 "in 12 hour format?"                  (a follow-up: point back, do not re-name)
 What(Format(Ref("it"), "12 hour"))

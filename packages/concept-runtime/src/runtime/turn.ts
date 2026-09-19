@@ -6,13 +6,16 @@
  * (concept-spec Part 8.2). A parallel list of gaps alongside the tree would be duplicate
  * state that can disagree with it.
  */
-import { type Expr, format, isCall } from "../concept/expression.js";
+import { type Expr, equal, format, isCall, walk } from "../concept/expression.js";
+import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
+import { lineage, reachesBehaviour } from "./select.js";
+import { Relations } from "../store/relations.js";
 
 export interface Gap {
   /**
@@ -24,6 +27,8 @@ export interface Gap {
   readonly kind: "unknown" | "inert" | "reference";
   readonly identity: string;
   readonly expression: string;
+  /** The call itself, so a gap can be judged structurally rather than by its text. */
+  readonly input: Expr;
 }
 
 export interface TurnResult {
@@ -41,11 +46,32 @@ export interface TurnResult {
   readonly failed?: string;
 }
 
+/**
+ * A residual whose own argument is residual is not a gap in its own right — it is the
+ * downstream shadow of one. `Add("10:15", 5)` went residual because a string is not a
+ * number, and `Time(Add(...))` then went residual because its argument had. Reporting both
+ * sent the Teacher after `Add` and `Time`, neither of which was broken, and it taught them
+ * nonsense. Only the innermost residual is the thing that actually could not be worked out.
+ */
+function explainedByAnother(input: Expr, all: readonly Expr[]): boolean {
+  return all.some((other) => {
+    if (other === input || equal(other, input)) return false;
+    for (const node of walk(input)) {
+      if (node !== input && equal(node, other)) return true;
+    }
+    return false;
+  });
+}
+
 /** Everything the graph could not realize, plus every unresolved reference. */
 export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
   const gaps = new Map<string, Gap>();
 
-  for (const event of runtime.trace.residuals()) {
+  // Only this attempt. A residual the learning loop has since closed is not a gap.
+  const residuals = runtime.trace.residuals(runtime.attemptStart);
+  const inputs = residuals.map((e) => e.input);
+  for (const event of residuals) {
+    if (explainedByAnother(event.input, inputs)) continue;
     // A residual is not automatically a gap. A Concept that exists and simply does not
     // realize here is behaving correctly — that is how markers, relations and pure data
     // work. Only an identity the graph has never heard of is something to learn.
@@ -53,17 +79,100 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
       kind: runtime.store.has(event.concept) ? "inert" : "unknown",
       identity: event.concept,
       expression: format(event.input),
+      input: event.input,
     });
   }
-  const walk = (e: Expr): void => {
+  const markReferences = (e: Expr): void => {
     if (!isCall(e)) return;
     if (e.head === "Ref") {
-      gaps.set(`Ref:${format(e)}`, { kind: "reference", identity: "Ref", expression: format(e) });
+      gaps.set(`Ref:${format(e)}`, {
+        kind: "reference",
+        identity: "Ref",
+        expression: format(e),
+        input: e,
+      });
     }
-    for (const a of e.args) walk(a.value);
+    for (const a of e.args) markReferences(a.value);
   };
-  if (result) walk(result);
+  if (result) markReferences(result);
   return [...gaps.values()];
+}
+
+/**
+ * A record rather than a request. `Time(hour=10, minute=36, spoken="10:36 AM")` is the
+ * VALUE a realization produced; every argument is named and every value is a primitive, so
+ * there is nothing to compute and nothing missing. Re-evaluating one leaves it residual,
+ * which is correct — but it was being read as missing behaviour, and the Teacher duly
+ * taught Time to turn itself into a Timestamp and destroyed the value.
+ */
+/** Does this contain `$_`, the anonymous unknown? */
+export function holdsAnUnknown(e: Expr): boolean {
+  for (const node of walk(e)) {
+    if (typeof node === "object" && node !== null && "variable" in node && node.variable === ANON) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function isConstructedData(e: Expr): boolean {
+  if (!isCall(e) || !e.args.length) return false;
+  return e.args.every((a) => a.name !== undefined && !isCall(a.value) && !("variable" in Object(a.value)));
+}
+
+/**
+ * A call that asked for something and got itself back. Pure data is supposed to be inert —
+ * a marker, a relation, a category, a record — so only a call that wanted work done, on a
+ * Concept that already realizes something, counts as missing behaviour.
+ */
+/**
+ * A Marker stays residual on purpose. Ref, Aside and Fuzzy are supposed to remain visible
+ * until something resolves them, so an unrealized one is the design working, not a gap.
+ * Read as missing behaviour, `Ref("the math")` had a Teacher hand it
+ * `Ref($text) := Ref($text, resolvedTo=Ref($text))`, which recursed until the depth budget
+ * stopped it — and that realization had already been saved.
+ */
+export function isMarker(runtime: Runtime, identity: string): boolean {
+  return lineage(runtime.store, identity).some((u) => u.identity === "Marker");
+}
+
+export function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
+  if (isMarker(runtime, gap.identity)) return false;
+  if (!isCall(gap.input) || !gap.input.args.length) return false;
+  if (isConstructedData(gap.input)) return false;
+  // An anonymous unknown in the call means the INPUTS are missing, not the behaviour.
+  // Multiply knows perfectly well how to multiply; nobody said what to multiply.
+  if (holdsAnUnknown(gap.input)) return false;
+  const unit = runtime.store.get(gap.identity);
+  if (!unit) return false;
+  // Something it can already do means this is a shape it cannot, rather than data.
+  return unit.realizations.length > 0;
+}
+
+/** Known, but reaching nothing realizable: an orphan, which attaching can fix. */
+export function isOrphan(runtime: Runtime, identity: string): boolean {
+  if (!runtime.store.has(identity)) return false;
+  if (reachesBehaviour(runtime.store, identity)) return false;
+  return new Relations(runtime.store)
+    .cluster(identity, 24, true)
+    .some((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
+}
+
+/**
+ * Three things are learnable, not one:
+ *   unknown  — the graph has never heard of it, so teach the Concept;
+ *   orphan   — it knows it but reaches nothing, so attach it;
+ *   inert    — it exists and has no realization for THIS call, so teach the behaviour.
+ *
+ * The same test decides what to learn and what counts as unanswered, because a gap the
+ * loop would try to close is exactly a gap that means the result is not yet an answer.
+ */
+export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
+  return gaps.filter(
+    (g) =>
+      g.kind === "unknown" ||
+      (g.kind === "inert" && (isOrphan(runtime, g.identity) || wantsBehaviour(runtime, g))),
+  );
 }
 
 export interface TurnOptions extends HearOptions {
@@ -122,8 +231,11 @@ export async function turn(
 
   const rendered = result ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
-  // Anything the graph has never heard of means the result is not an answer.
-  const unrealized = gaps.filter((g) => g.kind === "unknown").map((g) => g.identity);
+  // Anything still learnable after learning has run means the result is not an answer.
+  // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
+  // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",
+  // which is the model doing arithmetic the graph refused to do.
+  const unrealized = learnable(runtime, gaps).map((g) => g.identity);
   const spoken =
     options.speak === false || !result
       ? rendered

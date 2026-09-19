@@ -92,9 +92,54 @@ test("a taught body may not be code", async () => {
 
 test("missing behaviour is a learning target, not a normal outcome", async () => {
   const rt = fresh();
-  // Format exists and realizes, but nothing handles this shape.
-  await rt.evaluate(parse('Format(Wibble(), "x")'), EXEC);
+  // Format exists and realizes, but nothing handles this shape. Its arguments are fine,
+  // so Format itself is the innermost thing that could not be worked out.
+  await rt.evaluate(parse('Format(42, "x")'), EXEC);
   const { collectGaps } = await import("../runtime/turn.js");
   const gaps = collectGaps(rt, undefined);
   assert.ok(gaps.some((g) => g.identity === "Format" && g.kind === "inert"));
+});
+
+test("a residual caused by a residual argument is not a gap of its own", async () => {
+  const rt = fresh();
+  // Wibble is unknown, so Format goes residual only because its argument did. Blaming
+  // Format sent the Teacher after a Concept that was working perfectly well.
+  await rt.evaluate(parse('Format(Wibble(), "x")'), EXEC);
+  const { collectGaps } = await import("../runtime/turn.js");
+  const gaps = collectGaps(rt, undefined);
+  assert.ok(gaps.some((g) => g.identity === "Wibble" && g.kind === "unknown"));
+  assert.ok(!gaps.some((g) => g.identity === "Format"));
+});
+
+test("a marker is meant to stay residual, so it is never taught behaviour", async () => {
+  const rt = fresh();
+  await rt.evaluate(parse('Ref("the math")'), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  const gaps = learnable(rt, collectGaps(rt, undefined));
+  assert.ok(!gaps.some((g) => g.identity === "Ref"));
+});
+
+test("a taught body may not name the Concept it defines", async () => {
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="Loopy", relations=List(), realizations=List(Realization(pattern=Loopy($x), body=Loopy($x))))'),
+    EXEC,
+  );
+  assert.equal(rt.store.get("Loopy")!.realizations.length, 0);
+});
+
+test("a record of named primitives is data, not missing behaviour", async () => {
+  const rt = fresh();
+  await rt.evaluate(parse('Time(hour=10, minute=36, spoken="10:36 AM")'), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  const gaps = learnable(rt, collectGaps(rt, undefined));
+  assert.ok(!gaps.some((g) => g.identity === "Time"));
+});
+
+test("an anonymous unknown is a missing input, not missing behaviour", async () => {
+  const rt = fresh();
+  await rt.evaluate(parse("Multiply($_, $_)"), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  const gaps = learnable(rt, collectGaps(rt, undefined));
+  assert.ok(!gaps.some((g) => g.identity === "Multiply"));
 });

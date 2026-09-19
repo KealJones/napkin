@@ -11,7 +11,7 @@ import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { reachesBehaviour } from "../runtime/select.js";
-import { collectGaps, type Gap } from "../runtime/turn.js";
+import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
 import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
 import { forwardSynonym } from "../seed/seed.js";
@@ -53,26 +53,10 @@ function fromGraph(runtime: Runtime, identity: string): string | undefined {
   return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 
-/**
- * A call that asked for something and got itself back. Pure data is supposed to be inert —
- * a marker, a relation, a category — so only a call with arguments, on a Concept that
- * already realizes something, counts as missing behaviour.
- */
-function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
-  if (!gap.expression.includes("(") || gap.expression.endsWith("()")) return false;
-  const unit = runtime.store.get(gap.identity);
-  if (!unit) return false;
-  // Something it can already do means this is a shape it cannot, rather than data.
-  return unit.realizations.length > 0;
-}
-
-/** Known, but reaching nothing realizable: an orphan, which attaching can fix. */
-function isOrphan(runtime: Runtime, identity: string): boolean {
-  if (!runtime.store.has(identity)) return false;
-  if (reachesBehaviour(runtime.store, identity)) return false;
-  return new Relations(runtime.store)
-    .cluster(identity, 24, true)
-    .some((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
+/** What the graph holds for an identity, so progress can be measured rather than assumed. */
+function size(runtime: Runtime, identity: string): { relations: number; realizations: number } {
+  const unit = runtime.store.get(identity);
+  return { relations: unit?.relations.length ?? 0, realizations: unit?.realizations.length ?? 0 };
 }
 
 /** CamelCase identities read badly as search queries. */
@@ -97,6 +81,12 @@ export async function learn(
    * name becomes the next thing to learn rather than a dead end.
    */
   const pending = new Set<string>();
+  /**
+   * Identities already put to the Teacher this turn. Without this the loop asked the same
+   * question three times: a declaration that saved nothing still counted as progress, so
+   * the pass repeated verbatim, research and all.
+   */
+  const attempted = new Set<string>();
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
     passes = pass + 1;
@@ -110,22 +100,11 @@ export async function learn(
     const all = collectGaps(runtime, result);
     for (const identity of pending) {
       if (!runtime.store.has(identity)) {
-        all.push({ kind: "unknown", identity, expression: `${identity}()` });
+        all.push({ kind: "unknown", identity, expression: `${identity}()`, input: c(identity) });
       }
     }
     pending.clear();
-    // Three things are learnable, not one:
-    //   unknown  — the graph has never heard of it, so teach the Concept;
-    //   orphan   — it knows it but reaches nothing, so attach it;
-    //   inert    — it exists and simply has no realization for THIS call, so teach the
-    //              behaviour. Missing behaviour is a gap too, and treating it as normal
-    //              is what made the system answer "I could not work that out" for a call
-    //              whose Concepts it already knew.
-    const gaps = all.filter(
-      (g) =>
-        g.kind === "unknown" ||
-        (g.kind === "inert" && (isOrphan(runtime, g.identity) || wantsBehaviour(runtime, g))),
-    );
+    const gaps = learnable(runtime, all);
     if (!gaps.length) return { steps, result, passes, remaining: [] };
 
     let learnedSomething = false;
@@ -140,6 +119,8 @@ export async function learn(
       // is missing is exactly the point, so only the former is refused.
       if (runtime.store.has(gap.identity) && gap.kind !== "inert") continue;
       if (options.teacher === false) continue;
+      if (attempted.has(gap.identity)) continue;
+      attempted.add(gap.identity);
 
       // Research before asking. The Teacher is a last resort, and grounding it in
       // source-attributed evidence is the difference between learning and inventing.
@@ -184,6 +165,7 @@ export async function learn(
         steps.push({ identity: gap.identity, how: "unresolved", detail: taught.problem ?? "no declaration" });
         continue;
       }
+      const before = size(runtime, gap.identity);
       try {
         const saved = await runtime.evaluate(taught.declaration, c("Execution"));
         // A refused realization names what it needed; queue those for the next pass.
@@ -200,7 +182,13 @@ export async function learn(
           how: "teacher",
           detail: `${format(taught.declaration)} -> ${format(saved)}`,
         });
-        learnedSomething = true;
+        // A declaration that changed nothing is not something learned. `Saved(Add(), 0)`
+        // used to count, so the loop believed it had progressed and ran the same pass
+        // again. Progress is measured against the graph, not against the reply.
+        const after = size(runtime, gap.identity);
+        if (after.relations > before.relations || after.realizations > before.realizations) {
+          learnedSomething = true;
+        }
       } catch (caught) {
         steps.push({
           identity: gap.identity,

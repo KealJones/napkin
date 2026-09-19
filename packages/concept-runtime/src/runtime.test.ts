@@ -130,7 +130,25 @@ test("three nearby date questions stay distinct", () => {
 
 test("rendering wraps its subject rather than parameterising it", async () => {
   const out = await run('Format(Date(Today()), "MM-DD-YYYY")');
-  assert.match(out, /^"\d{2}-\d{2}-\d{4}"$/);
+  // A rendering is a FIELD of the value, never a replacement for it. Returning the bare
+  // string cost the next turn its arithmetic: the reference resolved to text, and the
+  // Concept that had been a Date was gone.
+  assert.match(out, /^Date\(/);
+  assert.match(out, /spoken="\d{2}-\d{2}-\d{4}"/);
+  assert.match(out, /year=\d{4}/);
+});
+
+test("a formatted time stays a time, so the next turn can still compute with it", async () => {
+  const formatted = await run('Format(Time(hour=10, minute=15), "24 hour")');
+  assert.match(formatted, /^Time\(/);
+  assert.match(formatted, /spoken="10:15"/);
+  // The whole point: arithmetic still works on the thing that was rendered.
+  assert.match(await run('ShiftHours(Format(Time(hour=10, minute=15), "24 hour"), 5)'), /hour=15/);
+});
+
+test("clock arithmetic wraps around midnight", async () => {
+  assert.match(await run("ShiftHours(Time(hour=22, minute=30), 5)"), /hour=3/);
+  assert.match(await run("ShiftHours(Time(hour=1, minute=0), -3)"), /hour=22/);
 });
 
 test("a marker projects under Execution and survives under Describe", async () => {

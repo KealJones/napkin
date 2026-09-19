@@ -96,7 +96,13 @@ add(
           }
           const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
           api.store.seed({ identity, relations: [], realizations: [] });
-          for (const r of items(get("relations"))) api.store.addRelation(identity, r);
+          for (const r of items(get("relations"))) {
+            // A relation naming the Concept it belongs to says nothing: the subject is
+            // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
+            // which is its own pattern filed as a fact, and it stuck in the graph.
+            if (!r || !r.head || r.head === identity) continue;
+            api.store.addRelation(identity, r);
+          }
 
           // Realizations are behaviour, so they are saved too — a Concept taught with
           // relations alone can be described but never computed.
@@ -111,6 +117,15 @@ add(
             // never a name the graph has not heard of. A rejection is reported rather
             // than dropped: the missing names are the next thing to learn.
             if (body.head === "Code") { rejected.push(api.call("NotComposed", body)); continue; }
+            // A body that names the Concept it defines is a realization that calls itself
+            // with nothing reduced. A composition-only Teacher has no business writing
+            // recursion, and the one time it did, evaluation ran to the depth budget.
+            const namesSelf = (e) => {
+              if (!e || !e.head) return false;
+              if (e.head === identity) return true;
+              return e.args.some((a) => namesSelf(a.value));
+            };
+            if (namesSelf(body)) { rejected.push(api.call("SelfReferential", body)); continue; }
             const heads = [];
             (function collect(e) {
               if (!e || !e.head) return;
@@ -143,6 +158,9 @@ add(
 add(concept("Saved"));
 add(concept("Rejected"));
 add(concept("NeedsFirst"));
+add(concept("SelfReferential"));
+add(concept("NotComposed"));
+add(concept("Incomplete"));
 add(concept("NotComposed"));
 add(concept("Incomplete"));
 add(concept("InvalidDeclaration"));
@@ -434,7 +452,7 @@ add(
       realization({
         pattern: "Number($value)",
         context: "Execution()",
-        body: code(`(args) => {
+        body: code(`(args, bindings, api) => {
           const v = args[0].value;
           if (typeof v === "number") return v;
           const words = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7,
@@ -445,7 +463,9 @@ add(
             const parsed = Number(v);
             if (Number.isFinite(parsed)) return parsed;
           }
-          return args[0].value;
+          // Not a number. Handing back the bare word claimed success and let a string
+          // reach arithmetic, where it became NaN somewhere far from here. Stay residual.
+          return api.call("Number", args[0].value);
         }`),
       }),
     ],
@@ -455,6 +475,11 @@ add(
 /* ------------------------------------------------------------------ *
  * Rendering wraps its subject rather than parameterising it, so Date never
  * learns that formats exist.
+ *
+ * Formatting NEVER returns a bare string. It returns the same Concept with its
+ * rendering carried in `spoken`, because a display string is a field of a value and
+ * not a replacement for it. Returning "10:15" cost the next turn its arithmetic: the
+ * reference resolved to text, Add saw a string, and the whole thing went residual.
  * ------------------------------------------------------------------ */
 add(
   concept("Format", {
@@ -468,29 +493,48 @@ add(
           const pattern = typeof spec === "string" ? spec : "";
           const wants12 = /12|am|pm/i.test(pattern);
 
+          // Keep every field the subject had and carry the rendering alongside them.
+          const withSpoken = (head, source, spoken) => ({
+            head,
+            args: [
+              ...source.args.filter((a) => a.name !== "spoken"),
+              { name: "spoken", value: spoken },
+            ],
+          });
+          const named = (e, n) => { const a = e.args.find((x) => x.name === n); return a ? a.value : undefined; };
+          const clock = (h24, minute) => {
+            const mm = String(minute).padStart(2, "0");
+            if (!pattern || wants12) {
+              const h = h24 % 12 === 0 ? 12 : h24 % 12;
+              return h + ":" + mm + " " + (h24 < 12 ? "AM" : "PM");
+            }
+            return String(h24).padStart(2, "0") + ":" + mm;
+          };
+
           if (subject && subject.head === "Date") {
-            const get = (n) => { const a = subject.args.find((x) => x.name === n); return a ? a.value : undefined; };
-            const y = String(get("year")), m = String(get("month")).padStart(2, "0"), d = String(get("day")).padStart(2, "0");
-            return (pattern || "YYYY-MM-DD").replace("YYYY", y).replace("MM", m).replace("DD", d);
+            const y = String(named(subject, "year"));
+            const m = String(named(subject, "month")).padStart(2, "0");
+            const d = String(named(subject, "day")).padStart(2, "0");
+            const spoken = (pattern || "YYYY-MM-DD").replace("YYYY", y).replace("MM", m).replace("DD", d);
+            return withSpoken("Date", subject, spoken);
           }
           if (subject && subject.head === "Time") {
-            const named = (n) => { const a = subject.args.find((x) => x.name === n); return a ? a.value : undefined; };
-            const h24 = Number(named("hour")), mm = String(named("minute")).padStart(2, "0");
-            if (Number.isFinite(h24)) {
-              if (!pattern || wants12) return named("spoken") ?? (h24 + ":" + mm);
-              return String(h24).padStart(2, "0") + ":" + mm;
+            const h24 = Number(named(subject, "hour"));
+            const minute = Number(named(subject, "minute"));
+            if (Number.isFinite(h24) && Number.isFinite(minute)) {
+              return withSpoken("Time", subject, clock(h24, minute));
             }
           }
           if (subject && subject.head === "Timestamp") {
             const raw = subject.args[0] ? subject.args[0].value : undefined;
             const when = typeof raw === "string" ? new Date(raw) : new Date();
             if (Number.isNaN(when.getTime())) return api.call("Format", subject, spec);
-            const h24 = when.getHours(), mm = String(when.getMinutes()).padStart(2, "0");
-            if (wants12) {
-              const h = h24 % 12 === 0 ? 12 : h24 % 12;
-              return h + ":" + mm + " " + (h24 < 12 ? "AM" : "PM");
-            }
-            return String(h24).padStart(2, "0") + ":" + mm;
+            const h24 = when.getHours(), minute = when.getMinutes();
+            return { head: "Time", args: [
+              { name: "hour", value: h24 },
+              { name: "minute", value: minute },
+              { name: "spoken", value: clock(h24, minute) },
+            ]};
           }
           return api.call("Format", subject, spec);
         }`),
@@ -629,6 +673,56 @@ add(
   concept("Yesterday", {
     relations: ["IsA(Date())", "IsA(Deictic())", "InverseOf(Tomorrow())"],
     realizations: [realization({ pattern: "Yesterday()", context: "Execution()", body: parse("DayBefore(Today())") })],
+  }),
+);
+/**
+ * Clock arithmetic, the counterpart of ShiftDays. Without it "add 5 hours to it" had no
+ * Concept to reach for, so the parser reached for Add, which is numeric, and the whole
+ * expression went residual on a time that is not a number.
+ */
+add(
+  concept("ShiftHours", {
+    realizations: [
+      realization({
+        pattern: "ShiftHours($time, $hours)",
+        context: "Execution()",
+        body: code(`(args, bindings, api) => {
+          const time = args[0].value;
+          const raw = args[1].value;
+          const hours = typeof raw === "number"
+            ? raw
+            : raw && raw.head === "Number" && typeof raw.args[0].value === "number"
+              ? raw.args[0].value
+              : NaN;
+          if (!time || time.head !== "Time" || !Number.isFinite(hours)) {
+            return api.call("ShiftHours", time, args[1].value);
+          }
+          const named = (n) => { const a = time.args.find((x) => x.name === n); return a ? a.value : undefined; };
+          const h0 = Number(named("hour")), m0 = Number(named("minute"));
+          if (!Number.isFinite(h0) || !Number.isFinite(m0)) return api.call("ShiftHours", time, args[1].value);
+          const total = (((h0 + hours) % 24) + 24) % 24;
+          const mm = String(m0).padStart(2, "0");
+          const h12 = total % 12 === 0 ? 12 : total % 12;
+          return { head: "Time", args: [
+            { name: "hour", value: total },
+            { name: "minute", value: m0 },
+            { name: "spoken", value: h12 + ":" + mm + " " + (total < 12 ? "AM" : "PM") },
+          ]};
+        }`),
+      }),
+    ],
+  }),
+);
+add(
+  concept("HourAfter", {
+    relations: ["InverseOf(HourBefore())"],
+    realizations: [realization({ pattern: "HourAfter($time)", context: "Execution()", body: parse("ShiftHours($time, 1)") })],
+  }),
+);
+add(
+  concept("HourBefore", {
+    relations: ["InverseOf(HourAfter())"],
+    realizations: [realization({ pattern: "HourBefore($time)", context: "Execution()", body: parse("ShiftHours($time, -1)") })],
   }),
 );
 add(concept("Now", { relations: ["SynonymOf(CurrentTimestamp())", "IsA(Deictic())"] }));

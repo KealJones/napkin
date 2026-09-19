@@ -57,9 +57,13 @@ export function check(message: string, expression: Expr | undefined): string[] {
 export interface HearOptions extends ModelOptions {
   /** Recent turns, so a back-reference can be marked rather than invented. */
   history?: readonly { message: string; result: string }[];
-  /** One corrective retry when a check fails. Off by default: it was measured as not
+  /** One corrective retry when a CHECK fails. Off by default: it was measured as not
    *  worth it — coverage moved 86% to 90%, fidelity not at all, and under correction
-   *  pressure the model began copying the prompt's own vocabulary literally. */
+   *  pressure the model began copying the prompt's own vocabulary literally.
+   *
+   *  A REJECTED LINE is different and always retries, flag or not. A failed check means
+   *  the reading is poor; a rejected line means a clause of the message is GONE, and
+   *  answering the surviving half silently is worse than any measured fidelity gain. */
   retry?: boolean;
 }
 
@@ -74,12 +78,27 @@ export async function hear(
   let problems = check(message, lifted.expression);
   let attempts = 1;
 
-  if (options.retry && (problems.length || lifted.rejected.length)) {
+  // A dropped clause is lost content, so it always earns a second attempt.
+  if (lifted.rejected.length || (options.retry && problems.length)) {
     const why = [...problems, ...lifted.rejected.map((r) => `${r.line}  <-- ${r.reason}`)].join("\n");
-    raw = await generate(system, `${message}\n\nYour previous answer was rejected:\n${raw}\n\nProblems:\n${why}\n\nWrite it again, corrected.`, options);
-    lifted = lift(raw);
-    problems = check(message, lifted.expression);
+    const second = await generate(
+      system,
+      `${message}\n\nYour previous answer was rejected:\n${raw}\n\nProblems:\n${why}\n\nWrite it again, corrected.`,
+      options,
+    );
+    const retried = lift(second);
+    const retriedProblems = check(message, retried.expression);
     attempts = 2;
+    // Correction pressure can make it worse, so the second attempt has to earn its place.
+    // Fewer lost clauses wins first, then fewer failed checks.
+    const better =
+      retried.rejected.length < lifted.rejected.length ||
+      (retried.rejected.length === lifted.rejected.length && retriedProblems.length < problems.length);
+    if (better) {
+      raw = second;
+      lifted = retried;
+      problems = retriedProblems;
+    }
   }
 
   return { message, raw, expression: lifted.expression, problems, rejected: lifted.rejected, attempts };

@@ -6,6 +6,7 @@
  * the graph's answer rather than the model's recollection.
  */
 import { type Expr, format, isCall } from "../concept/expression.js";
+import { ANON } from "../concept/match.js";
 import { generate, type ModelOptions } from "./ollama.js";
 
 const SYSTEM = `You put a computed result into one short sentence.
@@ -29,14 +30,30 @@ function unresolved(message: string, result: Expr, gaps: readonly string[]): str
   return `I could not work that out.${missing}`;
 }
 
-/** A date is worth rendering directly: the model adds nothing and can get it wrong. */
+/**
+ * A date or a clock time is worth rendering directly: the model adds nothing and can get
+ * it wrong. A `spoken` field is a rendering the graph already chose, so it wins outright —
+ * that is the whole reason Format carries one instead of collapsing to a string.
+ */
 function direct(result: Expr): string | undefined {
   const answer = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
-  if (!answer || !isCall(answer) || answer.head !== "Date") return undefined;
+  if (!answer || !isCall(answer)) return undefined;
+  if (answer.head !== "Date" && answer.head !== "Time") return undefined;
   const field = (name: string): string | number | undefined => {
     const found = answer.args.find((a) => a.name === name)?.value;
     return typeof found === "string" || typeof found === "number" ? found : undefined;
   };
+
+  const spoken = field("spoken");
+  if (answer.head === "Time") {
+    if (spoken !== undefined) return `It is ${spoken}.`;
+    const hour = field("hour");
+    const minute = field("minute");
+    if (hour === undefined || minute === undefined) return undefined;
+    return `It is ${hour}:${String(minute).padStart(2, "0")}.`;
+  }
+
+  if (spoken !== undefined) return `${spoken}.`;
   const year = field("year");
   const month = field("month");
   const day = field("day");
@@ -45,6 +62,28 @@ function direct(result: Expr): string | undefined {
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const name = months[Number(month) - 1] ?? String(month);
   return `${weekday ? `${weekday}, ` : ""}${name} ${day}, ${year}.`;
+}
+
+/**
+ * An anonymous unknown that survived evaluation is the system missing an INPUT, not an
+ * answer and not a failure. The honest response is the question it implies. Handing the
+ * residual to the model instead got "The result is an unbound variable named _".
+ */
+function question(result: Expr): string | undefined {
+  let asked: string | undefined;
+  const find = (e: Expr): void => {
+    if (!isCall(e)) return;
+    const direct = e.args.some(
+      (a) => typeof a.value === "object" && a.value !== null && "variable" in a.value && a.value.variable === ANON,
+    );
+    // Innermost wins: the deepest call holding the unknown is the one missing its values.
+    if (direct) asked = e.head;
+    for (const a of e.args) find(a.value);
+  };
+  find(result);
+  if (!asked) return undefined;
+  const verb = asked.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  return `What should I ${verb}?`;
 }
 
 export interface SayOptions extends ModelOptions {
@@ -59,6 +98,9 @@ export async function say(
 ): Promise<string> {
   const straightforward = direct(result);
   if (straightforward) return straightforward;
+
+  const asking = question(result);
+  if (asking) return asking;
 
   // Say plainly that it did not work out, rather than describing the expression that
   // failed to.

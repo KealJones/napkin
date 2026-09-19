@@ -9,7 +9,7 @@
  * up front invites the conclusion that anything absent does not exist, and a retrieval
  * miss is indistinguishable from a genuine absence.
  */
-import { type Expr, format, isCall, parse } from "../concept/expression.js";
+import { type Call, type Expr, call, format, isCall } from "../concept/expression.js";
 import { lift } from "../ears/lift.js";
 import { generate, type ModelOptions } from "../ears/ollama.js";
 import { Relations } from "../store/relations.js";
@@ -110,6 +110,35 @@ export function nearby(store: ConceptStore, identity: string, limit = 24): strin
   return known.length ? `Concepts that already exist nearby: ${known.join(", ")}` : "";
 }
 
+/**
+ * The line form means a Teacher can answer with the Concept on one line and its
+ * realizations on the next, which is a correct answer in the wrong shape. Folding the
+ * siblings in is mechanical, so rejecting the whole reply over layout threw away work the
+ * model had actually done.
+ */
+export function declarationFrom(lifted: Expr | undefined): Call | undefined {
+  if (!lifted || !isCall(lifted)) return undefined;
+  if (lifted.head === "Concept") return lifted;
+  if (lifted.head !== "Sequence") return undefined;
+
+  const clauses = lifted.args.map((a) => a.value);
+  const head = clauses.find((x): x is Call => isCall(x) && x.head === "Concept");
+  if (!head) return undefined;
+  const loose = clauses.filter((x): x is Call => isCall(x) && x.head === "Realization");
+  if (!loose.length) return head;
+
+  const existing = head.args.find((a) => a.name === "realizations")?.value;
+  const already =
+    existing !== undefined && isCall(existing) && existing.head === "List"
+      ? existing.args.map((a) => a.value)
+      : [];
+  const merged = call("List", [...already, ...loose].map((value) => ({ value })));
+  return call("Concept", [
+    ...head.args.filter((a) => a.name !== "realizations"),
+    { name: "realizations", value: merged },
+  ]);
+}
+
 export async function teach(
   store: ConceptStore,
   request: TeachRequest,
@@ -133,20 +162,25 @@ export async function teach(
     .filter(Boolean)
     .join("\n\n");
 
+  // There are two models and only two: the Ears parse, the Teacher teaches. `options`
+  // carries the Ears model, and spreading it last silently demoted the Teacher to it.
+  // The endpoint and timeout are shared; the model is not.
+  const { model: _ears, ...shared } = options;
   const raw = await generate(
     teachingBehaviour ? BEHAVIOUR_SYSTEM : SYSTEM,
     prompt,
-    { model: TEACHER_MODEL, maxTokens: 1024, ...options },
+    { maxTokens: 1024, ...shared, model: TEACHER_MODEL },
   );
-  const lifted = lift(raw);
-  const declaration = lifted.expression;
+  const declaration = declarationFrom(lift(raw).expression);
 
-  if (!declaration || !isCall(declaration) || declaration.head !== "Concept") {
+  if (!declaration) {
     return {
       identity: request.identity,
       raw,
       declaration: undefined,
-      problem: `expected a Concept(...) declaration, got ${declaration ? format(declaration) : "nothing parseable"}`,
+      problem: `expected a Concept(...) declaration, got ${
+        lift(raw).expression ? format(lift(raw).expression as Expr) : "nothing parseable"
+      }`,
     };
   }
   return { identity: request.identity, raw, declaration };

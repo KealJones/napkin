@@ -21,7 +21,7 @@ import {
   isVariable,
   parse,
 } from "../concept/expression.js";
-import { type Bindings, match, substitute } from "../concept/match.js";
+import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { codeSource, isCodeBody, type Realization } from "../concept/unit.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
@@ -71,9 +71,16 @@ export class Runtime {
     this.maximumSteps = options.maximumSteps ?? 4000;
   }
 
+  /** Where the current attempt starts in the trace. Earlier attempts are history. */
+  private mark = 0;
+  get attemptStart(): number {
+    return this.mark;
+  }
+
   reset(): void {
     this.steps = 0;
     this.ambiguities.length = 0;
+    this.mark = this.trace.mark();
   }
 
   async evaluate(expression: Expr, context?: Expr): Promise<Expr> {
@@ -88,7 +95,14 @@ export class Runtime {
     depth: number,
   ): Promise<Expr> {
     if (expression === null || typeof expression !== "object") return expression;
-    if (isVariable(expression)) unbound(expression.variable);
+    // `$_` is the anonymous unknown, not a binding anyone forgot to make. It means "this
+    // is the part I do not have", so it evaluates to itself and leaves the call around it
+    // residual — the same honest outcome as a Concept with no realization. Raising here
+    // turned "can you do the math?" into UnboundVariable instead of a question.
+    if (isVariable(expression)) {
+      if (expression.variable === ANON) return expression;
+      unbound(expression.variable);
+    }
 
     const target = expression as Call;
     const id = this.trace.start({

@@ -46,13 +46,38 @@ export function doubleQuotes(text: string): string {
   return text.replace(/'([^']*)'/g, (_, inner: string) => JSON.stringify(inner));
 }
 
+/**
+ * `?` is not in the grammar at any position, so a bare one can only ever be a model
+ * writing a placeholder for an unknown. That is exactly what `$_` means, and the rewrite
+ * is unambiguous precisely because `?` is otherwise illegal.
+ *
+ * Measured live: `What(Multiply(?, ?))` was rejected outright, the clause was dropped, and
+ * the turn answered the half of the sentence that survived.
+ */
+export function placeholders(text: string): string {
+  if (!text.includes("?")) return text;
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (escaped) { out += ch; escaped = false; continue; }
+    if (ch === "\\") { out += ch; escaped = true; continue; }
+    if (ch === '"') { inString = !inString; out += ch; continue; }
+    if (!inString && ch === "?") { out += "$_"; continue; }
+    out += ch;
+  }
+  return out;
+}
+
 /** Repairs to try, in order, before giving up on a line (ir-spec Part 12, item 6). */
 export const repairs: ((line: string) => string)[] = [
   (l) => l,
   balance,
   doubleQuotes,
+  placeholders,
   (l) => balance(doubleQuotes(l)),
-  (l) => balance(doubleQuotes(l.replace(/,\s*\)/g, ")"))),
+  (l) => balance(doubleQuotes(placeholders(l))),
+  (l) => balance(doubleQuotes(placeholders(l.replace(/,\s*\)/g, ")")))),
 ];
 
 export function stripFence(text: string): string {

@@ -175,9 +175,18 @@ export class Trace {
     };
   }
 
+  /**
+   * Where the trace currently ends. The learning loop evaluates the same expression
+   * several times and the trace keeps every attempt, which is what makes it readable —
+   * but a residual from an earlier attempt is not a gap once a later one succeeded.
+   */
+  mark(): number {
+    return this.events.length;
+  }
+
   /** Residual events are the learning path's work queue (concept-spec Part 12). */
-  residuals(): TraceEvent[] {
-    return this.events.filter((e) => e.outcome === "residual");
+  residuals(since = 0): TraceEvent[] {
+    return this.events.slice(since).filter((e) => e.outcome === "residual");
   }
 
   render(): string {
