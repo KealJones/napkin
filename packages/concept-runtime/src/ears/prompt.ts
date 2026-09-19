@@ -50,6 +50,9 @@ const EXAMPLES = `EXAMPLES
 "What is 5 times three?"
 What(Multiply(5, Number("three")))
 
+"what is chess?"
+What(Chess())
+
 "what do we need to finish this?"
 Need(We(), What())
 

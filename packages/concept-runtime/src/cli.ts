@@ -49,7 +49,7 @@ if (expr) {
     console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama, or use --expr.");
     process.exit(1);
   }
-  const t = await turn(runtime, message, context);
+  const t = await turn(runtime, message, context, { learn: flag("--learn") });
   show("message", t.heard.message);
   show("heard", t.heard.raw.trim());
   show("parsed", t.parsed ?? "(nothing)");
@@ -57,6 +57,8 @@ if (expr) {
   if (t.heard.problems.length) show("checks failed", t.heard.problems.join("\n"));
   if (t.heard.rejected.length)
     show("lines rejected", t.heard.rejected.map((r) => `${r.line}  <-- ${r.reason}`).join("\n"));
+  if (t.learned.length)
+    show("learned", t.learned.map((l) => `${l.how}: ${l.identity} — ${l.detail}`).join("\n"));
   if (t.gaps.length)
     show("gaps — the learning queue", t.gaps.map((g) => `${g.kind}: ${g.expression}`).join("\n"));
   if (t.ambiguities.length) show("ambiguities", t.ambiguities.join("\n"));
@@ -65,5 +67,6 @@ if (expr) {
   console.log(`cnocept — usage:
   cnocept "What is 5 times three?"        hear a message, then realize it
   cnocept --expr 'Add(2, 3)'             realize an expression directly
+  cnocept --learn "what is chess?"       close gaps by learning before answering
   cnocept --seed                         seed a graph and report`);
 }

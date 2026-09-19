@@ -10,6 +10,13 @@ export * from "./runtime/trace.js";
 export * from "./runtime/errors.js";
 export * from "./runtime/evaluator.js";
 export * from "./seed/seed.js";
+export * from "./ears/ears.js";
+export * from "./ears/lift.js";
+export * from "./ears/prompt.js";
+export * from "./ears/ollama.js";
+export * from "./learn/learn.js";
+export * from "./learn/teacher.js";
+export * from "./runtime/turn.js";
 
 import { ConceptStore } from "./store/store.js";
 import { Runtime } from "./runtime/evaluator.js";

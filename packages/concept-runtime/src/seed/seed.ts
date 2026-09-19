@@ -67,7 +67,36 @@ add(
  *
  * So it is invoked explicitly, by name, on a subject that came back residual.
  * ------------------------------------------------------------------ */
-add(concept("Concept"));
+/**
+ * `Concept()` with no arguments is the universal parent; `Concept(identity=..., ...)` is
+ * the declaration form the runtime saves. They are distinguished by arity, which patterns
+ * already do.
+ */
+add(
+  concept("Concept", {
+    realizations: [
+      realization({
+        pattern: "Concept(identity=$identity, relations=$relations, realizations=$realizations)",
+        properties: ["Effectful()"],
+        evaluateArguments: false,
+        body: code(`(args, bindings, api) => {
+          const get = (n) => { const a = args.find((x) => x.name === n); return a ? a.value : undefined; };
+          const identity = get("identity");
+          if (typeof identity !== "string" || !/^[A-Z]/.test(identity)) {
+            return api.call("InvalidDeclaration", identity === undefined ? api.call("Missing") : identity);
+          }
+          const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
+          for (const r of items(get("relations"))) api.store.addRelation(identity, r);
+          api.store.seed({ identity, relations: [], realizations: [] });
+          return api.call("Saved", api.call(identity));
+        }`),
+      }),
+    ],
+  }),
+);
+add(concept("Saved"));
+add(concept("InvalidDeclaration"));
+add(concept("Missing"));
 add(
   concept("Relations", {
     realizations: [
