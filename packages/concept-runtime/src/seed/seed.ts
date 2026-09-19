@@ -483,6 +483,52 @@ add(
   }),
 );
 
+/* ------------------------------------------------------------------ *
+ * Research, as Concepts. Search results become Concepts with their source attached, so a
+ * claim can be traced back to where it came from.
+ * ------------------------------------------------------------------ */
+add(concept("Web"));
+add(concept("Wikidata"));
+add(concept("SearchResult"));
+add(concept("SearchResults"));
+add(
+  concept("WikidataSearch", {
+    relations: ["IsA(Research())"],
+    realizations: [
+      realization({
+        pattern: "WikidataSearch($query)",
+        context: "Execution()",
+        properties: ["Effectful()"],
+        body: code(`async (args, bindings, api) => {
+          const text = typeof args[0].value === "string" ? args[0].value
+            : args[0].value && args[0].value.head ? args[0].value.head : "";
+          const { wikidata, asConcepts } = await import("../research/sources.js");
+          return asConcepts(await wikidata(text, 5));
+        }`),
+      }),
+    ],
+  }),
+);
+add(
+  concept("WebSearch", {
+    relations: ["IsA(Research())"],
+    realizations: [
+      realization({
+        pattern: "WebSearch($query)",
+        context: "Execution()",
+        properties: ["Effectful()"],
+        body: code(`async (args, bindings, api) => {
+          const text = typeof args[0].value === "string" ? args[0].value
+            : args[0].value && args[0].value.head ? args[0].value.head : "";
+          const { web, asConcepts } = await import("../research/sources.js");
+          return asConcepts(await web(text, 5));
+        }`),
+      }),
+    ],
+  }),
+);
+add(concept("Research"));
+
 /**
  * A SynonymOf relation is the source of truth; the forwarding realization is derived from
  * it, so the same fact is not asserted in two places that can disagree.

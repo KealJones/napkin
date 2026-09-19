@@ -16,6 +16,7 @@ export * from "./ears/lift.js";
 export * from "./ears/prompt.js";
 export * from "./ears/ollama.js";
 export * from "./learn/learn.js";
+export * from "./research/sources.js";
 export * from "./learn/teacher.js";
 export * from "./runtime/turn.js";
 

@@ -64,6 +64,7 @@ export interface TurnOptions extends HearOptions {
   /** Close gaps by learning before answering (concept-spec Part 12). */
   learn?: boolean;
   maxPasses?: number;
+  research?: boolean;
 }
 
 export async function turn(

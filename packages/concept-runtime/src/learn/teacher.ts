@@ -38,6 +38,9 @@ RULES
 4. Use realizations=List() when the Concept computes nothing. Never invent a computation
    you cannot justify.
 5. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
+6. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
+   what you recall. If the evidence describes something other than what was asked, say so
+   by returning relations you can actually support and nothing more.
 
 Output only the declaration. No prose, no markdown, no code fence.`;
 
@@ -45,6 +48,8 @@ export interface TeachRequest {
   readonly identity: string;
   readonly message: string;
   readonly expression: string;
+  /** Source-attributed research, so the Teacher grounds rather than invents. */
+  readonly evidence?: string;
 }
 
 export interface TeachResult {
@@ -77,6 +82,7 @@ export async function teach(
     `It parsed to: ${request.expression}`,
     `The network does not know: ${request.identity}`,
     nearby(store, request.identity),
+    request.evidence ? `EVIDENCE\n${request.evidence}` : "",
     `Teach ${request.identity}.`,
   ]
     .filter(Boolean)

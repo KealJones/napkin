@@ -11,12 +11,13 @@ import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { collectGaps, type Gap } from "../runtime/turn.js";
+import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
 import { teach } from "./teacher.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "teacher" | "unresolved";
+  readonly how: "graph" | "research" | "teacher" | "unresolved";
   readonly detail: string;
 }
 
@@ -53,12 +54,17 @@ function isOrphan(runtime: Runtime, identity: string): boolean {
     .some((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
 }
 
+/** CamelCase identities read badly as search queries. */
+export function readable(identity: string): string {
+  return identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase();
+}
+
 export async function learn(
   runtime: Runtime,
   message: string,
   expression: Expr,
   context: Expr,
-  options: ModelOptions & { maxPasses?: number; teacher?: boolean } = {},
+  options: ModelOptions & { maxPasses?: number; teacher?: boolean; research?: boolean } = {},
 ): Promise<LearnResult> {
   const maxPasses = options.maxPasses ?? 2;
   const steps: LearnStep[] = [];
@@ -92,9 +98,28 @@ export async function learn(
       if (runtime.store.has(gap.identity)) continue;
       if (options.teacher === false) continue;
 
+      // Research before asking. The Teacher is a last resort, and grounding it in
+      // source-attributed evidence is the difference between learning and inventing.
+      let evidence = "";
+      if (options.research !== false) {
+        try {
+          const findings = await research(readable(gap.identity));
+          evidence = evidenceText(findings);
+          if (evidence) {
+            steps.push({
+              identity: gap.identity,
+              how: "research",
+              detail: `${findings.length} findings from ${[...new Set(findings.map((f) => f.source))].join(" and ")}`,
+            });
+          }
+        } catch {
+          // Research is best-effort: an unreachable network must not stop learning.
+        }
+      }
+
       const taught = await teach(
         runtime.store,
-        { identity: gap.identity, message, expression: format(expression) },
+        { identity: gap.identity, message, expression: format(expression), evidence },
         options,
       );
       if (!taught.declaration) {
