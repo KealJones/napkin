@@ -90,8 +90,11 @@ What(Time())
 "and if we add 5 hours?"              (clock arithmetic, not numeric addition)
 What(ShiftHours(Ref("it"), 5))
 
-"what was it an hour ago?"
+"what was it an hour ago?"                (one, so the named Concept fits)
 What(HourBefore(Ref("it")))
+
+"what time was it 3 hours ago?"           (a count, so shift by it; backwards is negative)
+What(ShiftHours(Time(), -3))
 
 "in 12 hour format?"                  (a follow-up: point back, do not re-name)
 What(Format(Ref("it"), "12 hour"))

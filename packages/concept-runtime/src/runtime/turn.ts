@@ -239,7 +239,7 @@ export async function turn(
   const spoken =
     options.speak === false || !result
       ? rendered
-      : await say(message, result, { ...options, unrealized });
+      : await say(message, result, { ...options, unrealized, asked: expression });
 
   return {
     heard,

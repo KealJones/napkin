@@ -333,3 +333,13 @@ test("a question wanting a value and one wanting a definition use the same node"
   assert.match(format(await rt.evaluate(parse("What(Today())"), EXEC)), /^Answer\(Date\(/);
   assert.match(format(await rt.evaluate(parse("What(Wibble())"), EXEC)), /NoDescription/);
 });
+
+test("the answer is placed in time by the Concepts asked for, not the English", async () => {
+  const { tense } = await import("./ears/say.js");
+  assert.equal(tense(parse("What(Time())")), "is");
+  assert.equal(tense(parse("What(ShiftHours(Time(), 5))")), "will be");
+  assert.equal(tense(parse("What(ShiftHours(Time(), -5))")), "was");
+  assert.equal(tense(parse("What(HourBefore(Time()))")), "was");
+  assert.equal(tense(parse("What(Tomorrow())")), "will be");
+  assert.equal(tense(undefined), "is");
+});

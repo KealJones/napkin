@@ -5,7 +5,7 @@
  * the graph produced, and told to say that result and nothing else — so the answer stays
  * the graph's answer rather than the model's recollection.
  */
-import { type Expr, format, isCall } from "../concept/expression.js";
+import { type Expr, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { generate, type ModelOptions } from "./ollama.js";
 
@@ -31,11 +31,37 @@ function unresolved(message: string, result: Expr, gaps: readonly string[]): str
 }
 
 /**
+ * When the answer is. Read off the Concepts that were asked for, not off the English: a
+ * shift forward is future whatever words carried it, and "what time will it be in 5 hours"
+ * answered "It is 4:02 PM" because the copula was hardcoded.
+ */
+const AHEAD = new Set(["Tomorrow", "DayAfter", "HourAfter", "Later", "After"]);
+const BEHIND = new Set(["Yesterday", "DayBefore", "HourBefore", "Earlier", "Before", "Ago"]);
+const SHIFTS = new Set(["ShiftHours", "ShiftDays"]);
+
+export function tense(asked: Expr | undefined): "is" | "will be" | "was" {
+  if (asked === undefined) return "is";
+  let answer: "is" | "will be" | "was" = "is";
+  for (const node of walk(asked)) {
+    if (!isCall(node)) continue;
+    if (SHIFTS.has(node.head)) {
+      // The sign of the shift is the tense. Nothing else needs to know about time.
+      const by = node.args[1]?.value;
+      if (typeof by === "number" && by !== 0) answer = by > 0 ? "will be" : "was";
+      continue;
+    }
+    if (AHEAD.has(node.head)) answer = "will be";
+    else if (BEHIND.has(node.head)) answer = "was";
+  }
+  return answer;
+}
+
+/**
  * A date or a clock time is worth rendering directly: the model adds nothing and can get
  * it wrong. A `spoken` field is a rendering the graph already chose, so it wins outright —
  * that is the whole reason Format carries one instead of collapsing to a string.
  */
-function direct(result: Expr): string | undefined {
+function direct(result: Expr, when: "is" | "will be" | "was"): string | undefined {
   const answer = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
   if (!answer || !isCall(answer)) return undefined;
   if (answer.head !== "Date" && answer.head !== "Time") return undefined;
@@ -46,11 +72,11 @@ function direct(result: Expr): string | undefined {
 
   const spoken = field("spoken");
   if (answer.head === "Time") {
-    if (spoken !== undefined) return `It is ${spoken}.`;
+    if (spoken !== undefined) return `It ${when} ${spoken}.`;
     const hour = field("hour");
     const minute = field("minute");
     if (hour === undefined || minute === undefined) return undefined;
-    return `It is ${hour}:${String(minute).padStart(2, "0")}.`;
+    return `It ${when} ${hour}:${String(minute).padStart(2, "0")}.`;
   }
 
   if (spoken !== undefined) return `${spoken}.`;
@@ -89,6 +115,8 @@ function question(result: Expr): string | undefined {
 export interface SayOptions extends ModelOptions {
   /** Identities the graph could not realize. Their presence means this is not an answer. */
   unrealized?: readonly string[];
+  /** What was asked, so the answer can be placed in time the way the question was. */
+  asked?: Expr;
 }
 
 export async function say(
@@ -96,7 +124,7 @@ export async function say(
   result: Expr,
   options: SayOptions = {},
 ): Promise<string> {
-  const straightforward = direct(result);
+  const straightforward = direct(result, tense(options.asked));
   if (straightforward) return straightforward;
 
   const asking = question(result);
