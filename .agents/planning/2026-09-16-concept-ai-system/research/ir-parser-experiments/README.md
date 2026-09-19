@@ -277,3 +277,82 @@ cost. Untested.
 the IR forbids elsewhere), on the two cases that motivated the change, and on the
 loud-versus-silent asymmetry. Its weakness on value questions is recorded as needing prompt
 work rather than a design change, and that is a hypothesis this run does not confirm.
+
+---
+
+## 9. Two prompt rules, and the placeholder-name effect
+
+`results/06` and `results/07`, qwen3.5:4b, 7 question inputs x 6 samples.
+
+Reading the raw output of Finding 8 showed the dominant failure was not *where* the
+interrogative went but that it **often was not emitted at all**. "What is 5 times three?"
+produced `Multiply(5, Number("three"))` in 6 of 6 samples: a bare proposition,
+indistinguishable from asserting it. Two mechanical checks followed.
+
+| variant | clean | has interrogative | fidelity | lexical errors |
+|---|---|---|---|---|
+| base | 67% | 67% | 65% | 4 |
+| + two rules | 86% | 86% | 72% | **0** |
+| + repair retry | 86% | 90% | 72% | 13 |
+| **+ no placeholder names** | **100%** | **100%** | **86%** | **0** |
+
+### The two rules
+
+1. *If the message asks a question, the output must contain an interrogative*, with the
+   failing case shown explicitly as wrong.
+2. *Every name must start with a capital letter and be followed by parentheses.*
+
+Effect on the case that motivated them, "What is 5 times three?": **0/6 → 6/6** carrying an
+interrogative, fidelity 67% → 100%. Rule 2 took lexical errors — `Finish(this)`,
+`WhichOf(tests, Platforms)`, `Is(result, What())` — from 4 to 0.
+
+Both are also **checkable after the fact**, not merely hoped for in the prompt. A question
+whose parse contains no interrogative is a detectable error, which is the pattern that has
+worked throughout: catch it mechanically rather than trusting the instruction.
+
+### Repair retry is not worth it
+
+Feeding the validator's complaint back for one retry moved interrogative coverage 86% → 90%
+and fidelity not at all, while lexical errors rose from 0 to 13.
+
+The retried samples show why, and it is instructive: under correction pressure the model
+began copying the vocabulary listing **literally**, emitting `Tell(to, content)` — the
+placeholder parameter names from the prompt's own vocabulary section, reproduced as if they
+were a real expression.
+
+### Placeholder parameter names cost 16 points of fidelity
+
+That observation was tested directly. The only change was rewriting the vocabulary from
+
+```
+Fact(x)  Do(x)  Tell(to, content)  Whether(proposition)  Date(when)  Multiply(a,b)
+```
+
+to a form carrying no invented parameter names
+
+```
+Fact(...)   Do(...)   Tell(...)  as in Tell(Me(), Answer())
+Whether(...)   Date(...)   Multiply(...)
+```
+
+Nothing else differed. Result: clean 90% → **100%**, fidelity 70% → **86%**, and the hardest
+input went from 2/6 clean at 7% fidelity to **6/6 clean at 57%**.
+
+The effect is larger than literal copying accounts for, since neither variant emitted
+`(to,` in this run. Placeholder names appear to degrade the surrounding output too: the
+weaker variant produced `ChangedFiles() = Tell(You(), What(ChangedFiles()))`, an assignment
+with a call on its left, which is not legal in the line form at all. The stronger variant
+did not.
+
+**Caveat:** n=6 per cell. The effect is large and consistent across inputs, but this is one
+run and the mechanism is inferred rather than demonstrated.
+
+### Cumulative
+
+From the Finding 8 baseline to here, changing only the prompt: validity 67% → 100%,
+fidelity 65% → 86%, lexical errors 4 → 0.
+
+This also closes a loop. The original critique of the old parser prompt argued that its
+instruction "never copy a name from a syntax illustration" was a tell — that the fix was to
+remove the placeholder names rather than warn about them. That was reasoning at the time.
+It is now measured, at 16 points of fidelity.
