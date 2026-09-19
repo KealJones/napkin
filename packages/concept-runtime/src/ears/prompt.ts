@@ -76,6 +76,12 @@ Whether(GreaterThan(10, 3))
 "what is the day after tomorrow?"     (compose; do not reach for arithmetic)
 What(DayAfter(Tomorrow()))
 
+"what time is it?"                    (the clock, not the calendar)
+What(Time())
+
+"in 12 hour format?"                  (a follow-up: point back, do not re-name)
+What(Format(Ref("it"), "12 hour"))
+
 "what was the date two days ago?"
 What(ShiftDays(Today(), -2))
 

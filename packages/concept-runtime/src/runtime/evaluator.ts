@@ -15,6 +15,7 @@ import {
   type Call,
   type Expr,
   call,
+  equal,
   format,
   isCall,
   isVariable,
@@ -160,6 +161,14 @@ export class Runtime {
 
       if (realization.evaluateResult) {
         result = await this.run(result, bodyContext, target.head, id, depth + 1);
+      }
+
+      // A realization that hands back the call it was given did nothing. That is a
+      // residual in substance even though one was selected, and treating it as success is
+      // what let "I could not work that out" stand in for a missing realization.
+      if (equal(result, call(target.head, args))) {
+        this.trace.finish(id, "residual", result);
+        return result;
       }
 
       this.trace.finish(id, "success", result);

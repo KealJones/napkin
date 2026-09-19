@@ -95,15 +95,56 @@ add(
             return api.call("InvalidDeclaration", identity === undefined ? api.call("Missing") : identity);
           }
           const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
-          for (const r of items(get("relations"))) api.store.addRelation(identity, r);
           api.store.seed({ identity, relations: [], realizations: [] });
-          return api.call("Saved", api.call(identity));
+          for (const r of items(get("relations"))) api.store.addRelation(identity, r);
+
+          // Realizations are behaviour, so they are saved too — a Concept taught with
+          // relations alone can be described but never computed.
+          let added = 0;
+          const rejected = [];
+          for (const decl of items(get("realizations"))) {
+            if (!decl || decl.head !== "Realization") continue;
+            const field = (n) => { const a = decl.args.find((x) => x.name === n); return a ? a.value : undefined; };
+            const pattern = field("pattern"), body = field("body"), context = field("context");
+            if (!pattern || !body) { rejected.push(api.call("Incomplete")); continue; }
+            // A taught body must compose Concepts that already exist. Never code, and
+            // never a name the graph has not heard of. A rejection is reported rather
+            // than dropped: the missing names are the next thing to learn.
+            if (body.head === "Code") { rejected.push(api.call("NotComposed", body)); continue; }
+            const heads = [];
+            (function collect(e) {
+              if (!e || !e.head) return;
+              heads.push(e.head);
+              for (const a of e.args) collect(a.value);
+            })(body);
+            const missing = [...new Set(heads.filter((h) => !api.store.has(h)))];
+            if (missing.length) {
+              rejected.push(api.call("NeedsFirst", api.call("List", ...missing.map((h) => api.call(h)))));
+              continue;
+            }
+            api.store.addRealization(identity, {
+              pattern, body,
+              context: context === undefined ? undefined : context,
+              properties: [],
+              evaluateArguments: true,
+              evaluateResult: false,
+            });
+            added += 1;
+          }
+          if (rejected.length) {
+            return api.call("Saved", api.call(identity), added, api.call("Rejected", ...rejected));
+          }
+          return api.call("Saved", api.call(identity), added);
         }`),
       }),
     ],
   }),
 );
 add(concept("Saved"));
+add(concept("Rejected"));
+add(concept("NeedsFirst"));
+add(concept("NotComposed"));
+add(concept("Incomplete"));
 add(concept("InvalidDeclaration"));
 add(concept("Missing"));
 add(
@@ -424,11 +465,34 @@ add(
         body: code(`(args, bindings, api) => {
           const subject = args[0].value;
           const spec = args[1].value;
-          if (!subject || subject.head !== "Date") return api.call("Format", subject, spec);
-          const get = (n) => { const a = subject.args.find((x) => x.name === n); return a ? a.value : undefined; };
-          const y = String(get("year")), m = String(get("month")).padStart(2, "0"), d = String(get("day")).padStart(2, "0");
-          const pattern = typeof spec === "string" ? spec : "YYYY-MM-DD";
-          return pattern.replace("YYYY", y).replace("MM", m).replace("DD", d);
+          const pattern = typeof spec === "string" ? spec : "";
+          const wants12 = /12|am|pm/i.test(pattern);
+
+          if (subject && subject.head === "Date") {
+            const get = (n) => { const a = subject.args.find((x) => x.name === n); return a ? a.value : undefined; };
+            const y = String(get("year")), m = String(get("month")).padStart(2, "0"), d = String(get("day")).padStart(2, "0");
+            return (pattern || "YYYY-MM-DD").replace("YYYY", y).replace("MM", m).replace("DD", d);
+          }
+          if (subject && subject.head === "Time") {
+            const named = (n) => { const a = subject.args.find((x) => x.name === n); return a ? a.value : undefined; };
+            const h24 = Number(named("hour")), mm = String(named("minute")).padStart(2, "0");
+            if (Number.isFinite(h24)) {
+              if (!pattern || wants12) return named("spoken") ?? (h24 + ":" + mm);
+              return String(h24).padStart(2, "0") + ":" + mm;
+            }
+          }
+          if (subject && subject.head === "Timestamp") {
+            const raw = subject.args[0] ? subject.args[0].value : undefined;
+            const when = typeof raw === "string" ? new Date(raw) : new Date();
+            if (Number.isNaN(when.getTime())) return api.call("Format", subject, spec);
+            const h24 = when.getHours(), mm = String(when.getMinutes()).padStart(2, "0");
+            if (wants12) {
+              const h = h24 % 12 === 0 ? 12 : h24 % 12;
+              return h + ":" + mm + " " + (h24 < 12 ? "AM" : "PM");
+            }
+            return String(h24).padStart(2, "0") + ":" + mm;
+          }
+          return api.call("Format", subject, spec);
         }`),
       }),
     ],
@@ -451,6 +515,29 @@ add(
   }),
 );
 add(concept("Timestamp", { relations: ["IsA(Data())"] }));
+/** The clock time, as opposed to the calendar date. Deictic, like Today. */
+add(
+  concept("Time", {
+    relations: ["IsA(Deictic())"],
+    realizations: [
+      realization({
+        pattern: "Time()",
+        context: "Execution()",
+        properties: ["Effectful()"],
+        body: code(`(args, bindings, api) => {
+          const now = new Date();
+          const h24 = now.getHours(), mm = String(now.getMinutes()).padStart(2, "0");
+          const h = h24 % 12 === 0 ? 12 : h24 % 12;
+          return { head: "Time", args: [
+            { name: "hour", value: h24 },
+            { name: "minute", value: now.getMinutes() },
+            { name: "spoken", value: h + ":" + mm + " " + (h24 < 12 ? "AM" : "PM") },
+          ]};
+        }`),
+      }),
+    ],
+  }),
+);
 add(
   concept("Today", {
     relations: ["IsA(Date())"],

@@ -6,7 +6,7 @@
  * The loop is bounded and every step is traced. A gap that cannot be closed stays a
  * residual, which is an honest outcome and better than a fabricated realization.
  */
-import { type Expr, c, format, isCall } from "../concept/expression.js";
+import { type Expr, c, format, isCall, walk } from "../concept/expression.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -53,6 +53,19 @@ function fromGraph(runtime: Runtime, identity: string): string | undefined {
   return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 
+/**
+ * A call that asked for something and got itself back. Pure data is supposed to be inert —
+ * a marker, a relation, a category — so only a call with arguments, on a Concept that
+ * already realizes something, counts as missing behaviour.
+ */
+function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
+  if (!gap.expression.includes("(") || gap.expression.endsWith("()")) return false;
+  const unit = runtime.store.get(gap.identity);
+  if (!unit) return false;
+  // Something it can already do means this is a shape it cannot, rather than data.
+  return unit.realizations.length > 0;
+}
+
 /** Known, but reaching nothing realizable: an orphan, which attaching can fix. */
 function isOrphan(runtime: Runtime, identity: string): boolean {
   if (!runtime.store.has(identity)) return false;
@@ -74,10 +87,16 @@ export async function learn(
   context: Expr,
   options: ModelOptions & { maxPasses?: number; teacher?: boolean; research?: boolean } = {},
 ): Promise<LearnResult> {
-  const maxPasses = options.maxPasses ?? 2;
+  const maxPasses = options.maxPasses ?? 3;
   const steps: LearnStep[] = [];
   let result: Expr | undefined;
   let passes = 0;
+  /**
+   * Names a rejected realization said it needed first. A taught body may only compose
+   * Concepts that already exist, so when one is refused for naming something unreal, that
+   * name becomes the next thing to learn rather than a dead end.
+   */
+  const pending = new Set<string>();
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
     passes = pass + 1;
@@ -89,8 +108,24 @@ export async function learn(
     }
 
     const all = collectGaps(runtime, result);
-    // Teach what the graph has never heard of; attach what it knows but cannot reach.
-    const gaps = all.filter((g) => g.kind === "unknown" || (g.kind === "inert" && isOrphan(runtime, g.identity)));
+    for (const identity of pending) {
+      if (!runtime.store.has(identity)) {
+        all.push({ kind: "unknown", identity, expression: `${identity}()` });
+      }
+    }
+    pending.clear();
+    // Three things are learnable, not one:
+    //   unknown  — the graph has never heard of it, so teach the Concept;
+    //   orphan   — it knows it but reaches nothing, so attach it;
+    //   inert    — it exists and simply has no realization for THIS call, so teach the
+    //              behaviour. Missing behaviour is a gap too, and treating it as normal
+    //              is what made the system answer "I could not work that out" for a call
+    //              whose Concepts it already knew.
+    const gaps = all.filter(
+      (g) =>
+        g.kind === "unknown" ||
+        (g.kind === "inert" && (isOrphan(runtime, g.identity) || wantsBehaviour(runtime, g))),
+    );
     if (!gaps.length) return { steps, result, passes, remaining: [] };
 
     let learnedSomething = false;
@@ -101,9 +136,9 @@ export async function learn(
         learnedSomething = true;
         continue;
       }
-      // Never teach over something already known. Append-only means it would not be
-      // destructive, but it would still pollute a Concept that was already right.
-      if (runtime.store.has(gap.identity)) continue;
+      // Teaching a Concept it already knows would pollute it; teaching a REALIZATION it
+      // is missing is exactly the point, so only the former is refused.
+      if (runtime.store.has(gap.identity) && gap.kind !== "inert") continue;
       if (options.teacher === false) continue;
 
       // Research before asking. The Teacher is a last resort, and grounding it in
@@ -125,9 +160,24 @@ export async function learn(
         }
       }
 
+      const unit = runtime.store.get(gap.identity);
+      const behaviour = gap.kind === "inert" && unit !== undefined;
       const taught = await teach(
         runtime.store,
-        { identity: gap.identity, message, expression: format(expression), evidence },
+        {
+          identity: gap.identity,
+          message,
+          expression: format(expression),
+          evidence,
+          ...(behaviour
+            ? {
+                unrealizedCall: gap.expression,
+                existing: unit.realizations
+                  .map((r) => `  ${format(r.pattern)}${r.context ? ` in ${format(r.context)}` : ""}`)
+                  .join("\n"),
+              }
+            : {}),
+        },
         options,
       );
       if (!taught.declaration) {
@@ -136,6 +186,15 @@ export async function learn(
       }
       try {
         const saved = await runtime.evaluate(taught.declaration, c("Execution"));
+        // A refused realization names what it needed; queue those for the next pass.
+        for (const node of walk(saved)) {
+          if (!isCall(node) || node.head !== "NeedsFirst") continue;
+          for (const item of walk(node)) {
+            if (isCall(item) && item.head !== "NeedsFirst" && item.head !== "List") {
+              pending.add(item.head);
+            }
+          }
+        }
         steps.push({
           identity: gap.identity,
           how: "teacher",
@@ -150,8 +209,8 @@ export async function learn(
         });
       }
     }
-    // Nothing new was learned, so another pass would produce the same residuals.
-    if (!learnedSomething) break;
+    // Nothing new was learned and nothing is queued, so another pass repeats this one.
+    if (!learnedSomething && pending.size === 0) break;
   }
 
   runtime.reset();

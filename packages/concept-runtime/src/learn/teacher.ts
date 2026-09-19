@@ -53,12 +53,41 @@ RULES
 
 Output only the declaration. No prose, no markdown, no code fence.`;
 
+/** Teaching behaviour rather than identity: what is missing is a realization. */
+const BEHAVIOUR_SYSTEM = `You teach a Concept network how to DO something.
+
+A Concept it already knows was called in a way nothing realizes. Give it a realization.
+Return one declaration and nothing else.
+
+FORM
+Concept(identity="Name", relations=List(), realizations=List(
+  Realization(pattern=Name($a, $b), body=SomethingElse($a, $b))
+))
+
+RULES
+1. The pattern must match the call you were shown, with variables where the arguments go.
+2. The body must compose Concepts THAT ALREADY EXIST. You are given the ones nearby; if
+   you cannot build it from those, return realizations=List() rather than inventing a name.
+3. Never write Code(...). You cannot write executable bodies, only compositions.
+4. Add context=Execution() when the realization does something, and leave context off when
+   it holds in any situation.
+5. Every name starts with a capital letter and is followed by parentheses.
+
+Output only the declaration. No prose, no markdown, no code fence.`;
+
 export interface TeachRequest {
   readonly identity: string;
   readonly message: string;
   readonly expression: string;
   /** Source-attributed research, so the Teacher grounds rather than invents. */
   readonly evidence?: string;
+  /**
+   * The call that went unrealized. When present, the Concept already exists and what is
+   * missing is behaviour for this shape — a realization, not a definition.
+   */
+  readonly unrealizedCall?: string;
+  /** What the graph can already do with this Concept, so a new realization fits. */
+  readonly existing?: string;
 }
 
 export interface TeachResult {
@@ -86,18 +115,29 @@ export async function teach(
   request: TeachRequest,
   options: ModelOptions = {},
 ): Promise<TeachResult> {
+  const teachingBehaviour = request.unrealizedCall !== undefined;
   const prompt = [
     `The message was: ${request.message}`,
     `It parsed to: ${request.expression}`,
-    `The network does not know: ${request.identity}`,
+    teachingBehaviour
+      ? `${request.identity} exists, but nothing realizes this call:\n  ${request.unrealizedCall}`
+      : `The network does not know: ${request.identity}`,
+    request.existing ? `${request.identity} can already do:\n${request.existing}` : "",
     nearby(store, request.identity),
     request.evidence ? `EVIDENCE\n${request.evidence}` : "",
-    `Teach ${request.identity}.`,
+    teachingBehaviour
+      ? `Give ${request.identity} a realization that handles that call, composed from ` +
+        `Concepts that already exist. Keep every relation it already has.`
+      : `Teach ${request.identity}.`,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  const raw = await generate(SYSTEM, prompt, { model: TEACHER_MODEL, maxTokens: 1024, ...options });
+  const raw = await generate(
+    teachingBehaviour ? BEHAVIOUR_SYSTEM : SYSTEM,
+    prompt,
+    { model: TEACHER_MODEL, maxTokens: 1024, ...options },
+  );
   const lifted = lift(raw);
   const declaration = lifted.expression;
 

@@ -21,7 +21,7 @@ test("a declaration saves relations into the graph", async () => {
     parse('Concept(identity="Chess", relations=List(IsA(BoardGame()), MinimumNumberOfPlayers(2)), realizations=List())'),
     EXEC,
   );
-  assert.equal(format(out), "Saved(Chess())");
+  assert.match(format(out), /^Saved\(Chess\(\)/);
   assert.equal(rt.store.get("Chess")!.relations.length, 2);
 });
 
@@ -60,4 +60,41 @@ test("the Teacher is offered what already exists nearby, not the whole library",
   const rt = fresh();
   const text = nearby(rt.store, "Times");
   assert.match(text, /Multiply/);
+});
+
+test("a declaration saves realizations, not just relations", async () => {
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="Triple", relations=List(), realizations=List(Realization(pattern=Triple($x), body=Multiply($x, 3))))'),
+    EXEC,
+  );
+  assert.equal(format(await rt.evaluate(parse("Triple(7)"), EXEC)), "21");
+});
+
+test("a taught body may not name a Concept the graph has never heard of", async () => {
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="Bogus", relations=List(), realizations=List(Realization(pattern=Bogus($x), body=Frobnicate($x))))'),
+    EXEC,
+  );
+  // Rejected rather than saved: a body that names nothing real is not behaviour.
+  assert.equal(rt.store.get("Bogus")!.realizations.length, 0);
+});
+
+test("a taught body may not be code", async () => {
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="Sneaky", relations=List(), realizations=List(Realization(pattern=Sneaky(), body=Code(source="() => 1"))))'),
+    EXEC,
+  );
+  assert.equal(rt.store.get("Sneaky")!.realizations.length, 0);
+});
+
+test("missing behaviour is a learning target, not a normal outcome", async () => {
+  const rt = fresh();
+  // Format exists and realizes, but nothing handles this shape.
+  await rt.evaluate(parse('Format(Wibble(), "x")'), EXEC);
+  const { collectGaps } = await import("../runtime/turn.js");
+  const gaps = collectGaps(rt, undefined);
+  assert.ok(gaps.some((g) => g.identity === "Format" && g.kind === "inert"));
 });

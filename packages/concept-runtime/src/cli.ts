@@ -26,8 +26,11 @@ const value = (name: string) => {
 /** Learning that does not survive a restart is not learning. */
 const graphPath = value("--graph") ?? `${process.env.HOME}/.cnocept/graph.json`;
 const store = new ConceptStore();
-const report = seed(store);
+// Load before seeding. A snapshot can hold an older copy of a seeded realization, and
+// since a newer realization shadows an older one with the same pattern and context,
+// seeding last is what makes the current definition win.
 const loaded = flag("--fresh") ? 0 : load(store, graphPath);
+const report = seed(store);
 const runtime = new Runtime(store);
 const context = c("Execution");
 const persist = () => (flag("--fresh") ? 0 : save(store, graphPath));

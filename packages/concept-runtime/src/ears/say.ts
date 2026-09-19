@@ -15,10 +15,19 @@ facts, do not hedge, do not explain the notation, and do not mention Concepts.
 
 If the result is Answer(x), say x.
 If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
-If the result still looks like an unanswered expression, say plainly that it could not be
-worked out, and name what was missing.
 
 Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
+
+/**
+ * A residual is not an answer. Narrating one as though it were is how a system starts
+ * saying things it has not worked out — the studio once reported "the result is a command
+ * to convert the current timestamp", which is a description of an expression that never
+ * ran. So an unrealized result is never handed to the model at all.
+ */
+function unresolved(message: string, result: Expr, gaps: readonly string[]): string {
+  const missing = gaps.length ? ` I do not know ${gaps.join(", ")}.` : "";
+  return `I could not work that out.${missing}`;
+}
 
 /** A date is worth rendering directly: the model adds nothing and can get it wrong. */
 function direct(result: Expr): string | undefined {
@@ -38,13 +47,22 @@ function direct(result: Expr): string | undefined {
   return `${weekday ? `${weekday}, ` : ""}${name} ${day}, ${year}.`;
 }
 
+export interface SayOptions extends ModelOptions {
+  /** Identities the graph could not realize. Their presence means this is not an answer. */
+  unrealized?: readonly string[];
+}
+
 export async function say(
   message: string,
   result: Expr,
-  options: ModelOptions = {},
+  options: SayOptions = {},
 ): Promise<string> {
   const straightforward = direct(result);
   if (straightforward) return straightforward;
+
+  // Say plainly that it did not work out, rather than describing the expression that
+  // failed to.
+  if (options.unrealized?.length) return unresolved(message, result, options.unrealized);
 
   const prompt = `The message was: ${message}\n\nThe result is: ${format(result)}\n\nSay it.`;
   try {

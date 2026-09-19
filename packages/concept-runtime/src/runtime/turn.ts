@@ -121,8 +121,13 @@ export async function turn(
   }
 
   const rendered = result ? format(result) : (failed ?? "(no result)");
+  const gaps = collectGaps(runtime, result);
+  // Anything the graph has never heard of means the result is not an answer.
+  const unrealized = gaps.filter((g) => g.kind === "unknown").map((g) => g.identity);
   const spoken =
-    options.speak === false || !result ? rendered : await say(message, result, options);
+    options.speak === false || !result
+      ? rendered
+      : await say(message, result, { ...options, unrealized });
 
   return {
     heard,
@@ -131,7 +136,7 @@ export async function turn(
     result,
     rendered,
     spoken,
-    gaps: collectGaps(runtime, result),
+    gaps,
     ambiguities: [...runtime.ambiguities],
     learned,
     failed,
