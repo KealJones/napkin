@@ -25,9 +25,15 @@ Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
  * to convert the current timestamp", which is a description of an expression that never
  * ran. So an unrealized result is never handed to the model at all.
  */
-function unresolved(message: string, result: Expr, gaps: readonly string[]): string {
-  const missing = gaps.length ? ` I do not know ${gaps.join(", ")}.` : "";
-  return `I could not work that out.${missing}`;
+function unresolved(message: string, result: Expr, gaps: readonly Unrealized[]): string {
+  // Not knowing a Concept and not knowing how to DO one are different admissions, and
+  // saying "I do not know Choose" about a Concept it had just learned was the wrong one.
+  const absent = gaps.filter((g) => g.kind === "unknown").map((g) => g.identity);
+  const inert = gaps.filter((g) => g.kind !== "unknown").map((g) => g.identity);
+  const parts: string[] = [];
+  if (absent.length) parts.push(`I do not know ${absent.join(", ")}.`);
+  if (inert.length) parts.push(`I do not know how to ${inert.join(", ")}.`);
+  return ["I could not work that out.", ...parts].join(" ");
 }
 
 /**
@@ -112,9 +118,14 @@ function question(result: Expr): string | undefined {
   return `What should I ${verb}?`;
 }
 
+export interface Unrealized {
+  readonly identity: string;
+  readonly kind: "unknown" | "inert" | "reference";
+}
+
 export interface SayOptions extends ModelOptions {
-  /** Identities the graph could not realize. Their presence means this is not an answer. */
-  unrealized?: readonly string[];
+  /** What the graph could not realize. Its presence means this is not an answer. */
+  unrealized?: readonly Unrealized[];
   /** What was asked, so the answer can be placed in time the way the question was. */
   asked?: Expr;
 }

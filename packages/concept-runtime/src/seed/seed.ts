@@ -117,15 +117,56 @@ add(
             // never a name the graph has not heard of. A rejection is reported rather
             // than dropped: the missing names are the next thing to learn.
             if (body.head === "Code") { rejected.push(api.call("NotComposed", body)); continue; }
-            // A body that names the Concept it defines is a realization that calls itself
-            // with nothing reduced. A composition-only Teacher has no business writing
-            // recursion, and the one time it did, evaluation ran to the depth budget.
-            const namesSelf = (e) => {
-              if (!e || !e.head) return false;
-              if (e.head === identity) return true;
-              return e.args.some((a) => namesSelf(a.value));
+            // A body that leads back to the Concept it defines is a realization that
+            // calls itself, directly or by a detour. A composition-only Teacher has no
+            // business writing recursion: asked to realize Choose it wrote Select, then
+            // realized Select as Choose, and the pair was inert in both directions.
+            const namesIn = (e, acc) => {
+              if (!e || !e.head) return acc;
+              acc.add(e.head);
+              for (const a of e.args) namesIn(a.value, acc);
+              return acc;
             };
-            if (namesSelf(body)) { rejected.push(api.call("SelfReferential", body)); continue; }
+            const reachesSelf = () => {
+              const seen = new Set();
+              const queue = [...namesIn(body, new Set())];
+              while (queue.length) {
+                const head = queue.shift();
+                if (head === identity) return true;
+                if (seen.has(head)) continue;
+                seen.add(head);
+                const unit = api.store.get(head);
+                if (!unit) continue;
+                for (const r of unit.realizations) {
+                  if (r.body && r.body.head === "Code") continue;
+                  for (const next of namesIn(r.body, new Set())) queue.push(next);
+                }
+              }
+              return false;
+            };
+            if (reachesSelf()) { rejected.push(api.call("SelfReferential", body)); continue; }
+            // A body must reduce to something that can actually run. Renaming Choose to
+            // Select, when Select realizes nothing either, buys a forwarding pointer to a
+            // dead end -- and the Teacher did exactly that, in both directions. Reported
+            // as NeedsFirst so the inert target becomes the next thing to learn.
+            const canAct = (head, seen) => {
+              if (seen.has(head)) return false;
+              seen.add(head);
+              const unit = api.store.get(head);
+              if (!unit) return false;
+              if (unit.realizations.length) return true;
+              for (const r of unit.relations) {
+                if (r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head) {
+                  if (canAct(r.args[0].value.head, seen)) return true;
+                }
+              }
+              return false;
+            };
+            const inert = [...new Set([...namesIn(body, new Set())].filter((h) => !canAct(h, new Set())))];
+            if (inert.length) {
+              rejected.push(api.call("NeedsFirst", api.call("List", ...inert.map((h) => api.call(h)))));
+              continue;
+            }
             const heads = [];
             (function collect(e) {
               if (!e || !e.head) return;
@@ -456,7 +497,10 @@ add(
           const v = args[0].value;
           if (typeof v === "number") return v;
           const words = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7,
-                          eight:8, nine:9, ten:10, eleven:11, twelve:12 };
+                          eight:8, nine:9, ten:10, eleven:11, twelve:12, dozen:12,
+                          twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70,
+                          eighty:80, ninety:90, hundred:100, thousand:1000,
+                          million:1000000, billion:1000000000 };
           if (typeof v === "string") {
             const n = words[v.toLowerCase()];
             if (n !== undefined) return n;

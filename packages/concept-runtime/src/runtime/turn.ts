@@ -6,7 +6,7 @@
  * (concept-spec Part 8.2). A parallel list of gaps alongside the tree would be duplicate
  * state that can disagree with it.
  */
-import { type Expr, equal, format, isCall, walk } from "../concept/expression.js";
+import { type Call, type Expr, equal, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
@@ -132,6 +132,9 @@ export function isConstructedData(e: Expr): boolean {
  * `Ref($text) := Ref($text, resolvedTo=Ref($text))`, which recursed until the depth budget
  * stopped it — and that realization had already been saved.
  */
+/** Things a Concept can be that make describing it the right answer. */
+const ENTITY = new Set(["Category", "Marker", "Data", "Primitive", "Collection", "Deictic"]);
+
 export function isMarker(runtime: Runtime, identity: string): boolean {
   return lineage(runtime.store, identity).some((u) => u.identity === "Marker");
 }
@@ -145,8 +148,17 @@ export function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
   if (holdsAnUnknown(gap.input)) return false;
   const unit = runtime.store.get(gap.identity);
   if (!unit) return false;
-  // Something it can already do means this is a shape it cannot, rather than data.
-  return unit.realizations.length > 0;
+  // A category or an entity is a thing, not a doing: describing it IS the answer, and
+  // teaching Chess a realization would be nonsense.
+  const describesOnly = unit.relations.some(
+    (r) => isCall(r) && r.head === "IsA" && isCall(r.args[0]?.value) && ENTITY.has((r.args[0].value as Call).head),
+  );
+  if (describesOnly) return false;
+  // Realizing something already means this is a shape it cannot handle. Realizing NOTHING,
+  // for a call that asked for work, means it cannot handle any shape — which is the same
+  // gap and a worse one. Requiring existing behaviour here let a Concept the Teacher had
+  // just created with relations alone fall straight through to being described.
+  return true;
 }
 
 /** Known, but reaching nothing realizable: an orphan, which attaching can fix. */
@@ -235,7 +247,7 @@ export async function turn(
   // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
   // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",
   // which is the model doing arithmetic the graph refused to do.
-  const unrealized = learnable(runtime, gaps).map((g) => g.identity);
+  const unrealized = learnable(runtime, gaps).map((g) => ({ identity: g.identity, kind: g.kind }));
   const spoken =
     options.speak === false || !result
       ? rendered

@@ -143,3 +143,47 @@ test("an anonymous unknown is a missing input, not missing behaviour", async () 
   const gaps = learnable(rt, collectGaps(rt, undefined));
   assert.ok(!gaps.some((g) => g.identity === "Multiply"));
 });
+
+test("a taught body must reduce to something that can actually run", async () => {
+  const rt = fresh();
+  // Chooser is realized as Picker, and Picker realizes nothing. Asked to realize Choose,
+  // the Teacher wrote Select, then realized Select as Choose: a rename in both directions
+  // and behaviour in neither.
+  await rt.evaluate(
+    parse('Concept(identity="Picker", relations=List(IsA(Decision())), realizations=List())'),
+    EXEC,
+  );
+  await rt.evaluate(
+    parse('Concept(identity="Chooser", relations=List(), realizations=List(Realization(pattern=Chooser($a), body=Picker($a))))'),
+    EXEC,
+  );
+  assert.equal(rt.store.get("Chooser")!.realizations.length, 0);
+});
+
+test("a body naming an inert Concept says which one to learn first", async () => {
+  const rt = fresh();
+  await rt.evaluate(parse('Concept(identity="Picker", relations=List(), realizations=List())'), EXEC);
+  const saved = await rt.evaluate(
+    parse('Concept(identity="Chooser", relations=List(), realizations=List(Realization(pattern=Chooser($a), body=Picker($a))))'),
+    EXEC,
+  );
+  assert.match(format(saved), /NeedsFirst\(List\(Picker\(\)\)\)/);
+});
+
+test("a body composing Concepts that work is still saved", async () => {
+  const rt = fresh();
+  await rt.evaluate(
+    parse('Concept(identity="Quadruple", relations=List(), realizations=List(Realization(pattern=Quadruple($x), body=Multiply($x, 4))))'),
+    EXEC,
+  );
+  assert.equal(format(await rt.evaluate(parse("Quadruple(5)"), EXEC)), "20");
+});
+
+test("a Concept with no realization at all still wants behaviour when asked to do something", async () => {
+  const rt = fresh();
+  rt.store.seed({ identity: "Weigh", relations: [], realizations: [] });
+  await rt.evaluate(parse("Weigh(1, 2)"), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  const gaps = learnable(rt, collectGaps(rt, undefined));
+  assert.ok(gaps.some((g) => g.identity === "Weigh"));
+});
