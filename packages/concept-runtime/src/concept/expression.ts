@@ -210,5 +210,29 @@ export function* walk(e: Expr): Generator<Expr> {
 export const named = (e: Expr, name: string): Expr | undefined =>
   isCall(e) ? e.args.find((a) => a.name === name)?.value : undefined;
 
+/** Is this a well-formed expression? Used when accepting one from outside. */
+export function isExpr(value: unknown): value is Expr {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 1 && typeof record.variable === "string") {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(record.variable);
+  }
+  if (typeof record.head !== "string" || !Array.isArray(record.args)) return false;
+  if (!/^[A-Z]/.test(record.head)) return false;
+  return record.args.every((a: unknown) => {
+    if (typeof a !== "object" || a === null) return false;
+    const argument = a as Record<string, unknown>;
+    if (Object.keys(argument).some((k) => k !== "name" && k !== "value")) return false;
+    return (
+      (argument.name === undefined || typeof argument.name === "string") &&
+      "value" in argument &&
+      isExpr(argument.value)
+    );
+  });
+}
+
 /** Positional arguments, ignoring names. */
 export const positional = (e: Call): Expr[] => e.args.map((a) => a.value);

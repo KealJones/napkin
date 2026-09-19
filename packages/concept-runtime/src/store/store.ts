@@ -141,6 +141,32 @@ export class ConceptStore {
     this.lastSelected.clear();
   }
 
+  /**
+   * Remove a Concept outright. Used only for an isolated conversation, whose transcript
+   * is deliberately not kept — knowledge is never removed this way.
+   */
+  forgetConcept(identity: string): boolean {
+    const unit = this.units.get(identity);
+    if (!unit) return false;
+    this.unindex(unit);
+    this.units.delete(identity);
+    return true;
+  }
+
+  /** Text search over identities, for lookup rather than bulk inclusion. */
+  search(query: string, limit = 50): ConceptUnit[] {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return this.all().slice(0, limit);
+    const scored = this.all()
+      .map((u) => {
+        const id = u.identity.toLowerCase();
+        const score = id === needle ? 3 : id.startsWith(needle) ? 2 : id.includes(needle) ? 1 : 0;
+        return { u, score };
+      })
+      .filter((x) => x.score > 0);
+    return scored.sort((a, b) => b.score - a.score).slice(0, limit).map((x) => x.u);
+  }
+
   /** Triples with this Concept as subject. */
   asSubject(identity: string): Triple[] {
     return this.bySubject.get(identity) ?? [];

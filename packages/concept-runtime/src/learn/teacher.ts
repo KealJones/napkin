@@ -23,6 +23,9 @@ and the message that needed it. Return one declaration and nothing else.
 FORM
 Concept(identity="Name", relations=List(...), realizations=List(...))
 
+A realization is how it behaves, written as:
+  Realization(pattern=Name($x), body=SomethingElse($x))
+
 A relation is a fact about the Concept, written as a Concept call:
   IsA(BoardGame())        MinimumNumberOfPlayers(2)        SynonymOf(Multiply())
   InverseOf(IsYoungerThan())    Symmetric()    Transitive()
@@ -35,8 +38,14 @@ RULES
 3. If the Concept is a RELATION, say whether it is Symmetric(), Transitive(),
    Asymmetric(), and what its InverseOf(...) is. Each of those licenses inference over
    every future use, so a relation taught without them is inert in one direction.
-4. Use realizations=List() when the Concept computes nothing. Never invent a computation
-   you cannot justify.
+4. If the Concept CAN be expressed using Concepts that already exist, give it a
+   realization that composes them. Relations say what a thing is; they never say how to do
+   it, so a Concept taught with relations alone can be described but never computed.
+     Tomorrow      -> Realization(pattern=Tomorrow(), body=DayAfter(Today()))
+     Double        -> Realization(pattern=Double($x), body=Multiply($x, 2))
+   Use realizations=List() only when the Concept genuinely computes nothing, as with an
+   entity such as Chess. Never invent a computation you cannot justify, and never name a
+   Concept in a body that does not already exist.
 5. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
 6. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
    what you recall. If the evidence describes something other than what was asked, say so

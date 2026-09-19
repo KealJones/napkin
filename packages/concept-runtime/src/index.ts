@@ -21,6 +21,7 @@ export * from "./research/sources.js";
 export * from "./learn/teacher.js";
 export * from "./runtime/turn.js";
 export * from "./runtime/exist.js";
+export * from "./memory/conversations.js";
 
 import { ConceptStore } from "./store/store.js";
 import { Runtime } from "./runtime/evaluator.js";

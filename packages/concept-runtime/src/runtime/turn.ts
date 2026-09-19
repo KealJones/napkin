@@ -46,7 +46,7 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
     gaps.set(event.concept, {
       kind: runtime.store.has(event.concept) ? "inert" : "unknown",
       identity: event.concept,
-      expression: event.input,
+      expression: format(event.input),
     });
   }
   const walk = (e: Expr): void => {

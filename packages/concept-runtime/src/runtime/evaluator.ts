@@ -81,7 +81,7 @@ export class Runtime {
     expression: Expr,
     context: Expr | undefined,
     caller: string,
-    parent: number | undefined,
+    parent: string | undefined,
     depth: number,
   ): Promise<Expr> {
     if (expression === null || typeof expression !== "object") return expression;
@@ -89,12 +89,13 @@ export class Runtime {
 
     const target = expression as Call;
     const id = this.trace.start({
-      parent,
+      parentEventId: parent,
       concept: target.head,
       caller,
       depth,
-      context: context === undefined ? "any" : format(context),
-      input: format(target),
+      useContext: context,
+      input: target,
+      arguments: target.args.map((a) => a.value),
     });
 
     try {
@@ -134,6 +135,7 @@ export class Runtime {
           }),
         );
         const evaluated = call(target.head, args);
+        this.trace.evaluated(id, args.map((a) => a.value));
         bindings = new Map();
         if (!match(realization.pattern, evaluated, bindings)) {
           this.trace.finish(id, "residual", evaluated);
@@ -174,7 +176,7 @@ export class Runtime {
     bindings: Bindings,
     args: readonly Argument[],
     context: Expr | undefined,
-    parent: number,
+    parent: string,
     depth: number,
   ): Promise<Expr> {
     const source = codeSource(realization.body);

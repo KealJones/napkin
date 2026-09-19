@@ -458,7 +458,64 @@ add(
     ],
   }),
 );
-add(concept("Now", { relations: ["SynonymOf(CurrentTimestamp())"] }));
+/**
+ * Date arithmetic, so a deictic that is computable actually computes.
+ *
+ * Learning taught Tomorrow what it IS — IsA(TemporalExpression()), InverseOf(Yesterday())
+ * — and left it inert, so "what will be the date tomorrow" got a definition instead of a
+ * date. Relations say what a thing is; they never say how to do it. Where the doing is
+ * expressible from Concepts that already exist, it should be seeded as a composition.
+ */
+add(
+  concept("ShiftDays", {
+    realizations: [
+      realization({
+        pattern: "ShiftDays($date, $days)",
+        context: "Execution()",
+        body: code(`(args, bindings, api) => {
+          const date = args[0].value, days = args[1].value;
+          if (!date || date.head !== "Date" || typeof days !== "number") {
+            return api.call("ShiftDays", date, days);
+          }
+          const get = (n) => { const a = date.args.find((x) => x.name === n); return a ? a.value : undefined; };
+          const d = new Date(Number(get("year")), Number(get("month")) - 1, Number(get("day")) + days);
+          const names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: d.getFullYear() },
+            { name: "month", value: d.getMonth() + 1 },
+            { name: "day", value: d.getDate() },
+            { name: "weekday", value: names[d.getDay()] },
+          ]};
+        }`),
+      }),
+    ],
+  }),
+);
+add(
+  concept("DayAfter", {
+    relations: ["InverseOf(DayBefore())"],
+    realizations: [realization({ pattern: "DayAfter($date)", context: "Execution()", body: parse("ShiftDays($date, 1)") })],
+  }),
+);
+add(
+  concept("DayBefore", {
+    relations: ["InverseOf(DayAfter())"],
+    realizations: [realization({ pattern: "DayBefore($date)", context: "Execution()", body: parse("ShiftDays($date, -1)") })],
+  }),
+);
+add(
+  concept("Tomorrow", {
+    relations: ["IsA(Date())", "IsA(Deictic())", "InverseOf(Yesterday())"],
+    realizations: [realization({ pattern: "Tomorrow()", context: "Execution()", body: parse("DayAfter(Today())") })],
+  }),
+);
+add(
+  concept("Yesterday", {
+    relations: ["IsA(Date())", "IsA(Deictic())", "InverseOf(Tomorrow())"],
+    realizations: [realization({ pattern: "Yesterday()", context: "Execution()", body: parse("DayBefore(Today())") })],
+  }),
+);
+add(concept("Now", { relations: ["SynonymOf(CurrentTimestamp())", "IsA(Deictic())"] }));
 add(concept("Deictic", { relations: ["IsA(Category())"] }));
 add(concept("Me", { relations: ["IsA(Deictic())"] }));
 add(concept("You", { relations: ["IsA(Deictic())"] }));
