@@ -402,7 +402,110 @@ the Fact/Value Dichotomy"; McKeever & Ridge, "Principled Ethics". Full URLs in
 
 ---
 
-## 9. Where this leaves the design
+## 9. What arguing about it added
+
+The sections above are literature. This one is not — it came out of pushing on the trolley
+problem until the framing broke, and it changed the recommendation more than any of the
+research did. Recorded because the reasoning is checkable even though the source is a
+conversation.
+
+### 9.1 Dissolution is not resolution
+
+The claim in Part 8.3 is that the system should stop treating every unresolved comparison
+as closable. That claim was immediately tested by supplying a new fact: pull the switch
+*halfway* and the trolley derails, killing nobody.
+
+That does produce an answer. It does **not** resolve the dilemma — it **dissolves** it. The
+original pair is untouched: five versus one, still incomparable, still nothing settling it.
+A third option appeared that dominates both, so the comparison stopped being load-bearing.
+
+The two are indistinguishable if the test is "did an answer appear," which makes the
+tentative/assertive split unimplementable as originally stated. The test has to be
+structural:
+
+| What changed | Reading |
+|---|---|
+| the relation between the existing options | tentative — the gap was closable |
+| the option set, by a dominating addition | dissolution — the gap is untouched, just no longer load-bearing |
+
+Comparing option sets before and after is checkable. Without it, Part 8.3 is a nice idea
+with no implementation.
+
+### 9.2 The option set is a claim, not a given
+
+Every `Choose(A, B)` carries a second assertion — *and those are the only options* — which
+arrives as grammar rather than as content and is therefore never examined.
+
+This is an inconsistency with the system's own commitments. The graph is **open-world**:
+absence of a fact is `unknown`, never `false`. But an option set delivered by a question is
+treated **closed-world** — complete and authoritative. Nobody decided that; it fell out of
+the parse.
+
+The repair uses grammar that already exists. The Ears mark form routinely — `Fuzzy(...)`,
+`Correction(...)`, `Misspelling(...)`. Exhaustiveness is the same kind of thing: write the
+implicit `Only(A, B)` down and it becomes an ordinary proposition that can be questioned,
+rather than a structural assumption that cannot be seen.
+
+Note the failure this catches is not exotic. "Would you rather have a million dollars or owe
+a million dollars" has a true answer that is neither option: nobody faces that choice.
+
+### 9.3 The setting decides whether invention is allowed
+
+`Only(A, B)` does not default to `unknown`. Whether the option set is closed depends on the
+setting, which makes it a facet rather than a global policy:
+
+| Facet | `Only(A, B)` | Consequence |
+|---|---|---|
+| `MultipleChoice()` | true | closed-world is correct here; inventing an option is cheating |
+| `Casual()` | unknown | invent freely, nothing rides on it |
+| `Urgent()` | unknown, but unsearchable | the set may be open and there is no time to look |
+
+So the open/closed-world inconsistency in 9.2 is not a bug to fix globally. It is a facet
+nobody had written down.
+
+### 9.4 Deliberation needs a budget
+
+"Why not throw yourself in front of the trolley? Is your life worth more? Why do you get to
+choose?" — this is real literature (agent-relative permissions, the demandingness
+objection) and the finding is that **it does not terminate**. Questions can be generated
+indefinitely.
+
+The evaluator already solves the structurally identical problem with `maximumDepth` and
+`maximumSteps`. Practical deliberation needs the same thing, and Aristotle's account agrees:
+deliberation ends when it reaches something that can be done now, not when the questions run
+out. Phronesis is substantially the skill of knowing when to stop.
+
+Two consequences. A good decision stops at the right depth rather than the greatest one, so
+depth is not a proxy for quality. And philosophy is recognisably the mode where the budget
+is deliberately raised — which suggests the budget should be a facet like everything else,
+not a constant.
+
+### 9.5 The real blocker is grounding, not formalism
+
+Parts 1-8 diagnose a preference-representation problem. That diagnosis is incomplete, and
+the incompleteness matters more than anything in it.
+
+When the system was asked to choose between a million dollars and owing a million, it
+learned `Dollar` and `Million` **in the same turn it was asked to value them**. It does not
+know money buys things, that debt compounds, that a million is life-changing rather than a
+large number, or that society runs on the stuff. There is nothing to prefer with.
+
+The research established that the *ordering* must be supplied from outside. It missed that
+the system does not have the *structure* either — it cannot say which dimensions are in
+play, because it does not know what money does. Two levels are missing and only the far one
+was written up.
+
+This is better news than it sounds. `Better` is not blocked on an unresolved problem in
+philosophy. It is blocked on the graph being a toddler, and the fix for that is to keep
+teaching it.
+
+It also means the original episode was an architectural success. Asked a question far beyond
+what it knew, the system declined instead of confabulating. A two-year-old saying nothing to
+"would you rather have a million dollars" is the correct output. Bad question, right answer.
+
+---
+
+## 10. Where this leaves the design
 
 **What the design already gets right, and should not be talked out of.**
 
@@ -444,7 +547,17 @@ NEXPTIME^NP. Defaults and DL decidability are close to mutually exclusive.
 
 ---
 
-## 10. Recommendation
+## 11. Recommendation
+
+**Grounding comes before any of this.** Part 9.5 is the controlling finding: the system
+could not weigh a million dollars because it did not know what money is. Every item below
+assumes a graph that knows what the options *do*, and none of it is worth building into a
+graph that does not. A preference engine over ungrounded Concepts would produce confident
+noise, which is strictly worse than the honest refusal the system already gives.
+
+The practical consequence is that the next move here is not on this document's subject at
+all. It is teaching the graph more about the world, by the ordinary learning path. Come
+back to preference when a question about money has something to draw on.
 
 **Do not seed `Better`, `Choose`, or any preference relation.** The literature is
 unanimous that the verdict is not a storable fact, and a seeded one would encode whoever
@@ -452,7 +565,7 @@ wrote it. The no-stubs rule in `seed-concepts.md` Part 1.3 already forbids it on
 independent grounds: the behaviour cannot be honestly written, so the absence should
 produce a residual.
 
-**Build, when it is wanted, in this order:**
+**Then, when it is wanted, in this order:**
 
 1. **Dominance.** Answer when one option is at least as good on every dimension in play.
    No weights, no numbers, no values. It covers the questions people expect answers to,
@@ -471,7 +584,17 @@ produce a residual.
    consequence: right now every unresolved comparison is treated as closable, so an
    assertive gap gets chased until something is invented. The system does not need to
    decide which kind a given case is — the vagueness/parity dispute says nobody can — it
-   only needs to stop assuming.
+   only needs to stop assuming. Implement the test structurally, per Part 9.1: compare
+   option sets before and after, because an answer arriving by dissolution is not the gap
+   closing.
+5. **Write the option set down as a claim** (Part 9.2). `Choose(A, B)` implies
+   `Only(A, B)`, and until that is an expression rather than an assumption the system
+   cannot notice a false dichotomy. Cheap, uses existing grammar, and catches a whole
+   class of question that has no correct answer among the offered options.
+6. **Make the setting a facet** (Part 9.3). `MultipleChoice()` closes the option set and
+   makes invention wrong; `Casual()` opens it; `Urgent()` leaves it open and unsearchable.
+7. **Give deliberation a budget** (Part 9.4), as a facet rather than a constant, since
+   philosophy is exactly the mode that raises it.
 
 **Do not build**, on the evidence:
 
@@ -498,7 +621,7 @@ of "depends whether you're happy with your weight."
 
 ---
 
-## 11. Spec amendments
+## 12. Spec amendments
 
 `seed-concepts.md` Part 12 already carries the row:
 
@@ -521,10 +644,17 @@ down before it was hit. Suggested amendments:
 5. Split `unknown` in `concept-spec.md`'s three-valued truth into tentative and assertive
    incompleteness, and make only the tentative kind a learning target. This is the one
    amendment here that changes runtime behaviour rather than documentation.
+6. State in `concept-spec.md` that the open-world assumption governs *facts* but that an
+   option set arriving in a question is currently treated closed-world, and that the
+   resolution is a setting facet rather than a global policy (Parts 9.2 and 9.3). The
+   inconsistency is presently silent, which is the worst form for it to take.
+7. Record in `seed-concepts.md` Part 12 that the omission of preference is blocked on
+   grounding first and formalism second (Part 9.5). As written, the omission implies the
+   formalism is the obstacle, and that is the less important half.
 
 ---
 
-## 12. Confidence
+## 13. Confidence
 
 Verified against fetched primary or near-primary sources: the CP-net complexity
 stratification (PSPACE-complete general, NP-complete acyclic, polynomial tree-structured);
@@ -532,6 +662,10 @@ the DL circumscription results; the ceteris paribus Γ parametrisation; the stro
 specificity distinction; Allen/RCC-8 complexity; the Dyer/Saaty AHP exchange; Wikidata
 qualifier and rank semantics; ConceptNet's relation set and self-reported error rate;
 Kennedy's relative/absolute distinction.
+
+Part 9 is reasoning from a conversation, not from sources. It is recorded because the
+arguments are checkable on their own terms, but it carries no citation weight and should be
+read as design reasoning rather than as literature.
 
 On the philosophy: high confidence on Moore/Frankena, the small-improvement argument's
 structure, Berlin's doctrine, Williams's thesis, Dancy's holism and its major critics, and
