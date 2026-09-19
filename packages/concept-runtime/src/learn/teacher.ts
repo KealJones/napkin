@@ -46,14 +46,14 @@ RULES
    Use realizations=List() only when the Concept genuinely computes nothing, as with an
    entity such as Chess. Never invent a computation you cannot justify, and never name a
    Concept in a body that does not already exist.
-7. A body must REDUCE. It may never lead back to the Concept it defines, directly or by a
+5. A body must REDUCE. It may never lead back to the Concept it defines, directly or by a
    detour, because a realization that reaches itself can never finish.
      Choose -> Realization(pattern=Choose($a, $b), body=Select($a, $b))   WRONG if Select
      is then realized as Choose: the pair is inert in both directions.
    Renaming is not realizing. If all you can say is that two names mean the same thing,
    say it as a relation -- SynonymOf(Other()) -- and leave realizations=List().
-5. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
-6. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
+6. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
+7. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
    what you recall. If the evidence describes something other than what was asked, say so
    by returning relations you can actually support and nothing more.
 
