@@ -346,11 +346,16 @@ function App() {
 
   async function loadConcepts(query: string) {
     try {
-      const data = await api<{ concepts: ConceptUnit[]; total: number }>(
-        `/api/concepts${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+      const data = await api<{
+        concepts: ConceptUnit[];
+        total: number;
+        graph: { size: number; path: string };
+      }>(
+        `/api/concepts?limit=500${query ? `&q=${encodeURIComponent(query)}` : ""}`,
       );
       setConcepts(data.concepts);
-      setConceptCount(data.total);
+      // The graph size, not the size of this page of results.
+      setConceptCount(data.graph?.size ?? data.total);
     } catch (error) {
       setToast(error instanceof Error ? error.message : String(error));
     }
