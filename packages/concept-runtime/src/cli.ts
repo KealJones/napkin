@@ -11,6 +11,7 @@ import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
 import { turn } from "./runtime/turn.js";
 import { seed } from "./seed/seed.js";
+import { load, save } from "./store/persist.js";
 import { ConceptStore } from "./store/store.js";
 
 const args = process.argv.slice(2);
@@ -20,15 +21,21 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 
+/** Learning that does not survive a restart is not learning. */
+const graphPath = value("--graph") ?? `${process.env.HOME}/.cnocept/graph.json`;
 const store = new ConceptStore();
 const report = seed(store);
+const loaded = flag("--fresh") ? 0 : load(store, graphPath);
 const runtime = new Runtime(store);
 const context = c("Execution");
+const persist = () => (flag("--fresh") ? 0 : save(store, graphPath));
 
 if (flag("--seed")) {
+  persist();
   console.log(
     `seeded ${report.created} Concepts, ${report.realizations} realizations, ` +
-      `${report.synonymsDerived} synonym forwardings derived; graph holds ${store.size()}`,
+      `${report.synonymsDerived} synonym forwardings derived; ` +
+      `${loaded} loaded from disk; graph holds ${store.size()}\n${graphPath}`,
   );
   process.exit(0);
 }
@@ -62,11 +69,17 @@ if (expr) {
   if (t.gaps.length)
     show("gaps — the learning queue", t.gaps.map((g) => `${g.kind}: ${g.expression}`).join("\n"));
   if (t.ambiguities.length) show("ambiguities", t.ambiguities.join("\n"));
+  const grew = persist();
+  if (t.learned.length) show("graph", `${grew} Concepts saved to ${graphPath}`);
   show("trace", runtime.trace.render());
 } else {
   console.log(`cnocept — usage:
   cnocept "What is 5 times three?"        hear a message, then realize it
   cnocept --expr 'Add(2, 3)'             realize an expression directly
   cnocept --learn "what is chess?"       close gaps by learning before answering
-  cnocept --seed                         seed a graph and report`);
+  cnocept --seed                         seed a graph and report
+  cnocept --fresh ...                    do not load or save the persistent graph
+  cnocept --graph <path> ...             use a different graph file
+
+The graph lives at ~/.cnocept/graph.json and grows as the system learns.`);
 }
