@@ -72,7 +72,7 @@ export async function hear(
   message: string,
   options: HearOptions = {},
 ): Promise<EarsResult> {
-  const system = earsPrompt(store, options.history ?? []);
+  const system = earsPrompt(store, options.history ?? [], message);
   let raw = await generate(system, message, options);
   let lifted = lift(raw);
   let problems = check(message, lifted.expression);

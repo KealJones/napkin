@@ -124,13 +124,64 @@ const OUT = `Output only those lines. No prose, no markdown, no code fence, no n
  * Argument order is taught by the EXAMPLES instead, using real values, which carries the
  * same information without offering a template to copy.
  */
-export function vocabulary(store: ConceptStore, limit = 400): string {
-  const interesting = store
-    .all()
-    .map((u) => u.identity)
-    .filter((id) => !/^(Code|Rest|CellRef|Timestamp|True|False)$/.test(id))
-    .sort();
-  const shown = interesting.slice(0, limit);
+const STRUCTURAL = /^(Code|Rest|CellRef|Timestamp|True|False)$/;
+
+/** Required in every question by the rules above, so never droppable from the list. */
+const INTERROGATIVES = [
+  "What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf", "Whether",
+];
+
+/**
+ * What the Ears is shown, when the graph no longer fits.
+ *
+ * It used to be the first N identities in alphabetical order, which was fine at 150
+ * Concepts and silently wrong at 572: the list ran A to "Requirement" and everything after
+ * it vanished. `Time`, `Today`, `ShiftHours`, `Sequence` and `Whether` were all invisible
+ * to the parser — training the graph had broken the parser's view of it, and alphabetically.
+ *
+ * Chosen by usefulness instead, in four bands:
+ *
+ *  0. The interrogatives. Rule 1 of the prompt requires one in every question, so a
+ *     vocabulary that can drop them contradicts the instructions it sits beside.
+ *  1. Concepts that REALIZE something. Naming one of these is the difference between an
+ *     answer and a residual, so they are never crowded out.
+ *  2. Concepts the message itself points at, by word. `Greeting` matters when someone says
+ *     hello and never otherwise.
+ *  3. The rest, alphabetically, so the prompt stays stable between turns and the model is
+ *     not learning a new vocabulary every message.
+ */
+export function vocabulary(store: ConceptStore, limit = 400, message = ""): string {
+  const all = store.all().filter((u) => !STRUCTURAL.test(u.identity));
+
+  const chosen: string[] = [];
+  const taken = new Set<string>();
+  const take = (ids: readonly string[]): void => {
+    for (const id of ids) {
+      if (chosen.length >= limit || taken.has(id)) continue;
+      taken.add(id);
+      chosen.push(id);
+    }
+  };
+
+  const byName = (a: { identity: string }, b: { identity: string }) =>
+    a.identity.localeCompare(b.identity);
+
+  take([...INTERROGATIVES].filter((id) => store.has(id)));
+  take(all.filter((u) => u.realizations.length).sort(byName).map((u) => u.identity));
+
+  const words = message.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+  if (words.length) {
+    take(
+      all
+        .filter((u) => words.some((w) => u.identity.toLowerCase().includes(w)))
+        .sort(byName)
+        .map((u) => u.identity),
+    );
+  }
+
+  take(all.sort(byName).map((u) => u.identity));
+
+  const shown = [...chosen].sort((a, b) => a.localeCompare(b));
   return `VOCABULARY — these exist. Invent new CapitalizedNames freely when nothing fits.\n${shown
     .map((id) => `${id}(...)`)
     .join("  ")}`;
@@ -158,8 +209,9 @@ ${shown.map((t) => `they said: ${t.message}\nthe answer was: ${t.result}`).join(
 export function earsPrompt(
   store: ConceptStore,
   history: readonly { message: string; result: string }[] = [],
+  message = "",
 ): string {
-  return [FORM, MARK, RULES, QUESTIONS, vocabulary(store), EXAMPLES, recent(history), OUT]
+  return [FORM, MARK, RULES, QUESTIONS, vocabulary(store, 400, message), EXAMPLES, recent(history), OUT]
     .filter(Boolean)
     .join("\n\n");
 }

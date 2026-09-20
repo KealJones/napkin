@@ -84,3 +84,34 @@ test("salvage never wins over something that already parses", () => {
   const fine = 'Concept(identity="Money", relations=List(IsA(Asset())))';
   assert.equal(format(lift(fine).expression!), fine);
 });
+
+test("the vocabulary keeps what matters when the graph outgrows the prompt", async () => {
+  const { vocabulary } = await import("./prompt.js");
+  const { ConceptStore } = await import("../store/store.js");
+  const { seed } = await import("../seed/seed.js");
+  const { concept } = await import("../concept/unit.js");
+
+  const store = new ConceptStore();
+  seed(store);
+  // Enough junk to push everything past the limit, all of it alphabetically early.
+  for (let i = 0; i < 600; i += 1) store.seed(concept(`Aardvark${String(i).padStart(4, "0")}`));
+
+  const shown = vocabulary(store, 120, "what time is it").split("\n")[1]!;
+  // Alphabetical truncation lost the interrogatives and everything that computes.
+  assert.match(shown, /\bWhat\(/, "an interrogative is required by the rules beside this list");
+  assert.match(shown, /\bTime\(/, "naming a Concept that realizes is the difference from a residual");
+  assert.match(shown, /\bMultiply\(/);
+});
+
+test("the message pulls in Concepts that are otherwise nowhere near the front", async () => {
+  const { vocabulary } = await import("./prompt.js");
+  const { ConceptStore } = await import("../store/store.js");
+  const { concept } = await import("../concept/unit.js");
+
+  const store = new ConceptStore();
+  for (let i = 0; i < 300; i += 1) store.seed(concept(`Aardvark${String(i).padStart(4, "0")}`));
+  store.seed(concept("Zebra"));
+
+  assert.match(vocabulary(store, 50, "tell me about a zebra").split("\n")[1]!, /\bZebra\(/);
+  assert.ok(!vocabulary(store, 50, "tell me about a horse").split("\n")[1]!.includes("Zebra("));
+});
