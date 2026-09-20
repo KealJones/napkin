@@ -60,13 +60,14 @@ importers:
         version: 5.9.3
 
   packages/concept-runtime:
+    dependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.3
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
 
 packages:
 

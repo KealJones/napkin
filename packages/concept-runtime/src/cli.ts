@@ -135,6 +135,19 @@ if (flag("--study")) {
   process.exit(0);
 }
 
+const importing = value("--import");
+if (importing) {
+  const { readFileSync } = await import("node:fs");
+  const { importTypeScript } = await import("./code/import.js");
+  const result = importTypeScript(readFileSync(importing, "utf8"), importing);
+  console.log(format(result.expression));
+  if (result.unsupported.length) {
+    console.error(`\n${result.unsupported.length} node(s) with no mapping:`);
+    for (const u of result.unsupported) console.error(`  ${u.kind}  ${u.source.replace(/\s+/g, " ")}`);
+  }
+  process.exit(0);
+}
+
 const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
@@ -175,6 +188,7 @@ if (expr) {
   cnocept --study --track economics      learn a whole curriculum track
   cnocept --study If Add --as TypeScript teach existing Concepts to emit a language
   cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
+  cnocept --import src/thing.ts          read TypeScript as Concept expressions
   cnocept --agenda                       what it would work on next, unprompted
   cnocept --exist                        work on that agenda, bounded by --budget
   cnocept --forget                       what would be forgotten (--commit to apply)

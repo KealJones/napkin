@@ -78,6 +78,27 @@ export const CURRICULUM: Record<string, readonly string[]> = {
     "algorithm", "complexity", "sorting", "searching", "hash", "encryption",
   ],
 
+  /**
+   * What this system is made of.
+   *
+   * Run this one with research OFF. Almost every term here is a common word wearing a
+   * local meaning: a web search for "realization" returns philosophy of mind, "facet"
+   * returns library science, and "residual" returns statistics. Grounding the Teacher in
+   * those would teach the wrong sense of every word that matters most.
+   *
+   * Ordered so the pieces come before the things built out of them.
+   */
+  cnocept: [
+    "identity", "expression", "variable", "call", "argument", "pattern", "matching",
+    "substitution", "binding", "scope", "concept", "relation", "realization", "body",
+    "composition", "context", "facet", "specificity", "selection", "ambiguity",
+    "inheritance", "synonym", "marker", "residual", "evaluation", "trace", "gap",
+    "learning", "teacher", "grounding", "graph", "persistence", "shadowing",
+    "interrogative", "reference", "deixis", "description", "suppression", "budget",
+    "open world assumption", "three valued truth", "verifier", "emission",
+    "target language", "transpilation", "ownership", "self reference",
+  ],
+
   /** Leans on `programming`: these are distinctions a language makes, not a machine. */
   typescript: [
     "type", "type annotation", "type inference", "static type", "dynamic type",

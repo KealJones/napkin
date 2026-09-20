@@ -22,6 +22,7 @@ export * from "./research/sources.js";
 export * from "./learn/teacher.js";
 export * from "./learn/study.js";
 export * from "./learn/curriculum.js";
+export * from "./code/import.js";
 export * from "./runtime/turn.js";
 export * from "./runtime/references.js";
 export * from "./runtime/exist.js";
