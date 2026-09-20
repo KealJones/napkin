@@ -12,7 +12,7 @@ import { Runtime } from "./runtime/evaluator.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
 import { study } from "./learn/study.js";
-import { curriculum, TRACKS } from "./learn/curriculum.js";
+import { curriculum, EVERYDAY, TRACKS } from "./learn/curriculum.js";
 import { forget } from "./store/forget.js";
 import { seed } from "./seed/seed.js";
 import { load, save } from "./store/persist.js";
@@ -92,7 +92,7 @@ if (flag("--study")) {
       .map(value)
       .filter(Boolean),
   );
-  const track = value("--track");
+  const track = flag("--everyday") ? EVERYDAY : value("--track");
   const topics = track
     ? curriculum(track)
     : args.filter((a) => !a.startsWith("--") && !consumed.has(a));
@@ -202,6 +202,7 @@ if (expr) {
   cnocept --learn "what is chess?"       close gaps by learning before answering
   cnocept --study money debt             learn topics, and whatever they turn out to need
   cnocept --study --track economics      learn a whole curriculum track
+  cnocept --study --everyday             the whole everyday world, foundations first
   cnocept --study If Add --as TypeScript teach existing Concepts to emit a language
   cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
   cnocept --study --track cnocept --from .agents/planning/2026-09-16-concept-ai-system/design

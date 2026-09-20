@@ -130,15 +130,38 @@ export const CURRICULUM: Record<string, readonly string[]> = {
 export const TRACKS = Object.keys(CURRICULUM);
 
 /**
- * Topics for one track, or every track in dependency order when given `all`.
- * `foundations` is forced first: the rest is built out of it.
+ * Topics for one track, several comma-separated tracks, or every track when given `all`.
+ *
+ * `foundations` always runs first where it is included, and a topic named by two tracks is
+ * studied once, at its earliest position -- a later track wanting it should find it already
+ * there rather than queue it again.
  */
 export function curriculum(track = "all"): string[] {
-  if (track !== "all") {
-    const found = CURRICULUM[track];
-    if (!found) throw new Error(`Unknown track ${track}. Try one of: ${TRACKS.join(", ")}`);
-    return [...found];
+  const wanted =
+    track === "all"
+      ? ["foundations", ...TRACKS.filter((t) => t !== "foundations")]
+      : track.split(",").map((t) => t.trim()).filter(Boolean);
+
+  const unknown = wanted.filter((t) => !CURRICULUM[t]);
+  if (unknown.length) {
+    throw new Error(`Unknown track ${unknown.join(", ")}. Try one of: ${TRACKS.join(", ")}, all`);
   }
-  const ordered = ["foundations", ...TRACKS.filter((t) => t !== "foundations")];
-  return ordered.flatMap((t) => [...CURRICULUM[t]]);
+  if (wanted.includes("foundations")) {
+    wanted.splice(wanted.indexOf("foundations"), 1);
+    wanted.unshift("foundations");
+  }
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of wanted) {
+    for (const topic of CURRICULUM[t]!) {
+      if (seen.has(topic)) continue;
+      seen.add(topic);
+      out.push(topic);
+    }
+  }
+  return out;
 }
+
+/** The everyday world, as opposed to the tracks about machines or about this system. */
+export const EVERYDAY = "foundations,time,quantity,physical,life,mind,society,economics";
