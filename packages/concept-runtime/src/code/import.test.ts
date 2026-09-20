@@ -77,3 +77,38 @@ test("the runtime's own grammar module imports with nothing unmapped", async () 
   const result = importTypeScript(source);
   assert.deepEqual(result.unsupported, []);
 });
+
+test("source held in a string literal is translated, not carried as text", () => {
+  // The seed keeps 27 realization bodies as `code(`...`)`. Left as strings they make the
+  // import look complete while 350 lines of real behaviour pass through untranslated.
+  const out = ir('const r = code(`(args) => args[0].value + 1`);');
+  assert.match(out, /Embedded\(/);
+  assert.match(out, /Lambda\(List\(\$args\)/);
+  assert.ok(!out.includes('"(args) =>'));
+});
+
+test("a string that is not source stays a string", () => {
+  assert.equal(ir('const r = notCode(`(args) => 1`);'), 'Let($r, Call($notCode, "(args) => 1"))');
+});
+
+test("failures inside embedded source are reported with the outer file's", () => {
+  const result = importTypeScript("const r = code(`with (x) { y; }`);");
+  assert.equal(result.unsupported.length, 1);
+  assert.equal(result.unsupported[0]!.kind, "WithStatement");
+});
+
+test("the seed imports with no opaque source left in it", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const here = fileURLToPath(new URL(".", import.meta.url));
+  const result = importTypeScript(readFileSync(`${here}../../src/seed/seed.ts`, "utf8"));
+  assert.deepEqual(result.unsupported, []);
+  let opaque = 0;
+  for (const node of walk(result.expression)) {
+    if (!isCall(node) || node.head !== "Call") continue;
+    const callee = node.args[0]?.value;
+    const isCode = typeof callee === "object" && callee !== null && "variable" in callee && callee.variable === "code";
+    if (isCode && typeof node.args[1]?.value === "string") opaque += 1;
+  }
+  assert.equal(opaque, 0);
+});

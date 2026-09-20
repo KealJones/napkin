@@ -110,11 +110,17 @@ different program, and no facet fixes that.
 realizations: `async`/`await` onto an executor, exceptions onto `Result`, and structural
 typing onto traits. Each is a design question the graph cannot answer by emitting harder.
 
-**The 30 `code()` bodies are the port, not the evaluator.** Every seeded realization is a
-JavaScript closure. Either embed a JS engine, or rewrite them as native functions and let
-`Code(...)` mean "a host function" rather than "JavaScript" — which is what the spec
-already says it means (`concept-spec.md` Part 17.1 lists `Code` as structural, and says
-nothing about the language).
+**The `code()` bodies were nearly a silent hole.** Every seeded realization is a JavaScript
+closure inside a template literal, so the importer first read all 27 of them as opaque
+strings — 350 lines of real behaviour, a third of the seed, passing through untranslated
+while the report said nothing was unmapped. They are now translated in place and marked
+`Embedded(...)`, which records that they were source text in the original and can be
+written back out as one. Node count went from 20,530 to 23,535, and that difference is the
+measure of what the first number was hiding.
+
+That leaves the smaller version of the original problem: `Code(...)` still has to mean "a
+host function" rather than "JavaScript" on the Rust side. The spec already agrees —
+`concept-spec.md` Part 17.1 lists `Code` as structural and says nothing about a language.
 
 **And the honest framing of the whole thing:** succeeding here proves the system can
 mechanically translate between two formal languages given a verifier. It does not prove it

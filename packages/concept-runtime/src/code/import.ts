@@ -20,7 +20,7 @@
  * silence, and the import of a large file should report what it could not read.
  */
 import ts from "typescript";
-import { type Expr, arg, call, c, v } from "../concept/expression.js";
+import { type Expr, arg, call, c, isCall as isCallExpr, v } from "../concept/expression.js";
 
 const UNDEFINED = c("Undefined");
 
@@ -60,6 +60,19 @@ const COMPOUND: Partial<Record<ts.SyntaxKind, string>> = {
   [ts.SyntaxKind.SlashEqualsToken]: "Divide",
 };
 
+export interface ImportOptions {
+  /**
+   * Callees whose single string argument is really source code, not data.
+   *
+   * `code(`(args) => ...`)` is a function inside a string literal. Left alone it imports
+   * as an opaque string, which makes the import look complete while a third of the seed
+   * -- 350 lines of real behaviour -- passes through untranslated. Named here, the string
+   * is imported too and appears as `Embedded(...)`, which says it was source text in the
+   * original and can be written back out as one.
+   */
+  embedded?: readonly string[];
+}
+
 export interface ImportResult {
   readonly expression: Expr;
   /** What had no mapping, so a large import reports its own gaps. */
@@ -68,7 +81,24 @@ export interface ImportResult {
 
 class Importer {
   readonly unsupported: { kind: string; source: string }[] = [];
-  constructor(private readonly file: ts.SourceFile) {}
+  constructor(
+    private readonly file: ts.SourceFile,
+    private readonly embedded: readonly string[] = ["code"],
+  ) {}
+
+  /** Source held in a string literal, translated in place. */
+  private embed(text: string): Expr {
+    const inner = importTypeScript(text, `${this.file.fileName}#embedded`, { embedded: this.embedded });
+    this.unsupported.push(...inner.unsupported);
+    const module = inner.expression;
+    // A lone expression comes back wrapped in Module; unwrap it so `Embedded` holds the
+    // function rather than a module containing one.
+    const only =
+      isCallExpr(module) && module.head === "Module" && module.args.length === 1
+        ? module.args[0]!.value
+        : module;
+    return c("Embedded", only);
+  }
 
   private unknown(node: ts.Node): Expr {
     const kind = ts.SyntaxKind[node.kind];
@@ -344,9 +374,23 @@ class Importer {
       return c("Index", this.expression(node.expression), this.expression(node.argumentExpression));
     }
     if (ts.isCallExpression(node)) {
+      // `import("x")` is a call whose callee is a keyword, not a value.
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        return call("DynamicImport", node.arguments.map((a) => ({ value: this.expression(a) })));
+      }
+      const callee = ts.isIdentifier(node.expression) ? this.name(node.expression) : undefined;
+      const wantsSource = callee !== undefined && this.embedded.includes(callee);
       return call("Call", [
         { value: this.expression(node.expression) },
-        ...node.arguments.map((a) => ({ value: this.expression(a) })),
+        ...node.arguments.map((a) => {
+          if (
+            wantsSource &&
+            (ts.isNoSubstitutionTemplateLiteral(a) || ts.isStringLiteral(a))
+          ) {
+            return { value: this.embed(a.text) };
+          }
+          return { value: this.expression(a) };
+        }),
       ]);
     }
     if (ts.isNewExpression(node)) {
@@ -450,8 +494,12 @@ class Importer {
 }
 
 /** One file of TypeScript as one `Module(...)` expression. */
-export function importTypeScript(source: string, fileName = "input.ts"): ImportResult {
+export function importTypeScript(
+  source: string,
+  fileName = "input.ts",
+  options: ImportOptions = {},
+): ImportResult {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
-  const importer = new Importer(file);
+  const importer = new Importer(file, options.embedded ?? ["code"]);
   return { expression: importer.module(), unsupported: importer.unsupported };
 }
