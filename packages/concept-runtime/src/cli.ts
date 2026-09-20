@@ -88,7 +88,9 @@ if (flag("--study")) {
   }
   // Every bare word is a topic; the flag values are not.
   const consumed = new Set(
-    ["--graph", "--limit", "--depth", "--model", "--track", "--as"].map(value).filter(Boolean),
+    ["--graph", "--limit", "--depth", "--model", "--track", "--as", "--from"]
+      .map(value)
+      .filter(Boolean),
   );
   const track = value("--track");
   const topics = track
@@ -102,6 +104,19 @@ if (flag("--study")) {
     );
     process.exit(1);
   }
+  // Documents to learn from, rather than the web. A directory takes every .md inside it.
+  const from = value("--from");
+  let reading: { name: string; text: string }[] = [];
+  if (from) {
+    const { readFileSync, readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const files = statSync(from).isDirectory()
+      ? readdirSync(from).filter((f) => /\.(md|txt)$/.test(f)).map((f) => join(from, f))
+      : [from];
+    reading = files.map((f) => ({ name: f.split("/").pop() ?? f, text: readFileSync(f, "utf8") }));
+    console.log(`reading ${reading.length} document(s) from ${from}`);
+  }
+
   const limit = Number(value("--limit") ?? 25);
   const depth = Number(value("--depth") ?? 2);
   const before = store.size();
@@ -117,6 +132,7 @@ if (flag("--study")) {
     maxDepth: depth,
     as: value("--as"),
     research: !flag("--no-research"),
+    reading,
     onStep: (s) => {
       const mark = { taught: "+", known: "=", refused: "~", failed: "!" }[s.how];
       console.log(`${mark} ${"  ".repeat(s.depth)}${s.identity}  ${s.detail.slice(0, 120)}`);
@@ -188,6 +204,8 @@ if (expr) {
   cnocept --study --track economics      learn a whole curriculum track
   cnocept --study If Add --as TypeScript teach existing Concepts to emit a language
   cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
+  cnocept --study --track cnocept --from .agents/planning/2026-09-16-concept-ai-system/design
+                                         learn its own vocabulary from its own specs
   cnocept --import src/thing.ts          read TypeScript as Concept expressions
   cnocept --agenda                       what it would work on next, unprompted
   cnocept --exist                        work on that agenda, bounded by --budget

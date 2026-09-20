@@ -11,7 +11,7 @@ export interface Finding {
   readonly title: string;
   readonly snippet: string;
   readonly url: string;
-  readonly source: "Wikidata" | "Web";
+  readonly source: "Wikidata" | "Web" | "Reading";
 }
 
 const clip = (s: string, n = 280): string => (s.length > n ? `${s.slice(0, n)}…` : s);

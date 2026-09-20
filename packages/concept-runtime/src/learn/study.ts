@@ -22,6 +22,7 @@ import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { c, format } from "../concept/expression.js";
 import { evidenceText, research } from "../research/sources.js";
+import { passages, type Document } from "./reading.js";
 import { readable } from "./learn.js";
 import { teach } from "./teacher.js";
 
@@ -93,6 +94,12 @@ export interface StudyOptions extends ModelOptions {
   maxDepth?: number;
   /** Ground the Teacher in sources. On by default; off makes it recall-only. */
   research?: boolean;
+  /**
+   * Documents to take evidence from instead of the web. For a vocabulary the web would
+   * get wrong -- this project's own terms, a house style, a domain with private meanings
+   * -- the right source is the one that defines them.
+   */
+  reading?: readonly Document[];
   /** Off means crawl what is already known without asking the Teacher anything. */
   teacher?: boolean;
   /**
@@ -225,7 +232,18 @@ export async function study(
     }
 
     let evidence = "";
-    if (options.research !== false) {
+    if (options.reading?.length) {
+      // Documents beat the web where they cover the term, and the web is not consulted
+      // at all for a vocabulary it would answer confidently and wrongly.
+      evidence = evidenceText(passages(options.reading, readable(identity)));
+      if (evidence) {
+        record({
+          identity, depth, how: "known",
+          detail: `read from ${options.reading.length} document(s)`, discovered: [],
+        });
+      }
+    }
+    if (!evidence && options.research !== false) {
       try {
         evidence = evidenceText(await research(readable(identity)));
       } catch {
