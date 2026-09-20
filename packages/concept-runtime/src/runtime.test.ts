@@ -409,3 +409,30 @@ test("a body with no declared language is JavaScript, as every existing one is",
   const rt = new Runtime(store);
   assert.equal(format(await rt.evaluate(parse("Tripled(5)"), c("Execution"))), "15");
 });
+
+test("synonym chains do not close, because synonymy is not transitive", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  // Bright is a synonym of smart; bright is a synonym of luminous; smart is not a synonym
+  // of luminous. Walked as an equivalence, a 554-Concept graph made Identity a synonym of
+  // Chore by six defensible hops.
+  store.addRelation("Bright", parse("SynonymOf(Smart())"));
+  store.addRelation("Bright", parse("SynonymOf(Luminous())"));
+
+  const { Relations } = await import("./store/relations.js");
+  const near = new Relations(store).cluster("Smart", 24, true).map((x) => x.identity);
+  assert.deepEqual(near, ["Bright"]);
+  assert.ok(!near.includes("Luminous"));
+});
+
+test("a relation declared transitive still closes", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept("SameSizeAs", { relations: [parse("Symmetric()"), parse("Transitive()")] }));
+  store.addRelation("A", parse("SameSizeAs(B())"));
+  store.addRelation("B", parse("SameSizeAs(C())"));
+
+  const { Relations } = await import("./store/relations.js");
+  const near = new Relations(store).cluster("A", 24, true).map((x) => x.identity);
+  assert.ok(near.includes("C"), "declared transitive, so the chain is the point");
+});

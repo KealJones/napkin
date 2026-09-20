@@ -37,7 +37,7 @@ export interface LearnResult {
  * in a cluster that already contains something realizable, it needs attaching rather than
  * teaching, and attaching is free.
  */
-function fromGraph(runtime: Runtime, identity: string): string | undefined {
+export function fromGraph(runtime: Runtime, identity: string): string | undefined {
   // Inheritance counts as connected: a Concept reaching behaviour through IsA needs
   // nothing, and attaching a SynonymOf to it would be noise.
   if (reachesBehaviour(runtime.store, identity)) return undefined;

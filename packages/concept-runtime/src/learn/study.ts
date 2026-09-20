@@ -23,7 +23,7 @@ import type { Runtime } from "../runtime/evaluator.js";
 import { c, format } from "../concept/expression.js";
 import { evidenceText, research } from "../research/sources.js";
 import { passages, type Document } from "./reading.js";
-import { readable } from "./learn.js";
+import { fromGraph, readable } from "./learn.js";
 import { teach } from "./teacher.js";
 
 /** Structural identities and containers. Teaching these would be teaching the harness. */
@@ -68,13 +68,14 @@ export interface StudyStep {
   readonly identity: string;
   readonly depth: number;
   /**
+   * `attached`  — connected to a realizable neighbour it already named, for free;
    * `taught`    — the Teacher produced a declaration and the graph changed;
    * `known`     — already understood, so it was harvested rather than taught;
    * `read`      — evidence was found for it, which is a note rather than an outcome;
    * `refused`   — a declaration came back and saved nothing;
    * `failed`    — no usable declaration.
    */
-  readonly how: "taught" | "known" | "read" | "refused" | "failed";
+  readonly how: "taught" | "attached" | "known" | "read" | "refused" | "failed";
   readonly detail: string;
   /** Concepts this step put on the frontier. */
   readonly discovered: readonly string[];
@@ -230,10 +231,18 @@ export async function study(
       continue;
     }
 
-    // Already understood: nothing to teach, but what it names is still worth following.
+    // Already understood: nothing to teach, but what it names is still worth following,
+    // and it may be an island that a neighbour could give behaviour to.
     if (understood(runtime, identity)) {
       const discovered = push(frontierFrom(runtime.store.get(identity)!.relations), depth + 1);
-      record({ identity, depth, how: "known", detail: "already understood", discovered });
+      const attached = fromGraph(runtime, identity);
+      record({
+        identity, depth,
+        how: attached ? "attached" : "known",
+        detail: attached ?? "already understood",
+        discovered,
+      });
+      if (attached) options.onProgress?.();
       continue;
     }
 
@@ -319,6 +328,12 @@ export async function study(
     if (learned > 0) {
       taught += 1;
       record({ identity, depth, how: "taught", detail: format(saved), discovered });
+      // Try the graph before the model, which here means AFTER the model: a Concept just
+      // taught `SynonymOf(Something())` is an island until it is attached, and attaching
+      // costs nothing. Without this a crawl builds synonyms that cannot do what their
+      // twins can, so the same question phrased two ways computes once and residuals once.
+      const attached = fromGraph(runtime, identity);
+      if (attached) record({ identity, depth, how: "attached", detail: attached, discovered: [] });
       options.onProgress?.();
     } else {
       record({ identity, depth, how: "refused", detail: format(saved), discovered });

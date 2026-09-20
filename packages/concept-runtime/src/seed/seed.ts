@@ -22,7 +22,16 @@ const add = (u: ConceptUnit) => void units.push(u);
  * Relation vocabulary. Pure data; the harness never reads these.
  * ------------------------------------------------------------------ */
 add(concept("IsA", { relations: ["Transitive()"] }));
-add(concept("SynonymOf", { relations: ["Symmetric()", "Transitive()"] }));
+/**
+ * Symmetric but NOT transitive, which is the whole difficulty with synonymy.
+ *
+ * Bright is a synonym of smart, and bright is a synonym of luminous, and smart is not a
+ * synonym of luminous. Declared transitive, the chains close: a 554-Concept graph produced
+ * Identity equivalent to Sameness, Role, Duty, Task and finally Chore, each hop arguable
+ * and the closure nonsense. Synonym islands are a success (they are how language works);
+ * synonym CONTINENTS are the failure, and transitivity is what makes them.
+ */
+add(concept("SynonymOf", { relations: ["Symmetric()"] }));
 add(concept("InverseOf", { relations: ["Symmetric()"] }));
 add(concept("Disjoint", { relations: ["Symmetric()", "Irreflexive()"] }));
 // Classified, not bare. A Concept with no relations and no realizations is

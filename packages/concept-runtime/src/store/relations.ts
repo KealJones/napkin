@@ -199,15 +199,18 @@ export class Relations {
     while (queue.length && out.size < limit) {
       const current = queue.shift()!;
       for (const t of [...this.store.asSubject(current), ...this.store.asObject(current)]) {
-        const isEquivalence =
-          this.declares(t.predicate, PROPERTY.symmetric) && this.declares(t.predicate, PROPERTY.transitive);
+        // Symmetric alone makes something a neighbour. Only symmetric AND transitive makes
+        // it a neighbour's neighbour: a relation that does not close must not be walked as
+        // though it did, or every synonym chain collapses into one blob.
+        const isSymmetric = this.declares(t.predicate, PROPERTY.symmetric);
+        const closes = isSymmetric && this.declares(t.predicate, PROPERTY.transitive);
         const isParent = !equivalenceOnly && t.predicate === "IsA";
-        if (!isEquivalence && !isParent) continue;
+        if (!isSymmetric && !isParent) continue;
         const other = t.subject === current ? objectKey(t.object) : t.subject;
         if (!other || seen.has(other)) continue;
         seen.add(other);
         out.set(other, t.predicate);
-        if (isEquivalence) queue.push(other);
+        if (closes) queue.push(other);
       }
     }
     return [...out].map(([id, via]) => ({ identity: id, via }));
