@@ -275,3 +275,39 @@ test("a Concept that already speaks the context is left alone", async () => {
   const result = await study(rt, ["if"], { as: "TypeScript", teacher: false });
   assert.ok(result.steps.some((s) => s.identity === "If" && s.how === "known"));
 });
+
+test("a declaration cannot flood the graph with free association", async () => {
+  const rt = fresh();
+  // What a runaway Teacher produces: Quantity once came back with two hundred relations,
+  // ending "Jerk Snap Crackle Pop". Every one would become a topic the crawl studies.
+  const many = Array.from({ length: 40 }, (_, i) => `IsA(Thing${i}())`).join(", ");
+  const saved = await rt.evaluate(
+    parse(`Concept(identity="Flood", relations=List(${many}))`),
+    EXEC,
+  );
+  assert.equal(rt.store.get("Flood")!.relations.length, 12);
+  assert.match(format(saved), /TooMany\(28\)/);
+});
+
+test("a reasonable declaration is not capped", async () => {
+  const rt = fresh();
+  const saved = await rt.evaluate(
+    parse('Concept(identity="Modest", relations=List(IsA(Category()), SynonymOf(Thing())))'),
+    EXEC,
+  );
+  assert.equal(rt.store.get("Modest")!.relations.length, 2);
+  assert.ok(!format(saved).includes("TooMany"));
+});
+
+test("a Teacher that times out costs one topic, not the run", async () => {
+  const { study } = await import("./study.js");
+  const rt = fresh();
+  // An endpoint that is not there fails the same way a timeout does.
+  const result = await study(rt, ["chess", "backgammon"], {
+    research: false,
+    endpoint: "http://127.0.0.1:9",
+    timeoutMs: 200,
+  });
+  assert.equal(result.visited, 2);
+  assert.ok(result.steps.every((s) => s.how === "failed"));
+});

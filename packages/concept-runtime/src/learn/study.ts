@@ -185,17 +185,27 @@ export async function study(
         continue;
       }
       const before = unit.realizations.length;
-      const lesson = await teach(
-        runtime.store,
-        {
-          identity,
-          message: `Express ${readable(identity)} in ${options.as}.`,
-          expression: `${identity}()`,
-          inContext: `${options.as}()`,
-          existing: unit.realizations.map((r) => `  ${format(r.pattern)}`).join("\n"),
-        },
-        options,
-      );
+      let lesson: Awaited<ReturnType<typeof teach>>;
+      try {
+        lesson = await teach(
+          runtime.store,
+          {
+            identity,
+            message: `Express ${readable(identity)} in ${options.as}.`,
+            expression: `${identity}()`,
+            inContext: `${options.as}()`,
+            existing: unit.realizations.map((r) => `  ${format(r.pattern)}`).join("\n"),
+          },
+          options,
+        );
+      } catch (caught) {
+        record({
+          identity, depth, how: "failed",
+          detail: caught instanceof Error ? caught.message : String(caught),
+          discovered: [],
+        });
+        continue;
+      }
       if (!lesson.declaration) {
         record({ identity, depth, how: "failed", detail: lesson.problem ?? "no declaration", discovered: [] });
         continue;
@@ -252,11 +262,23 @@ export async function study(
       }
     }
 
-    const taughtResult = await teach(
-      runtime.store,
-      { identity, message: `Teach me about ${readable(identity)}.`, expression: `${identity}()`, evidence },
-      options,
-    );
+    let taughtResult: Awaited<ReturnType<typeof teach>>;
+    try {
+      taughtResult = await teach(
+        runtime.store,
+        { identity, message: `Teach me about ${readable(identity)}.`, expression: `${identity}()`, evidence },
+        options,
+      );
+    } catch (caught) {
+      // A generation that times out is one lost topic, not a lost run. An overnight crawl
+      // that dies on its fifth Concept because one call was slow is worthless.
+      record({
+        identity, depth, how: "failed",
+        detail: caught instanceof Error ? caught.message : String(caught),
+        discovered: [],
+      });
+      continue;
+    }
     if (!taughtResult.declaration) {
       record({
         identity, depth, how: "failed",

@@ -97,8 +97,15 @@ add(
             return api.call("InvalidDeclaration", identity === undefined ? api.call("Missing") : identity);
           }
           const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
+          // A Teacher told to give a few relations sometimes gives two hundred, listing
+          // whatever the word reminds it of -- Quantity once returned "Jerk Snap Crackle
+          // Pop". The prompt asks; this enforces. Past the cap it is free association,
+          // and every one of them becomes a topic the crawl then goes and studies.
+          const RELATION_CAP = 12;
           api.store.seed({ identity, relations: [], realizations: [] });
-          for (const r of items(get("relations"))) {
+          const asked = items(get("relations"));
+          const relations = asked.slice(0, RELATION_CAP);
+          for (const r of relations) {
             // A relation naming the Concept it belongs to says nothing: the subject is
             // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
             // which is its own pattern filed as a fact, and it stuck in the graph.
@@ -189,6 +196,9 @@ add(
             });
             added += 1;
           }
+          if (asked.length > RELATION_CAP) {
+            rejected.push(api.call("TooMany", asked.length - RELATION_CAP));
+          }
           if (rejected.length) {
             return api.call("Saved", api.call(identity), added, api.call("Rejected", ...rejected));
           }
@@ -231,6 +241,7 @@ add(concept("Saved"));
 add(concept("Rejected"));
 add(concept("NeedsFirst"));
 add(concept("SelfReferential"));
+add(concept("TooMany"));
 add(concept("NotComposed"));
 add(concept("Incomplete"));
 add(concept("NotComposed"));

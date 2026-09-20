@@ -239,7 +239,9 @@ export async function teach(
   const raw = await generate(
     system,
     prompt,
-    { maxTokens: 1024, ...shared, model: TEACHER_MODEL },
+    // A 27B is slower than the parser this timeout was sized for, and a slow answer is
+    // still an answer.
+    { maxTokens: 1024, timeoutMs: 180_000, ...shared, model: TEACHER_MODEL },
   );
   const declaration = declarationFrom(lift(raw).expression);
 
