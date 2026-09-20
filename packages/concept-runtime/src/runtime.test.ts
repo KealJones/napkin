@@ -436,3 +436,27 @@ test("a relation declared transitive still closes", async () => {
   const near = new Relations(store).cluster("A", 24, true).map((x) => x.identity);
   assert.ok(near.includes("C"), "declared transitive, so the chain is the point");
 });
+
+test("the interval relations are a closed family with the right properties", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  // Read the declarations off the unit, which is where a relation's properties live.
+  const declares = (identity: string, property: string): boolean =>
+    (store.get(identity)?.relations ?? []).some((r) => format(r) === `${property}()`);
+  const ALLEN = [
+    "Before", "After", "Meets", "MetBy", "Overlaps", "OverlappedBy",
+    "Starts", "StartedBy", "During", "Contains", "Finishes", "FinishedBy", "Equals",
+  ];
+  assert.equal(ALLEN.length, 13, "thirteen, and exactly thirteen");
+  for (const name of ALLEN) {
+    assert.ok(store.has(name), `${name} is seeded`);
+  }
+  // Ordering settles a chain.
+  assert.ok(declares("Before", "Transitive"));
+  // Adjacency does not: three intervals in a row do not make the first meet the third.
+  assert.ok(!declares("Meets", "Transitive"));
+  assert.ok(!declares("Overlaps", "Transitive"));
+  // Exactly one of the thirteen is an equivalence.
+  const equivalences = ALLEN.filter((n) => declares(n, "Symmetric") && declares(n, "Transitive"));
+  assert.deepEqual(equivalences, ["Equals"]);
+});

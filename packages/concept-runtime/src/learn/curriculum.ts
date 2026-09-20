@@ -26,6 +26,21 @@ export const CURRICULUM: Record<string, readonly string[]> = {
     "age", "lifetime", "cycle", "season",
   ],
 
+  /**
+   * The soft half of time. The exact half -- Allen's thirteen interval relations -- is
+   * seeded instead, because a web search for "meets" and "during" returns the English
+   * words rather than the calculus.
+   */
+  temporality: [
+    "temporality", "instant", "interval", "period", "epoch", "era", "simultaneity",
+    "succession", "precedence", "adjacency", "overlap", "containment", "persistence",
+    "transience", "permanence", "recurrence", "periodicity", "tempo", "synchrony",
+    "asynchrony", "tense", "aspect", "perfective", "imperfective", "progressive",
+    "anteriority", "posteriority", "deixis", "temporal reference", "now", "origin",
+    "timeline", "chronology", "history", "anticipation", "memory", "expectation",
+    "causation", "precondition", "consequence", "irreversibility", "ageing", "decay",
+  ],
+
   quantity: [
     "number", "count", "measurement", "length", "mass", "weight", "volume", "area",
     "temperature", "ratio", "proportion", "percentage", "fraction", "average", "sum",

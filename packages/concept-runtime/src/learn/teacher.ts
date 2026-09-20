@@ -35,9 +35,16 @@ RULES
    Write BoardGame(), never board_game or "board game".
 2. Prefer relations. Most Concepts are not computations; what a thing IS lives in its
    relations. Give at least one IsA(...) where one is true.
-3. If the Concept is a RELATION, say whether it is Symmetric(), Transitive(),
-   Asymmetric(), and what its InverseOf(...) is. Each of those licenses inference over
-   every future use, so a relation taught without them is inert in one direction.
+3. If the Concept is a RELATION -- something that holds BETWEEN two things -- say whether
+   it is Symmetric(), Transitive(), Asymmetric(), and what its InverseOf(...) is. Each
+   licenses inference over every future use, so a relation taught without them is inert in
+   one direction.
+   Only for relations. Cycle, Duration and Money are things, not relations, and saying a
+   thing is Transitive() is a category error that later gets reasoned with.
+   Check transitivity before claiming it. Before is transitive: a before b before c means
+   a before c. Meets is not: three intervals in a row do not make the first meet the
+   third. SynonymOf is not: bright is a synonym of smart and of luminous, and smart is not
+   a synonym of luminous.
 4. If the Concept CAN be expressed using Concepts that already exist, give it a
    realization that composes them. Relations say what a thing is; they never say how to do
    it, so a Concept taught with relations alone can be described but never computed.
@@ -52,16 +59,19 @@ RULES
      is then realized as Choose: the pair is inert in both directions.
    Renaming is not realizing. If all you can say is that two names mean the same thing,
    say it as a relation -- SynonymOf(Other()) -- and leave realizations=List().
-6. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
-   A relation's object is ONE Concept, a noun, never a phrase or a clause.
+6. Teach the general sense, not the name. Asked about Moment, the Concept is the brief
+   stretch of time -- not the surname, the band, or the magazine. If a word is also a
+   proper noun, ignore the proper noun.
+7. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
+8. A relation's object is ONE Concept, a noun, never a phrase or a clause.
      IsA(Obligation())                      right
      FulfillLegalObligation()               wrong -- that is a sentence wearing a name
-7. Give a FEW relations. Eight is plenty and three is often right. A long list means you
+9. Give a FEW relations. Eight is plenty and three is often right. A long list means you
    have started listing whatever the word reminds you of, which is not what a relation is.
-8. SynonymOf means INTERCHANGEABLE IN EVERY CONTEXT. Money is not a synonym of Debt, or
+10. SynonymOf means INTERCHANGEABLE IN EVERY CONTEXT. Money is not a synonym of Debt, or
    of Price, or of Wealth -- those are things money is involved in. If two Concepts are
    merely related, say how they are related, or say nothing.
-9. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
+11. If EVIDENCE is given, ground the relations in it. Prefer what the evidence says over
    what you recall. If the evidence describes something other than what was asked, say so
    by returning relations you can actually support and nothing more.
 

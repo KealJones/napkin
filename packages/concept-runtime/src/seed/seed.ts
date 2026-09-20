@@ -639,6 +639,58 @@ add(
 );
 
 /* ------------------------------------------------------------------ *
+ * Allen's interval algebra: how two stretches of time can stand to each other.
+ *
+ * Thirteen relations, and exactly thirteen. They are jointly exhaustive and pairwise
+ * disjoint -- any two intervals stand in one of these and never in two. That closure is
+ * why this calculus is still in use while most of qualitative reasoning is not
+ * (design/judgment-research.md Part 6): a closed, small, mutually exclusive family
+ * composes by table lookup, where an open-ended one accumulates cases that cannot be
+ * resolved.
+ *
+ * Seeded rather than taught, for the same reason arithmetic is. These have exact
+ * definitions, and a Teacher grounded in a web search would return the surname Allen, the
+ * English word "meets", and a definition of "during" that is merely usable. Where the
+ * meaning is exact, stating it is honest and learning it is not.
+ *
+ * Only Equals is an equivalence. Before, During, Starts and Finishes are transitive but
+ * asymmetric, so they order without collapsing -- and Meets and Overlaps are neither,
+ * which is what stops a chain of adjacent intervals from becoming one interval.
+ * ------------------------------------------------------------------ */
+const interval = (name: string, inverse: string, relations: string[] = []) =>
+  concept(name, {
+    relations: ["IsA(IntervalRelation())", `InverseOf(${inverse}())`, ...relations],
+  });
+
+add(concept("IntervalRelation", { relations: ["IsA(Relation())", "IsA(Category())"] }));
+add(concept("Interval", { relations: ["IsA(TemporalEntity())"] }));
+add(concept("TemporalEntity", { relations: ["IsA(Category())"] }));
+
+// Ordering: transitive, so a chain settles, and asymmetric, so it never closes.
+add(interval("Before", "After", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("After", "Before", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+// Adjacency: A ends exactly where B starts. NOT transitive -- three intervals in a row
+// do not make the first meet the third, and treating them as though they did is how a
+// sequence of moments collapses into one.
+add(interval("Meets", "MetBy", ["Asymmetric()", "Irreflexive()"]));
+add(interval("MetBy", "Meets", ["Asymmetric()", "Irreflexive()"]));
+// Partial overlap: also not transitive, for the same reason.
+add(interval("Overlaps", "OverlappedBy", ["Asymmetric()", "Irreflexive()"]));
+add(interval("OverlappedBy", "Overlaps", ["Asymmetric()", "Irreflexive()"]));
+add(interval("Starts", "StartedBy", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("StartedBy", "Starts", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("During", "Contains", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("Contains", "During", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("Finishes", "FinishedBy", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+add(interval("FinishedBy", "Finishes", ["Transitive()", "Asymmetric()", "Irreflexive()"]));
+// The one equivalence in the family: same start, same end.
+add(
+  concept("Equals", {
+    relations: ["IsA(IntervalRelation())", "Symmetric()", "Transitive()", "InverseOf(Equals())"],
+  }),
+);
+
+/* ------------------------------------------------------------------ *
  * Deixis and defaults. Today() is deictic: it reads the clock and takes no
  * arguments. Date() is a default: a lower-arity realization delegating to Date(Today()).
  * ------------------------------------------------------------------ */
