@@ -684,14 +684,28 @@ a general law.
 
 ---
 
-## 14. Postscript: where contextual relations do earn their place
+## 14. Postscript: contextual relations, and what was actually objected to
 
-Part 9.3 records that scoping preference by context was the wrong repair, because a relation
-is stored on its subject and the subject already scopes it. `Dollar: Better(Gain(), Loss())`
-needs no facet; it is already a claim about dollars. That argument stands.
+An earlier draft of this section said contextual relations had been rejected. That is a
+misreading of the record, and worth correcting precisely, because the two ideas it conflates
+have different fates.
 
-It fails in one case, and the case arrived from a different direction entirely — teaching
-the system about time. Asked about `Moment`, the Teacher returned:
+What was objected to was using a context facet to carry the **domain** — writing
+`Better(Gain(), Loss())` in `Context(Money())` when the relation is stored on `Dollar` and
+the subject already says it is about money. That is redundant, and the objection was right.
+
+What was *affirmed* in the same breath was that money has many facets pulling different ways
+— accumulation, generosity, enjoyment within reason — and that those need distinguishing.
+Which is contextual relations, on a second axis. Part 8 above already draws the conclusion:
+**the subject scopes the domain, the facet scopes the goal.** Neither is redundant and
+neither replaces the other.
+
+So the mechanism was never the objection. The objection was to one redundant use of it.
+
+### 14.1 A second motivation, from a different direction
+
+Polysemy needs the same mechanism and is easier to demonstrate, because the argument for it
+does not depend on values at all. Asked about `Moment`, the Teacher returned:
 
 ```
 Moment:  SynonymOf(Instant())   SynonymOf(PointInTime())   SynonymOf(BriefPeriod())
@@ -713,18 +727,43 @@ Moment:  IsA(Instant())      in Time()
          IsA(MusicSingle())  in Music()
 ```
 
-So the asymmetry noted at the start of this investigation — realizations carry a context
-and relations do not — is real, but not for the reason first proposed. It is not needed to
-make an evaluative claim conditional. It is needed for **polysemy**, where one name carries
-several senses and no relation about it is true unconditionally.
+So the asymmetry noted at the start — realizations carry a context and relations do not —
+now has two independent motivations. The **goal** axis, where one subject holds several
+conflicting preferences and only the facet separates them. And **polysemy**, where one name
+carries several senses and no relation about it is true unconditionally. The second is the
+better argument to build from, because it needs no view about values: nobody disputes that a
+moment is a stretch of time and also a band.
 
 Worth noting what the Teacher did when it had no way to express this: it coined
 `IsA(WordWithMultipleMeanings())`. That is the model naming the gap and having nowhere to
 put the answer, which is a better signal than a confident wrong relation and is the same
 kind of evidence a residual is.
 
-**Not built.** It changes the shape of the Concept unit, which `concept-spec.md` Part 1
-specifies, and it needs the relation index, `truth()`, description and the persistence
-format to agree about it. The interim measure is a Teacher rule: one sense per declaration,
-the sense the message is about, and say nothing about the others rather than listing them.
-That keeps the pile from forming without pretending the other senses are unreal.
+### 14.2 What building it costs
+
+Not a local change. `concept-spec.md` Part 1 specifies the Concept unit as identity,
+relations and realizations, with relations being bare expressions; giving them a context
+changes that shape, and five things would have to agree about it:
+
+| What | Why it changes |
+|---|---|
+| `ConceptUnit.relations` | a relation becomes a pair, not an expression |
+| the two-directional index | entries carry the facet, so a query can filter on it |
+| `truth(subject, predicate, object)` | takes a context, and selects by specificity like realizations do |
+| `cluster` and description | a Describe under `Music()` must not report `SynonymOf(Instant())` |
+| the persistence format | existing graphs have contextless relations and must keep loading |
+
+The last one is free: an absent context means "holds in any context", which is exactly what
+every relation written so far meant.
+
+Selection is the part with a real design question rather than mechanical work. Realizations
+resolve equally specific matches on different facets by surfacing ambiguity (Part 9.3), and
+that is the right answer there because only one realization can run. A *relation* query can
+return several, so the equivalent choice is whether asking without a context returns
+everything, returns only the contextless ones, or refuses. Returning everything preserves
+today's behaviour and is probably right, but it means an unqualified question still sees the
+pile.
+
+The interim measure is a Teacher rule: one sense per declaration, the sense the message is
+about, silence about the others. It keeps the pile from forming without pretending the other
+senses are unreal.
