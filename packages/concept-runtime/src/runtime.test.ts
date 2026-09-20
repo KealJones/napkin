@@ -460,3 +460,36 @@ test("the interval relations are a closed family with the right properties", asy
   const equivalences = ALLEN.filter((n) => declares(n, "Symmetric") && declares(n, "Transitive"));
   assert.deepEqual(equivalences, ["Equals"]);
 });
+
+test("a forward never goes back where the call just came from", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  // The shape SynonymOf derives from a single assertion, because it is symmetric: each
+  // looks realized, neither can do anything, and evaluating either ran to the depth budget.
+  const forward = (from: string, to: string) =>
+    store.addRealization(
+      from,
+      realization({
+        pattern: `${from}(Rest($args))`,
+        evaluateArguments: false,
+        properties: [`Forwarding(${to}())`],
+        body: parse(`Code(source="async (args, bindings, api) => await api.evaluate({ head: \\"${to}\\", args: [] })")`),
+      }),
+    );
+  forward("Hi", "Hello");
+  forward("Hello", "Hi");
+
+  const rt = new Runtime(store);
+  // Terminates, and as a residual: an honest "nothing here" rather than an exception.
+  assert.equal(format(await rt.evaluate(parse("Hi()"), c("Execution"))), "Hello()");
+});
+
+test("a forward that leads somewhere real still works", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.addRealization("Hello", realization({ pattern: "Hello()", body: parse('"hi there"') }));
+  const { forwardSynonym } = await import("./seed/seed.js");
+  assert.equal(forwardSynonym(store, "Hi", "Hello"), true);
+  const rt = new Runtime(store);
+  assert.equal(format(await rt.evaluate(parse("Hi()"), c("Execution"))), '"hi there"');
+});

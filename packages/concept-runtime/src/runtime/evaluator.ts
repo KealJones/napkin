@@ -31,6 +31,25 @@ import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { bestCandidate, candidates, incomparable } from "./select.js";
 import { Trace } from "./trace.js";
 
+/**
+ * Where a synonym forward points.
+ *
+ * Declared as a property, and read off the body for the ones already in a graph that were
+ * derived before the property existed. Recognising the old shape costs three lines and
+ * saves every saved graph a migration.
+ */
+function forwardTarget(r: Realization): string | undefined {
+  const declared = r.properties.find((p) => isCall(p) && p.head === "Forwarding");
+  if (declared && isCall(declared)) {
+    const to = declared.args[0]?.value;
+    if (isCall(to)) return to.head;
+  }
+  if (!isCodeBody(r.body)) return undefined;
+  const source = codeSource(r.body) ?? "";
+  if (!source.includes("api.evaluate({ head:")) return undefined;
+  return /api\.evaluate\(\{ head: "([A-Za-z0-9_]+)"/.exec(source)?.[1];
+}
+
 export interface RuntimeOptions {
   maximumDepth?: number;
   maximumSteps?: number;
@@ -74,6 +93,15 @@ export class Runtime {
   readonly context = new Map<string, string>();
   /** Incomparable context matches, surfaced rather than silently resolved. */
   readonly ambiguities: string[] = [];
+  /**
+   * Concepts entered through a synonym forward, innermost last.
+   *
+   * SynonymOf is symmetric, so a single assertion derives an arrow in both directions and
+   * Hi forwards to Hello while Hello forwards to Hi. Each looks realized and neither can
+   * do anything. Refusing to forward back to somewhere the call just came from makes the
+   * pair harmless without having to find and delete every one of them.
+   */
+  private readonly forwarding: string[] = [];
 
   constructor(store = new ConceptStore(), options: RuntimeOptions = {}) {
     this.store = store;
@@ -92,6 +120,7 @@ export class Runtime {
   reset(): void {
     this.steps = 0;
     this.ambiguities.length = 0;
+    this.forwarding.length = 0;
     this.mark = this.trace.mark();
   }
 
@@ -139,11 +168,17 @@ export class Runtime {
       // A body this host cannot run is not a candidate. Selecting one and then failing
       // would let a Rust body shadow the JavaScript body beside it and take a working
       // Concept down with it -- the graph holds both on purpose.
-      const found = candidates(this.store, target, context, suppressed).filter(
-        (candidate) =>
-          !isCodeBody(candidate.realization.body) ||
-          this.speaks.includes(codeLanguage(candidate.realization.body)),
-      );
+      const found = candidates(this.store, target, context, suppressed).filter((candidate) => {
+        if (
+          isCodeBody(candidate.realization.body) &&
+          !this.speaks.includes(codeLanguage(candidate.realization.body))
+        ) {
+          return false;
+        }
+        // Never forward back to where the call just came from.
+        const to = forwardTarget(candidate.realization);
+        return to === undefined || !this.forwarding.includes(to);
+      });
       if (incomparable(found)) {
         this.ambiguities.push(
           `${format(target)} matched ${found.length} equally specific realizations on different facets`,
@@ -184,9 +219,16 @@ export class Runtime {
           ? context
           : substitute(realization.resultContext, bindings);
 
+      const forwardsTo = forwardTarget(realization);
+      if (forwardsTo !== undefined) this.forwarding.push(target.head);
+
       let result: Expr;
       if (isCodeBody(realization.body)) {
-        result = await this.runCode(realization, bindings, args, bodyContext, id, depth);
+        try {
+          result = await this.runCode(realization, bindings, args, bodyContext, id, depth);
+        } finally {
+          if (forwardsTo !== undefined) this.forwarding.pop();
+        }
       } else {
         const body = substitute(realization.body, bindings);
         result = await this.run(body, bodyContext, target.head, id, depth + 1);

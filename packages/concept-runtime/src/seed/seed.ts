@@ -9,7 +9,7 @@
  * that it produces a residual the learning path can act on rather than a wrong answer.
  */
 import { type Expr, c, call, format, isCall, parse } from "../concept/expression.js";
-import { concept, realization, type ConceptUnit } from "../concept/unit.js";
+import { codeSource, concept, declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
@@ -264,6 +264,7 @@ add(concept("Rejected"));
 add(concept("NeedsFirst"));
 add(concept("SelfReferential"));
 add(concept("TooMany"));
+add(concept("Forwarding", { relations: ["IsA(RealizationProperty())"] }));
 /** A claim together with the context it holds in, for reporting rather than storing. */
 add(concept("In", { relations: ["IsA(Marker())"] }));
 add(concept("NotComposed"));
@@ -1084,16 +1085,51 @@ add(concept("Capability", { relations: ["IsA(Category())"] }));
  * Give a Concept the forwarding behaviour its SynonymOf relation implies. The relation is
  * the source of truth and this is derived from it, so the fact is asserted once.
  */
-export function forwardSynonym(store: ConceptStore, identity: string, target: string): void {
+/** A realization that only hands the call to another Concept, rather than doing anything. */
+const FORWARDING = "Forwarding";
+
+/**
+ * Can this Concept actually do something, following forwards to wherever they lead?
+ *
+ * A forward is not behaviour, it is a pointer at behaviour. Hi forwarded to Hello and
+ * Hello forwarded back to Hi -- each looked realized, neither could do anything, and
+ * evaluating Hi() ran to the depth budget. SynonymOf is symmetric, so both arrows get
+ * derived from one assertion and the cycle builds itself.
+ */
+function reachesRealBehaviour(store: ConceptStore, identity: string, seen = new Set<string>()): boolean {
+  if (seen.has(identity)) return false;
+  seen.add(identity);
+  const unit = store.get(identity);
+  if (!unit) return false;
+  for (const r of unit.realizations) {
+    if (!declares(r, FORWARDING)) return true;
+    const source = codeSource(r.body) ?? "";
+    const to = /head: "([A-Za-z0-9_]+)"/.exec(source)?.[1];
+    if (to && reachesRealBehaviour(store, to, seen)) return true;
+  }
+  return false;
+}
+
+/**
+ * Point one name at another's behaviour. Refused when the target has none of its own to
+ * lend, because a pointer at a pointer is not a destination.
+ */
+export function forwardSynonym(store: ConceptStore, identity: string, target: string): boolean {
+  if (target === identity) return false;
+  if (!reachesRealBehaviour(store, target, new Set([identity]))) return false;
   store.addRealization(
     identity,
     realization({
       pattern: `${identity}(Rest($args))`,
       evaluateArguments: false,
+      // The target is named in the property, so the evaluator can see where a forward
+      // goes without reading its source.
+      properties: [`${FORWARDING}(${target}())`],
       body: code(`async (args, bindings, api) =>
         await api.evaluate({ head: "${target}", args: args.map((a) => ({ value: a.value })) })`),
     }),
   );
+  return true;
 }
 
 function deriveSynonymForwarding(store: ConceptStore): number {
@@ -1104,7 +1140,7 @@ function deriveSynonymForwarding(store: ConceptStore): number {
       if (!isCall(r) || r.head !== "SynonymOf") continue;
       const target = r.args[0]?.value;
       if (target === undefined || !isCall(target)) continue;
-      forwardSynonym(store, unit.identity, target.head);
+      if (!forwardSynonym(store, unit.identity, target.head)) continue;
       derived += 1;
       break;
     }

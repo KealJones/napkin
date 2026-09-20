@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { c, format, parse } from "../concept/expression.js";
-import { concept } from "../concept/unit.js";
+import { concept, realization } from "../concept/unit.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
@@ -359,4 +359,30 @@ test("learning is on unless a caller turns it off", async () => {
   assert.equal(off.learned.length, 0);
   const on = await turn(rt, "", c("Execution"), { speak: false, teacher: false, research: false });
   assert.equal(on.rereads, 0, "nothing to learn, so nothing is re-read");
+});
+
+test("a synonym forward may not point at something that only forwards back", async () => {
+  const { forwardSynonym } = await import("../seed/seed.js");
+  const rt = fresh();
+  rt.store.seed(concept("Hello", { relations: [] }));
+  rt.store.seed(concept("Hi", { relations: [] }));
+
+  // Nothing can do anything yet, so neither may lend behaviour to the other.
+  assert.equal(forwardSynonym(rt.store, "Hi", "Hello"), false);
+  assert.equal(rt.store.get("Hi")!.realizations.length, 0);
+
+  // Give Hello something real, and the forward becomes worth making.
+  rt.store.addRealization("Hello", realization({ pattern: "Hello()", body: parse('"hi there"') }));
+  assert.equal(forwardSynonym(rt.store, "Hi", "Hello"), true);
+  assert.equal(format(await rt.evaluate(parse("Hi()"), EXEC)), '"hi there"');
+
+  // And the arrow back is refused, because Hi has nothing of its own -- SynonymOf is
+  // symmetric, so both arrows get derived from one assertion if nothing stops them.
+  assert.equal(forwardSynonym(rt.store, "Hello", "Hi"), false);
+});
+
+test("a Concept never forwards to itself", async () => {
+  const { forwardSynonym } = await import("../seed/seed.js");
+  const rt = fresh();
+  assert.equal(forwardSynonym(rt.store, "Multiply", "Multiply"), false);
 });

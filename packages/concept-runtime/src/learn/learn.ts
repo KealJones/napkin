@@ -46,10 +46,12 @@ export function fromGraph(runtime: Runtime, identity: string): string | undefine
   const cluster = new Relations(runtime.store).cluster(identity, 24, true);
   const realizable = cluster.find((x) => (runtime.store.get(x.identity)?.realizations.length ?? 0) > 0);
   if (!realizable) return undefined;
-  runtime.store.addRelation(identity, c("SynonymOf", c(realizable.identity)));
   // Adding the relation is not enough: behaviour is what was missing, so derive the
-  // forwarding realization the relation implies.
-  forwardSynonym(runtime.store, identity, realizable.identity);
+  // forwarding realization the relation implies -- but only if the target has behaviour
+  // to lend. Forwarding to something that only forwards back is how Hi and Hello ended up
+  // pointing at each other until the depth budget stopped them.
+  if (!forwardSynonym(runtime.store, identity, realizable.identity)) return undefined;
+  runtime.store.addRelation(identity, c("SynonymOf", c(realizable.identity)));
   return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 
