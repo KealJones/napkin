@@ -383,7 +383,7 @@ add(concept("CellRef", { relations: ["IsA(Data())"] }));
  * Failure and outcome. Pure data.
  * ------------------------------------------------------------------ */
 add(concept("Failure", { relations: ["IsA(Category())"] }));
-for (const f of ["ExecutionFailed", "UnboundVariable", "BudgetExceeded", "Unrealized"]) {
+for (const f of ["ExecutionFailed", "UnboundVariable", "BudgetExceeded", "Unrealized", "ForeignCode"]) {
   add(concept(f, { relations: ["IsA(Failure())"] }));
 }
 add(concept("TruthValue", { relations: ["IsA(Category())"] }));

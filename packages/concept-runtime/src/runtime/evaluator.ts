@@ -22,7 +22,7 @@ import {
   parse,
 } from "../concept/expression.js";
 import { ANON, type Bindings, match, substitute } from "../concept/match.js";
-import { codeSource, isCodeBody, type Realization } from "../concept/unit.js";
+import { codeLanguage, codeSource, isCodeBody, type Realization } from "../concept/unit.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -34,6 +34,13 @@ import { Trace } from "./trace.js";
 export interface RuntimeOptions {
   maximumDepth?: number;
   maximumSteps?: number;
+  /**
+   * Languages this host can actually run. A Code body in anything else is refused rather
+   * than attempted: `new Function(source)` will happily accept text that is valid in two
+   * languages and mean something different in each, so a host that guesses is a host that
+   * silently does the wrong thing.
+   */
+  speaks?: readonly string[];
 }
 
 /** What a Code(...) body receives. Every realization reaches the host the same way. */
@@ -58,6 +65,8 @@ export class Runtime {
   readonly trace = new Trace();
   readonly maximumDepth: number;
   readonly maximumSteps: number;
+  /** This host is a JavaScript one. A Rust host would say so and select its own bodies. */
+  readonly speaks: readonly string[];
   private steps = 0;
   /** Ambient state a deictic realization reads instead of its arguments. */
   readonly context = new Map<string, string>();
@@ -69,6 +78,7 @@ export class Runtime {
     this.relations = new Relations(store);
     this.maximumDepth = options.maximumDepth ?? 64;
     this.maximumSteps = options.maximumSteps ?? 4000;
+    this.speaks = options.speaks ?? ["JavaScript"];
   }
 
   /** Where the current attempt starts in the trace. Earlier attempts are history. */
@@ -207,6 +217,18 @@ export class Runtime {
     const source = codeSource(realization.body);
     if (source === undefined) {
       throw new Error("A Code body needs a source string");
+    }
+    const language = codeLanguage(realization.body);
+    if (!this.speaks.includes(language)) {
+      // Not a failure of the Concept: the graph holds a correct implementation that this
+      // host cannot run. Another host, reading the same graph, would pick a different one.
+      throw new ConceptError(
+        call("ForeignCode", [
+          { name: "language", value: language },
+          { name: "host", value: this.speaks.join(", ") },
+        ]),
+        `This host runs ${this.speaks.join(", ")} and the body is ${language}`,
+      );
     }
     const api: CodeApi = {
       store: this.store,

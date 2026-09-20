@@ -76,6 +76,22 @@ export const declares = (r: Realization, property: string): boolean =>
 /** A Code(...) body is executable; anything else composes. */
 export const isCodeBody = (body: Expr): boolean => isCall(body) && body.head === "Code";
 
+/**
+ * What language a Code body is written in.
+ *
+ * A Code body is a host function, and the spec is deliberate that `Code` is structural and
+ * says nothing about a language (`concept-spec.md` Part 17.1). That only holds if the body
+ * says which one it is: the same graph is meant to carry a JavaScript implementation and a
+ * Rust one for the same pattern, and a host must be able to tell them apart before running
+ * either.
+ *
+ * Absent means JavaScript, because every body written before this existed is JavaScript.
+ */
+export const codeLanguage = (body: Expr): string => {
+  const declared = isCall(body) ? named(body, "language") : undefined;
+  return typeof declared === "string" ? declared : "JavaScript";
+};
+
 export const codeSource = (body: Expr): string | undefined => {
   const source = named(body, "source");
   return typeof source === "string" ? source : undefined;

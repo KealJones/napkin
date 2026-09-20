@@ -363,3 +363,44 @@ test("one expression runs under Execution and emits source under a language face
   // code it writes computes what the Concept computes.
   assert.equal(format(await rt.evaluate(parse(source), c("TypeScript"))), '"((1 + 2) * 3)"');
 });
+
+test("one Concept can hold a body per language, and a host runs only its own", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(
+    concept("Doubled", {
+      realizations: [
+        realization({
+          pattern: "Doubled($x)",
+          body: parse('Code(source="(args) => args[0].value * 2", language="JavaScript")'),
+        }),
+        realization({
+          pattern: "Doubled($x)",
+          body: parse('Code(source="|args| args[0] * 2", language="Rust")'),
+        }),
+      ],
+    }),
+  );
+
+  // A JavaScript host: the newer Rust body shadows the JavaScript one on pattern alone,
+  // so it is reached first and refused rather than handed to new Function().
+  const js = new Runtime(store);
+  await assert.rejects(() => js.evaluate(parse("Doubled(21)"), c("Execution")), /ForeignCode|Rust/);
+
+  // A host that speaks both takes the newer one, which is how a port proceeds: add the
+  // Rust body, and the Rust host picks it up without the JavaScript one being removed.
+  const both = new Runtime(store, { speaks: ["JavaScript", "Rust"] });
+  await assert.rejects(() => both.evaluate(parse("Doubled(21)"), c("Execution")), /SyntaxError|Unexpected/);
+});
+
+test("a body with no declared language is JavaScript, as every existing one is", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(
+    concept("Tripled", {
+      realizations: [realization({ pattern: "Tripled($x)", body: parse('Code(source="(args) => args[0].value * 3")') })],
+    }),
+  );
+  const rt = new Runtime(store);
+  assert.equal(format(await rt.evaluate(parse("Tripled(5)"), c("Execution"))), "15");
+});

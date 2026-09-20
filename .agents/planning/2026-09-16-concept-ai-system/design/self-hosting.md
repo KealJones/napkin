@@ -118,9 +118,23 @@ while the report said nothing was unmapped. They are now translated in place and
 written back out as one. Node count went from 20,530 to 23,535, and that difference is the
 measure of what the first number was hiding.
 
-That leaves the smaller version of the original problem: `Code(...)` still has to mean "a
-host function" rather than "JavaScript" on the Rust side. The spec already agrees —
-`concept-spec.md` Part 17.1 lists `Code` as structural and says nothing about a language.
+That leaves the smaller version of the original problem, and it turns out to dissolve the
+same way ownership did.
+
+**One Concept can hold a body per language, and this needs no new mechanism.** A Concept
+already holds many realizations for one pattern; a `Code` body now declares its
+`language=`, and a host declares what it `speaks`. So the port does not have to move the
+27 bodies at all — it adds Rust ones beside them. One graph, two hosts, both live, and the
+JavaScript runtime never stops working while the Rust one fills in.
+
+The hole that had to be closed first: `runCode` called `new Function(source)` on whatever
+string it found, with no check at all. A host that guesses is a host that silently does the
+wrong thing, since text can be valid in two languages and mean different things in each. A
+body in a language the host does not speak is now refused as `ForeignCode(language=, host=)`
+— which is not a failure of the Concept. The graph holds a correct implementation; this
+host cannot run it, and another host reading the same graph would pick a different one.
+
+An absent `language=` means JavaScript, because every body written before this was.
 
 **And the honest framing of the whole thing:** succeeding here proves the system can
 mechanically translate between two formal languages given a verifier. It does not prove it
