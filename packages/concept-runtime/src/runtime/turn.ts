@@ -201,7 +201,11 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
-  /** Close gaps by learning before answering (concept-spec Part 12). */
+  /**
+   * Close gaps by learning before answering (concept-spec Part 12). On by default, and the
+   * default belongs here rather than in each caller: the CLI had it off and the studio had
+   * it on, so the same question answered differently depending on where it was asked.
+   */
   learn?: boolean;
   /** Render the result as a sentence. */
   speak?: boolean;
@@ -249,7 +253,7 @@ export async function turn(
   let learned: LearnStep[] = [];
   let rereads = 0;
 
-  if (options.learn) {
+  if (options.learn !== false) {
     /**
      * Resolution is a loop, not one shot (`ir-spec.md` Part 8.3).
      *

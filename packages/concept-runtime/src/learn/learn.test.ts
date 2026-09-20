@@ -348,3 +348,15 @@ test("a Result wrapper is what the system produces, never something to learn", a
   const gaps = learnable(rt, collectGaps(rt, undefined));
   assert.ok(!gaps.some((g) => g.identity === "Describes"));
 });
+
+test("learning is on unless a caller turns it off", async () => {
+  const { turn } = await import("../runtime/turn.js");
+  const rt = fresh();
+  // The default lives in turn(), not in each entry point. The CLI had it off and the
+  // studio had it on, so the same question answered differently depending on where it
+  // was asked.
+  const off = await turn(rt, "", c("Execution"), { learn: false, speak: false });
+  assert.equal(off.learned.length, 0);
+  const on = await turn(rt, "", c("Execution"), { speak: false, teacher: false, research: false });
+  assert.equal(on.rereads, 0, "nothing to learn, so nothing is re-read");
+});

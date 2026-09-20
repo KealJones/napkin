@@ -88,7 +88,7 @@ if (flag("--study")) {
   }
   // Every bare word is a topic; the flag values are not.
   const consumed = new Set(
-    ["--graph", "--limit", "--depth", "--model", "--track", "--as", "--from"]
+    ["--graph", "--limit", "--depth", "--model", "--endpoint", "--track", "--as", "--from"]
       .map(value)
       .filter(Boolean),
   );
@@ -179,7 +179,12 @@ if (expr) {
     console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama, or use --expr.");
     process.exit(1);
   }
-  const t = await turn(runtime, message, context, { learn: flag("--learn") });
+  // The same options the studio builds, so a question answers the same either way.
+  const t = await turn(runtime, message, context, {
+    learn: !flag("--no-learn"),
+    ...(value("--model") === undefined ? {} : { model: value("--model")! }),
+    ...(value("--endpoint") === undefined ? {} : { endpoint: value("--endpoint")! }),
+  });
   show("message", t.heard.message);
   show("heard", t.heard.raw.trim());
   show("parsed", t.parsed ?? "(nothing)");
@@ -199,7 +204,8 @@ if (expr) {
   console.log(`cnocept — usage:
   cnocept "What is 5 times three?"        hear a message, then realize it
   cnocept --expr 'Add(2, 3)'             realize an expression directly
-  cnocept --learn "what is chess?"       close gaps by learning before answering
+  cnocept "what is chess?"               learning is on; --no-learn to answer from the graph alone
+  cnocept --model qwen3.5:9b "..."       parse with a different local model
   cnocept --study money debt             learn topics, and whatever they turn out to need
   cnocept --study --track economics      learn a whole curriculum track
   cnocept --study --everyday             the whole everyday world, foundations first
