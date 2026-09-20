@@ -134,7 +134,7 @@ if (flag("--study")) {
     research: !flag("--no-research"),
     reading,
     onStep: (s) => {
-      const mark = { taught: "+", known: "=", refused: "~", failed: "!" }[s.how];
+      const mark = { taught: "+", known: "=", read: ".", refused: "~", failed: "!" }[s.how];
       console.log(`${mark} ${"  ".repeat(s.depth)}${s.identity}  ${s.detail.slice(0, 120)}`);
       if (s.discovered.length) {
         console.log(`  ${"  ".repeat(s.depth)}\x1b[2m-> ${s.discovered.join(" ")}\x1b[0m`);

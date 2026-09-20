@@ -70,10 +70,11 @@ export interface StudyStep {
   /**
    * `taught`    — the Teacher produced a declaration and the graph changed;
    * `known`     — already understood, so it was harvested rather than taught;
+   * `read`      — evidence was found for it, which is a note rather than an outcome;
    * `refused`   — a declaration came back and saved nothing;
    * `failed`    — no usable declaration.
    */
-  readonly how: "taught" | "known" | "refused" | "failed";
+  readonly how: "taught" | "known" | "read" | "refused" | "failed";
   readonly detail: string;
   /** Concepts this step put on the frontier. */
   readonly discovered: readonly string[];
@@ -238,8 +239,8 @@ export async function study(
       evidence = evidenceText(passages(options.reading, readable(identity)));
       if (evidence) {
         record({
-          identity, depth, how: "known",
-          detail: `read from ${options.reading.length} document(s)`, discovered: [],
+          identity, depth, how: "read",
+          detail: `${options.reading.length} document(s)`, discovered: [],
         });
       }
     }
