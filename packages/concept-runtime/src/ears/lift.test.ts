@@ -128,3 +128,14 @@ test("the Ears is shown no vocabulary, so it renders the idea rather than pickin
   assert.match(prompt, /one line for each phrase/i);
   assert.match(prompt, /MUST contain an interrogative/);
 });
+
+test("history shows the parser what was said, not the expression that said it", async () => {
+  const { recent } = await import("./prompt.js");
+  const shown = recent([
+    { message: "what time is it?", result: 'Answer(Time(hour=10, spoken="10:15 AM"))', spoken: "It is 10:15 AM." },
+  ]);
+  // Handing it IR invited copying an earlier answer as the reading of a new message.
+  assert.match(shown, /It is 10:15 AM\./);
+  assert.ok(!shown.includes("Answer(Time("));
+  assert.match(shown, /Never copy an earlier answer/);
+});

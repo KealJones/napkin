@@ -337,3 +337,14 @@ test("a turn that learns nothing reads the message once", async () => {
   });
   assert.equal(out.rereads, 0);
 });
+
+test("a Result wrapper is what the system produces, never something to learn", async () => {
+  const rt = fresh();
+  // Describes, Answer and Saved take arguments and realize nothing, which is the exact
+  // shape of missing behaviour. Teaching one a realization would make the wrapper evaluate
+  // away and destroy the answer it carries.
+  await rt.evaluate(parse('Describes(Thing(), List(IsA(Stuff())))'), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  const gaps = learnable(rt, collectGaps(rt, undefined));
+  assert.ok(!gaps.some((g) => g.identity === "Describes"));
+});

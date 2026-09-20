@@ -307,7 +307,8 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
     const history = conversations
       .turns(conversationId)
       .slice(-6)
-      .map((t) => ({ message: t.message, result: t.result }));
+      // The parser is shown `spoken`; resolution uses `result`, which is the IR.
+      .map((t) => ({ message: t.message, result: t.result, spoken: t.spoken || t.result }));
 
     const result = await runTurn(runtime, body.text, c("Execution"), {
       model,
@@ -333,6 +334,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       message: body.text,
       ...(result.parsed === undefined ? {} : { parsed: result.parsed }),
       result: result.rendered,
+      spoken: result.spoken,
     });
     if (conversationId.startsWith("Conversation_")) save(store, graphPath);
 

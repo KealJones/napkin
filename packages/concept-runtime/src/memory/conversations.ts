@@ -54,7 +54,7 @@ export class ConversationRepository {
    * A turn is a relation on the conversation Concept, holding what was said, how it was
    * parsed, and what came back.
    */
-  record(id: string, turn: { message: string; parsed?: string; result?: string }): void {
+  record(id: string, turn: { message: string; parsed?: string; result?: string; spoken?: string }): void {
     if (!this.store.has(id)) this.store.seed(concept(id, { relations: [c("IsA", c("Conversation"))] }));
     this.store.addRelation(
       id,
@@ -63,6 +63,7 @@ export class ConversationRepository {
         { name: "message", value: turn.message },
         { name: "parsed", value: turn.parsed ?? "" },
         { name: "result", value: turn.result ?? "" },
+        { name: "spoken", value: turn.spoken ?? "" },
       ]),
     );
   }
@@ -76,7 +77,13 @@ export class ConversationRepository {
         const found = relation.args.find((a) => a.name === name)?.value;
         return typeof found === "string" ? found : "";
       };
-      out.push({ at: field("at"), message: field("message"), parsed: field("parsed"), result: field("result") });
+      out.push({
+        at: field("at"),
+        message: field("message"),
+        parsed: field("parsed"),
+        result: field("result"),
+        spoken: field("spoken"),
+      });
     }
     return out;
   }
@@ -127,6 +134,7 @@ export class ConversationRepository {
 export interface Turn {
   readonly at: string;
   readonly message: string;
+  readonly spoken?: string;
   readonly parsed: string;
   readonly result: string;
 }

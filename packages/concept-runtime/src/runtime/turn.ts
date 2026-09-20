@@ -134,8 +134,18 @@ export function isConstructedData(e: Expr): boolean {
  * `Ref($text) := Ref($text, resolvedTo=Ref($text))`, which recursed until the depth budget
  * stopped it — and that realization had already been saved.
  */
-/** Things a Concept can be that make describing it the right answer. */
-const ENTITY = new Set(["Category", "Marker", "Data", "Primitive", "Collection", "Deictic"]);
+/**
+ * Things a Concept can be that make describing it the right answer rather than teaching it.
+ *
+ * `Result` is the load-bearing one and was missing: Answer, Describes, NoDescription and
+ * Saved are what the system PRODUCES. They take arguments and realize nothing, which is
+ * exactly the shape of missing behaviour, so the loop sent `Describes` to the Teacher --
+ * and a realization for it would make the wrapper evaluate away and destroy the answer it
+ * was carrying.
+ */
+const ENTITY = new Set([
+  "Category", "Marker", "Data", "Primitive", "Collection", "Deictic", "Result",
+]);
 
 export function isMarker(runtime: Runtime, identity: string): boolean {
   return lineage(runtime.store, identity).some((u) => u.identity === "Marker");

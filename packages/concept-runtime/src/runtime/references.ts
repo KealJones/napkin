@@ -9,7 +9,10 @@ import { type Expr, isCall, call, format } from "../concept/expression.js";
 
 export interface PriorTurn {
   readonly message: string;
+  /** The IR, which is what a Ref resolves to. */
   readonly result: string;
+  /** What was said out loud. Shown to the parser instead of the IR. */
+  readonly spoken?: string;
 }
 
 const PRONOUN = /^(it|that|this|them|those|these|the answer|the result)$/i;

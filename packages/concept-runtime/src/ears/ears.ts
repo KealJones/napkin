@@ -55,8 +55,15 @@ export function check(message: string, expression: Expr | undefined): string[] {
 }
 
 export interface HearOptions extends ModelOptions {
-  /** Recent turns, so a back-reference can be marked rather than invented. */
-  history?: readonly { message: string; result: string }[];
+  /**
+   * Recent turns, so a back-reference can be marked rather than invented.
+   *
+   * `result` is the IR, which resolution needs in order to point a Ref at a real value.
+   * `spoken` is what was actually said, which is what the parser is shown — handing it the
+   * IR invited copying an earlier answer as the reading of a new message, and with no
+   * vocabulary to anchor on it took the invitation.
+   */
+  history?: readonly { message: string; result: string; spoken?: string }[];
   /** One corrective retry when a CHECK fails. Off by default: it was measured as not
    *  worth it — coverage moved 86% to 90%, fidelity not at all, and under correction
    *  pressure the model began copying the prompt's own vocabulary literally.

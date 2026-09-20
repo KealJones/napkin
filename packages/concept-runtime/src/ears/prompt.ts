@@ -48,7 +48,16 @@ If the VALUE of the whole thing is unknown, wrap it.
 Two unknowns cost nothing extra.
 
 Never write ? for a value you do not have. Write $_ instead, or say what kind of
-unknown it is: What(Multiply($_, $_)), not What(Multiply(?, ?)).`;
+unknown it is: What(Multiply($_, $_)), not What(Multiply(?, ?)).
+
+Use the interrogative the message used. "how" is How, not What.
+
+Never fold a whole phrase into one invented name. BuildStatus() and MeetingStatus() throw
+the parts away, and the parts are the only things that can be looked up, computed, or
+learned. Compose what was said instead: How(Went(Build())).
+
+Keep who the message is about. "how are you" is about you, and dropping it leaves a
+different question.`;
 
 const EXAMPLES = `EXAMPLES
 
@@ -63,6 +72,12 @@ What(Double(21))
 
 "what do we need to finish this?"
 Need(We(), What())
+
+"how you doing?"                      (How, not What, and "you" is part of the question)
+How(Doing(You()))
+
+"how did the build go?"               (compose the parts; do not coin one name for it all)
+How(Went(Build()))
 
 "who ate what at the party?"
 Ate(Who(), What(), At(Party()))
@@ -192,10 +207,16 @@ export function vocabulary(store: ConceptStore, limit = 400, message = ""): stri
  * resolve them — only to notice that a reference is being made and mark it (ir-spec
  * Part 8.2). Resolution happens later, against memory.
  */
-export function recent(history: readonly { message: string; result: string }[], limit = 4): string {
+export function recent(
+  history: readonly { message: string; result: string; spoken?: string }[],
+  limit = 4,
+): string {
   if (!history.length) return "";
   const shown = history.slice(-limit);
   return `EARLIER IN THIS CONVERSATION — the user may refer back to any of it.
+
+This is history, not an example. Never copy an earlier answer as your reading of a new
+message.
 
 A word that POINTS at something already said is not a Concept. Write it as
 Ref("the words they used") and let memory resolve it. This applies to it, that, this,
@@ -203,7 +224,7 @@ them, those, the answer, the result, the second one, before, last time.
   "what is it?"        -> What(Ref("it"))          NOT What(Concept()) and NOT What(It())
   "is that bigger?"    -> Whether(Bigger(Ref("that")))
 
-${shown.map((t) => `they said: ${t.message}\nthe answer was: ${t.result}`).join("\n\n")}`;
+${shown.map((t) => `they said: ${t.message}\nthe answer was: ${t.spoken ?? t.result}`).join("\n\n")}`;
 }
 
 export function earsPrompt(
