@@ -33,20 +33,40 @@ const terms = (text: string): string[] =>
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length > 2 && !STOP.has(w));
 
+export interface Passage {
+  readonly text: string;
+  /** The markdown headings above it, outermost first. What the passage is filed under. */
+  readonly under: readonly string[];
+}
+
 /** Paragraphs, with fenced code kept whole so an example is never cut in half. */
 export function paragraphs(text: string): string[] {
-  const out: string[] = [];
+  return sections(text).map((p) => p.text);
+}
+
+/**
+ * Paragraphs with the headings they sit under.
+ *
+ * Containing a word and being about it are different, and in a spec they are different in
+ * a way the document structure already records. The table of a Concept's three parts
+ * mentions "expression" once, sits under a heading about the Concept unit, and was the
+ * top passage for `expression` — so the Teacher learned that an Expression has an identity,
+ * relations and realizations, which is true of a Concept and false of an expression.
+ */
+export function sections(text: string): Passage[] {
+  const out: Passage[] = [];
   let fence: string[] | undefined;
   let current: string[] = [];
+  const trail: string[] = [];
   const flush = (): void => {
     const joined = current.join("\n").trim();
-    if (joined) out.push(joined);
+    if (joined) out.push({ text: joined, under: [...trail] });
     current = [];
   };
   for (const line of text.split("\n")) {
     if (line.trimStart().startsWith("```")) {
       if (fence) {
-        out.push([...fence, line].join("\n"));
+        out.push({ text: [...fence, line].join("\n"), under: [...trail] });
         fence = undefined;
       } else {
         flush();
@@ -54,11 +74,23 @@ export function paragraphs(text: string): string[] {
       }
       continue;
     }
-    if (fence) fence.push(line);
-    else if (line.trim() === "") flush();
+    if (fence) {
+      fence.push(line);
+      continue;
+    }
+    const heading = /^(#+)\s+(.*)$/.exec(line);
+    if (heading) {
+      flush();
+      const depth = heading[1]!.length;
+      trail.length = Math.min(trail.length, depth - 1);
+      trail[depth - 1] = heading[2]!.trim();
+      for (let i = 0; i < trail.length; i += 1) trail[i] ??= "";
+      continue;
+    }
+    if (line.trim() === "") flush();
     else current.push(line);
   }
-  if (fence) out.push(fence.join("\n"));
+  if (fence) out.push({ text: fence.join("\n"), under: [...trail] });
   flush();
   return out;
 }
@@ -82,15 +114,21 @@ export function passages(
 
   const scored: { score: number; text: string; name: string }[] = [];
   for (const doc of documents) {
-    for (const passage of paragraphs(doc.text)) {
-      const lower = passage.toLowerCase();
+    for (const passage of sections(doc.text)) {
+      const lower = passage.text.toLowerCase();
       const overlap = wanted.filter((w) => lower.includes(w)).length;
-      if (!overlap) continue;
+      const heading = passage.under.join(" ").toLowerCase();
+      const filedUnder = heading.includes(phrase);
+      if (!overlap && !filedUnder) continue;
       // Naming the whole term outweighs sharing pieces of it.
       const named = lower.includes(phrase) ? 10 : 0;
-      // Prefer prose that is about the term to prose that mentions it in passing.
-      const density = overlap / Math.max(20, terms(passage).length / 8);
-      scored.push({ score: named + overlap + density, text: passage, name: doc.name });
+      // And being filed under it outweighs both: a document's own structure is a better
+      // statement of what a passage is about than counting the words in it.
+      const placed = filedUnder ? 25 : 0;
+      // A passage filed under some OTHER term this corpus defines is about that term.
+      const claimed = !filedUnder && heading && wanted.every((w) => !heading.includes(w)) ? -4 : 0;
+      const density = overlap / Math.max(20, terms(passage.text).length / 8);
+      scored.push({ score: placed + named + overlap + density + claimed, text: passage.text, name: doc.name });
     }
   }
 
