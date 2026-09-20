@@ -112,7 +112,13 @@ add(
           // and every one of them becomes a topic the crawl then goes and studies.
           const RELATION_CAP = 12;
           api.store.seed({ identity, relations: [], realizations: [] });
-          const asked = items(get("relations"));
+          // Deduplicate BEFORE capping. A Teacher that loses the thread repeats itself --
+          // "hi" came back with the same relation six times -- and counting the copies
+          // against the cap spends the budget on one claim and rejects the real ones.
+          const asked = [];
+          for (const r of items(get("relations"))) {
+            if (!asked.some((x) => api.format(x) === api.format(r))) asked.push(r);
+          }
           const relations = asked.slice(0, RELATION_CAP);
           for (const r of relations) {
             if (!r || !r.head) continue;

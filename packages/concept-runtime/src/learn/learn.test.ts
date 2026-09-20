@@ -311,3 +311,15 @@ test("a Teacher that times out costs one topic, not the run", async () => {
   assert.equal(result.visited, 2);
   assert.ok(result.steps.every((s) => s.how === "failed"));
 });
+
+test("repeating one relation does not spend the cap on it", async () => {
+  const rt = fresh();
+  // A Teacher that loses the thread repeats itself; "hi" came back with the same relation
+  // six times. Counted against the cap, the copies crowd out the real claims.
+  const repeated = Array(20).fill("IsA(Greeting())").join(", ");
+  const rest = Array.from({ length: 5 }, (_, i) => `SynonymOf(Word${i}())`).join(", ");
+  await rt.evaluate(parse(`Concept(identity="Hi", relations=List(${repeated}, ${rest}))`), EXEC);
+  const stored = rt.store.get("Hi")!.relations.map((r) => format(r.claim));
+  assert.equal(stored.filter((r) => r === "IsA(Greeting())").length, 1);
+  assert.equal(stored.length, 6, "one greeting plus five distinct claims, none crowded out");
+});
