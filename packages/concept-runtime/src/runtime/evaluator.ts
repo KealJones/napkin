@@ -134,7 +134,14 @@ export class Runtime {
         ...(this.store.get(identity)?.relations ?? []),
       ]);
 
-      const found = candidates(this.store, target, context, suppressed);
+      // A body this host cannot run is not a candidate. Selecting one and then failing
+      // would let a Rust body shadow the JavaScript body beside it and take a working
+      // Concept down with it -- the graph holds both on purpose.
+      const found = candidates(this.store, target, context, suppressed).filter(
+        (candidate) =>
+          !isCodeBody(candidate.realization.body) ||
+          this.speaks.includes(codeLanguage(candidate.realization.body)),
+      );
       if (incomparable(found)) {
         this.ambiguities.push(
           `${format(target)} matched ${found.length} equally specific realizations on different facets`,

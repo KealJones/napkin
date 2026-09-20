@@ -382,15 +382,20 @@ test("one Concept can hold a body per language, and a host runs only its own", a
     }),
   );
 
-  // A JavaScript host: the newer Rust body shadows the JavaScript one on pattern alone,
-  // so it is reached first and refused rather than handed to new Function().
+  // A JavaScript host ignores the Rust body entirely and runs the one it can. Adding a
+  // Rust implementation must never take a working Concept away from the existing host.
   const js = new Runtime(store);
-  await assert.rejects(() => js.evaluate(parse("Doubled(21)"), c("Execution")), /ForeignCode|Rust/);
+  assert.equal(format(await js.evaluate(parse("Doubled(21)"), c("Execution"))), "42");
 
-  // A host that speaks both takes the newer one, which is how a port proceeds: add the
-  // Rust body, and the Rust host picks it up without the JavaScript one being removed.
-  const both = new Runtime(store, { speaks: ["JavaScript", "Rust"] });
-  await assert.rejects(() => both.evaluate(parse("Doubled(21)"), c("Execution")), /SyntaxError|Unexpected/);
+  // A host that speaks Rust and not JavaScript sees only the Rust body, and that body is
+  // not JavaScript, so it is never handed to new Function().
+  const rust = new Runtime(store, { speaks: ["Rust"] });
+  await assert.rejects(() => rust.evaluate(parse("Doubled(21)"), c("Execution")), /SyntaxError|Unexpected|ExecutionFailed/);
+
+  // A host that speaks neither has no candidate at all, so the call is a residual --
+  // the honest outcome, and the same one an unrealized Concept gives.
+  const neither = new Runtime(store, { speaks: [] });
+  assert.equal(format(await neither.evaluate(parse("Doubled(21)"), c("Execution"))), "Doubled(21)");
 });
 
 test("a body with no declared language is JavaScript, as every existing one is", async () => {

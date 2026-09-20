@@ -136,6 +136,24 @@ host cannot run it, and another host reading the same graph would pick a differe
 
 An absent `language=` means JavaScript, because every body written before this was.
 
+Two things this got wrong on the first pass, kept here because both are the kind of mistake
+that looks correct until it is in front of you.
+
+**Selection has to know what the host speaks.** The first version checked the language only
+when running the body it had already chosen, so a newly added Rust body shadowed the
+JavaScript one beside it on pattern alone and a JavaScript host failed on a Concept it
+could perfectly well do. Adding an implementation must never take a working Concept away
+from an existing host, so an unrunnable body is now not a candidate at all. A host that
+speaks neither language gets a residual, which is the same honest outcome an unrealized
+Concept gives.
+
+**Emitting a language and running on one are different axes.** Both want the name `Rust`:
+an emission realization is `context=Rust()` with a `Text(...)` body, and a native one is a
+`Code` body with `language="Rust"`. Had the host language been written as a context facet,
+those two would be the same pattern in the same context, and the newer would silently
+shadow the older. Keeping the language on the body — where the source actually is — is
+what keeps the axes apart.
+
 **And the honest framing of the whole thing:** succeeding here proves the system can
 mechanically translate between two formal languages given a verifier. It does not prove it
 understands programming. It is a real capability and a narrow one, and worth stating that
