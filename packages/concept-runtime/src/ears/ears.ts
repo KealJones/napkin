@@ -65,6 +65,23 @@ export interface HearOptions extends ModelOptions {
    *  the reading is poor; a rejected line means a clause of the message is GONE, and
    *  answering the surviving half silently is worse than any measured fidelity gain. */
   retry?: boolean;
+  /**
+   * Show the parser what the graph already contains.
+   *
+   * Off by default. The Ears' job is to render the idea the message carries, not to pick
+   * from a menu: `ir-spec.md` Part 9 specifies the contract entirely in terms of form and
+   * says nothing about a vocabulary, and Part 8.3 says the first parse of unfamiliar
+   * vocabulary is necessarily the worst one, with the repair being to re-read the message
+   * once the graph has grown. The list was a crib for a problem that has a proper answer
+   * elsewhere, and the loop is now built.
+   *
+   * Measured on the same messages, one sample each: "owe a million dollars" came back as
+   * `Negative(Million(Dollar()))` with the list and `Owe(Million(Dollars()))` without,
+   * which is the failure exactly — a Concept it could see substituted for the idea the
+   * message carried. Four of seven readings were identical either way, and one lost its
+   * interrogative without the list, which `check` catches and retries.
+   */
+  vocabulary?: boolean;
 }
 
 export async function hear(
@@ -72,7 +89,7 @@ export async function hear(
   message: string,
   options: HearOptions = {},
 ): Promise<EarsResult> {
-  const system = earsPrompt(store, options.history ?? [], message);
+  const system = earsPrompt(store, options.history ?? [], message, options.vocabulary === true);
   let raw = await generate(system, message, options);
   let lifted = lift(raw);
   let problems = check(message, lifted.expression);

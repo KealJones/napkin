@@ -115,3 +115,16 @@ test("the message pulls in Concepts that are otherwise nowhere near the front", 
   assert.match(vocabulary(store, 50, "tell me about a zebra").split("\n")[1]!, /\bZebra\(/);
   assert.ok(!vocabulary(store, 50, "tell me about a horse").split("\n")[1]!.includes("Zebra("));
 });
+
+test("the Ears is shown no vocabulary, so it renders the idea rather than picking one", async () => {
+  const { earsPrompt } = await import("./prompt.js");
+  const { ConceptStore } = await import("../store/store.js");
+  const { seed } = await import("../seed/seed.js");
+  const store = new ConceptStore();
+  seed(store);
+  const prompt = earsPrompt(store, [], "what time is it?");
+  assert.ok(!prompt.includes("VOCABULARY"));
+  // The form rules are the contract (ir-spec Part 9), and they stay.
+  assert.match(prompt, /one line for each phrase/i);
+  assert.match(prompt, /MUST contain an interrogative/);
+});

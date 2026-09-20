@@ -43,6 +43,8 @@ export interface TurnResult {
   readonly gaps: Gap[];
   readonly ambiguities: string[];
   readonly learned: LearnStep[];
+  /** How many times the message was read again after learning (ir-spec Part 8.3). */
+  readonly rereads: number;
   readonly failed?: string;
 }
 
@@ -195,6 +197,8 @@ export interface TurnOptions extends HearOptions {
   speak?: boolean;
   maxPasses?: number;
   research?: boolean;
+  /** Off runs the loop on the graph alone, with no model asked to teach anything. */
+  teacher?: boolean;
 }
 
 export async function turn(
@@ -206,7 +210,7 @@ export async function turn(
   runtime.reset();
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
-  const heard = await hear(runtime.store, message, options);
+  let heard = await hear(runtime.store, message, options);
   if (!heard.expression) {
     return {
       heard,
@@ -218,22 +222,53 @@ export async function turn(
       gaps: [],
       ambiguities: [],
       learned: [],
+      rereads: 0,
       failed: heard.problems.join("; "),
     };
   }
 
   // A Ref marks a reference the parser could not resolve. Resolving it is memory's job.
-  const { expression: maybe, resolved } = resolveReferences(heard.expression, options.history ?? []);
-  const expression = maybe ?? heard.expression;
+  const read = (h: EarsResult): { expression: Expr; resolved: { reference: string; to: string }[] } => {
+    const { expression: maybe, resolved } = resolveReferences(h.expression, options.history ?? []);
+    return { expression: maybe ?? h.expression!, resolved };
+  };
+  let { expression, resolved } = read(heard);
 
   let result: Expr | undefined;
   let failed: string | undefined;
   let learned: LearnStep[] = [];
+  let rereads = 0;
 
   if (options.learn) {
-    const outcome = await learn(runtime, message, expression, context, options);
-    result = outcome.result;
-    learned = outcome.steps;
+    /**
+     * Resolution is a loop, not one shot (`ir-spec.md` Part 8.3).
+     *
+     * The first parse of a message full of unfamiliar vocabulary is necessarily the worst
+     * parse that will ever be produced, because it was made with the least knowledge.
+     * Committing to it is the mistake. So after learning has changed the graph, the
+     * ORIGINAL message is read again — the parser now has a different graph to parse
+     * against, and the second reading is made with more than the first.
+     *
+     * It stops when a pass learns nothing, when the reading stops changing, or at the
+     * bound. A reading that does not change is the loop's fixed point and re-running it
+     * would only cost another model call.
+     */
+    const maxReads = options.maxPasses ?? 3;
+    for (;;) {
+      const outcome = await learn(runtime, message, expression, context, options);
+      result = outcome.result;
+      learned = [...learned, ...outcome.steps];
+      if (!outcome.steps.length || rereads + 1 >= maxReads) break;
+
+      const again = await hear(runtime.store, message, options);
+      if (!again.expression) break;
+      rereads += 1;
+      const next = read(again);
+      if (equal(next.expression, expression)) break;
+      heard = again;
+      expression = next.expression;
+      resolved = next.resolved;
+    }
   } else {
     try {
       result = await runtime.evaluate(expression, context);
@@ -264,6 +299,7 @@ export async function turn(
     gaps,
     ambiguities: [...runtime.ambiguities],
     learned,
+    rereads,
     failed,
   };
 }

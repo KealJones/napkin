@@ -323,3 +323,17 @@ test("repeating one relation does not spend the cap on it", async () => {
   assert.equal(stored.filter((r) => r === "IsA(Greeting())").length, 1);
   assert.equal(stored.length, 6, "one greeting plus five distinct claims, none crowded out");
 });
+
+test("a turn that learns nothing reads the message once", async () => {
+  const { turn } = await import("../runtime/turn.js");
+  const rt = fresh();
+  // No Teacher and no network: learn() returns no steps, so Part 8.3's loop has nothing
+  // new to read against and must not spend a second model call proving it.
+  const out = await turn(rt, "", c("Execution"), {
+    learn: true,
+    speak: false,
+    teacher: false,
+    research: false,
+  });
+  assert.equal(out.rereads, 0);
+});

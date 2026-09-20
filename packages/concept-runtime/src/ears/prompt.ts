@@ -210,8 +210,18 @@ export function earsPrompt(
   store: ConceptStore,
   history: readonly { message: string; result: string }[] = [],
   message = "",
+  showVocabulary = false,
 ): string {
-  return [FORM, MARK, RULES, QUESTIONS, vocabulary(store, 400, message), EXAMPLES, recent(history), OUT]
+  return [
+    FORM,
+    MARK,
+    RULES,
+    QUESTIONS,
+    showVocabulary ? vocabulary(store, 400, message) : "",
+    EXAMPLES,
+    recent(history),
+    OUT,
+  ]
     .filter(Boolean)
     .join("\n\n");
 }
