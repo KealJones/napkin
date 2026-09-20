@@ -47,7 +47,7 @@ export function lineage(store: ConceptStore, identity: string, limit = 16): Conc
       seen.add(id);
       const unit = store.get(id);
       if (unit) out.push(unit);
-      for (const r of unit?.relations ?? []) {
+      for (const { claim: r } of unit?.relations ?? []) {
         if (isCall(r) && r.head === "IsA") {
           const parent = r.args[0]?.value;
           if (parent !== undefined && isCall(parent)) next.push(parent.head);

@@ -17,6 +17,7 @@
  * Unbounded, a relation crawl reaches the whole of Wikidata.
  */
 import { type Expr, isCall, walk } from "../concept/expression.js";
+import { claims } from "../concept/unit.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -234,7 +235,7 @@ export async function study(
     // Already understood: nothing to teach, but what it names is still worth following,
     // and it may be an island that a neighbour could give behaviour to.
     if (understood(runtime, identity)) {
-      const discovered = push(frontierFrom(runtime.store.get(identity)!.relations), depth + 1);
+      const discovered = push(frontierFrom(claims(runtime.store.get(identity)!)), depth + 1);
       const attached = fromGraph(runtime, identity);
       record({
         identity, depth,
@@ -322,7 +323,7 @@ export async function study(
     const learned = (unit?.relations.length ?? 0) + (unit?.realizations.length ?? 0);
     const discovered = [
       ...push(needed, depth),
-      ...push(frontierFrom(unit?.relations ?? []), depth + 1),
+      ...push(frontierFrom(unit ? claims(unit) : []), depth + 1),
     ];
 
     if (learned > 0) {

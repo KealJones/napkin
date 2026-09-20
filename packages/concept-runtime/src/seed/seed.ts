@@ -115,11 +115,18 @@ add(
           const asked = items(get("relations"));
           const relations = asked.slice(0, RELATION_CAP);
           for (const r of relations) {
+            if (!r || !r.head) continue;
+            // In(claim, context) says the claim holds only in that sense of the word.
+            // Unwrapped here, because a context is where a relation holds and not part of
+            // what it says.
+            const contextual = r.head === "In" && r.args.length === 2;
+            const claim = contextual ? r.args[0].value : r;
+            const where = contextual ? r.args[1].value : undefined;
             // A relation naming the Concept it belongs to says nothing: the subject is
             // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
             // which is its own pattern filed as a fact, and it stuck in the graph.
-            if (!r || !r.head || r.head === identity) continue;
-            api.store.addRelation(identity, r);
+            if (!claim || !claim.head || claim.head === identity) continue;
+            api.store.addRelation(identity, claim, where);
           }
 
           // Realizations are behaviour, so they are saved too — a Concept taught with
@@ -173,7 +180,7 @@ add(
               const unit = api.store.get(head);
               if (!unit) return false;
               if (unit.realizations.length) return true;
-              for (const r of unit.relations) {
+              for (const { claim: r } of unit.relations) {
                 if (r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head) {
                   if (canAct(r.args[0].value.head, seen)) return true;
                 }
@@ -251,6 +258,8 @@ add(concept("Rejected"));
 add(concept("NeedsFirst"));
 add(concept("SelfReferential"));
 add(concept("TooMany"));
+/** A claim together with the context it holds in, for reporting rather than storing. */
+add(concept("In", { relations: ["IsA(Marker())"] }));
 add(concept("NotComposed"));
 add(concept("Incomplete"));
 add(concept("NotComposed"));
@@ -269,10 +278,17 @@ add(
           const triples = api.relations.of(subject.head)
             .filter((t) => {
               const unit = api.store.get(t.predicate);
-              return !(unit?.relations ?? []).some((r) => r.head === "Incidental");
+              return !(unit?.relations ?? []).some((r) => r.claim.head === "Incidental");
             });
           if (!triples.length) return api.call("NoDescription", subject);
-          return api.call("Describes", subject, api.call("List", ...triples.map((t) => t.expr)));
+          // Every sense is reported, and a sense-scoped claim says which sense it is.
+          // Dropping the ones that do not match would hide a true fact because the asker
+          // did not name a context; stating them flat would say a music single is a
+          // stretch of time. Carrying the context does neither.
+          const described = triples.map((t) =>
+            t.context ? api.call("In", t.expr, t.context) : t.expr,
+          );
+          return api.call("Describes", subject, api.call("List", ...described));
         }`),
       }),
     ],
@@ -1078,7 +1094,7 @@ function deriveSynonymForwarding(store: ConceptStore): number {
   let derived = 0;
   for (const unit of store.all()) {
     if (unit.realizations.length) continue;
-    for (const r of unit.relations) {
+    for (const { claim: r } of unit.relations) {
       if (!isCall(r) || r.head !== "SynonymOf") continue;
       const target = r.args[0]?.value;
       if (target === undefined || !isCall(target)) continue;

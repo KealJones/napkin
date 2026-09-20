@@ -30,6 +30,9 @@ A relation is a fact about the Concept, written as a Concept call:
   IsA(BoardGame())        MinimumNumberOfPlayers(2)        SynonymOf(Multiply())
   InverseOf(IsYoungerThan())    Symmetric()    Transitive()
 
+A relation that holds only in one sense of the word says so:
+  In(IsA(MusicSingle()), Music())     the band, not the stretch of time
+
 RULES
 1. Every name starts with a capital letter and is followed by parentheses.
    Write BoardGame(), never board_game or "board game".
@@ -59,14 +62,13 @@ RULES
      is then realized as Choose: the pair is inert in both directions.
    Renaming is not realizing. If all you can say is that two names mean the same thing,
    say it as a relation -- SynonymOf(Other()) -- and leave realizations=List().
-6. One sense per declaration. A word can have several -- Moment is a brief stretch of
-   time, and also a band, and also a surname -- and all of them are real. What is wrong is
-   mixing them: SynonymOf(Instant()) beside IsA(MusicSingle()) says a music single is a
-   brief stretch of time.
-   Give the relations for ONE sense, the one the message is about, and where no message
-   points at a narrower one, the everyday sense. Say nothing about the others rather than
-   listing them, and never coin IsA(WordWithMultipleMeanings()) -- that names the problem
-   instead of answering.
+6. Say which sense a relation belongs to. A word can have several -- Moment is a brief
+   stretch of time, and also a band, and also a surname -- and all of them are real. What
+   is wrong is mixing them unmarked: IsA(Instant()) beside IsA(MusicSingle()) says a music
+   single is a stretch of time.
+   Lead with the everyday sense, unqualified. Where you give a relation from a narrower
+   sense, wrap it: In(IsA(MusicSingle()), Music()). Never coin
+   IsA(WordWithMultipleMeanings()) -- that names the problem instead of answering it.
 7. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
 8. A relation's object is ONE Concept, a noun, never a phrase or a clause.
      IsA(Obligation())                      right

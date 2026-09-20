@@ -25,10 +25,28 @@ export interface Realization {
   readonly addedAt?: string;
 }
 
+/**
+ * An asserted fact, and where it holds.
+ *
+ * The subject is implicit — it is the unit holding the relation — which is usually enough
+ * to scope a claim: `Better(Gain(), Loss())` stored on `Dollar` is already about money.
+ * It is not enough when the ambiguity IS the subject. `Moment` is a stretch of time and
+ * also a band, and both are true, so neither `SynonymOf(Instant())` nor
+ * `IsA(MusicSingle())` holds unconditionally. Written into one pile they imply a music
+ * single is a stretch of time (`judgment-research.md` Part 14).
+ *
+ * Absent context means the claim holds in any context, which is what every relation
+ * written before this meant.
+ */
+export interface Relation {
+  readonly claim: Expr;
+  readonly context?: Expr;
+}
+
 export interface ConceptUnit {
   readonly identity: string;
   /** Asserted facts. Authored here, queried through the index (concept-spec Part 5.1.1). */
-  readonly relations: readonly Expr[];
+  readonly relations: readonly Relation[];
   /** Append-only (concept-spec Part 3.1). */
   readonly realizations: readonly Realization[];
   readonly updatedAt?: string;
@@ -46,6 +64,16 @@ export interface RealizationInput {
 
 const asExpr = (e: Expr | string): Expr => (typeof e === "string" ? parse(e) : e);
 
+export const relation = (claim: Expr | string, context?: Expr | string): Relation =>
+  context === undefined ? { claim: asExpr(claim) } : { claim: asExpr(claim), context: asExpr(context) };
+
+const asRelation = (r: Expr | string | Relation): Relation =>
+  typeof r === "object" && r !== null && "claim" in r ? r : relation(r as Expr | string);
+
+/** Just the claims, for the many readers that do not care where one holds. */
+export const claims = (unit: Pick<ConceptUnit, "relations">): Expr[] =>
+  unit.relations.map((r) => r.claim);
+
 export function realization(input: RealizationInput): Realization {
   return {
     pattern: asExpr(input.pattern),
@@ -60,11 +88,14 @@ export function realization(input: RealizationInput): Realization {
 
 export function concept(
   identity: string,
-  parts: { relations?: readonly (Expr | string)[]; realizations?: readonly Realization[] } = {},
+  parts: {
+    relations?: readonly (Expr | string | Relation)[];
+    realizations?: readonly Realization[];
+  } = {},
 ): ConceptUnit {
   return {
     identity,
-    relations: (parts.relations ?? []).map(asExpr),
+    relations: (parts.relations ?? []).map(asRelation),
     realizations: parts.realizations ?? [],
   };
 }

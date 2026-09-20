@@ -26,9 +26,16 @@ interface StoredRealization {
   addedAt?: string;
 }
 
+/**
+ * A relation with no context is stored as the bare string it always was, so every graph
+ * written before contexts existed loads unchanged and means the same thing. Only a
+ * contextual one needs the object form.
+ */
+type StoredRelation = string | { claim: string; context: string };
+
 interface StoredUnit {
   identity: string;
-  relations: string[];
+  relations: StoredRelation[];
   realizations: StoredRealization[];
   updatedAt?: string;
 }
@@ -41,7 +48,9 @@ interface Snapshot {
 
 const toStored = (u: ConceptUnit): StoredUnit => ({
   identity: u.identity,
-  relations: u.relations.map(format),
+  relations: u.relations.map((r) =>
+    r.context === undefined ? format(r.claim) : { claim: format(r.claim), context: format(r.context) },
+  ),
   realizations: u.realizations.map((r) => ({
     pattern: format(r.pattern),
     context: r.context === undefined ? undefined : format(r.context),
@@ -58,7 +67,9 @@ const toStored = (u: ConceptUnit): StoredUnit => ({
 
 const fromStored = (s: StoredUnit): ConceptUnit => ({
   identity: s.identity,
-  relations: s.relations.map(parse),
+  relations: s.relations.map((r) =>
+    typeof r === "string" ? { claim: parse(r) } : { claim: parse(r.claim), context: parse(r.context) },
+  ),
   realizations: s.realizations.map(
     (r): Realization => ({
       pattern: parse(r.pattern),

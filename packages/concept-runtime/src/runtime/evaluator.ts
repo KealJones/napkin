@@ -22,7 +22,7 @@ import {
   parse,
 } from "../concept/expression.js";
 import { ANON, type Bindings, match, substitute } from "../concept/match.js";
-import { codeLanguage, codeSource, isCodeBody, type Realization } from "../concept/unit.js";
+import { claims, codeLanguage, codeSource, isCodeBody, type Realization } from "../concept/unit.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -54,6 +54,8 @@ export interface CodeApi {
   parse(source: string): Expr;
   /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
   ambient(key: string): string | undefined;
+  /** The context this body was reached in, for a realization that must ask about it. */
+  readonly context: Expr | undefined;
   format(e: Expr): string;
   call(head: string, ...values: Expr[]): Call;
 }
@@ -130,9 +132,9 @@ export class Runtime {
       if (depth > this.maximumDepth) budget("depth", this.maximumDepth);
       if (this.steps > this.maximumSteps) budget("steps", this.maximumSteps);
 
-      const suppressed = suppressedProperties(context, (identity) => [
-        ...(this.store.get(identity)?.relations ?? []),
-      ]);
+      const suppressed = suppressedProperties(context, (identity) =>
+        claims({ relations: this.store.get(identity)?.relations ?? [] }),
+      );
 
       // A body this host cannot run is not a candidate. Selecting one and then failing
       // would let a Rust body shadow the JavaScript body beside it and take a working
@@ -247,6 +249,7 @@ export class Runtime {
       substitute,
       parse,
       ambient: (key) => this.context.get(key),
+      context,
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),
     };

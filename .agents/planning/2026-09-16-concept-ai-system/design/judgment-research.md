@@ -739,7 +739,44 @@ Worth noting what the Teacher did when it had no way to express this: it coined
 put the answer, which is a better signal than a confident wrong relation and is the same
 kind of evidence a residual is.
 
-### 14.2 What building it costs
+### 14.2 Built
+
+Relations carry a context. `ConceptUnit.relations` holds `{ claim, context? }` rather than
+bare expressions, and absent context means the claim holds anywhere — which is what every
+relation written before this meant, so nothing had to be migrated.
+
+| Query | Returns |
+|---|---|
+| `of(identity)` | every sense. Unchanged from before, so every existing caller behaves as it did. |
+| `of(identity, { context })` | the claims that hold there, plus the contextless ones |
+| `truth(s, p, o, context)` | three-valued per context: a claim absent in this sense is `unknown`, never `false` |
+| `cluster(id, limit, equivalenceOnly, context)` | neighbours reachable in that sense |
+
+A derived relation inherits the context of the assertion it came from. If `Moment` is a
+synonym of `Instant` only under `Time()`, then the symmetric reading found from `Instant`
+carries `Time()` too — otherwise symmetry would launder a scoped claim into a general one.
+
+**Description reports every sense and says which is which.** Filtering to the active context
+would hide a true fact because the asker did not name a sense; reporting them flat would
+state that a music single is a stretch of time. So a scoped claim is rendered
+`In(claim, context)` and nothing is dropped:
+
+```
+Relations(Moment())  ->  Describes(Moment(), List(
+                           In(IsA(MusicSingle()), Music()),
+                           In(IsA(Instant()), Time()),
+                           IsA(Word())))
+```
+
+That is also the form the Teacher writes, so the round trip is one shape:
+`In(IsA(MusicSingle()), Music())` in a declaration saves the claim under that context, with
+`In` unwrapped on the way in — a context is where a relation holds, not part of what it
+says.
+
+The persistence format was free, as predicted. A contextless relation is still the bare
+string it always was; only a scoped one needs the object form, and old graphs load unchanged.
+
+### 14.3 What it cost
 
 Not a local change. `concept-spec.md` Part 1 specifies the Concept unit as identity,
 relations and realizations, with relations being bare expressions; giving them a context

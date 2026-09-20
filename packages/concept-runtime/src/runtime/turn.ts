@@ -151,7 +151,8 @@ export function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
   // A category or an entity is a thing, not a doing: describing it IS the answer, and
   // teaching Chess a realization would be nonsense.
   const describesOnly = unit.relations.some(
-    (r) => isCall(r) && r.head === "IsA" && isCall(r.args[0]?.value) && ENTITY.has((r.args[0].value as Call).head),
+    ({ claim: r }) =>
+      isCall(r) && r.head === "IsA" && isCall(r.args[0]?.value) && ENTITY.has((r.args[0].value as Call).head),
   );
   if (describesOnly) return false;
   // Realizing something already means this is a shape it cannot handle. Realizing NOTHING,

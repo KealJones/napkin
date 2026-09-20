@@ -7,7 +7,7 @@
  * when a parse says a reference needs resolving.
  */
 import { type Expr, c, call, format, isCall } from "../concept/expression.js";
-import { concept } from "../concept/unit.js";
+import { claims, concept } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 
 export interface ConversationSummary {
@@ -45,7 +45,7 @@ export class ConversationRepository {
     if (!unit) return undefined;
     return {
       identity: unit.identity,
-      relations: unit.relations.map(format),
+      relations: claims(unit).map(format),
       turns: this.turns(id),
     };
   }
@@ -70,7 +70,7 @@ export class ConversationRepository {
   turns(id: string): Turn[] {
     const unit = this.store.get(id);
     const out: Turn[] = [];
-    for (const relation of unit?.relations ?? []) {
+    for (const { claim: relation } of unit?.relations ?? []) {
       if (!isCall(relation) || relation.head !== "HasTurn") continue;
       const field = (name: string): string => {
         const found = relation.args.find((a) => a.name === name)?.value;
@@ -90,7 +90,7 @@ export class ConversationRepository {
         return {
           id: u.identity,
           persistent: u.identity.startsWith(PREFIX),
-          startedAt: startedAt(u.relations) ?? "",
+          startedAt: startedAt(claims(u)) ?? "",
           turns: turns.length,
           lastMessage: turns[turns.length - 1]?.message,
         };

@@ -442,7 +442,7 @@ test("the interval relations are a closed family with the right properties", asy
   seed(store);
   // Read the declarations off the unit, which is where a relation's properties live.
   const declares = (identity: string, property: string): boolean =>
-    (store.get(identity)?.relations ?? []).some((r) => format(r) === `${property}()`);
+    (store.get(identity)?.relations ?? []).some((r) => format(r.claim) === `${property}()`);
   const ALLEN = [
     "Before", "After", "Meets", "MetBy", "Overlaps", "OverlappedBy",
     "Starts", "StartedBy", "During", "Contains", "Finishes", "FinishedBy", "Equals",

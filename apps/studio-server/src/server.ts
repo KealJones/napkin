@@ -21,6 +21,7 @@ import {
   Runtime,
   save,
   seed,
+  type ConceptUnit,
   type Expr,
   type TraceEvent,
   turn as runTurn,
@@ -187,9 +188,12 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   sendJson(response, 404, { error: "Not found" });
 }
 
-const describeUnit = (unit: { identity: string; relations: readonly Expr[]; realizations: readonly { pattern: Expr; context?: Expr; body: Expr; properties: readonly Expr[]; retired?: boolean }[]; updatedAt?: string }) => ({
+const describeUnit = (unit: ConceptUnit) => ({
   identity: unit.identity,
-  relations: unit.relations.map(format),
+  // A relation says where it holds, when it holds somewhere in particular.
+  relations: unit.relations.map((r) =>
+    r.context === undefined ? format(r.claim) : `${format(r.claim)}  in ${format(r.context)}`,
+  ),
   // Derived, not stored: a symmetric relation is findable from the end that does not hold it.
   derived: relations.of(unit.identity).map((t) => format(t.expr)),
   cluster: relations.cluster(unit.identity),

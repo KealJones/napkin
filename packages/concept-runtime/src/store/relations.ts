@@ -7,6 +7,7 @@
  * stored once and a retraction cannot be applied to only one end.
  */
 import { type Expr, c, format, isCall } from "../concept/expression.js";
+import { matchContext } from "../runtime/context.js";
 import { ConceptStore, objectKey, type Triple } from "./store.js";
 
 export type Truth = "true" | "false" | "unknown";
@@ -27,12 +28,12 @@ export class Relations {
   /** Does this relation Concept declare the given property? */
   private declares(predicate: string, property: string): boolean {
     const unit = this.store.get(predicate);
-    return unit?.relations.some((r) => isCall(r) && r.head === property) ?? false;
+    return unit?.relations.some((r) => isCall(r.claim) && r.claim.head === property) ?? false;
   }
 
   private inverseOf(predicate: string): string | undefined {
     const unit = this.store.get(predicate);
-    for (const r of unit?.relations ?? []) {
+    for (const { claim: r } of unit?.relations ?? []) {
       if (isCall(r) && r.head === PROPERTY.inverseOf) {
         const target = r.args[0]?.value;
         if (isCall(target)) return target.head;
@@ -45,9 +46,22 @@ export class Relations {
    * Every relation involving this Concept as subject, direct or derived.
    * This is a query over the index, not a read of the unit.
    */
-  of(identity: string, options: { transitive?: boolean } = {}): Triple[] {
+  /**
+   * Every relation about a Concept, derived ones included.
+   *
+   * `context` narrows to the claims that hold there. A relation with no context holds
+   * anywhere, so asking without one returns everything — which keeps every existing caller
+   * behaving as it did, and means an unqualified question still sees every sense of an
+   * ambiguous name. Narrowing is for the caller that knows which sense it wants.
+   *
+   * A derived relation inherits the context of the assertion it came from: if
+   * `SynonymOf(Instant())` holds only under `Time()`, so does the symmetric reading of it.
+   */
+  of(identity: string, options: { transitive?: boolean; context?: Expr } = {}): Triple[] {
     const out: Triple[] = [];
     const seen = new Set<string>();
+    const holds = (t: { context?: Expr }): boolean =>
+      options.context === undefined || matchContext(t.context, options.context, new Map()).ok;
     const add = (t: Triple) => {
       const key = `${t.subject}|${t.predicate}|${objectKey(t.object) ?? ""}`;
       if (seen.has(key)) return;
@@ -55,16 +69,19 @@ export class Relations {
       out.push(t);
     };
 
-    for (const t of this.store.asSubject(identity)) add(t);
+    for (const t of this.store.asSubject(identity)) if (holds(t)) add(t);
 
     // Found from the other end: symmetry and inverses.
     for (const t of this.store.asObject(identity)) {
+      if (!holds(t)) continue;
+      const carried = t.context === undefined ? {} : { context: t.context };
       if (this.declares(t.predicate, PROPERTY.symmetric)) {
         add({
           subject: identity,
           predicate: t.predicate,
           object: c(t.subject),
           expr: c(t.predicate, c(t.subject)),
+          ...carried,
         });
       }
       const inverse = this.inverseOf(t.predicate);
@@ -74,6 +91,7 @@ export class Relations {
           predicate: inverse,
           object: c(t.subject),
           expr: c(inverse, c(t.subject)),
+          ...carried,
         });
       }
     }
@@ -119,9 +137,9 @@ export class Relations {
    * Three-valued over an open world (concept-spec Part 5.2). Absence is unknown, never
    * false: a system built to learn cannot treat "not yet taught" as "untrue".
    */
-  truth(subject: string, predicate: string, object: Expr): Truth {
+  truth(subject: string, predicate: string, object: Expr, context?: Expr): Truth {
     const wanted = objectKey(object);
-    const derived = this.of(subject);
+    const derived = this.of(subject, context === undefined ? {} : { context });
     if (derived.some((t) => t.predicate === predicate && objectKey(t.object) === wanted))
       return "true";
     if (this.contradicted(subject, predicate, object)) return "false";
@@ -175,7 +193,7 @@ export class Relations {
   private disjointWith(identity: string): Set<string> {
     const out = new Set<string>();
     const unit = this.store.get(identity);
-    for (const r of unit?.relations ?? []) {
+    for (const { claim: r } of unit?.relations ?? []) {
       if (isCall(r) && r.head === PROPERTY.disjoint) {
         const key = objectKey(r.args[0]?.value);
         if (key) out.add(key);
@@ -192,13 +210,19 @@ export class Relations {
    * Symmetric and Transitive, plus IsA parents (concept-spec Part 11.1). Search returns
    * this rather than the single node, which is also how an orphan is detected.
    */
-  cluster(identity: string, limit = 24, equivalenceOnly = false): { identity: string; via: string }[] {
+  cluster(
+    identity: string,
+    limit = 24,
+    equivalenceOnly = false,
+    context?: Expr,
+  ): { identity: string; via: string }[] {
     const out = new Map<string, string>();
     const queue: string[] = [identity];
     const seen = new Set<string>([identity]);
     while (queue.length && out.size < limit) {
       const current = queue.shift()!;
       for (const t of [...this.store.asSubject(current), ...this.store.asObject(current)]) {
+        if (context !== undefined && !matchContext(t.context, context, new Map()).ok) continue;
         // Symmetric alone makes something a neighbour. Only symmetric AND transitive makes
         // it a neighbour's neighbour: a relation that does not close must not be walked as
         // though it did, or every synonym chain collapses into one blob.

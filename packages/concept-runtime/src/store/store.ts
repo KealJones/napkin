@@ -7,13 +7,22 @@
  * what lets a symmetric relation be derived for Emmy without being stored twice.
  */
 import { type Expr, isCall, format, equal } from "../concept/expression.js";
-import type { ConceptUnit, Realization } from "../concept/unit.js";
+import type { ConceptUnit, Realization, Relation } from "../concept/unit.js";
+
+/** Same claim AND same context. Differing on either makes it a separate assertion. */
+const sameRelation = (a: Relation, b: Relation): boolean =>
+  equal(a.claim, b.claim) &&
+  (a.context === undefined
+    ? b.context === undefined
+    : b.context !== undefined && equal(a.context, b.context));
 
 export interface Triple {
   readonly subject: string;
   readonly predicate: string;
   readonly object: Expr | undefined;
   readonly expr: Expr;
+  /** Where the claim holds. Absent means anywhere. */
+  readonly context?: Expr;
 }
 
 /** A stable key for the object side of a triple. */
@@ -60,7 +69,7 @@ export class ConceptStore {
     const relations = [...existing.relations];
     let addedRelations = 0;
     for (const r of unit.relations) {
-      if (!relations.some((x) => equal(x, r))) {
+      if (!relations.some((x) => sameRelation(x, r))) {
         relations.push(r);
         addedRelations += 1;
       }
@@ -87,10 +96,21 @@ export class ConceptStore {
     this.put({ ...existing, realizations: [...existing.realizations, { ...r, addedAt: new Date().toISOString() }] });
   }
 
-  addRelation(identity: string, relation: Expr): void {
+  /**
+   * The same claim in a different context is a different relation, not a duplicate. That
+   * is the entire point: `IsA(Instant())` under `Time()` and `IsA(MusicSingle())` under
+   * `Music()` must coexist, and so must one claim asserted both generally and contextually.
+   */
+  addRelation(identity: string, claim: Expr | Relation, context?: Expr): void {
+    const added: Relation =
+      typeof claim === "object" && claim !== null && "claim" in claim
+        ? claim
+        : context === undefined
+          ? { claim }
+          : { claim, context };
     const existing = this.units.get(identity) ?? { identity, relations: [], realizations: [] };
-    if (existing.relations.some((x) => equal(x, relation))) return;
-    this.put({ ...existing, relations: [...existing.relations, relation] });
+    if (existing.relations.some((x) => sameRelation(x, added))) return;
+    this.put({ ...existing, relations: [...existing.relations, added] });
   }
 
   private put(unit: ConceptUnit): void {
@@ -101,13 +121,15 @@ export class ConceptStore {
   }
 
   private index(unit: ConceptUnit): void {
-    for (const expr of unit.relations) {
+    for (const r of unit.relations) {
+      const expr = r.claim;
       if (!isCall(expr)) continue;
       const triple: Triple = {
         subject: unit.identity,
         predicate: expr.head,
         object: expr.args[0]?.value,
         expr,
+        ...(r.context === undefined ? {} : { context: r.context }),
       };
       push(this.bySubject, unit.identity, triple);
       const key = objectKey(triple.object);
