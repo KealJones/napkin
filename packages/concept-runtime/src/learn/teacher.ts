@@ -59,9 +59,14 @@ RULES
      is then realized as Choose: the pair is inert in both directions.
    Renaming is not realizing. If all you can say is that two names mean the same thing,
    say it as a relation -- SynonymOf(Other()) -- and leave realizations=List().
-6. Teach the general sense, not the name. Asked about Moment, the Concept is the brief
-   stretch of time -- not the surname, the band, or the magazine. If a word is also a
-   proper noun, ignore the proper noun.
+6. One sense per declaration. A word can have several -- Moment is a brief stretch of
+   time, and also a band, and also a surname -- and all of them are real. What is wrong is
+   mixing them: SynonymOf(Instant()) beside IsA(MusicSingle()) says a music single is a
+   brief stretch of time.
+   Give the relations for ONE sense, the one the message is about, and where no message
+   points at a narrower one, the everyday sense. Say nothing about the others rather than
+   listing them, and never coin IsA(WordWithMultipleMeanings()) -- that names the problem
+   instead of answering.
 7. Reuse an existing Concept where one fits, rather than coining a near-duplicate.
 8. A relation's object is ONE Concept, a noun, never a phrase or a clause.
      IsA(Obligation())                      right

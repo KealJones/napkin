@@ -681,3 +681,50 @@ preference complexity classes were recalled rather than confirmed. "SUMO does no
 evaluative predicates" is an inference from absence of documentation, not a verified
 negative. Pareto front-size figures are illustrative examples from individual studies, not
 a general law.
+
+---
+
+## 14. Postscript: where contextual relations do earn their place
+
+Part 9.3 records that scoping preference by context was the wrong repair, because a relation
+is stored on its subject and the subject already scopes it. `Dollar: Better(Gain(), Loss())`
+needs no facet; it is already a claim about dollars. That argument stands.
+
+It fails in one case, and the case arrived from a different direction entirely — teaching
+the system about time. Asked about `Moment`, the Teacher returned:
+
+```
+Moment:  SynonymOf(Instant())   SynonymOf(PointInTime())   SynonymOf(BriefPeriod())
+         IsA(ProperNoun())      IsA(Surname())             IsA(MusicSingle())
+         IsA(WordWithMultipleMeanings())
+```
+
+Every one of those is true. A moment is a brief stretch of time, and there is also a band
+called Moment and people surnamed Moment. The defect is not that it learned the band; it is
+that all the senses are in one undifferentiated pile, so `SynonymOf(Instant())` sits beside
+`IsA(MusicSingle())` as equally unconditional, and anything reasoning over the unit can
+conclude that a music single is a brief stretch of time.
+
+**The subject cannot scope this, because the ambiguity is the subject.** `Moment` cannot
+disambiguate `Moment`. Facets can:
+
+```
+Moment:  IsA(Instant())      in Time()
+         IsA(MusicSingle())  in Music()
+```
+
+So the asymmetry noted at the start of this investigation — realizations carry a context
+and relations do not — is real, but not for the reason first proposed. It is not needed to
+make an evaluative claim conditional. It is needed for **polysemy**, where one name carries
+several senses and no relation about it is true unconditionally.
+
+Worth noting what the Teacher did when it had no way to express this: it coined
+`IsA(WordWithMultipleMeanings())`. That is the model naming the gap and having nowhere to
+put the answer, which is a better signal than a confident wrong relation and is the same
+kind of evidence a residual is.
+
+**Not built.** It changes the shape of the Concept unit, which `concept-spec.md` Part 1
+specifies, and it needs the relation index, `truth()`, description and the persistence
+format to agree about it. The interim measure is a Teacher rule: one sense per declaration,
+the sense the message is about, and say nothing about the others rather than listing them.
+That keeps the pile from forming without pretending the other senses are unreal.
