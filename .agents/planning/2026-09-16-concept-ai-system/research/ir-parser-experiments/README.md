@@ -356,3 +356,44 @@ This also closes a loop. The original critique of the old parser prompt argued t
 instruction "never copy a name from a syntax illustration" was a tell — that the fix was to
 remove the placeholder names rather than warn about them. That was reasoning at the time.
 It is now measured, at 16 points of fidelity.
+
+---
+
+## 10. 27b as the Ears: no better, three times the cost
+
+Finding 5 tested 2b, 4b and 9b and concluded the Ears should not be upgraded. 27b was never
+tried, and two things had changed since that made it worth asking again: the vocabulary
+block was removed from the prompt, so the task became rendering the idea rather than
+choosing from a list, and the prompt gained rules and examples it did not have then.
+
+Six messages, one sample each, current prompt, `qwen3.5:4b` against `qwen3.8:27b`.
+
+| | 4b | 27b |
+|---|---|---|
+| identical readings | 5 of 6 | |
+| average | 2.9s | 9.0s |
+| total | 17.3s | 54.1s |
+
+Both produced the same reading for the clock question, the two `How` questions, the
+arithmetic, and — exactly, character for character — the long multi-clause case that was
+the hardest input in the original experiments:
+
+```
+Let($measure, Correction(Field("size"), Field("length")),
+  Let($files, Qualify(Ref("the files i sent"), Not(Ordinal(1)), Ordinal(2)),
+    Let($total, Sum(Property($files, $measure)),
+      Do(Tell(Me(), Whether(GreaterThan($total, Ref("before"))))))))
+```
+
+The one divergence went to neither. On "gimmie synonyms for happy" the 4b wrote a spurious
+`Fuzzy` marker and treated the adjective as a back-reference; the 27b wrote
+`Give(Me(), $words)` — adding a request that the message does not contain. That is the
+same failure Finding 5 recorded for the 9b, "more inclined to restructure and summarise",
+and inventing content is worse than marking it badly.
+
+**Finding 5 stands and now covers 27b.** Do not upgrade the Ears. The extra capacity is
+spent on restructuring, which is precisely the instinct this task does not want, and the
+cost is three times the latency on every turn.
+
+Caveat: one sample per message against six messages is indicative. It is enough to rule
+out a large improvement and not enough to measure a small one.
