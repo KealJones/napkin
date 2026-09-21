@@ -1,0 +1,284 @@
+[
+ {
+  "group": "request",
+  "message": "write me a typescript function that says hello world",
+  "parsed": "Write(HelloWorld())",
+  "problems": [],
+  "rejected": [],
+  "ms": 1694
+ },
+ {
+  "group": "request",
+  "message": "can you write me a typescript function that says hello world",
+  "parsed": "Sequence(Can(You()), Write(Function(TypeScript(), Hello())), Hello(World()))",
+  "problems": [
+   "the message asks a question but the parse contains no interrogative (What, Who, When, Where, Why, How, HowMany, WhichOf, Whether)"
+  ],
+  "rejected": [],
+  "ms": 1631
+ },
+ {
+  "group": "request",
+  "message": "please add 2 and 2",
+  "parsed": "What(Add(2, 2))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1515
+ },
+ {
+  "group": "request",
+  "message": "show me what you know about money",
+  "parsed": "What(Know(Ref(\"me\"), Field(\"money\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1568
+ },
+ {
+  "group": "request",
+  "message": "give me three examples of a bird",
+  "parsed": "Give(Three(), Examples(Bird()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1498
+ },
+ {
+  "group": "request",
+  "message": "remind me to call mum tomorrow",
+  "parsed": "Remind(Who(Me()), When(Tomorrow()), What(Call(Mum())))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1702
+ },
+ {
+  "group": "compute",
+  "message": "what is 17 times 4",
+  "parsed": "What(Multiply(17, Number(\"four\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1559
+ },
+ {
+  "group": "compute",
+  "message": "how many days until christmas",
+  "parsed": "How(Maybe(DaysUntil(Christmas())))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1486
+ },
+ {
+  "group": "compute",
+  "message": "what is half of 90",
+  "parsed": "What(Half(90))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1486
+ },
+ {
+  "group": "compute",
+  "message": "is 100 more than 99",
+  "parsed": "Whether(GreaterThan(100, 99))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1600
+ },
+ {
+  "group": "compute",
+  "message": "what's the average of 2, 4 and 9",
+  "parsed": "What(Average(2, 4, 9))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1583
+ },
+ {
+  "group": "definition",
+  "message": "what is a promise",
+  "parsed": "What(Promise())",
+  "problems": [],
+  "rejected": [],
+  "ms": 1399
+ },
+ {
+  "group": "definition",
+  "message": "define recursion",
+  "parsed": "Define(Recursion())",
+  "problems": [],
+  "rejected": [],
+  "ms": 1400
+ },
+ {
+  "group": "definition",
+  "message": "what's the difference between a list and a set",
+  "parsed": "What(Difference(List(), Set()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1478
+ },
+ {
+  "group": "definition",
+  "message": "is a tomato a fruit",
+  "parsed": "Whether(Fruit(String(\"tomato\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1478
+ },
+ {
+  "group": "multistep",
+  "message": "take 10, double it, then subtract 5",
+  "parsed": "Let($ten, Number(\"ten\"), Let($doubled, Multiply($ten, 2), Subtract($doubled, 5)))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1965
+ },
+ {
+  "group": "multistep",
+  "message": "what day is it and what time is it",
+  "parsed": "Sequence(What(Day()), What(Time()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1498
+ },
+ {
+  "group": "multistep",
+  "message": "if it is after noon tell me the time otherwise tell me the date",
+  "parsed": "Let($afterNoon, GreaterThan(Time(), Noon()), If(Ref(\"it\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1943
+ },
+ {
+  "group": "hypothetical",
+  "message": "what would happen if i doubled my rent",
+  "parsed": "Sequence(What(Double(Rent(Who()))), What(Happen(Who())))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1609
+ },
+ {
+  "group": "hypothetical",
+  "message": "suppose x is 5, what is x plus 3",
+  "parsed": "Let($X, Number(\"five\"), What(Plus($X, Number(\"three\"))))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1684
+ },
+ {
+  "group": "hypothetical",
+  "message": "if a train leaves at 3pm and takes 2 hours when does it arrive",
+  "parsed": "Let($leaves, Time(3), Let($arrive, ShiftHours($leaves, 2), What($arrive)))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1810
+ },
+ {
+  "group": "negation",
+  "message": "what is not a mammal",
+  "parsed": "What(Not(Mammal()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1442
+ },
+ {
+  "group": "negation",
+  "message": "dont tell me the time, tell me the date",
+  "parsed": "Sequence(What(Date()), Not(Time()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1495
+ },
+ {
+  "group": "negation",
+  "message": "i said the second one not the first",
+  "parsed": "Let($second, Not(Ordinal(1)), Let($one, Ordinal(1), Correction(Ref(\"the second one\"), Ref(\"the first one\"))))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1932
+ },
+ {
+  "group": "meta",
+  "message": "what concepts do you know about time",
+  "parsed": "What(Concepts(Time()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1468
+ },
+ {
+  "group": "meta",
+  "message": "what can you do",
+  "parsed": "What(Capabilities())",
+  "problems": [],
+  "rejected": [],
+  "ms": 1456
+ },
+ {
+  "group": "meta",
+  "message": "how did you work that out",
+  "parsed": "How(WorkedOut(You()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1493
+ },
+ {
+  "group": "meta",
+  "message": "forget what i said about money",
+  "parsed": "Sequence(Correction(Ref(\"what i said about money\"), Fuzzy(\"money\")), Forget(Ref(\"what i said about money\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1814
+ },
+ {
+  "group": "quantity",
+  "message": "how much is a lot",
+  "parsed": "How(Much(Ref(\"a lot\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1522
+ },
+ {
+  "group": "quantity",
+  "message": "which is bigger, a mouse or an elephant",
+  "parsed": "WhichOf(Bigger(Ref(\"a mouse\"), Ref(\"an elephant\")))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1677
+ },
+ {
+  "group": "quantity",
+  "message": "how heavy is a car",
+  "parsed": "How(Weight(Car()))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1490
+ },
+ {
+  "group": "social",
+  "message": "thanks",
+  "parsed": "Thanks()",
+  "problems": [],
+  "rejected": [],
+  "ms": 1430
+ },
+ {
+  "group": "social",
+  "message": "that was wrong",
+  "parsed": "Correction($_, \"that was wrong\")",
+  "problems": [],
+  "rejected": [],
+  "ms": 1531
+ },
+ {
+  "group": "social",
+  "message": "no i meant the other one",
+  "parsed": "Sequence(Fuzzy(\"i meant\"), Ref(\"the other one\"))",
+  "problems": [],
+  "rejected": [],
+  "ms": 1616
+ },
+ {
+  "group": "social",
+  "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
+  "parsed": "Let($today, Ref(\"today\"), Let($answer, Choice(Ref(\"A\"), Ref(\"B\"), Ref(\"C\"), Ref(\"D\")), Let($choice, Select($answer), What($choice))))",
+  "problems": [],
+  "rejected": [],
+  "ms": 2161
+ }
+]

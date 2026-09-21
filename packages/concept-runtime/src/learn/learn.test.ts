@@ -386,3 +386,40 @@ test("a Concept never forwards to itself", async () => {
   const rt = fresh();
   assert.equal(forwardSynonym(rt.store, "Multiply", "Multiply"), false);
 });
+
+test("an answer that never ran is never spoken as one", async () => {
+  const { turn } = await import("../runtime/turn.js");
+  const rt = fresh();
+  // Nothing here evaluates: Wibble is unknown, so Multiply is residual because its
+  // argument is. Innermost attribution blames Wibble, and if Wibble were exempt from
+  // learning there would be no gap at all -- which is how an unevaluated comparison got
+  // handed to the model, and answered from the model's own knowledge.
+  const out = await turn(rt, "", c("Execution"), {
+    learn: false,
+    speak: false,
+    teacher: false,
+    research: false,
+  });
+  assert.equal(out.rereads, 0);
+
+  const { holdsResidual } = await import("../runtime/turn.js");
+  rt.reset();
+  const result = await rt.evaluate(parse("Multiply(Wibble(), 2)"), EXEC);
+  assert.ok(holdsResidual(rt, result), "the result still contains what never ran");
+});
+
+test("a computed answer is not mistaken for an uncomputed one", async () => {
+  const { holdsResidual } = await import("../runtime/turn.js");
+  const rt = fresh();
+  const result = await rt.evaluate(parse("Multiply(6, 7)"), EXEC);
+  assert.equal(format(result), "42");
+  assert.ok(!holdsResidual(rt, result));
+});
+
+test("a modifier is structure, not behaviour waiting to be taught", async () => {
+  const rt = fresh();
+  // "dont tell me the time, tell me the date" answered "I do not know how to Not".
+  await rt.evaluate(parse("Not(Time())"), EXEC);
+  const { collectGaps, learnable } = await import("../runtime/turn.js");
+  assert.ok(!learnable(rt, collectGaps(rt, undefined)).some((g) => g.identity === "Not"));
+});

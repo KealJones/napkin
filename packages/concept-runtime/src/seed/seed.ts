@@ -453,6 +453,43 @@ add(concept("Fuzzy", { realizations: [projection("Fuzzy($x)", 0)] }));
 add(concept("Emphasis", { realizations: [projection("Emphasis($x)", 0)] }));
 // Aside and Ref have no execution realization at all, deliberately: both should stay
 // visible until something resolves them rather than quietly evaluating to anything.
+/* ------------------------------------------------------------------ *
+ * Request vocabulary (seed-concepts Part 10).
+ *
+ * Specified there and never seeded, which left a request with no frame to land in. The
+ * Ears reached for whatever word came first instead -- "can you write me a function"
+ * became Can(Write(...)), and the loop then set about learning the auxiliary verb "can",
+ * discovering among other things that it is a place in Turkey.
+ *
+ * A frame is not a computation. Do() says the user asked for something to happen rather
+ * than asked a question, which is the distinction nothing could previously express.
+ * ------------------------------------------------------------------ */
+add(concept("Frame", { relations: ["IsA(Category())"] }));
+/** The user asserting something, as opposed to asking. */
+add(concept("Fact", { relations: ["IsA(Frame())"] }));
+/** The user requesting an action. Not a question, and not a claim. */
+add(concept("Do", { relations: ["IsA(Frame())"] }));
+/** Delivery. `Do(Tell(Me(), Whether(...)))` is "tell me if...". */
+add(concept("Tell", { relations: ["IsA(Frame())"] }));
+/** Asking for something to be produced, as opposed to told. */
+add(concept("Give", { relations: ["IsA(Frame())", "SynonymOf(Show())"] }));
+add(concept("Show", { relations: ["IsA(Frame())"] }));
+/** Producing text or code, which is what makes a target language reachable from a chat. */
+add(concept("Write", { relations: ["IsA(Frame())"] }));
+
+/* Modifiers: progressive narrowing, position, and politeness that carries no content. */
+add(concept("Qualify", { relations: ["IsA(Modifier())"] }));
+add(concept("Ordinal", { relations: ["IsA(Modifier())"] }));
+add(concept("Field", { relations: ["IsA(Modifier())"] }));
+/**
+ * Politeness. Marked rather than dropped, because the design does not normalise away what
+ * was said -- but inert, so it never becomes the thing the system tries to do.
+ */
+add(concept("Politeness", { relations: ["IsA(Marker())"] }));
+for (const m of ["Please", "Can", "Could", "Would", "Will", "Should"]) {
+  add(concept(m, { relations: ["IsA(Politeness())"] }));
+}
+
 add(concept("Marker", { relations: ["IsA(Category())"] }));
 add(concept("Aside", { relations: ["IsA(Marker())"] }));
 add(

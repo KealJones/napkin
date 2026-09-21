@@ -1,0 +1,73 @@
+[request] write me a typescript function that says hello world
+   Write(HelloWorld())
+[request] can you write me a typescript function that says hello world
+   Sequence(Can(You()), Write(Function(TypeScript(), Hello())), Hello(World()))
+   ! the message asks a question but the parse contains no interrogative (What, Who, When, Where, Why, How, HowMany, WhichOf, Whether)
+[request] please add 2 and 2
+   What(Add(2, 2))
+[request] show me what you know about money
+   What(Know(Ref("me"), Field("money")))
+[request] give me three examples of a bird
+   Give(Three(), Examples(Bird()))
+[request] remind me to call mum tomorrow
+   Remind(Who(Me()), When(Tomorrow()), What(Call(Mum())))
+[compute] what is 17 times 4
+   What(Multiply(17, Number("four")))
+[compute] how many days until christmas
+   How(Maybe(DaysUntil(Christmas())))
+[compute] what is half of 90
+   What(Half(90))
+[compute] is 100 more than 99
+   Whether(GreaterThan(100, 99))
+[compute] what's the average of 2, 4 and 9
+   What(Average(2, 4, 9))
+[definition] what is a promise
+   What(Promise())
+[definition] define recursion
+   Define(Recursion())
+[definition] what's the difference between a list and a set
+   What(Difference(List(), Set()))
+[definition] is a tomato a fruit
+   Whether(Fruit(String("tomato")))
+[multistep] take 10, double it, then subtract 5
+   Let($ten, Number("ten"), Let($doubled, Multiply($ten, 2), Subtract($doubled, 5)))
+[multistep] what day is it and what time is it
+   Sequence(What(Day()), What(Time()))
+[multistep] if it is after noon tell me the time otherwise tell me the date
+   Let($afterNoon, GreaterThan(Time(), Noon()), If(Ref("it")))
+[hypothetical] what would happen if i doubled my rent
+   Sequence(What(Double(Rent(Who()))), What(Happen(Who())))
+[hypothetical] suppose x is 5, what is x plus 3
+   Let($X, Number("five"), What(Plus($X, Number("three"))))
+[hypothetical] if a train leaves at 3pm and takes 2 hours when does it arrive
+   Let($leaves, Time(3), Let($arrive, ShiftHours($leaves, 2), What($arrive)))
+[negation] what is not a mammal
+   What(Not(Mammal()))
+[negation] dont tell me the time, tell me the date
+   Sequence(What(Date()), Not(Time()))
+[negation] i said the second one not the first
+   Let($second, Not(Ordinal(1)), Let($one, Ordinal(1), Correction(Ref("the second one"), Ref("the first one"))))
+[meta] what concepts do you know about time
+   What(Concepts(Time()))
+[meta] what can you do
+   What(Capabilities())
+[meta] how did you work that out
+   How(WorkedOut(You()))
+[meta] forget what i said about money
+   Sequence(Correction(Ref("what i said about money"), Fuzzy("money")), Forget(Ref("what i said about money")))
+[quantity] how much is a lot
+   How(Much(Ref("a lot")))
+[quantity] which is bigger, a mouse or an elephant
+   WhichOf(Bigger(Ref("a mouse"), Ref("an elephant")))
+[quantity] how heavy is a car
+   How(Weight(Car()))
+[social] thanks
+   Thanks()
+[social] that was wrong
+   Correction($_, "that was wrong")
+[social] no i meant the other one
+   Sequence(Fuzzy("i meant"), Ref("the other one"))
+[social] today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk
+   Let($today, Ref("today"), Let($answer, Choice(Ref("A"), Ref("B"), Ref("C"), Ref("D")), Let($choice, Select($answer), What($choice))))
+
+35 prompts, 0 unparsed, 1 with problems

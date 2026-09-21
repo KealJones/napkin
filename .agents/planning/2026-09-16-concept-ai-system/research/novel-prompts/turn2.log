@@ -1,0 +1,54 @@
+
+"write me a typescript function that says hello world"  (2s)
+  parsed  Write(Function(TypeScript(), Says("hello world")))
+  result  Write(Function(TypeScript(), Says("hello world")))
+  spoken  I could not work that out.
+
+"what is 17 times 4"  (4s)
+  parsed  What(Multiply(17, Number("four")))
+  result  Answer(68)
+  spoken  17 times 4 is 68.
+
+"what is half of 90"  (38s)
+  parsed  What(Half(90))
+  result  BudgetExceeded(kind="depth", limit=64)
+  spoken  Budget exceeded due to depth limit of 64.
+  learned research:Half teacher:Half graph:Division research:Division teacher:Division research:Quotient teacher:Quotient
+
+"take 10, double it, then subtract 5"  (4s)
+  parsed  Let($ten, Number("ten"), Let($doubled, Multiply($ten, Double(1)), Let($subtracted, Subtract($doubled, Number("five")), Do(Calculate($subtracted)))))
+  result  BudgetExceeded(kind="depth", limit=64)
+  spoken  You cannot perform this calculation because the depth limit has been exceeded.
+  learned graph:Double
+
+"which is bigger, a mouse or an elephant"  (3s)
+  parsed  WhichOf(Ref("a mouse"), Ref("an elephant"), GreaterThan(Size(Ref("a mouse")), Size(Ref("an elephant"))))
+  result  Describes(Ref("a mouse"), List(IsA(Marker()), IsA(Category())))
+  spoken  I could not work that out.
+
+"what is a promise"  (2s)
+  parsed  What(Promise())
+  result  Describes(Promise(), List(IsA(Obligation()), IsA(Commitment()), Involves(FutureAction()), Involves(Trust()), Involves(Speaker()), Involves(Listener()), CanBeBro
+  spoken  I could not work that out.
+
+"suppose x is 5, what is x plus 3"  (24s)
+  parsed  Let($X, Number("five"), What(Add($X, Number("three"))))
+  result  Answer(8)
+  spoken  x plus 3 equals 8.
+  learned research:X teacher:X research:Suppose teacher:Suppose
+
+"dont tell me the time, tell me the date"  (4s)
+  parsed  Sequence(Do(Tell(Me(), Date())), Not(Time()))
+  result  Not(Time())
+  spoken  I could not work that out.
+
+"what can you do"  (13s)
+  parsed  Can(Capabilities())
+  result  Can(Capabilities())
+  spoken  I could not work that out.
+  learned research:Capabilities teacher:Capabilities
+
+"today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk"  (3s)
+  parsed  Let($today, Ref("today"), Let($optionA, String("Sept 20"), Let($optionB, String("Noday"), Let($optionC, String("Sept 1st, 1991"), Let($optionD, String("idk"), WhichOf($today, $optionA, $optionB, $optionC, $optionD))))))
+  result  Describes(Ref("today"), List(IsA(Marker()), IsA(Category())))
+  spoken  I could not work that out.

@@ -1,0 +1,136 @@
+[
+ {
+  "message": "write me a typescript function that says hello world",
+  "parsed": "Write(Function(TypeScript(), Says(\"hello world\")))",
+  "result": "Write(Function(TypeScript(), Says(\"hello world\")))",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Write"
+  ],
+  "learned": [],
+  "rereads": 0,
+  "ms": 2048
+ },
+ {
+  "message": "what is 17 times 4",
+  "parsed": "What(Multiply(17, Number(\"four\")))",
+  "result": "Answer(68)",
+  "spoken": "17 times 4 is 68.",
+  "gaps": [],
+  "learned": [],
+  "rereads": 0,
+  "ms": 3921
+ },
+ {
+  "message": "what is half of 90",
+  "parsed": "What(Half(90))",
+  "result": "BudgetExceeded(kind=\"depth\", limit=64)",
+  "spoken": "Budget exceeded due to depth limit of 64.",
+  "gaps": [],
+  "learned": [
+   "research:Half",
+   "teacher:Half",
+   "graph:Division",
+   "research:Division",
+   "teacher:Division",
+   "research:Quotient",
+   "teacher:Quotient"
+  ],
+  "rereads": 2,
+  "ms": 37704
+ },
+ {
+  "message": "take 10, double it, then subtract 5",
+  "parsed": "Let($ten, Number(\"ten\"), Let($doubled, Multiply($ten, Double(1)), Let($subtracted, Subtract($doubled, Number(\"five\")), Do(Calculate($subtracted)))))",
+  "result": "BudgetExceeded(kind=\"depth\", limit=64)",
+  "spoken": "You cannot perform this calculation because the depth limit has been exceeded.",
+  "gaps": [],
+  "learned": [
+   "graph:Double"
+  ],
+  "rereads": 1,
+  "ms": 4154
+ },
+ {
+  "message": "which is bigger, a mouse or an elephant",
+  "parsed": "WhichOf(Ref(\"a mouse\"), Ref(\"an elephant\"), GreaterThan(Size(Ref(\"a mouse\")), Size(Ref(\"an elephant\"))))",
+  "result": "Describes(Ref(\"a mouse\"), List(IsA(Marker()), IsA(Category())))",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Ref",
+   "reference:Ref"
+  ],
+  "learned": [],
+  "rereads": 0,
+  "ms": 2576
+ },
+ {
+  "message": "what is a promise",
+  "parsed": "What(Promise())",
+  "result": "Describes(Promise(), List(IsA(Obligation()), IsA(Commitment()), Involves(FutureAction()), Involves(Trust()), Involves(Speaker()), Involves(Listener()), CanBeBroken(), IsA(Requirement())))",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Promise"
+  ],
+  "learned": [],
+  "rereads": 0,
+  "ms": 1922
+ },
+ {
+  "message": "suppose x is 5, what is x plus 3",
+  "parsed": "Let($X, Number(\"five\"), What(Add($X, Number(\"three\"))))",
+  "result": "Answer(8)",
+  "spoken": "x plus 3 equals 8.",
+  "gaps": [],
+  "learned": [
+   "research:X",
+   "teacher:X",
+   "research:Suppose",
+   "teacher:Suppose"
+  ],
+  "rereads": 2,
+  "ms": 24410
+ },
+ {
+  "message": "dont tell me the time, tell me the date",
+  "parsed": "Sequence(Do(Tell(Me(), Date())), Not(Time()))",
+  "result": "Not(Time())",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Do",
+   "inert:Not"
+  ],
+  "learned": [],
+  "rereads": 0,
+  "ms": 4051
+ },
+ {
+  "message": "what can you do",
+  "parsed": "Can(Capabilities())",
+  "result": "Can(Capabilities())",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Can"
+  ],
+  "learned": [
+   "research:Capabilities",
+   "teacher:Capabilities"
+  ],
+  "rereads": 1,
+  "ms": 13066
+ },
+ {
+  "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
+  "parsed": "Let($today, Ref(\"today\"), Let($optionA, String(\"Sept 20\"), Let($optionB, String(\"Noday\"), Let($optionC, String(\"Sept 1st, 1991\"), Let($optionD, String(\"idk\"), WhichOf($today, $optionA, $optionB, $optionC, $optionD))))))",
+  "result": "Describes(Ref(\"today\"), List(IsA(Marker()), IsA(Category())))",
+  "spoken": "I could not work that out.",
+  "gaps": [
+   "inert:Ref",
+   "inert:String",
+   "reference:Ref"
+  ],
+  "learned": [],
+  "rereads": 0,
+  "ms": 2924
+ }
+]

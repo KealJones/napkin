@@ -65,6 +65,38 @@ function explainedByAnother(input: Expr, all: readonly Expr[]): boolean {
   });
 }
 
+/**
+ * Does the answer still contain something that never ran?
+ *
+ * This is a different question from "is anything learnable", and confusing the two let the
+ * model answer from its own knowledge. "which is bigger, a mouse or an elephant" produced
+ * `Answer(GreaterThan(Size(Ref("a mouse")), Size(Ref("an elephant"))))` -- nothing
+ * evaluated. The Ref was unresolved, so Size was residual because its argument was, and
+ * GreaterThan because ITS argument was; innermost-only attribution correctly collapsed all
+ * of that to the Ref, and a Ref is a Marker and so not learnable. Nothing was learnable,
+ * the Mouth concluded it had an answer, and the model wrote "An elephant is bigger than a
+ * mouse" out of its own head.
+ *
+ * It was right, which is what makes it dangerous: a system that sometimes answers from the
+ * graph and sometimes from the model, with no way to tell which, is not a graph-backed
+ * system at all.
+ */
+export function holdsResidual(runtime: Runtime, result: Expr | undefined): boolean {
+  if (result === undefined) return false;
+  // Describing is an answer ABOUT something residual, and works precisely because the
+  // subject does not evaluate: `What(Promise())` finds no realization, goes residual, and
+  // is described (concept-spec Part 4.0). Counting that as uncomputed rejected the best
+  // answer the system gives.
+  if (isCall(result) && result.head === "Describes") return false;
+  const unevaluated = runtime.trace.residuals(runtime.attemptStart).map((e) => e.input);
+  if (!unevaluated.length) return false;
+  for (const node of walk(result)) {
+    if (isCall(result) && result.head === "Answer" && node === result) continue;
+    if (unevaluated.some((r) => equal(r, node))) return true;
+  }
+  return false;
+}
+
 /** Everything the graph could not realize, plus every unresolved reference. */
 export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
   const gaps = new Map<string, Gap>();
@@ -145,6 +177,10 @@ export function isConstructedData(e: Expr): boolean {
  */
 const ENTITY = new Set([
   "Category", "Marker", "Data", "Primitive", "Collection", "Deictic", "Result",
+  // Modifier and Frame are structure too. "dont tell me the time" answered "I do not know
+  // how to Not", because Not takes an argument, realizes nothing, and so looks exactly
+  // like missing behaviour. A modifier is meant to survive into the answer, not run.
+  "Modifier", "Frame", "Politeness", "RelationProperty", "RealizationProperty",
 ]);
 
 export function isMarker(runtime: Runtime, identity: string): boolean {
@@ -268,8 +304,17 @@ export async function turn(
      * would only cost another model call.
      */
     const maxReads = options.maxPasses ?? 3;
+    /**
+     * Carried ACROSS readings, not rebuilt for each one.
+     *
+     * learn() keeps a set of identities already put to the Teacher so a turn cannot ask
+     * the same question twice. The re-parse loop calls learn() again per reading, and a
+     * fresh set each time undid that: one message taught Write three times, Function
+     * twice, and researched each of them again first.
+     */
+    const asked = new Set<string>();
     for (;;) {
-      const outcome = await learn(runtime, message, expression, context, options);
+      const outcome = await learn(runtime, message, expression, context, { ...options, asked });
       result = outcome.result;
       learned = [...learned, ...outcome.steps];
       if (!outcome.steps.length || rereads + 1 >= maxReads) break;
@@ -298,10 +343,14 @@ export async function turn(
   // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",
   // which is the model doing arithmetic the graph refused to do.
   const unrealized = learnable(runtime, gaps).map((g) => ({ identity: g.identity, kind: g.kind }));
+  // An answer still carrying something that never ran is not an answer, whether or not
+  // anything about it is learnable. Handing it to the model invites an answer from the
+  // model, which is the one thing this system exists not to do.
+  const uncomputed = holdsResidual(runtime, result);
   const spoken =
     options.speak === false || !result
       ? rendered
-      : await say(message, result, { ...options, unrealized, asked: expression });
+      : await say(message, result, { ...options, unrealized, uncomputed, asked: expression });
 
   return {
     heard,

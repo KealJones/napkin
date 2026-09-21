@@ -126,6 +126,15 @@ export interface Unrealized {
 export interface SayOptions extends ModelOptions {
   /** What the graph could not realize. Its presence means this is not an answer. */
   unrealized?: readonly Unrealized[];
+  /**
+   * The result still contains an expression that never ran.
+   *
+   * Separate from `unrealized`, because a result can be entirely uncomputed with nothing
+   * learnable about it -- an unresolved Ref explains every residual above it, and a Ref is
+   * a Marker. That combination handed the model an unevaluated comparison and it answered
+   * from its own knowledge, correctly, which is worse than answering wrongly.
+   */
+  uncomputed?: boolean;
   /** What was asked, so the answer can be placed in time the way the question was. */
   asked?: Expr;
 }
@@ -142,8 +151,10 @@ export async function say(
   if (asking) return asking;
 
   // Say plainly that it did not work out, rather than describing the expression that
-  // failed to.
-  if (options.unrealized?.length) return unresolved(message, result, options.unrealized);
+  // failed to, or worse, answering it from memory.
+  if (options.unrealized?.length || options.uncomputed) {
+    return unresolved(message, result, options.unrealized ?? []);
+  }
 
   const prompt = `The message was: ${message}\n\nThe result is: ${format(result)}\n\nSay it.`;
   try {

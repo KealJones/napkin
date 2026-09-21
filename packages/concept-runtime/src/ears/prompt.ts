@@ -18,12 +18,20 @@ Keep nesting at most 4 levels deep inside one line. If a value needs more, stop,
 to its own $name on its own line, and continue on the next line.
 
 All arguments are positional. Never write name= inside a call.
-Write plain "text" and plain numbers directly. Number("three") for a number written as a
-word, and ONLY for an actual number. "double", "twice", "half" and "a dozen" are not
+Write plain "text" and plain numbers directly. A digit stays a digit: 10 is 10, never
+Number("ten"), and "three examples" is 3 and never Three(). Number("three") is only for a
+number the message spelled as a word, and ONLY for an actual number. "double", "twice", "half" and "a dozen" are not
 numbers — each is its own Concept: write Double(21), never Multiply(21, Number("double")).
 Keep the user's original wording and misspellings inside strings.`;
 
-const MARK = `Mark every retraction with Correction(old, new).
+const MARK = `A request is not a question. Frame it with Do(...): "write me a function" is
+Do(Write(Function())), and "tell me the time" is Do(Tell(Me(), Time())).
+
+Politeness is its own line, never a wrapper around the request. Write the word that was
+actually used -- Can(), Could(), Please(), Would() -- on its own line, then the request on
+the next. Putting the request inside the modal makes the modal the thing to do.
+
+Mark every retraction with Correction(old, new).
 Mark every "not X" with Not(X).
 Mark every vague word ("or whatever", "like", "those things") with Fuzzy(...).
 Mark every stressed or capitalised word with Emphasis(...).
@@ -52,9 +60,19 @@ unknown it is: What(Multiply($_, $_)), not What(Multiply(?, ?)).
 
 Use the interrogative the message used. "how" is How, not What.
 
+An interrogative is a HOLE, never a label on something you already know.
+  "remind me to call mum tomorrow"
+  Do(Remind(Me(), Call(Mum()), Tomorrow()))          right
+  Remind(Who(Me()), When(Tomorrow()), What(Call(Mum())))   WRONG -- nothing is unknown
+  there, and writing it that way asks three questions the message did not ask.
+
 Never fold a whole phrase into one invented name. BuildStatus() and MeetingStatus() throw
 the parts away, and the parts are the only things that can be looked up, computed, or
 learned. Compose what was said instead: How(Went(Build())).
+
+Folding also loses the words around it. "a typescript function that says hello world" is
+not HelloWorld() -- typescript and function are gone, and they were the request. Keep
+every part: Write(Function(TypeScript(), Says("hello world"))).
 
 Keep who the message is about. "how are you" is about you, and dropping it leaves a
 different question.`;

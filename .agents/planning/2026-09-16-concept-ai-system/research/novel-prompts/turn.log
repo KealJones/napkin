@@ -1,0 +1,55 @@
+
+"write me a typescript function that says hello world"  (84s)
+  parsed  Sequence(Write(Hello()), Function(TypeScript(), Hello()))
+  result  SequenceOfInstructions(TypeScript(), Hi())
+  spoken  I could not work that out. I do not know how to Write.
+  learned research:Write teacher:Write research:TypeScript teacher:TypeScript research:Function teacher:Function research:Says teacher:Says research:SequenceOfInstructions teacher:SequenceOfInstructions research:Write teacher:Write research:CommunicationAct teacher:CommunicationAct research:Write teacher:Write research:Function teacher:Function
+
+"what is 17 times 4"  (3s)
+  parsed  What(Multiply(17, Number("four")))
+  result  Answer(68)
+  spoken  17 times 4 is 68.
+
+"what is half of 90"  (22s)
+  parsed  What(Half(90))
+  result  Answer(Quotient(90, 2))
+  spoken  I could not work that out. I do not know how to Quotient.
+  learned research:Half teacher:Half graph:Division research:Division teacher:Division
+
+"take 10, double it, then subtract 5"  (3s)
+  parsed  Let($ten, Number("ten"), Let($doubled, Multiply($ten, 2), Subtract($doubled, 5)))
+  result  15
+  spoken  Take 10, double it to get 20, then subtract 5 to get 15.
+
+"which is bigger, a mouse or an elephant"  (21s)
+  parsed  WhichOf(Bigger(Ref("a mouse"), Ref("an elephant")))
+  result  Answer(GreaterThan(Size(Ref("a mouse")), Size(Ref("an elephant"))))
+  spoken  An elephant is bigger than a mouse.
+  learned research:Bigger teacher:Bigger
+
+"what is a promise"  (3s)
+  parsed  What(Promise())
+  result  Describes(Promise(), List(IsA(Obligation()), IsA(Commitment()), Involves(FutureAction()), Involves(Trust()), Involves(Speaker()), Involves(Listener()), CanBeBro
+  spoken  A promise is an obligation, commitment, requirement, and future action that involves trust, a speaker, a listener, and can be broken.
+
+"suppose x is 5, what is x plus 3"  (43s)
+  parsed  Let($X, Number("five"), What(Add($X, Number("three"))))
+  result  Answer(8)
+  spoken  x plus 3 equals 8.
+  learned research:Plus teacher:Plus
+
+"dont tell me the time, tell me the date"  (22s)
+  parsed  Sequence(What(Date()), Not(Time()))
+  result  Not(Time())
+  spoken  I could not work that out. I do not know how to Not.
+  learned research:Not teacher:Not
+
+"what can you do"  (6s)
+  parsed  What(You())
+  result  Describes(You(), List(IsA(Deictic()), IsA(Category())))
+  spoken  I am a deictic category.
+
+"today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk"  (16s)
+  parsed  Let($today, Ref("today"), Let($optionA, String("Sept 20"), Let($optionB, String("Noday"), Let($optionC, String("Sept 1st, 1991"), Let($optionD, Fuzzy("idk"), What(Ref($today)))))))
+  result  Describes(Ref(Ref("today")), List(IsA(Marker()), IsA(Category())))
+  spoken  Today is a marker and a category.

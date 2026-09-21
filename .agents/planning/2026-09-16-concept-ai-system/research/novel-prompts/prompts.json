@@ -1,0 +1,55 @@
+{
+  "request": [
+    "write me a typescript function that says hello world",
+    "can you write me a typescript function that says hello world",
+    "please add 2 and 2",
+    "show me what you know about money",
+    "give me three examples of a bird",
+    "remind me to call mum tomorrow"
+  ],
+  "compute": [
+    "what is 17 times 4",
+    "how many days until christmas",
+    "what is half of 90",
+    "is 100 more than 99",
+    "what's the average of 2, 4 and 9"
+  ],
+  "definition": [
+    "what is a promise",
+    "define recursion",
+    "what's the difference between a list and a set",
+    "is a tomato a fruit"
+  ],
+  "multistep": [
+    "take 10, double it, then subtract 5",
+    "what day is it and what time is it",
+    "if it is after noon tell me the time otherwise tell me the date"
+  ],
+  "hypothetical": [
+    "what would happen if i doubled my rent",
+    "suppose x is 5, what is x plus 3",
+    "if a train leaves at 3pm and takes 2 hours when does it arrive"
+  ],
+  "negation": [
+    "what is not a mammal",
+    "dont tell me the time, tell me the date",
+    "i said the second one not the first"
+  ],
+  "meta": [
+    "what concepts do you know about time",
+    "what can you do",
+    "how did you work that out",
+    "forget what i said about money"
+  ],
+  "quantity": [
+    "how much is a lot",
+    "which is bigger, a mouse or an elephant",
+    "how heavy is a car"
+  ],
+  "social": [
+    "thanks",
+    "that was wrong",
+    "no i meant the other one",
+    "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk"
+  ]
+}

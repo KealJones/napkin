@@ -71,7 +71,13 @@ export async function learn(
   message: string,
   expression: Expr,
   context: Expr,
-  options: ModelOptions & { maxPasses?: number; teacher?: boolean; research?: boolean } = {},
+  options: ModelOptions & {
+    maxPasses?: number;
+    teacher?: boolean;
+    research?: boolean;
+    /** Identities already asked about, shared across re-readings of one message. */
+    asked?: Set<string>;
+  } = {},
 ): Promise<LearnResult> {
   const maxPasses = options.maxPasses ?? 3;
   const steps: LearnStep[] = [];
@@ -88,7 +94,7 @@ export async function learn(
    * question three times: a declaration that saved nothing still counted as progress, so
    * the pass repeated verbatim, research and all.
    */
-  const attempted = new Set<string>();
+  const attempted = options.asked ?? new Set<string>();
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
     passes = pass + 1;
