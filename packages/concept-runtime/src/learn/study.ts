@@ -174,10 +174,16 @@ export async function study(
     // this context. One that the graph does not have at all is somebody else's job.
     if (options.as !== undefined) {
       const unit = runtime.store.get(identity);
-      if (!unit || !unit.realizations.length) {
-        record({ identity, depth, how: "failed", detail: "not a Concept that does anything yet", discovered: [] });
+      if (!unit) {
+        record({ identity, depth, how: "failed", detail: "not in the graph", discovered: [] });
         continue;
       }
+      // Requiring existing behaviour was wrong here. Function, Write and Says do nothing in
+      // any context and are exactly the constructs a target language needs a rendering for
+      // -- for a pure syntax Concept the emission realization may be the only one it ever
+      // has. Whether something has a sensible rendering is a judgement the Teacher is
+      // better placed to make than a heuristic, and CONTEXT_SYSTEM rule 7 already tells it
+      // to return realizations=List() when the answer is no.
       if (speaks(runtime, identity, options.as)) {
         record({ identity, depth, how: "known", detail: `already speaks ${options.as}`, discovered: [] });
         continue;

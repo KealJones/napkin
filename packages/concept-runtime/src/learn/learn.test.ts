@@ -255,14 +255,20 @@ test("Text joins its parts, so a taught body can lay out syntax", async () => {
   );
 });
 
-test("expressing in a context targets Concepts that work but are mute", async () => {
+test("expressing in a context is offered for anything in the graph", async () => {
   const { study } = await import("./study.js");
   const rt = fresh();
+  rt.store.seed(concept("Chess", { relations: [] }));
   const result = await study(rt, ["if", "chess"], { as: "TypeScript", teacher: false });
-  // If works and has no TypeScript realization, so it is the gap.
+  // Requiring existing behaviour was wrong: Function, Write and Says do nothing in any
+  // context and are exactly the constructs a language needs a rendering for. Whether
+  // something HAS a sensible rendering is the Teacher's judgement, and CONTEXT_SYSTEM
+  // rule 7 tells it to answer realizations=List() when the answer is no.
   assert.ok(result.steps.some((s) => s.identity === "If" && s.detail === "no Teacher"));
-  // Chess does nothing at all, so expressing it in a language is not the job.
-  assert.ok(result.steps.some((s) => s.identity === "Chess" && /does anything/.test(s.detail)));
+  assert.ok(result.steps.some((s) => s.identity === "Chess" && s.detail === "no Teacher"));
+  // Something absent from the graph entirely is still not the job.
+  const missing = await study(rt, ["nonesuch"], { as: "TypeScript", teacher: false });
+  assert.ok(missing.steps.some((s) => /not in the graph/.test(s.detail)));
 });
 
 test("a Concept that already speaks the context is left alone", async () => {

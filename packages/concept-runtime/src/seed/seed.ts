@@ -1060,13 +1060,23 @@ add(
     realizations: [
       realization({
         pattern: "Text(Rest($parts))",
-        body: code(`(args, bindings, api) => args.map((a) => {
-          const v = a.value;
-          if (typeof v === "string") return v;
-          if (v === null || v === undefined) return "";
-          if (typeof v === "number" || typeof v === "boolean") return String(v);
-          return api.format(v);
-        }).join("")`),
+        body: code(`(args, bindings, api) => {
+          // An argument that did not reduce must not be formatted into the output. Doing
+          // so turns a residual into an ordinary string: the result LOOKS computed, the
+          // gap becomes undetectable, and the Mouth narrates source code as an answer.
+          // "write me a typescript function that adds two numbers" produced the string
+          // "[List(Can(), Do(Write(Function(Adds(Two(), Two())))))]" and was spoken as
+          // "It can write a function that adds two numbers."
+          if (args.some((a) => a.value && a.value.head)) {
+            return api.call("Text", ...args.map((a) => a.value));
+          }
+          return args.map((a) => {
+            const v = a.value;
+            if (typeof v === "string") return v;
+            if (v === null || v === undefined) return "";
+            return String(v);
+          }).join("");
+        }`),
       }),
     ],
   }),

@@ -6,7 +6,7 @@
  * (concept-spec Part 8.2). A parallel list of gaps alongside the tree would be duplicate
  * state that can disagree with it.
  */
-import { type Call, type Expr, equal, format, isCall, walk } from "../concept/expression.js";
+import { type Call, type Expr, c, call, equal, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
@@ -15,6 +15,7 @@ import { resolveReferences } from "./references.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 import { lineage, reachesBehaviour } from "./select.js";
+import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 
 export interface Gap {
@@ -251,10 +252,82 @@ export interface TurnOptions extends HearOptions {
   teacher?: boolean;
 }
 
+/**
+ * Facets the message itself named.
+ *
+ * The context was hardcoded to `Execution()` on every turn, so "write me a typescript
+ * function" parsed to `Write(Function(TypeScript(), ...))` and the TypeScript sat there as
+ * an ARGUMENT — present in the expression and structurally invisible to selection, which
+ * only reads the context. The emission realizations built for `--as TypeScript` were
+ * unreachable from a chat for exactly that reason.
+ *
+ * A facet is any nullary Concept whose lineage reaches `ContextFacet`, so the graph decides
+ * what counts as one and this needs no list to maintain. Naming one in the message puts it
+ * in the context, which is how a request to write TypeScript becomes an evaluation under
+ * TypeScript.
+ *
+ * The facet is LIFTED, not copied. Leaving it in place says something false about the
+ * shape: `Function(TypeScript(), Says("hello world"))` claims a function takes a language
+ * as a parameter, and a realization taught for `Function($name, $params, $body)` can never
+ * match it. Nothing is lost — the facet moves to where it means something, and the trace
+ * records the context it moved to.
+ */
+export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
+  const found = new Map<string, Expr>();
+  for (const node of walk(expression)) {
+    if (!isCall(node) || node.args.length > 0) continue;
+    if (node.head === "Context") continue;
+    if (lineage(runtime.store, node.head).some((u) => u.identity === "ContextFacet")) {
+      found.set(node.head, c(node.head));
+    }
+  }
+  return [...found.values()];
+}
+
+/** Drop the facets that have moved into the context, so the shape says what it means. */
+function withoutFacets(runtime: Runtime, e: Expr): Expr {
+  if (!isCall(e)) return e;
+  const kept = e.args.filter((a) => {
+    const v = a.value;
+    return !(
+      isCall(v) &&
+      v.args.length === 0 &&
+      v.head !== "Context" &&
+      lineage(runtime.store, v.head).some((u) => u.identity === "ContextFacet")
+    );
+  });
+  return call(
+    e.head,
+    kept.map((a) =>
+      a.name === undefined
+        ? { value: withoutFacets(runtime, a.value) }
+        : { name: a.name, value: withoutFacets(runtime, a.value) },
+    ),
+  );
+}
+
+/**
+ * The caller's context widened by what the message asked for, and the expression with
+ * those facets lifted out of it.
+ */
+function lift(runtime: Runtime, expression: Expr, given: Expr): { expression: Expr; context: Expr } {
+  const named = facetsNamed(runtime, expression);
+  if (!named.length) return { expression, context: given };
+  const already = facets(given);
+  const extra = named.filter((f) => !already.some((a) => equal(a, f)));
+  const lifted = withoutFacets(runtime, expression);
+  if (!extra.length) return { expression: lifted, context: given };
+  // One facet is written plainly; two or more are wrapped (seed-concepts Part 4).
+  return {
+    expression: lifted,
+    context: call("Context", [...already, ...extra].map((value) => ({ value }))),
+  };
+}
+
 export async function turn(
   runtime: Runtime,
   message: string,
-  context: Expr,
+  given: Expr,
   options: TurnOptions = {},
 ): Promise<TurnResult> {
   runtime.reset();
@@ -283,6 +356,12 @@ export async function turn(
     return { expression: maybe ?? h.expression!, resolved };
   };
   let { expression, resolved } = read(heard);
+  // Evaluate under what the message asked for, not only under what the caller assumed.
+  // `expression` is what was said and is what gets reported; `running` is what evaluates,
+  // with any context facet lifted out of it.
+  let lifted = lift(runtime, expression, given);
+  let running = lifted.expression;
+  let context = lifted.context;
 
   let result: Expr | undefined;
   let failed: string | undefined;
@@ -314,7 +393,7 @@ export async function turn(
      */
     const asked = new Set<string>();
     for (;;) {
-      const outcome = await learn(runtime, message, expression, context, { ...options, asked });
+      const outcome = await learn(runtime, message, running, context, { ...options, asked });
       result = outcome.result;
       learned = [...learned, ...outcome.steps];
       if (!outcome.steps.length || rereads + 1 >= maxReads) break;
@@ -327,10 +406,13 @@ export async function turn(
       heard = again;
       expression = next.expression;
       resolved = next.resolved;
+      lifted = lift(runtime, expression, given);
+      running = lifted.expression;
+      context = lifted.context;
     }
   } else {
     try {
-      result = await runtime.evaluate(expression, context);
+      result = await runtime.evaluate(running, context);
     } catch (caught) {
       failed = caught instanceof ConceptError ? format(caught.value) : String(caught);
     }

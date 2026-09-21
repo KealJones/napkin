@@ -493,3 +493,29 @@ test("a forward that leads somewhere real still works", async () => {
   const rt = new Runtime(store);
   assert.equal(format(await rt.evaluate(parse("Hi()"), c("Execution"))), '"hi there"');
 });
+
+test("emission never formats something that did not reduce", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const rt = new Runtime(store);
+  // Formatting an unreduced argument turns a residual into an ordinary string: the result
+  // looks computed, the gap is undetectable, and the Mouth narrates source as an answer.
+  const out = await rt.evaluate(parse('Text("f(", Wibble(), ")")'), c("Execution"));
+  assert.equal(format(out), 'Text("f(", Wibble(), ")")', "stays residual rather than stringifying");
+
+  // Primitives still assemble, which is the whole job.
+  rt.reset();
+  assert.equal(format(await rt.evaluate(parse('Text("a", 1, "b")'), c("Execution"))), '"a1b"');
+});
+
+test("a facet named in the message is lifted out of the expression", async () => {
+  const { facetsNamed } = await import("./runtime/turn.js");
+  const store = new ConceptStore();
+  seed(store);
+  const rt = new Runtime(store);
+  // A facet is any nullary Concept whose lineage reaches ContextFacet, so the graph
+  // decides what counts as one and there is no list to maintain.
+  const named = facetsNamed(rt, parse('Write(Function(TypeScript(), Says("hello")))'));
+  assert.deepEqual(named.map(format), ["TypeScript()"]);
+  assert.deepEqual(facetsNamed(rt, parse("What(Time())")).map(format), []);
+});

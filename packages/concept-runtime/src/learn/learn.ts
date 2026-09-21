@@ -7,10 +7,12 @@
  * residual, which is an honest outcome and better than a fabricated realization.
  */
 import { type Expr, c, format, isCall, walk } from "../concept/expression.js";
+import { facets } from "../runtime/context.js";
+import { lineage, reachesBehaviour } from "../runtime/select.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
-import { reachesBehaviour } from "../runtime/select.js";
+
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
 import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
@@ -151,6 +153,23 @@ export async function learn(
 
       const unit = runtime.store.get(gap.identity);
       const behaviour = gap.kind === "inert" && unit !== undefined;
+      /**
+       * Teach the behaviour the CONTEXT needs, not a context-free one.
+       *
+       * Evaluating under `TypeScript()` and finding something unrealized means a TypeScript
+       * rendering is missing — so that is what to ask for. Without this the loop taught an
+       * ordinary realization while the question was how to write the thing in a language,
+       * and studying `--as TypeScript` separately invented call shapes the Ears never
+       * produces: it taught `Function($name, $parameters, $body)` while the parser writes
+       * `Function(TypeScript(), Says("hello world"))`, and the pattern never matched.
+       *
+       * Driven from the real call, the shape is whatever the parser actually said.
+       */
+      const language = facets(context).find(
+        (f) =>
+          isCall(f) &&
+          lineage(runtime.store, f.head).some((u) => u.identity === "TargetLanguage"),
+      );
       const taught = await teach(
         runtime.store,
         {
@@ -158,6 +177,9 @@ export async function learn(
           message,
           expression: format(expression),
           evidence,
+          ...(behaviour && language !== undefined && isCall(language)
+            ? { inContext: format(language) }
+            : {}),
           ...(behaviour
             ? {
                 unrealizedCall: gap.expression,
