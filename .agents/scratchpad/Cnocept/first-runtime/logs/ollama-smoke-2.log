@@ -1,3 +1,0 @@
-$ pnpm build && node dist/cli.js -- --text 'What is 5 times three?' --model qwen3.5:4b --db ./.cnocept/ollama-smoke2.sqlite
-$ tsc -p tsconfig.json
-[ELIFECYCLE] Command failed.

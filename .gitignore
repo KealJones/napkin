@@ -2,3 +2,4 @@ node_modules/
 dist/
 .cnocept/
 **/dist/
+.DS_Store

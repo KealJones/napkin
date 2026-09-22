@@ -1,3 +1,0 @@
-$ prettier --check "src/**/*.ts" "*.json" "*.md"
-Checking formatting...
-All matched files use Prettier code style!

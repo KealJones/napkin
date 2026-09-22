@@ -1,5 +1,0 @@
-$ pnpm build && node dist/cli.js -- --text 'What is 5 times three?' --model qwen3.5:0.8b --db ./.cnocept/ollama-smoke4.sqlite
-$ tsc -p tsconfig.json
-The answer to "What is 5 times three?" is 15.
-Trace: ba172cb4-f725-4afd-82d2-3f3cfa5851b0
-Output trace: 4903c82e-2d93-4372-bcc7-462b6c38c876
