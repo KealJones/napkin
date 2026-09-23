@@ -406,6 +406,9 @@ button.ghost {
 .model-input {
   width: 130px;
 }
+.reader-select {
+  width: auto;
+}
 .persist-toggle {
   display: flex;
   align-items: center;

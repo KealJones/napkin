@@ -338,9 +338,11 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       endpoint: endpoint.origin,
       learn: body.learn !== false,
       history,
+      ...(body.backend === "model" || body.backend === "rules" || body.backend === "hybrid" ? { backend: body.backend } : {}),
     });
+    const reader = { reader: result.heard.backend ?? "model", fallback: result.heard.fallback ?? null };
 
-    if (result.parsed) send({ type: "meaning", expression: result.parsed });
+    if (result.parsed) send({ type: "meaning", expression: result.parsed, ...reader });
     if (result.resolved.length) send({ type: "resolved", resolved: result.resolved });
 
     const taught = result.learned.filter((l) => l.how === "teacher");
@@ -378,6 +380,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       result: result.rendered,
       resolved: result.resolved,
       heard: result.heard.raw.trim(),
+      ...reader,
       conversation: conversations.listActive().find((x) => x.id === conversationId),
       teacherUsed: taught.length > 0,
       teacherLesson: taught.map((l) => l.detail).join("\n\n") || null,

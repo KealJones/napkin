@@ -333,6 +333,9 @@ export async function turn(
   runtime.reset();
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
+  // The rules read first and the model only what they cannot, here rather than in each
+  // caller, so the CLI and the studio hear a message the same way.
+  options = { backend: "hybrid", ...options };
   let heard = await hear(runtime.store, message, options);
   if (!heard.expression) {
     return {

@@ -38,6 +38,8 @@ type ConceptUnit = {
   updatedAt?: string;
   usage?: { selected: number; residual: number };
 };
+type Reader = "model" | "rules" | "hybrid";
+
 type Activity = {
   id: string;
   meaning: string | null;
@@ -51,6 +53,9 @@ type Activity = {
   expanded: boolean;
   /** What the parser emitted, before lifting. */
   heard: string | null;
+  /** Who read the message, and why the rules handed it to the model if they did. */
+  reader?: string | null;
+  fallback?: string | null;
   /** References the parser marked, and what memory resolved them to. */
   resolved: { reference: string; to: string }[];
   /** What the graph could not realize — the learning queue. */
@@ -299,6 +304,15 @@ function App() {
   const [newPersistent, setNewPersistent] = useState(true);
   const [persistentTurn, setPersistentTurn] = useState(true);
   const [model, setModel] = useState("qwen3.5:4b");
+  // Who reads a message: the rules first and the model for what they cannot (hybrid), or one alone.
+  const [readBy, setReadBy] = useState<Reader>(() => {
+    try {
+      const saved = localStorage.getItem("cnocept-reader");
+      return saved === "model" || saved === "rules" || saved === "hybrid" ? saved : "hybrid";
+    } catch {
+      return "hybrid";
+    }
+  });
   const [endpoint, setEndpoint] = useState("http://127.0.0.1:11434");
   const [title, setTitle] = useState("New conversation");
   const [concepts, setConcepts] = useState<ConceptUnit[]>([]);
@@ -566,6 +580,7 @@ function App() {
           text: source,
           model,
           endpoint,
+          backend: readBy,
         }),
       });
       if (!response.ok || !response.body) {
@@ -589,6 +604,8 @@ function App() {
           updateActivity(activityId, (item) => ({
             ...item,
             meaning: event.expression as string,
+            reader: typeof event.reader === "string" ? event.reader : null,
+            fallback: typeof event.fallback === "string" ? event.fallback : null,
           }));
         } else if (event.type === "teacher") {
           updateActivity(activityId, (item) => ({
@@ -630,6 +647,8 @@ function App() {
                 : "used"
               : "not used",
             heard: typeof event.heard === "string" ? event.heard : item.heard,
+            reader: typeof event.reader === "string" ? event.reader : item.reader ?? null,
+            fallback: typeof event.fallback === "string" ? event.fallback : item.fallback ?? null,
             resolved: Array.isArray(event.resolved)
               ? (event.resolved as Activity["resolved"])
               : item.resolved,
@@ -957,6 +976,25 @@ function App() {
                         Persist chat
                       </label>
                       <span className="spacer" />
+                      <select
+                        className="model-input reader-select"
+                        value={readBy}
+                        title="Who reads the message: the rules, the model, or the rules with the model for what they cannot read"
+                        onChange={(event) => {
+                          const next = event.target.value as Reader;
+                          setReadBy(next);
+                          try {
+                            localStorage.setItem("cnocept-reader", next);
+                          } catch {
+                            /* storage may be unavailable */
+                          }
+                        }}
+                        aria-label="Reader"
+                      >
+                        <option value="hybrid">Hybrid</option>
+                        <option value="rules">Rules</option>
+                        <option value="model">LLM</option>
+                      </select>
                       <input
                         className="model-input"
                         value={model}
@@ -1132,7 +1170,16 @@ function ActivityPanel({ activity }: { activity: Activity }) {
       </summary>
       <div className="turn-activity-scroll">
         <details className="activity-step" open>
-          <summary>Input Concept expression</summary>
+          <summary>
+            Input Concept expression
+            {activity.reader ? (
+              <span className="muted">
+                {" "}
+                · read by {activity.reader === "rules" ? "rules" : "LLM"}
+                {activity.fallback && activity.reader !== "rules" ? ` (rules ${activity.fallback})` : ""}
+              </span>
+            ) : null}
+          </summary>
           <div className="activity-step-body">
             {meaning ? (
               <pre>
