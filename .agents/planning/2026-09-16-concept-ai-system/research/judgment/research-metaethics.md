@@ -115,7 +115,7 @@ of it. Its conclusion (moral non-naturalism, or at minimum resistance to easy re
 of "good") remains a live, respected position even though the argument that was supposed to
 establish it is generally regarded as invalid or question-begging as originally stated.
 
-*Bearing:* Directly parallel to the Cnocept problem: the temptation to define `Better` reductively
+*Bearing:* Directly parallel to the Napkin problem: the temptation to define `Better` reductively
 (as a relation derivable from some natural facts) meets a structurally similar resistance — "is X
 better?" stays open even after all the natural facts about X are fixed. Moore's argument's failure
 mode (assuming what it needs to prove) is a cautionary parallel, not a solution.
@@ -210,7 +210,7 @@ reject, but that some pluralists gesture toward). SEP's own "Incommensurable Val
 this as live and does not adjudicate it.
 
 *Bearing:* This is the sharpest formal analogue to the design problem. It suggests "unknown/ambiguous"
-in Cnocept may be conflating (at minimum) three philosophically distinct situations that the system
+in Napkin may be conflating (at minimum) three philosophically distinct situations that the system
 currently cannot tell apart: genuine parity (a real, positive, but non-ordering relation), mere
 epistemic/representational vagueness (more facets would resolve it), and true incomparability (no
 facets ever would).
@@ -256,7 +256,7 @@ decision procedure — which is honest about the limits of the theory but does n
 *Bearing:* Berlin's "no common currency" is a value-theoretic restatement of exactly the finding from
 the formal pass (no formalism derives the ordering); his "not relativism" defense is the philosophical
 version of insisting that ambiguity is still meaningful and constrained, not "anything goes" — which
-maps onto why Cnocept treats ambiguity as a first-class surfaced state rather than silent failure.
+maps onto why Napkin treats ambiguity as a first-class surfaced state rather than silent failure.
 
 ---
 
@@ -294,7 +294,7 @@ argue that richer, plural motivational structures in agents legitimately produce
 that formal models should represent as incomplete, not force-complete.
 
 *Bearing:* This is the most direct and citable authority for treating "unknown/ambiguous" as a
-terminal, correct answer in Cnocept rather than a symptom that more facets or more computation should
+terminal, correct answer in Napkin rather than a symptom that more facets or more computation should
 eventually eliminate — Sen's assertive/tentative distinction gives a vocabulary for the difference
 between "ambiguous because underspecified" and "ambiguous because that is the fact of the matter."
 
@@ -338,7 +338,7 @@ attitude, it becomes harder to challenge the evaluative content those terms smug
 their descriptive deployment, which has obvious stakes for critiquing oppressive or parochial moral
 vocabularies from outside the practice that uses them.
 
-*Bearing:* If a similar fusion holds for Cnocept facets and realizations, some conflicts may not
+*Bearing:* If a similar fusion holds for Napkin facets and realizations, some conflicts may not
 factor cleanly into "shared neutral facet + competing evaluative weighting" the way a clean
 facet-matching design assumes — the facet itself may already encode a point of view.
 

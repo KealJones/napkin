@@ -57,7 +57,7 @@ DLs are decidable fragments of FOL by design; adding classical nonmonotonic defa
 
 **Input required that a KG wouldn't naturally have:** an explicit minimize/vary/fix partition over predicates (circumscription) or a typicality ranking over individuals/concepts (rational closure) — again, externally authored structure, and in both cases the DL research explicitly flags that this is *why* defaults are hard to bolt onto DLs soundly: DL decidability is bought by restricting quantification, and virtually every natural way of adding "unless" reopens that restriction.
 
-**Fit note:** direct cautionary tale for any Concept-graph-as-DL-like-structure design: if Cnocept's realizations/relations ever get formalized as a description logic for soundness/decidability guarantees, adding facet-based defeasibility on top is exactly the move that this literature shows tends to blow up complexity or decidability unless very carefully restricted.
+**Fit note:** direct cautionary tale for any Concept-graph-as-DL-like-structure design: if Napkin's realizations/relations ever get formalized as a description logic for soundness/decidability guarantees, adding facet-based defeasibility on top is exactly the move that this literature shows tends to blow up complexity or decidability unless very carefully restricted.
 
 ## 5. Argumentation frameworks: Dung, and value-based (Bench-Capon)
 
@@ -69,7 +69,7 @@ DLs are decidable fragments of FOL by design; adding classical nonmonotonic defa
 
 **Input required that a KG wouldn't naturally have:** (a) a decomposition of each preference-relevant fact into an *argument* with an attack relation to competing arguments, which is heavier machinery than a bare relational fact, and (b) an explicit value-ordering per audience/agent, supplied from outside the graph.
 
-**Fit note:** this is the strongest structural match to "the weights belong to the person, not the graph." VAF cleanly separates (1) the graph-level structure of which considerations conflict with which (attack relation — this can plausibly live in the Concept graph as shared, objective structure) from (2) the person-level ranking of values that decides which conflicts resolve which way (audience ordering — this is explicitly *not* part of the AF, it's supplied per-agent). That separation is precisely the missing third term in the Bodyweight/Dollar problem: the graph encodes that Gain and Loss conflict and what goals they each serve, and a per-agent (or per-query) value-ordering — supplied at evaluation time, not stored as a graph fact — decides the winner. The cost is architectural: it requires modeling preference conflicts as first-class attack relations between arguments/relations rather than as plain asserted facts, which is a heavier unit than Cnocept's current three-part Concept.
+**Fit note:** this is the strongest structural match to "the weights belong to the person, not the graph." VAF cleanly separates (1) the graph-level structure of which considerations conflict with which (attack relation — this can plausibly live in the Concept graph as shared, objective structure) from (2) the person-level ranking of values that decides which conflicts resolve which way (audience ordering — this is explicitly *not* part of the AF, it's supplied per-agent). That separation is precisely the missing third term in the Bodyweight/Dollar problem: the graph encodes that Gain and Loss conflict and what goals they each serve, and a per-agent (or per-query) value-ordering — supplied at evaluation time, not stored as a graph fact — decides the winner. The cost is architectural: it requires modeling preference conflicts as first-class attack relations between arguments/relations rather than as plain asserted facts, which is a heavier unit than Napkin's current three-part Concept.
 
 ## 6. Preferences conditional on a reference point / current state
 
@@ -80,7 +80,7 @@ This is the thinnest formal literature of the six, and it lives in economics/psy
 
 **Input required that a KG wouldn't naturally have:** an explicit, agent- and moment-specific reference point (or a stated rule for deriving one — status quo vs. goal vs. expectation), which is exactly the missing ingredient the Bodyweight example needs and which no other formalism in sections 1-5 supplies either — CP-nets, VAFs, and default logic all take the *conflict structure* as given but none of them models "preference flips sign depending on where you currently are relative to a target."
 
-**Fit note:** no ready-made formal machinery to import here — this is the one area where the state-of-the-art is "yes, this matters, here's the phenomenon, the reference point is still an unexplained free parameter of the model" rather than a mechanism to borrow. Whatever primitive Cnocept adds for this will likely have no direct precedent to lean on; it's the genuinely novel piece of the six.
+**Fit note:** no ready-made formal machinery to import here — this is the one area where the state-of-the-art is "yes, this matters, here's the phenomenon, the reference point is still an unexplained free parameter of the model" rather than a mechanism to borrow. Whatever primitive Napkin adds for this will likely have no direct precedent to lean on; it's the genuinely novel piece of the six.
 
 ## Cross-cutting synthesis
 

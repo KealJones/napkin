@@ -1,5 +1,5 @@
 /**
- * The names the studio client imports from `@cnocept/concept-runtime/expression`.
+ * The names the studio client imports from `@napkin/concept-runtime/expression`.
  *
  * Kept as aliases rather than renaming the client: a user interface is an external
  * consumer, and breaking one to tidy an internal name is the wrong trade.

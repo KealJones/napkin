@@ -1,5 +1,5 @@
 {
-  "name": "cnocept-workspace",
+  "name": "napkin-workspace",
   "private": true,
   "type": "module",
   "engines": {
@@ -7,10 +7,10 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm --filter @cnocept/concept-runtime test",
-    "studio": "pnpm -r build && pnpm --filter @cnocept/studio-server start",
-    "cnocept": "node packages/concept-runtime/dist/cli.js",
-    "eval:ears": "pnpm --filter @cnocept/concept-runtime eval:ears"
+    "test": "pnpm --filter @napkin/concept-runtime test",
+    "studio": "pnpm -r build && pnpm --filter @napkin/studio-server start",
+    "napkin": "node packages/concept-runtime/dist/cli.js",
+    "eval:ears": "pnpm --filter @napkin/concept-runtime eval:ears"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

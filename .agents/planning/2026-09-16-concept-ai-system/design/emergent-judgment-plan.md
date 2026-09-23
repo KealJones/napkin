@@ -28,8 +28,8 @@ weighting, not a fixed lookup. Generalisation comes from compressing many exampl
 shared structure.
 
 **Refuse:** that the result has to be smeared across weights. Every one of those
-mechanisms has a discrete, inspectable counterpart that fits Cnocept's rules. The cost is
-that Cnocept needs several explicit mechanisms where the transformer has one opaque one.
+mechanisms has a discrete, inspectable counterpart that fits Napkin's rules. The cost is
+that Napkin needs several explicit mechanisms where the transformer has one opaque one.
 The gain is that every inference has a path you can read, and a wrong inference has a
 specific thing you can fix.
 
@@ -37,17 +37,17 @@ specific thing you can fix.
 
 ## 2. The thesis
 
-Cnocept already produces the corpus. **The trace is the training data.** Every turn
+Napkin already produces the corpus. **The trace is the training data.** Every turn
 generates labelled examples: in this context, for this call, these candidates existed,
 this one was selected, it produced this outcome, and the user's next turn accepted,
 corrected, or retried it. An LLM company pays enormous amounts to get data shaped like
-that. Cnocept writes it as a side effect of running, and then throws it away at the end of
+that. Napkin writes it as a side effect of running, and then throws it away at the end of
 the process.
 
 So the plan is five mechanisms, all reading from one durable evidence store, all
 deterministic given the state of the graph and the evidence:
 
-| Mechanism | Transformer analogue | Cnocept form |
+| Mechanism | Transformer analogue | Napkin form |
 |---|---|---|
 | **Evidence** | the training corpus | the persisted trace, read as a Concept |
 | **Expectation** | learned defaults / next-token prediction | expectations: `Expects`, `Requires`, with contexts and evidence |
@@ -104,7 +104,7 @@ Schank's scripts. Called expectations here because `frame` already means the req
 slots, and each slot can carry a default. What was implied but not said is **an expected
 slot the prompt left empty**.
 
-Cnocept already has half of this. A default is a lower-arity realization
+Napkin already has half of this. A default is a lower-arity realization
 (`concept-spec.md` Part 6.4), and defaults are selectable by context. What is missing is
 the relation that says a slot is expected at all.
 
@@ -338,7 +338,7 @@ The foundation. Without a corpus, nothing below learns.
   same request, explicit choice.
 - Add a trace-reading Concept (`Evidence(...)` or similar) whose realization queries the
   store by concept, realization, facets, and outcome.
-- CLI: `cnocept --evidence Multiply` prints counts by context.
+- CLI: `napkin --evidence Multiply` prints counts by context.
 
 **Demo:** run ten turns, restart the process, query the evidence, see it survived.
 
@@ -439,7 +439,7 @@ Last, because it needs volume.
 - Offer, never take, high-probability next steps.
 
 **Demo:** after several "write a function" then "write tests" sequences, the system offers
-tests; `cnocept --agenda` ranks common gaps above rare ones.
+tests; `napkin --agenda` ranks common gaps above rare ones.
 
 ---
 

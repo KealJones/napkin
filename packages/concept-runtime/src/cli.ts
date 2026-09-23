@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * cnocept — one turn, end to end, with the trace visible.
+ * napkin — one turn, end to end, with the trace visible.
  *
- *   cnocept "What is 5 times three?"
- *   cnocept --expr 'What(Multiply(5, Number("three")))'
- *   cnocept --seed
+ *   napkin "What is 5 times three?"
+ *   napkin --expr 'What(Multiply(5, Number("three")))'
+ *   napkin --seed
  */
 import { c, format, parse } from "./concept/expression.js";
 import { modelAvailable } from "./ears/ollama.js";
@@ -26,7 +26,7 @@ const value = (name: string) => {
 };
 
 /** Learning that does not survive a restart is not learning. */
-const graphPath = value("--graph") ?? `${process.env.HOME}/.cnocept/graph.json`;
+const graphPath = value("--graph") ?? `${process.env.HOME}/.napkin/graph.json`;
 const store = new ConceptStore();
 // Load before seeding. A snapshot can hold an older copy of a seeded realization, and
 // since a newer realization shadows an older one with the same pattern and context,
@@ -99,8 +99,8 @@ if (flag("--study")) {
   if (!topics.length) {
     console.error(
       'Nothing to study.\n' +
-        '  cnocept --study money debt "medium of exchange"\n' +
-        `  cnocept --study --track economics        tracks: ${TRACKS.join(", ")}, all`,
+        '  napkin --study money debt "medium of exchange"\n' +
+        `  napkin --study --track economics        tracks: ${TRACKS.join(", ")}, all`,
     );
     process.exit(1);
   }
@@ -201,25 +201,25 @@ if (expr) {
   if (t.learned.length) show("graph", `${grew} Concepts saved to ${graphPath}`);
   show("trace", runtime.trace.render());
 } else {
-  console.log(`cnocept — usage:
-  cnocept "What is 5 times three?"        hear a message, then realize it
-  cnocept --expr 'Add(2, 3)'             realize an expression directly
-  cnocept "what is chess?"               learning is on; --no-learn to answer from the graph alone
-  cnocept --model qwen3.5:9b "..."       parse with a different local model
-  cnocept --study money debt             learn topics, and whatever they turn out to need
-  cnocept --study --track economics      learn a whole curriculum track
-  cnocept --study --everyday             the whole everyday world, foundations first
-  cnocept --study If Add --as TypeScript teach existing Concepts to emit a language
-  cnocept --study money --limit 200 --depth 4    a long run; saves as it goes
-  cnocept --study --track cnocept --from .agents/planning/2026-09-16-concept-ai-system/design
+  console.log(`napkin — usage:
+  napkin "What is 5 times three?"        hear a message, then realize it
+  napkin --expr 'Add(2, 3)'             realize an expression directly
+  napkin "what is chess?"               learning is on; --no-learn to answer from the graph alone
+  napkin --model qwen3.5:9b "..."       parse with a different local model
+  napkin --study money debt             learn topics, and whatever they turn out to need
+  napkin --study --track economics      learn a whole curriculum track
+  napkin --study --everyday             the whole everyday world, foundations first
+  napkin --study If Add --as TypeScript teach existing Concepts to emit a language
+  napkin --study money --limit 200 --depth 4    a long run; saves as it goes
+  napkin --study --track napkin --from .agents/planning/2026-09-16-concept-ai-system/design
                                          learn its own vocabulary from its own specs
-  cnocept --import src/thing.ts          read TypeScript as Concept expressions
-  cnocept --agenda                       what it would work on next, unprompted
-  cnocept --exist                        work on that agenda, bounded by --budget
-  cnocept --forget                       what would be forgotten (--commit to apply)
-  cnocept --seed                         seed a graph and report
-  cnocept --fresh ...                    do not load or save the persistent graph
-  cnocept --graph <path> ...             use a different graph file
+  napkin --import src/thing.ts          read TypeScript as Concept expressions
+  napkin --agenda                       what it would work on next, unprompted
+  napkin --exist                        work on that agenda, bounded by --budget
+  napkin --forget                       what would be forgotten (--commit to apply)
+  napkin --seed                         seed a graph and report
+  napkin --fresh ...                    do not load or save the persistent graph
+  napkin --graph <path> ...             use a different graph file
 
-The graph lives at ~/.cnocept/graph.json and grows as the system learns.`);
+The graph lives at ~/.napkin/graph.json and grows as the system learns.`);
 }

@@ -60,7 +60,7 @@ export async function wikidata(query: string, limit = 5, timeoutMs = 10_000): Pr
 export async function web(query: string, limit = 5, timeoutMs = 10_000): Promise<Finding[]> {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   const response = await fetch(url, {
-    headers: { "user-agent": "Mozilla/5.0 (compatible; cnocept/0.1)" },
+    headers: { "user-agent": "Mozilla/5.0 (compatible; napkin/0.1)" },
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) return [];

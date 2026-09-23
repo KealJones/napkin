@@ -1,5 +1,5 @@
 {
-  "name": "@cnocept/studio-server",
+  "name": "@napkin/studio-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@cnocept/concept-runtime": "workspace:*"
+    "@napkin/concept-runtime": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",

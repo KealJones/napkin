@@ -103,7 +103,7 @@ export const CURRICULUM: Record<string, readonly string[]> = {
    *
    * Ordered so the pieces come before the things built out of them.
    */
-  cnocept: [
+  napkin: [
     "identity", "expression", "variable", "call", "argument", "pattern", "matching",
     "substitution", "binding", "scope", "concept", "relation", "realization", "body",
     "composition", "context", "facet", "specificity", "selection", "ambiguity",

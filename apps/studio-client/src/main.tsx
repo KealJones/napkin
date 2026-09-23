@@ -6,8 +6,8 @@ import {
   isExpr,
   parseExpression,
   type Expr,
-} from "@cnocept/concept-runtime/expression";
-import type { TraceEvent } from "@cnocept/concept-runtime";
+} from "@napkin/concept-runtime/expression";
+import type { TraceEvent } from "@napkin/concept-runtime";
 import "./styles.css";
 import { EarsLab } from "./EarsLab";
 
@@ -307,7 +307,7 @@ function App() {
   // Who reads a message: the rules first and the model for what they cannot (hybrid), or one alone.
   const [readBy, setReadBy] = useState<Reader>(() => {
     try {
-      const saved = localStorage.getItem("cnocept-reader");
+      const saved = localStorage.getItem("napkin-reader");
       return saved === "model" || saved === "rules" || saved === "hybrid" ? saved : "hybrid";
     } catch {
       return "hybrid";
@@ -325,7 +325,7 @@ function App() {
   const [hideMemory, setHideMemory] = useState(() => {
     try {
       return (
-        localStorage.getItem("cnocept-hide-conversation-memory") !== "false"
+        localStorage.getItem("napkin-hide-conversation-memory") !== "false"
       );
     } catch {
       return true;
@@ -778,7 +778,7 @@ function App() {
         <div className="brand">
           <div className="mark">C</div>
           <span className="brand-name">
-            cnocept <span className="brand-accent">studio</span>
+            napkin <span className="brand-accent">studio</span>
           </span>
         </div>
         <div>
@@ -938,7 +938,7 @@ function App() {
                           className={`message ${message.role === "User" ? "user" : "assistant"}`}
                         >
                           {message.role === "Assistant" && (
-                            <div className="role">cnocept</div>
+                            <div className="role">napkin</div>
                           )}
                           <div className="content">{message.content}</div>
                         </div>
@@ -984,7 +984,7 @@ function App() {
                           const next = event.target.value as Reader;
                           setReadBy(next);
                           try {
-                            localStorage.setItem("cnocept-reader", next);
+                            localStorage.setItem("napkin-reader", next);
                           } catch {
                             /* storage may be unavailable */
                           }
@@ -1042,7 +1042,7 @@ function App() {
                       setHideMemory(event.target.checked);
                       try {
                         localStorage.setItem(
-                          "cnocept-hide-conversation-memory",
+                          "napkin-hide-conversation-memory",
                           String(event.target.checked),
                         );
                       } catch {

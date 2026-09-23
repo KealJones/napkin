@@ -1,5 +1,5 @@
 {
-  "name": "@cnocept/concept-runtime",
+  "name": "@napkin/concept-runtime",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",

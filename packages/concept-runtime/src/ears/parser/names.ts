@@ -72,7 +72,7 @@ async function lookUp(phrase: string, timeoutMs: number): Promise<Hit | null> {
   const url =
     "https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=5&search=" +
     encodeURIComponent(phrase);
-  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": "cnocept-ears/0.1" } });
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": "napkin-ears/0.1" } });
   if (!response.ok) throw new Error(`Wikidata ${response.status}`);
   const body = (await response.json()) as { search?: Hit[] };
   const want = phrase.toLowerCase();

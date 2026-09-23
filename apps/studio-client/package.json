@@ -1,5 +1,5 @@
 {
-  "name": "@cnocept/studio-client",
+  "name": "@napkin/studio-client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "dev": "vite --host 127.0.0.1 --port 4173 --strictPort"
   },
   "dependencies": {
-    "@cnocept/concept-runtime": "workspace:*",
+    "@napkin/concept-runtime": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

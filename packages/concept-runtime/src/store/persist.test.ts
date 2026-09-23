@@ -11,7 +11,7 @@ import { load, save, verifyRoundTrip } from "./persist.js";
 import { ConceptStore } from "./store.js";
 
 const withTemp = (fn: (path: string) => void | Promise<void>) => {
-  const dir = mkdtempSync(join(tmpdir(), "cnocept-"));
+  const dir = mkdtempSync(join(tmpdir(), "napkin-"));
   try {
     return fn(join(dir, "graph.json"));
   } finally {

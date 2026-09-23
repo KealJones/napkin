@@ -25,9 +25,9 @@ into generation with nothing but `zlib`:
 - Primed on tiny Shakespeare. No weights, no training. The author's verdict: it clearly
   knows something about the text, and it is not coherent.
 
-## Why it fits Cnocept better than a neural net
+## Why it fits Napkin better than a neural net
 
-Started from "could Cnocept hold a neural model built out of Concepts". A forward pass can:
+Started from "could Napkin hold a neural model built out of Concepts". A forward pass can:
 `Multiply`, `Add` and `GreaterThan` are seeded, and a neuron is a composed realization.
 Training fights the design. Parts are append-only (`concept-spec.md` 3.1), so every weight
 update appends a realization that has to stop winning (3.2). Each weight is inspectable

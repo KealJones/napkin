@@ -103,7 +103,7 @@ pnpm eval:ears --label before
 # change the prompt
 pnpm eval:ears --label after --compare packages/concept-runtime/eval/ears/results/<before>.json
 # a mechanical repair can be tried on saved outputs, with no model calls:
-pnpm --filter @cnocept/concept-runtime exec node dist/ears/eval/run.js --rescore <run.json>
+pnpm --filter @napkin/concept-runtime exec node dist/ears/eval/run.js --rescore <run.json>
 ```
 
 When the expectations change (a gold reading, a case), re-score the old run before

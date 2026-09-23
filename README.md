@@ -1,10 +1,10 @@
-# Cnocept
+# Napkin
 
 An AI architecture in which **everything is a Concept**. It thinks, speaks, and acts using
 one kind of unit, and it grows by adding more of them.
 
 ```
-$ cnocept "What is 5 times three?"
+$ napkin "What is 5 times three?"
 
 heard    What(Multiply(5, Number("three")))
 result   Answer(15)
@@ -61,7 +61,7 @@ additively, so asking for a description keeps the situation being described.
 ### It learns
 
 ```
-$ cnocept --learn "what is chess?"
+$ napkin --learn "what is chess?"
 
 learned  teacher: Chess — Concept(identity="Chess", relations=List(IsA(BoardGame()),
          MinimumNumberOfPlayers(2), PlayedOn(ChessBoard()), ...)) -> Saved(Chess())
@@ -69,7 +69,7 @@ result   Describes(Chess(), List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ..
 ```
 
 Invent, realize, collect what came back residual, try the graph, ask the Teacher last, save,
-re-answer. The graph persists to `~/.cnocept/graph.json`, so asking again in a fresh process
+re-answer. The graph persists to `~/.napkin/graph.json`, so asking again in a fresh process
 needs no model call.
 
 Wikidata and web search run **before** the Teacher, so it is a last resort rather than the
@@ -79,10 +79,10 @@ recall. A gap that cannot be closed stays a residual. It is not filled in with a
 ### It works without being asked
 
 ```
-$ cnocept --agenda
+$ napkin --agenda
 learn     Backgammon    left residual in Backgammon()
 
-$ cnocept --exist
+$ napkin --exist
 learn Backgammon
   did: research: 8 findings from Wikidata and Web; teacher: Concept(identity="Backgammon",
        relations=List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ...)) -> Saved(Backgammon())
@@ -100,7 +100,7 @@ answering 42.
 ### It forgets
 
 ```
-$ cnocept --forget
+$ napkin --forget
 nothing to forget — an only-way-to-do-something is never collected
 ```
 
@@ -114,13 +114,13 @@ forgetting can lose an alternative, never a capability.
 ```bash
 pnpm install && pnpm build
 
-pnpm cnocept "What is 5 times three?"       # a turn, end to end
-pnpm cnocept --expr 'Add(2, 3)'             # realize an expression directly
-pnpm cnocept --learn "what is chess?"       # close gaps before answering
-pnpm cnocept --agenda                       # what it would work on next, unprompted
-pnpm cnocept --exist                        # work on that agenda
-pnpm cnocept --forget                       # what would be collected
-pnpm cnocept --seed                         # seed a graph and report
+pnpm napkin "What is 5 times three?"       # a turn, end to end
+pnpm napkin --expr 'Add(2, 3)'             # realize an expression directly
+pnpm napkin --learn "what is chess?"       # close gaps before answering
+pnpm napkin --agenda                       # what it would work on next, unprompted
+pnpm napkin --exist                        # work on that agenda
+pnpm napkin --forget                       # what would be collected
+pnpm napkin --seed                         # seed a graph and report
 pnpm studio                                 # browse the graph at :4317
 pnpm test
 ```

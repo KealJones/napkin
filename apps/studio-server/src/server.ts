@@ -1,5 +1,5 @@
 /**
- * Cnocept Studio server.
+ * Napkin Studio server.
  *
  * Serves the built client and exposes the Concept graph, conversations, traces, and one
  * chat turn as a stream. The interface is not a Concept and is not required to be
@@ -25,8 +25,8 @@ import {
   type Expr,
   type TraceEvent,
   turn as runTurn,
-} from "@cnocept/concept-runtime";
-import { concept, realization } from "@cnocept/concept-runtime";
+} from "@napkin/concept-runtime";
+import { concept, realization } from "@napkin/concept-runtime";
 import {
   compareEars,
   earsCases,
@@ -44,10 +44,10 @@ import {
   saveEarsRun,
   summarizeEars,
   type EarsRun,
-} from "@cnocept/concept-runtime";
+} from "@napkin/concept-runtime";
 
-const graphPath = resolve(process.env.CNOCEPT_GRAPH ?? resolve(homedir(), ".cnocept/graph.json"));
-const port = Number(process.env.CNOCEPT_PORT ?? 4173);
+const graphPath = resolve(process.env.NAPKIN_GRAPH ?? resolve(homedir(), ".napkin/graph.json"));
+const port = Number(process.env.NAPKIN_PORT ?? 4173);
 const clientBuildPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../studio-client/dist");
 
 await mkdir(dirname(graphPath), { recursive: true });
@@ -70,7 +70,7 @@ const server = createServer((request, response) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log("Cnocept Studio running at http://127.0.0.1:" + port);
+  console.log("Napkin Studio running at http://127.0.0.1:" + port);
   console.log(`Concept graph: ${graphPath}`);
   console.log(`${store.size()} Concepts (${seedReport.created} seeded, ${loaded} loaded)`);
 });

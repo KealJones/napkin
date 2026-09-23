@@ -318,7 +318,7 @@ matter.
 of whether "the resolver needs more facets" (vagueness diagnosis, fixable in
 principle by more information) or "some conflicts are open ambiguities by
 nature" (parity diagnosis, not fixable by more information) is the right way
-to read Cnocept's own choice to surface incomparable-but-equally-specific
+to read Napkin's own choice to surface incomparable-but-equally-specific
 cases as ambiguity rather than force a resolution.
 
 ---

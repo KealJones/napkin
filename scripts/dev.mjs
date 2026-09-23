@@ -16,20 +16,20 @@ function run(args, env = process.env) {
   });
 }
 
-await run(["--filter", "@cnocept/concept-runtime", "build"]);
+await run(["--filter", "@napkin/concept-runtime", "build"]);
 
 const children = [
-  spawn(pnpm, ["--filter", "@cnocept/concept-runtime", "dev"], {
+  spawn(pnpm, ["--filter", "@napkin/concept-runtime", "dev"], {
     cwd: root,
     env: process.env,
     stdio: "inherit",
   }),
-  spawn(pnpm, ["--filter", "@cnocept/studio-server", "dev"], {
+  spawn(pnpm, ["--filter", "@napkin/studio-server", "dev"], {
     cwd: root,
-    env: { ...process.env, CNOCEPT_PORT: "4174" },
+    env: { ...process.env, NAPKIN_PORT: "4174" },
     stdio: "inherit",
   }),
-  spawn(pnpm, ["--filter", "@cnocept/studio-client", "dev"], {
+  spawn(pnpm, ["--filter", "@napkin/studio-client", "dev"], {
     cwd: root,
     env: process.env,
     stdio: "inherit",

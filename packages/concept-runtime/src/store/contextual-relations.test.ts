@@ -81,7 +81,7 @@ test("a graph written before contexts existed still loads and means the same", a
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { writeFileSync } = await import("node:fs");
-  const dir = mkdtempSync(join(tmpdir(), "cnocept-"));
+  const dir = mkdtempSync(join(tmpdir(), "napkin-"));
   const path = join(dir, "graph.json");
   // The old shape: relations are bare strings.
   writeFileSync(
