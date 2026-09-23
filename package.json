@@ -9,7 +9,8 @@
     "build": "pnpm -r build",
     "test": "pnpm --filter @cnocept/concept-runtime test",
     "studio": "pnpm -r build && pnpm --filter @cnocept/studio-server start",
-    "cnocept": "node packages/concept-runtime/dist/cli.js"
+    "cnocept": "node packages/concept-runtime/dist/cli.js",
+    "eval:ears": "pnpm --filter @cnocept/concept-runtime eval:ears"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

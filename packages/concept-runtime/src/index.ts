@@ -17,6 +17,14 @@ export * from "./ears/lift.js";
 export * from "./ears/prompt.js";
 export * from "./ears/ollama.js";
 export * from "./ears/say.js";
+export * from "./ears/mood.js";
+export {
+  runEars, rescore as rescoreEars, summarize as summarizeEars, compare as compareEars, latestRun as latestEarsRun,
+  save as saveEarsRun, currentCases as earsCases, type Run as EarsRun, type CaseResult as EarsCaseResult,
+  listRuns as listEarsRuns, openRun as openEarsRun, logConversion as logEarsConversion,
+  recentConversions as recentEarsConversions, hashPrompt as hashEarsPrompt, unfuse as unfuseGold,
+} from "./ears/eval/harness.js";
+export { score, type EvalCase, type Score } from "./ears/eval/score.js";
 export * from "./learn/learn.js";
 export * from "./research/sources.js";
 export * from "./learn/teacher.js";
