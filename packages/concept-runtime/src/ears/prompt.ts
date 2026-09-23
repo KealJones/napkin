@@ -147,10 +147,12 @@ const INTERROGATIVES = [
  *
  *  0. The interrogatives. Rule 1 of the prompt requires one in every question, so a
  *     vocabulary that can drop them contradicts the instructions it sits beside.
- *  1. Concepts that REALIZE something. Naming one of these is the difference between an
- *     answer and a residual, so they are never crowded out.
- *  2. Concepts the message itself points at, by word. `Greeting` matters when someone says
- *     hello and never otherwise.
+ *  1. Concepts the message itself points at, by word. `Greeting` matters when someone says
+ *     hello and never otherwise. These come before band 2 because a seeded domain (chess
+ *     alone adds ~50 realizing helpers) can fill the whole budget alphabetically and push
+ *     out `Time` for "what time is it".
+ *  2. Concepts that REALIZE something. Naming one of these is the difference between an
+ *     answer and a residual.
  *  3. The rest, alphabetically, so the prompt stays stable between turns and the model is
  *     not learning a new vocabulary every message.
  */
@@ -171,8 +173,6 @@ export function vocabulary(store: ConceptStore, limit = 400, message = ""): stri
     a.identity.localeCompare(b.identity);
 
   take([...INTERROGATIVES].filter((id) => store.has(id)));
-  take(all.filter((u) => u.realizations.length).sort(byName).map((u) => u.identity));
-
   const words = message.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
   if (words.length) {
     take(
@@ -182,6 +182,7 @@ export function vocabulary(store: ConceptStore, limit = 400, message = ""): stri
         .map((u) => u.identity),
     );
   }
+  take(all.filter((u) => u.realizations.length).sort(byName).map((u) => u.identity));
 
   take(all.sort(byName).map((u) => u.identity));
 

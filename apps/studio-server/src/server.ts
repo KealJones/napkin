@@ -297,6 +297,10 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
     return;
   }
   const conversationId = body.conversationId;
+  if (body.inputMode !== undefined && body.inputMode !== "message" && body.inputMode !== "expression") {
+    sendJson(response, 400, { error: "inputMode must be message or expression" });
+    return;
+  }
   if (!conversations.get(conversationId)) {
     sendJson(response, 404, { error: "Conversation not found" });
     return;
@@ -350,6 +354,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       model,
       endpoint: endpoint.origin,
       learn: body.learn !== false,
+      inputMode: body.inputMode === "expression" ? "expression" : "message",
       history,
       conversation: conversationId,
       ...(body.backend === "model" || body.backend === "rules" || body.backend === "hybrid" ? { backend: body.backend } : {}),

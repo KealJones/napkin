@@ -15,7 +15,7 @@ import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
-import type { Runtime } from "./evaluator.js";
+import { Runtime } from "./evaluator.js";
 import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
@@ -99,9 +99,17 @@ export function holdsResidual(runtime: Runtime, result: Expr | undefined): boole
   if (!unevaluated.length) return false;
   for (const node of walk(result)) {
     if (isCall(result) && result.head === "Answer" && node === result) continue;
+    // Inert data is the answer's structure. Keep walking its children: a data wrapper
+    // must never hide an unresolved computation or reference inside it.
+    if (isCall(node) && isPureData(runtime, node.head)) continue;
     if (unevaluated.some((r) => equal(r, node))) return true;
   }
   return false;
+}
+
+function isPureData(runtime: Runtime, identity: string): boolean {
+  return !reachesBehaviour(runtime.store, identity) &&
+    lineage(runtime.store, identity).some((u) => u.identity === "Data" || u.identity === "Result");
 }
 
 /** Everything the graph could not realize, plus every unresolved reference. */
@@ -199,6 +207,7 @@ export function isMarker(runtime: Runtime, identity: string): boolean {
 
 export function wantsBehaviour(runtime: Runtime, gap: Gap): boolean {
   if (isMarker(runtime, gap.identity)) return false;
+  if (isPureData(runtime, gap.identity)) return false;
   if (!isCall(gap.input) || !gap.input.args.length) return false;
   if (isConstructedData(gap.input)) return false;
   // An anonymous unknown in the call means the INPUTS are missing, not the behaviour.
@@ -247,6 +256,8 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
+  /** Parse exact Concept syntax directly when explicitly requested. */
+  inputMode?: "message" | "expression";
   /**
    * Close gaps by learning before answering (concept-spec Part 12). On by default, and the
    * default belongs here rather than in each caller: the CLI had it off and the studio had
@@ -264,6 +275,28 @@ export interface TurnOptions extends HearOptions {
    * can be derived for it (memory-spec Part 8.1). Absent, nothing is focused.
    */
   conversation?: string;
+}
+
+/** Optional graph hooks use their own attempt so their residuals never become user gaps. */
+async function graphText(runtime: Runtime, identity: string, input: Expr): Promise<string | undefined> {
+  if (!runtime.store.has(identity)) return undefined;
+  const hook = new Runtime(runtime.store, {
+    maximumDepth: runtime.maximumDepth,
+    maximumSteps: runtime.maximumSteps,
+    speaks: runtime.speaks,
+  });
+  for (const [key, value] of runtime.context) hook.context.set(key, value);
+  const result = await hook.evaluate(c(identity, input), c("Execution"));
+  return typeof result === "string" ? result : undefined;
+}
+
+function exactExpression(message: string): EarsResult {
+  try {
+    return { message, raw: message, expression: parse(message), problems: [], rejected: [], attempts: 0 };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return { message, raw: message, expression: undefined, problems: [reason], rejected: [{ line: message, reason }], attempts: 0 };
+  }
 }
 
 /**
@@ -367,11 +400,18 @@ export async function turn(
   runtime.context.set("message", message);
   if (options.conversation === undefined) runtime.context.delete("conversation");
   else runtime.context.set("conversation", options.conversation);
+  for (const key of ["model", "endpoint"] as const) {
+    const value = options[key];
+    if (value === undefined) runtime.context.delete(key);
+    else runtime.context.set(key, value);
+  }
   // The rules read first and the model only what they cannot, here rather than in each
   // caller, so the CLI and the studio hear a message the same way.
   options = { backend: "hybrid", ...options };
-  let heard = await hear(runtime.store, message, options);
-  if (!heard.expression) {
+  const hearMessage = async (): Promise<EarsResult> =>
+    options.inputMode === "expression" ? exactExpression(message) : hear(runtime.store, message, options);
+  let heard = await hearMessage();
+  if (heard.expression === undefined) {
     return {
       heard,
       expression: undefined,
@@ -451,10 +491,10 @@ export async function turn(
       const outcome = await learn(runtime, message, running, context, { ...options, asked });
       result = outcome.result;
       learned = [...learned, ...outcome.steps];
-      if (!outcome.steps.length || rereads + 1 >= maxReads) break;
+      if (!outcome.steps.length || rereads + 1 >= maxReads || options.inputMode === "expression") break;
 
-      const again = await hear(runtime.store, message, options);
-      if (!again.expression) break;
+      const again = await hearMessage();
+      if (again.expression === undefined) break;
       rereads += 1;
       const next = read(again);
       if (equal(next.expression, expression)) break;
@@ -474,7 +514,7 @@ export async function turn(
     }
   }
 
-  const rendered = result ? format(result) : (failed ?? "(no result)");
+  const rendered = result !== undefined ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
   // Anything still learnable after learning has run means the result is not an answer.
   // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
@@ -485,10 +525,13 @@ export async function turn(
   // anything about it is learnable. Handing it to the model invites an answer from the
   // model, which is the one thing this system exists not to do.
   const uncomputed = holdsResidual(runtime, result);
+  const graphSpoken = options.speak !== false && result !== undefined && !uncomputed && !unrealized.length
+    ? await graphText(runtime, "RenderResponse", result)
+    : undefined;
   const spoken =
-    options.speak === false || !result
+    options.speak === false || result === undefined
       ? rendered
-      : await say(message, forSaying(runtime.store, result), { ...options, unrealized, uncomputed, asked: expression });
+      : graphSpoken ?? await say(message, forSaying(runtime.store, result), { ...options, unrealized, uncomputed, asked: expression });
 
   return {
     heard,
