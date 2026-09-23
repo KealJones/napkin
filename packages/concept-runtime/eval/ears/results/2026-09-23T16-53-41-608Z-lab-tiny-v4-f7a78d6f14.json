@@ -1,0 +1,4356 @@
+{
+  "label": "lab-tiny-v4",
+  "date": "2026-09-23T16:53:41.608Z",
+  "model": "qwen3.5:4b",
+  "samples": 1,
+  "promptHash": "f7a78d6f14",
+  "promptChars": 1488,
+  "prompt": "Yo! Turn the message into composed function calls, like each word is a function. Keep the words, their order, and what they mean. Don't answer it, just write it down.\n\nExamples:\n\"what time is it?\" -> What(Time(), Is(It()))\n\"my niece was sick\" -> My(Niece(Was(Sick())))\n\"how many cats do you have\" -> HowMany(Cats(), Do(You(), Have()))\n\"is this one better than last time\" -> Is(Ref(\"this one\"), Better(Than(Ref(\"last time\"))))\n\"wake me at 6am in 2 days\" -> Wake(Me(), At(Time(6, Am())), In(Days(2)))\n\"add 4, halve it, then round up\" -> Add(4)\nHalve(Ref(\"it\"))\nThen(Round(Up()))\n\nRules, homie:\n- Every word, phrase, number, and step gets written. One line per sentence or step. Never stop early.\n- Names are Capitalized with parens: Cat(). Numbers are just numbers: 5, never 5() or Five().\n- An amount wraps its number: Days(2). A clock time is Time(6, Am()). A list of numbers is List(1, 2, 3).\n- \"i\" is Me(). Skip \"a\", \"an\", \"the\".\n- A word pointing at something else (\"it\", \"this\", \"that\", \"the other one\") is Ref(\"it\"), wherever it sits.\n- Question words: how many -> HowMany, which -> WhichOf.\n- Only when they really appear: \"or whatever\"/\"kinda\" -> MarkFuzzy(\"or whatever\", Thing()); a CAPS word -> MarkEmphasis(\"NOT\", Not()); a typo'd name -> MarkMisspelling(\"virginya\", Virginia()); a take-back like \"sorry, the length\" -> MarkCorrection(Size(), Length()).\n- Links, paths, code, quotes stay as \"strings\".\n- Every \"(\" gets its \")\".\n\nOnly output the calls. No prose, no code fences.\n",
+  "unfused": true,
+  "cases": [
+    {
+      "id": "req-typescript",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "write me a typescript function that says hello world",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:write": true,
+            "keeps:typescript": true,
+            "keeps:function": true,
+            "keeps:hello world": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Write(Me(), A(Typescript()), Function(That()))\nSays(Hello(World()))",
+          "reading": "Sequence(Mood(Imperative(), Write(Me(), A(Typescript()), Function(That()))), Mood(Imperative(), Says(Hello(World()))))",
+          "ms": 978,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "req-typescript-can",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "can you write me a typescript function that says hello world",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "keeps:write": true,
+            "keeps:typescript": true,
+            "keeps:function": true,
+            "keeps:hello world": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Can(You(), Write(Me(), A(TypeScript(Function()), That(Says(\"Hello\", \"World\"))))",
+          "reading": "Can(You(), Write(Me(), A(TypeScript(Function()), That(Says(\"Hello\", \"World\")))))",
+          "ms": 959,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "req-please-add",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "please add 2 and 2",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "has:Please": true,
+            "keeps:add": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Please(Add(2), Add(2))",
+          "reading": "Mood(Imperative(), Please(Add(2), Add(2)))",
+          "ms": 799,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "req-show-money",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "show me what you know about money",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "has:Imperative": true,
+            "keeps:show": true,
+            "keeps:know": true,
+            "keeps:money": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Show(Me(), What(You()))\nKnow(Ref(\"money\"))",
+          "reading": "Sequence(Mood(Imperative(), Show(Me(), What(You()))), Mood(Imperative(), Know(Ref(\"money\"))))",
+          "ms": 901,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "req-three-birds",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "give me three examples of a bird",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "lacks:Write": true,
+            "lacks:Function": true,
+            "lacks:Three": false,
+            "keeps:give": true,
+            "keeps:examples": true,
+            "keeps:bird": true,
+            "keeps:three": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Give(Me(), Three(Examples(Bird())))",
+          "reading": "Mood(Imperative(), Give(Me(), Three(Examples(Bird()))))",
+          "ms": 823,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "req-remind",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "remind me to call mum tomorrow",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:remind": true,
+            "keeps:call": true,
+            "keeps:mum": true,
+            "keeps:tomorrow": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Remind(Me(), Call(Mum()), Tomorrow())",
+          "reading": "Mood(Imperative(), Remind(Me(), Call(Mum()), Tomorrow()))",
+          "ms": 851,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "compute-times",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what is 17 times 4",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(17, Times(4)))",
+          "reading": "Mood(Interrogative(), What(Is(17, Times(4))))",
+          "ms": 856,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "compute-christmas",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "how many days until christmas",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:days": true,
+            "keeps:christmas": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "HowMany(Days(CountUntil(\"Christmas\")))",
+          "reading": "Mood(Interrogative(), HowMany(Days(CountUntil(\"Christmas\"))))",
+          "ms": 835,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "compute-half",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what is half of 90",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:half": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Half(Ref(\"of\")), 90))",
+          "reading": "Mood(Interrogative(), What(Is(Half(Ref(\"of\")), 90)))",
+          "ms": 874,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "compute-more-than",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "is 100 more than 99",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Is(Ref(\"100\"), MoreThan(Ref(\"99\")))",
+          "reading": "Mood(Interrogative(), Is(Ref(\"100\"), MoreThan(Ref(\"99\"))))",
+          "ms": 909,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "compute-average",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what's the average of 2, 4 and 9",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:average": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Average(List(2, 4, 9)))",
+          "reading": "Mood(Interrogative(), What(Average(List(2, 4, 9))))",
+          "ms": 859,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "def-promise",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what is a promise",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:promise": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Ref(\"a\"), Promise())",
+          "reading": "Mood(Interrogative(), What(Ref(\"a\"), Promise()))",
+          "ms": 779,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "def-recursion",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "define recursion",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:define": true,
+            "keeps:recursion": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Define(Recursion())",
+          "reading": "Mood(Imperative(), Define(Recursion()))",
+          "ms": 750,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "def-list-set",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what's the difference between a list and a set",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:difference": true,
+            "keeps:list": true,
+            "keeps:set": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Ref(\"the\"), Difference(Between(List(), Set())))",
+          "reading": "Mood(Interrogative(), What(Ref(\"the\"), Difference(Between(List(), Set()))))",
+          "ms": 879,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "def-tomato",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "is a tomato a fruit",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:tomato": true,
+            "keeps:fruit": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Is(A(Tomato()), A(Fruit()))",
+          "reading": "Mood(Interrogative(), Is(A(Tomato()), A(Fruit())))",
+          "ms": 813,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "multi-take-10",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "take 10, double it, then subtract 5",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "lacksText:Number(\"ten\")": true,
+            "lacksText:Number(\"five\")": true,
+            "keeps:take": true,
+            "keeps:double": true,
+            "keeps:subtract": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Take(10)\nDouble(Ref(\"it\"))\nSubtract(5)",
+          "reading": "Sequence(Mood(Imperative(), Take(10)), Mood(Imperative(), Double(Ref(\"it\"))), Mood(Imperative(), Subtract(5)))",
+          "ms": 934,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "multi-day-time",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what day is it and what time is it",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:day": true,
+            "keeps:time": true,
+            "counts:What": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 0.6666666666666666,
+          "raw": "What(Day(Is(It())))\nAnd(Time())",
+          "reading": "Sequence(Mood(Interrogative(), What(Day(Is(It())))), Mood(Interrogative(), And(Time())))",
+          "ms": 790,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "multi-if-noon",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "if it is after noon tell me the time otherwise tell me the date",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Tell": true,
+            "keeps:noon": true,
+            "keeps:time": true,
+            "keeps:date": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "If(Ref(\"it\"), Is(After(Noon())), Tell(Time()))\nOtherwise(Tell(Date()))",
+          "reading": "Sequence(Mood(Imperative(), If(Ref(\"it\"), Is(After(Noon())), Tell(Time()))), Mood(Imperative(), Otherwise(Tell(Date()))))",
+          "ms": 998,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hypo-rent",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what would happen if i doubled my rent",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:happen": true,
+            "keeps:doubled": true,
+            "keeps:rent": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Would(Happen(If(Doubled(Me(), Rent())))))",
+          "reading": "Mood(Interrogative(), What(Would(Happen(If(Doubled(Me(), Rent()))))))",
+          "ms": 882,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hypo-suppose",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "suppose x is 5, what is x plus 3",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "interrogative": true,
+            "keeps:suppose": true,
+            "keeps:plus": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Suppose(X(), Is(5))\nWhat(Is(X()), Plus(3))",
+          "reading": "Sequence(Mood(Imperative(), Suppose(X(), Is(5))), Mood(Imperative(), What(Is(X()), Plus(3))))",
+          "ms": 918,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hypo-train",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "if a train leaves at 3pm and takes 2 hours when does it arrive",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "interrogative": false,
+            "has:Time": true,
+            "keeps:train": true,
+            "keeps:leaves": true,
+            "keeps:hours": true,
+            "keeps:arrive": false,
+            "digits": true
+          },
+          "retained": 0.8,
+          "dropped": [
+            "arrive"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "If(Train(), Leaves(At(Time(3, Pm()))), Takes(Duration(Hours(2))), When(Arrives())?",
+          "reading": "If(Train(), Leaves(At(Time(3, Pm()))), Takes(Duration(Hours(2))))",
+          "ms": 1134,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "neg-mammal",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what is not a mammal",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "has:Not": false,
+            "keeps:mammal": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Ref(\"not\"), Mammal()))",
+          "reading": "Mood(Interrogative(), What(Is(Ref(\"not\"), Mammal())))",
+          "ms": 819,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "neg-time-date",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "dont tell me the time, tell me the date",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Not": false,
+            "keeps:time": true,
+            "keeps:date": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Dont(Tell(Me(), Time()))\nTell(Me(), Date())",
+          "reading": "Sequence(Mood(Imperative(), Dont(Tell(Me(), Time()))), Mood(Imperative(), Tell(Me(), Date())))",
+          "ms": 885,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "neg-second-one",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "i said the second one not the first",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Not": true,
+            "keeps:second": true,
+            "keeps:first": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Me(Said(Ref(\"the second one\"), Not(Ref(\"the first\"))))",
+          "reading": "Mood(Declarative(), Me(Said(Ref(\"the second one\"), Not(Ref(\"the first\")))))",
+          "ms": 958,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "meta-concepts-time",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "what concepts do you know about time",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:concepts": true,
+            "keeps:know": true,
+            "keeps:time": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Concepts(), Do(Know(About(Time()))))",
+          "reading": "Mood(Interrogative(), What(Concepts(), Do(Know(About(Time())))))",
+          "ms": 852,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "meta-what-can-you-do",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "what can you do",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:Capabilities": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Can(), You())\nDo()",
+          "reading": "Sequence(Mood(Interrogative(), What(Can(), You())), Mood(Interrogative(), Do()))",
+          "ms": 796,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "meta-work-out",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "how did you work that out",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:work": true,
+            "refs": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "How(Did(You(), Work(That(), Out())))",
+          "reading": "Mood(Interrogative(), How(Did(You(), Work(That(), Out()))))",
+          "ms": 857,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "meta-forget-money",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "forget what i said about money",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "has:Imperative": true,
+            "keeps:forget": true,
+            "keeps:said": true,
+            "keeps:money": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Forget(Ref(\"what\"), Me(), Said(Money()))",
+          "reading": "Mood(Imperative(), Forget(Ref(\"what\"), Me(), Said(Money())))",
+          "ms": 851,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "qty-a-lot",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "how much is a lot",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:lot": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "HowMuch(Ref(\"a lot\"))",
+          "reading": "Mood(Interrogative(), HowMuch(Ref(\"a lot\")))",
+          "ms": 789,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "qty-mouse-elephant",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "which is bigger, a mouse or an elephant",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:Ref": true,
+            "keeps:mouse": true,
+            "keeps:elephant": true,
+            "keeps:bigger": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "Thing"
+          ],
+          "order": 1,
+          "raw": "WhichOf(Thing(\"bigger\"), Thing(\"a mouse\"), Thing(\"an elephant\"))",
+          "reading": "Mood(Interrogative(), WhichOf(Thing(\"bigger\"), Thing(\"a mouse\"), Thing(\"an elephant\")))",
+          "ms": 960,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "qty-car",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "how heavy is a car",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": false,
+            "keeps:heavy": true,
+            "keeps:car": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "HowHeavy(Car())",
+          "reading": "Mood(Interrogative(), HowHeavy(Car()))",
+          "ms": 716,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "social-thanks",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "thanks",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:thanks": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Thanks()",
+          "reading": "Thanks()",
+          "ms": 686,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "social-wrong",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "that was wrong",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:wrong": true,
+            "refs": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "That(Was(Ref(\"wrong\")))",
+          "reading": "Mood(Declarative(), That(Was(Ref(\"wrong\"))))",
+          "ms": 788,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "social-other-one",
+      "source": "novel",
+      "inPrompt": false,
+      "message": "no i meant the other one",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "refs": true
+          },
+          "retained": 0.6666666666666666,
+          "dropped": [
+            "meant"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "No(Me())\nI(Ref(\"the other one\"))",
+          "reading": "Sequence(Mood(Declarative(), No(Me())), Mood(Declarative(), I(Ref(\"the other one\"))))",
+          "ms": 838,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "social-multiple-choice",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": false,
+            "names": true,
+            "keeps:today": true,
+            "keeps:sept": true,
+            "keeps:noday": true,
+            "keeps:idk": true,
+            "digits": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 0.8333333333333334,
+          "raw": "Today(Is(\"____\"))\nA(Sept(20))\nB(Noday())\nC(Sept(1st), Year(1991))\nD(Idk())",
+          "reading": "Sequence(Today(Is(\"____\")), A(Sept(20)), B(Noday()), D(Idk()))",
+          "ms": 2665,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-5-times-three",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "What is 5 times three?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:three": false,
+            "digits": true
+          },
+          "retained": 0,
+          "dropped": [
+            "times",
+            "three"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Ref(\"it\"), Is(Multiply(5, 3)))",
+          "reading": "Mood(Interrogative(), What(Ref(\"it\"), Is(Multiply(5, 3))))",
+          "ms": 868,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-todays-date",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "What is todays date?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:MarkMisspelling": true,
+            "keeps:date": true,
+            "keeps:today": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Todays(Date())))",
+          "reading": "Mood(Interrogative(), What(Is(Todays(Date()))))",
+          "ms": 748,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-the-date",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "What is the date?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:Today": true,
+            "keeps:date": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Date()))",
+          "reading": "Mood(Interrogative(), What(Is(Date())))",
+          "ms": 716,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-today",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "What is today?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:today": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Today()))",
+          "reading": "Mood(Interrogative(), What(Is(Today())))",
+          "ms": 739,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-need",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "What do we need?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:need": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Do(We(), Need()))",
+          "reading": "Mood(Interrogative(), What(Do(We(), Need())))",
+          "ms": 792,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-who-ate-what",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "who ate what",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:ate": true,
+            "counts:Who": true,
+            "counts:What": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Who(Ate(Ref(\"what\")))",
+          "reading": "Mood(Interrogative(), Who(Ate(Ref(\"what\"))))",
+          "ms": 776,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-chess-sport",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "Is chess a sport?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:chess": true,
+            "keeps:sport": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Is(Chess(), A(Sport()))",
+          "reading": "Mood(Interrogative(), Is(Chess(), A(Sport())))",
+          "ms": 781,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-strawberry",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "how many r's are in strawberry",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:strawberry": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 0.8,
+          "raw": "HowMany(Rs(), Are(Ref(\"strawberry\"), In()))",
+          "reading": "Mood(Interrogative(), HowMany(Rs(), Are(Ref(\"strawberry\"), In())))",
+          "ms": 874,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-virginia",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "i went to virginya to visit my mom. She has lived there 5 years. I havent been there for 3 years. it was crazy.",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:MarkMisspelling": true,
+            "lacksText:MarkMisspelling(\"havent\"": true,
+            "keeps:visit": false,
+            "keeps:mom": false,
+            "keeps:lived": true,
+            "keeps:years": true,
+            "keeps:crazy": true,
+            "digits": true
+          },
+          "retained": 0.75,
+          "dropped": [
+            "visit",
+            "mom"
+          ],
+          "copied": [],
+          "order": 0.8666666666666667,
+          "raw": "Me(Went(To(MarkMisspelling(\"virginya\", Virginia())))(), Visited(Mom()))\nShe(Lived(There(5, Years())))\nI(Havent(Been(There(3, Years())))())\nIt(Was(Crazy()))",
+          "reading": "Sequence(Me(Went(To(MarkMisspelling(\"virginya\")))), She(Lived(There(5, Years()))), I(Havent(Been(There(3)))), It(Was(Crazy())))",
+          "ms": 1552,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "spec-probes",
+      "source": "spec",
+      "inPrompt": false,
+      "message": "grab the weights, er the scores or whatever, from those probe things i sent you. Not the first batch the second one and like add em up and tell me if its more than this time",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "has:MarkCorrection": false,
+            "has:MarkFuzzy": true,
+            "has:Not": true,
+            "has:Imperative": false,
+            "has:Tell": true,
+            "keeps:weights": true,
+            "keeps:scores": true,
+            "keeps:probe": true,
+            "refs": false
+          },
+          "retained": 0.7333333333333333,
+          "dropped": [
+            "sent",
+            "first",
+            "second",
+            "one"
+          ],
+          "copied": [],
+          "order": 0.8181818181818182,
+          "raw": "Grab(Weights(), Or(Scores(), MarkFuzzy(\"or whatever\")))\nFrom(ProbeThings(Me()))\nNot(Batch(1))\nBut(Batch(2))\nAdd(Them())\nUp()\nTell(Me(), If(MoreThan(Time())))",
+          "reading": "Sequence(Grab(Weights(), Or(Scores(), MarkFuzzy(\"or whatever\"))), From(ProbeThings(Me())), Not(Batch(1)), But(Batch(2)), Add(Them()), Up(), Tell(Me(), If(MoreThan(Time()))))",
+          "ms": 1515,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-files-size",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "get the size, sorry the length, of the files i sent, not the first one, the second, and total them and say if its bigger than before",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "has:MarkCorrection": false,
+            "has:Not": true,
+            "keeps:size": true,
+            "keeps:length": true,
+            "keeps:files": true,
+            "refs": true
+          },
+          "retained": 0.9230769230769231,
+          "dropped": [
+            "sorry"
+          ],
+          "copied": [],
+          "order": 0.8,
+          "raw": "Get(Size(), Ref(\"the length\", Files(Me(), Sent())))\nNot(Ref(\"first one\"), Ref(\"second\"))\nTotalThem()\nSay(Bigger(Than(Ref(\"before\"))))",
+          "reading": "Sequence(Mood(Imperative(), Get(Size(), Ref(\"the length\", resolvedTo=Files(Me(), Sent())))), Mood(Imperative(), Not(Ref(\"first one\"), Ref(\"second\"))), Mood(Imperative(), TotalThem()), Mood(Imperative(), Say(Bigger(Than(Ref(\"before\"))))))",
+          "ms": 1312,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-bigger-other",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "is that bigger than the other one?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:bigger": true,
+            "refs": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Is(Ref(\"that\"), Bigger(Than(Ref(\"the other one\"))))",
+          "reading": "Mood(Interrogative(), Is(Ref(\"that\"), Bigger(Than(Ref(\"the other one\")))))",
+          "ms": 921,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-build",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "how did the build go?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:BuildStatus": true,
+            "keeps:build": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "HowDid(Build())\nGo()",
+          "reading": "Sequence(Mood(Interrogative(), HowDid(Build())), Mood(Interrogative(), Go()))",
+          "ms": 751,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-how-you-doing",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "how you doing?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "has:You": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "How(You(), Doing())",
+          "reading": "Mood(Interrogative(), How(You(), Doing()))",
+          "ms": 753,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-double-21",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "what is double 21?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacksText:Number(\"double\")": true,
+            "keeps:double": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Is(Double(21)))",
+          "reading": "Mood(Interrogative(), What(Is(Double(21))))",
+          "ms": 789,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "prompt-tell-time",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "tell me the time",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "has:Tell": true,
+            "keeps:time": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Tell(Me(), The(Time()))",
+          "reading": "Mood(Imperative(), Tell(Me(), The(Time())))",
+          "ms": 764,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "vocab-owe-million",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "would you rather have a million dollars or owe a million dollars",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "lacks:Negative": true,
+            "keeps:million": true,
+            "keeps:dollars": true,
+            "keeps:owe": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Would(You(), Rather(Have(Million(Dollars()))))\nOr(Owe(Million(Dollars())))",
+          "reading": "Sequence(Mood(Interrogative(), Would(You(), Rather(Have(Million(Dollars()))))), Mood(Interrogative(), Or(Owe(Million(Dollars())))))",
+          "ms": 1018,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hist-what-is-it",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "uhmm soooo what is it?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:It": false,
+            "refs": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Uhmm(Sooo(What(Is(It()))))",
+          "reading": "Mood(Checking(), Uhmm(Sooo(What(Is(It())))))",
+          "ms": 780,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hist-add-hours",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "and if we add 5 hours?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:add": true,
+            "keeps:hours": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "And(If(We(), Add(5, Hours())))",
+          "reading": "Mood(Checking(), And(If(We(), Add(5, Hours()))))",
+          "ms": 822,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hist-second-one",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "open the second one",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:open": true,
+            "keeps:second": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Open(Ref(\"the second one\"))",
+          "reading": "Mood(Imperative(), Open(Ref(\"the second one\")))",
+          "ms": 754,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hist-and-germany",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "and germany?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:germany": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "And(Germany())",
+          "reading": "Mood(Checking(), And(Germany()))",
+          "ms": 709,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hist-no-copy",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "what is 9 times 9",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacksText:Number(\"three\")": true,
+            "digits": true
+          },
+          "retained": 0,
+          "dropped": [
+            "times"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Equals(Multiply(9, 9)))",
+          "reading": "Mood(Interrogative(), What(Equals(Multiply(9, 9))))",
+          "ms": 808,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-blue-red",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "wait no, make it blue instead of red",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:blue": true,
+            "keeps:red": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "Than"
+          ],
+          "order": 1,
+          "raw": "Wait(No())\nMake(Color(), Blue())\nInstead(Than(Red()))",
+          "reading": "Sequence(Mood(Imperative(), Wait(No())), Mood(Imperative(), Make(Color(), Blue())), Mood(Imperative(), Instead(Than(Red()))))",
+          "ms": 903,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-do-not-delete",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "do NOT delete the backups",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Not": true,
+            "has:MarkEmphasis": false,
+            "keeps:delete": true,
+            "keeps:backups": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Do(Not(), Delete(Ref(\"the\"), Backups())))",
+          "reading": "Do(Not(), Delete(Ref(\"the\"), Backups()))",
+          "ms": 846,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-pheonix",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "book a flight to pheonix next friday",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "has:MarkMisspelling": false,
+            "keeps:book": true,
+            "keeps:flight": true,
+            "keeps:friday": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Book(Flight(), To(\"pheonix\"), Next(Friday()))",
+          "reading": "Mood(Imperative(), Book(Flight(), To(\"pheonix\"), Next(Friday())))",
+          "ms": 861,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-logs-whatever",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "grab those logs or whatever from yesterday",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:MarkFuzzy": false,
+            "keeps:logs": true,
+            "keeps:yesterday": true,
+            "refs": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Grab(Logs(), Or(Whatever()), Ref(\"yesterday\"))",
+          "reading": "Mood(Imperative(), Grab(Logs(), Or(Whatever()), Ref(\"yesterday\")))",
+          "ms": 832,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-who-owns-which",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "who owns which service?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:owns": true,
+            "keeps:service": true,
+            "counts:Who": true,
+            "counts:WhichOf": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Who(Owns(Which(Service())))",
+          "reading": "Mood(Interrogative(), Who(Owns(Which(Service()))))",
+          "ms": 758,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-keys",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "where did i put my keys",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:put": false,
+            "keeps:keys": false
+          },
+          "retained": 0,
+          "dropped": [
+            "put",
+            "keys"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "Where(Did(Me(), Put(My(Keys())))?)",
+          "reading": "Where(Did(Me()))",
+          "ms": 795,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-sky",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "why is the sky blue",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:sky": true,
+            "keeps:blue": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 0.8,
+          "raw": "Why(Ref(\"the\"), Sky(), Is(BLUE()))",
+          "reading": "Mood(Interrogative(), Why(Ref(\"the\"), Sky(), Is(BLUE())))",
+          "ms": 846,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-store-close",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "when does the store close tonight",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:store": true,
+            "keeps:close": true,
+            "keeps:tonight": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "When(Does(Store()), Close(Tonight()))",
+          "reading": "Mood(Interrogative(), When(Does(Store()), Close(Tonight())))",
+          "ms": 813,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-tests-failed",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "how many tests failed on linux and mac",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:tests": true,
+            "keeps:failed": true,
+            "keeps:linux": true,
+            "keeps:mac": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "HowMany(Tests(), Failed(), On(Linux()), And(Mac()))",
+          "reading": "Mood(Interrogative(), HowMany(Tests(), Failed(), On(Linux()), And(Mac())))",
+          "ms": 871,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-birthday",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "my sister's birthday is on june 3rd",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Declarative": false,
+            "keeps:sister": true,
+            "keeps:birthday": true,
+            "keeps:june": true,
+            "digits": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "My(Sister(Birthday(Is(On(Date(June(), Day(3()))))))))",
+          "reading": "My(Sister(Birthday(Is(On(Date(June()))))))",
+          "ms": 910,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-granny-smith",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "i ate a very sweet granny smith on october 15th 2024",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Declarative": true,
+            "keeps:ate": true,
+            "keeps:sweet": true,
+            "keeps:granny": true,
+            "keeps:smith": true,
+            "keeps:october": true,
+            "digits": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Me(Ate())\nMarkEmphasis(\"very\")\nRef(\"a very sweet granny smith\")\nOn(Date(October(), 15(), Year(2024())))",
+          "reading": "Sequence(Mood(Declarative(), Me(Ate())), Mood(Declarative(), MarkEmphasis(\"very\")), Ref(\"a very sweet granny smith\"), On(Date(October())))",
+          "ms": 1247,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-greg",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "greg is my coworker and we share memes all the time",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Declarative": false,
+            "keeps:greg": true,
+            "keeps:coworker": true,
+            "keeps:share": false,
+            "keeps:memes": false
+          },
+          "retained": 0.4,
+          "dropped": [
+            "share",
+            "memes",
+            "time"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "Greg(Coworker(Ref(\"me\"))), Share(Memes())",
+          "reading": "Greg(Coworker(Ref(\"me\")))",
+          "ms": 868,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-summarize",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "could you please summarize this article, it's really long lol",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Please": true,
+            "keeps:summarize": true,
+            "keeps:article": true,
+            "refs": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Could(You(), Please(Summarize(Article())))\nIt(Really(Long()))\nLol()",
+          "reading": "Sequence(Mood(Interrogative(), Could(You(), Please(Summarize(Article())))), Mood(Interrogative(), It(Really(Long()))), Mood(Interrogative(), Lol()))",
+          "ms": 1001,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-play-chess",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "let's play chess",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:play": true,
+            "keeps:chess": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Let(Play(Chess()))",
+          "reading": "Mood(Imperative(), Let(Play(Chess())))",
+          "ms": 734,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-knight-f3",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "knight to f3",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:knight": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Knight(MoveTo(\"f3\"))",
+          "reading": "Mood(Imperative(), Knight(MoveTo(\"f3\")))",
+          "ms": 758,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-my-move",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "is it my move?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:move": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Is(It(), My(Move()))",
+          "reading": "Mood(Interrogative(), Is(It(), My(Move())))",
+          "ms": 742,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-timer",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "set a timer for 10 minutes",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:timer": true,
+            "keeps:minutes": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Set(Timer(10, Minutes()))",
+          "reading": "Mood(Imperative(), Set(Timer(10, Minutes())))",
+          "ms": 782,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-fahrenheit",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "convert 72 fahrenheit to celsius",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:convert": true,
+            "keeps:fahrenheit": true,
+            "keeps:celsius": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Convert(72, Fahrenheit(), To(Celsius()))",
+          "reading": "Mood(Imperative(), Convert(72, Fahrenheit(), To(Celsius())))",
+          "ms": 807,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-percent",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "what's 15% of 80",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Percent(15), Of(Number(80)))",
+          "reading": "Mood(Interrogative(), What(Percent(15), Of(Number(80))))",
+          "ms": 834,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-pets",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "i have 3 cats and 2 dogs, how many pets is that?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "keeps:cats": true,
+            "keeps:dogs": true,
+            "keeps:pets": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Me(Have(3, Cats()))\nAnd(2, Dogs())\nHowMany(Pets(), Is(It()))",
+          "reading": "Sequence(Mood(Checking(), Me(Have(3, Cats()))), Mood(Checking(), And(2, Dogs())), Mood(Checking(), HowMany(Pets(), Is(It()))))",
+          "ms": 1001,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-rain",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "tell me whether it will rain tomorrow",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "has:Tell": true,
+            "keeps:rain": true,
+            "keeps:tomorrow": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Tell(Me(), Whether(Ref(\"it\"), Will(Rain()), Tomorrow()))",
+          "reading": "Mood(Imperative(), Tell(Me(), Whether(Ref(\"it\"), Will(Rain()), Tomorrow())))",
+          "ms": 866,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-plants",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "remind me every monday to water the plants",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": true,
+            "keeps:remind": true,
+            "keeps:monday": true,
+            "keeps:water": true,
+            "keeps:plants": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Remind(Me(), Every(Monday()), To(Water(Plants())))",
+          "reading": "Mood(Imperative(), Remind(Me(), Every(Monday()), To(Water(Plants()))))",
+          "ms": 879,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-meeting-correction",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "the meeting is at 3, er, 4pm",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:MarkCorrection": true,
+            "has:Time": true,
+            "keeps:meeting": true,
+            "digits": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "The(Meeting(), Is(At(Time(3))))\nEr(MarkCorrection(\"er\", \"\"))\nFour(Pm())",
+          "reading": "Sequence(Mood(Declarative(), The(Meeting(), Is(At(Time(3))))), Mood(Declarative(), Er(MarkCorrection(\"er\", \"\"))), Mood(Declarative(), Four(Pm())))",
+          "ms": 1052,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-python-rust",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "compare python and rust for web servers",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Imperative": false,
+            "keeps:compare": true,
+            "keeps:python": true,
+            "keeps:rust": true,
+            "keeps:web": false,
+            "keeps:servers": false
+          },
+          "retained": 0.6,
+          "dropped": [
+            "web",
+            "servers"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "Compare(Python(), Rust()), For(WebServers())",
+          "reading": "Compare(Python(), Rust())",
+          "ms": 777,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-maybe-tuesday",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "hmm idk, maybe tuesday?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:tuesday": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Hmm(Me())\nIdk()\nMaybe(Tuesday())",
+          "reading": "Sequence(Mood(Checking(), Hmm(Me())), Mood(Checking(), Idk()), Mood(Checking(), Maybe(Tuesday())))",
+          "ms": 821,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "held-spanish",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "¿qué hora es?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true
+          },
+          "retained": 0,
+          "dropped": [
+            "hora"
+          ],
+          "copied": [
+            "Is"
+          ],
+          "order": 1,
+          "raw": "What(Time(), Is(It()))",
+          "reading": "Mood(Checking(), What(Time(), Is(It())))",
+          "ms": 726,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "date-in-5-days",
+      "source": "regression",
+      "inPrompt": false,
+      "message": "what day will it be in 5 days?",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:Plus": true,
+            "lacks:Five": true,
+            "keeps:day": true,
+            "keeps:days": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Day(), Will(Ref(\"it\"), Be(In(Days(5))))))",
+          "reading": "What(Day(), Will(Ref(\"it\"), Be(In(Days(5)))))",
+          "ms": 927,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "time-in-2-hours",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "what time will it be in 2 hours",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "interrogative": true,
+            "lacks:Plus": true,
+            "lacks:Two": true,
+            "keeps:time": true,
+            "keeps:hours": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "What(Time(), Will(Ref(\"it\"), Be(In(Hours(2)))))",
+          "reading": "Mood(Interrogative(), What(Time(), Will(Ref(\"it\"), Be(In(Hours(2))))))",
+          "ms": 900,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "moment-tomorrow-3pm",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "remind me tomorrow at 3pm to call greg",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "has:Time": true,
+            "has:Pm": true,
+            "keeps:remind": true,
+            "keeps:tomorrow": true,
+            "keeps:call": true,
+            "keeps:greg": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "order": 1,
+          "raw": "Remind(Me(), Tomorrow(), At(Time(3, Pm())), Call(Greg()))",
+          "reading": "Mood(Imperative(), Remind(Me(), Tomorrow(), At(Time(3, Pm())), Call(Greg())))",
+          "ms": 913,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "marker-words-as-words",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "Ah hem, correction, that is a misspelling of my fuzzy bears name Ref, as an aside i dont mind too much.",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "lacks:MarkFuzzy": true,
+            "lacks:MarkMisspelling": true,
+            "keeps:correction": true,
+            "keeps:misspelling": true,
+            "keeps:fuzzy": true,
+            "keeps:bears": true,
+            "keeps:aside": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "Size",
+            "Length"
+          ],
+          "order": 1,
+          "raw": "Ah(Hem())\nCorrection(Size(), Length())\nThat(Ref(\"it\"))\nIs(Misspelling(\"my fuzzy bears name Ref\", \"Ref\"))\nAs(Aside(Me()))\nI(Dont(Mind(Too(Much()))))",
+          "reading": "Sequence(Mood(Imperative(), Ah(Hem())), Mood(Imperative(), Correction(Size(), Length())), Mood(Imperative(), That(Ref(\"it\"))), Mood(Imperative(), Is(Misspelling(\"my fuzzy bears name Ref\", \"Ref\"))), Mood(Imperative(), As(Aside(Me()))), Mood(Imperative(), I(Dont(Mind(Too(Much()))))))",
+          "ms": 1491,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "marker-emphasis-word",
+      "source": "heldout",
+      "inPrompt": false,
+      "message": "can you add emphasis to this",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "lacks:MarkEmphasis": true,
+            "keeps:add": true,
+            "keeps:emphasis": false,
+            "refs": false
+          },
+          "retained": 0.5,
+          "dropped": [
+            "emphasis"
+          ],
+          "copied": [],
+          "order": 1,
+          "raw": "Can(You(), Add(Empphasis(\"this\")))",
+          "reading": "Mood(Interrogative(), Can(You(), Add(Empphasis(\"this\"))))",
+          "ms": 797,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "simple-request",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "turn off the lights",
+      "target": "Mood(Imperative(), Turn(Off(), Lights()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:turn": true,
+            "keeps:off": true,
+            "keeps:lights": true,
+            "counts:Mood": true,
+            "counts:Imperative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "TurnOff(Lights())",
+          "reading": "Mood(Imperative(), TurnOff(Lights()))",
+          "ms": 709,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "simple-request-time",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "set an alarm for 7am",
+      "target": "Mood(Imperative(), Set(Alarm(), For(Time(7, Am()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:set": true,
+            "keeps:alarm": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "digits": true,
+            "numbers": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "At"
+          ],
+          "match": 0.5,
+          "order": 1,
+          "raw": "Set(Alarm())\nAt(Time(7, Am()))",
+          "reading": "Sequence(Mood(Imperative(), Set(Alarm())), Mood(Imperative(), At(Time(7, Am()))))",
+          "ms": 828,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "simple-question-what",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "what's the capital of france?",
+      "target": "Mood(Interrogative(), What(Is(Capital(France()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:capital": true,
+            "keeps:france": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:What": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "What(Ref(\"the\"), Capital(France()))",
+          "reading": "Mood(Interrogative(), What(Ref(\"the\"), Capital(France())))",
+          "ms": 797,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "simple-question-who",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "who wrote hamlet",
+      "target": "Mood(Interrogative(), Who(Wrote(Hamlet())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:wrote": true,
+            "keeps:hamlet": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:Who": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Who(Wrote(Hamlet()))",
+          "reading": "Mood(Interrogative(), Who(Wrote(Hamlet())))",
+          "ms": 730,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "polite-request",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "could you help me write a cover letter for a barista job?",
+      "target": "Mood(Interrogative(), Could(You(), Help(Me(), Write(CoverLetter(), For(Job(Barista()))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "keeps:help": true,
+            "keeps:write": true,
+            "keeps:cover": true,
+            "keeps:letter": true,
+            "keeps:barista": true,
+            "keeps:job": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Could(You(), Help(Me(), Write(CoverLetter()), For(BaristaJob())))",
+          "reading": "Mood(Interrogative(), Could(You(), Help(Me(), Write(CoverLetter()), For(BaristaJob()))))",
+          "ms": 918,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "polite-request-please",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "grab me the latest numbers please",
+      "target": "Mood(Imperative(), Please(Grab(Me(), Numbers(Latest()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:grab": true,
+            "keeps:latest": true,
+            "keeps:numbers": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Please": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 0.6666666666666666,
+          "raw": "Grab(Me(), Numbers())\nLatest(Ref(\"the\"))\nPlease()",
+          "reading": "Sequence(Mood(Imperative(), Grab(Me(), Numbers())), Mood(Imperative(), Latest(Ref(\"the\"))), Mood(Imperative(), Please()))",
+          "ms": 865,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "statement-fact",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "i'm allergic to peanuts",
+      "target": "Mood(Declarative(), Me(AllergicTo(Peanuts())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:allergic": true,
+            "keeps:peanuts": true,
+            "counts:Mood": true,
+            "counts:Declarative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.75,
+          "order": 1,
+          "raw": "I(Allergic(To(Peanuts())))",
+          "reading": "Mood(Declarative(), I(Allergic(To(Peanuts()))))",
+          "ms": 787,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "statement-name",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "my name is keal",
+      "target": "Mood(Declarative(), My(Name(Is(\"keal\"))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:name": true,
+            "keeps:keal": true,
+            "counts:Mood": true,
+            "counts:Declarative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "My(Name(\"Keal\"))",
+          "reading": "Mood(Declarative(), My(Name(\"Keal\")))",
+          "ms": 728,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "statement-grammatical-nonsense",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "colorless green ideas sleep furiously",
+      "target": "Mood(Declarative(), Colorless(Green(Ideas(Sleep(Furiously())))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:colorless": true,
+            "keeps:green": true,
+            "keeps:ideas": true,
+            "keeps:sleep": true,
+            "keeps:furiously": true,
+            "counts:Mood": true,
+            "counts:Declarative": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Colorless(Ideas(Sleep(Furiously())))\nGreen(Ideas(Sleep(Furiously())))\nSleep(Furiously())\nFuriously()",
+          "reading": "Sequence(Mood(Imperative(), Colorless(Ideas(Sleep(Furiously())))), Mood(Imperative(), Green(Ideas(Sleep(Furiously())))), Mood(Imperative(), Sleep(Furiously())), Mood(Imperative(), Furiously()))",
+          "ms": 1170,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "nonsense-keyboard-mash",
+      "source": "gold",
+      "status": "open",
+      "inPrompt": false,
+      "message": "asdkjh qwe zzz",
+      "target": "Unclear(\"asdkjh qwe zzz\")",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:asdkjh": false,
+            "keeps:qwe": true,
+            "keeps:zzz": true,
+            "counts:Unclear": false
+          },
+          "retained": 0.6666666666666666,
+          "dropped": [
+            "asdkjh"
+          ],
+          "copied": [],
+          "match": 0,
+          "order": 1,
+          "raw": "Asdskjh()\nQwe()\nZzz()",
+          "reading": "Sequence(Mood(Imperative(), Asdskjh()), Mood(Imperative(), Qwe()), Mood(Imperative(), Zzz()))",
+          "ms": 827,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "nonsense-riddle",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "why is a raven like a writing desk",
+      "target": "Mood(Interrogative(), Why(Is(Raven(), Like(WritingDesk()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:raven": true,
+            "keeps:writing": true,
+            "keeps:desk": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:Why": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Why(Is(Raven()), Like(Ref(\"a\"), WritingDesk()))",
+          "reading": "Mood(Interrogative(), Why(Is(Raven()), Like(Ref(\"a\"), WritingDesk())))",
+          "ms": 845,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "nonsense-angels",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "how many angels can dance on the head of a pin",
+      "target": "Mood(Interrogative(), HowMany(Angels(), Can(Dance(On(Head(Of(Pin())))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:many": true,
+            "keeps:angels": true,
+            "keeps:dance": true,
+            "keeps:head": false,
+            "keeps:pin": true,
+            "counts:Mood": false,
+            "counts:Interrogative": false,
+            "counts:HowMany": true
+          },
+          "retained": 0.8,
+          "dropped": [
+            "head"
+          ],
+          "copied": [],
+          "match": 0.5555555555555556,
+          "order": 1,
+          "raw": "HowMany(Angels(), Can(Dance(On(The(Had(Pin())))))",
+          "reading": "HowMany(Angels(), Can(Dance(On(The(Had(Pin()))))))",
+          "ms": 912,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "fragment-one-word",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "banana",
+      "target": "Banana()",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:banana": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Banana()",
+          "reading": "Mood(Imperative(), Banana())",
+          "ms": 667,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "greeting",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "hey there!",
+      "target": "MarkEmphasis(\"!\", HeyThere())",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:hey": true,
+            "counts:MarkEmphasis": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Hey(There())",
+          "reading": "MarkEmphasis(\"!\", Hey(There()))",
+          "ms": 692,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "steps-numbered-list",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "1. clone the repo\n2. install deps\n3. run the tests\n4. tell me what failed",
+      "target": "Item(1, Clone(Repo()))\nItem(2, Install(Deps()))\nItem(3, Run(Tests()))\nItem(4, Tell(Me(), What(Failed())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:clone": true,
+            "keeps:repo": true,
+            "keeps:install": true,
+            "keeps:deps": true,
+            "keeps:run": true,
+            "keeps:tests": true,
+            "keeps:tell": true,
+            "keeps:failed": true,
+            "counts:Item": false,
+            "counts:What": true,
+            "digits": false,
+            "numbers": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.75,
+          "order": 1,
+          "raw": "Clone(Repo())\nInstall(Deps())\nRun(Test())\nTell(Me(), What(Failed()))",
+          "reading": "Sequence(Mood(Imperative(), Clone(Repo())), Mood(Imperative(), Install(Deps())), Mood(Imperative(), Run(Test())), Mood(Imperative(), Tell(Me(), What(Failed()))))",
+          "ms": 1015,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "steps-conditional",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "first check if the server is up, then if it is restart the worker, otherwise page me",
+      "target": "$up = Is(Server(), Up())\nMood(Imperative(), First(Check($up)))\nMood(Imperative(), Then(If(Ref(\"it is\", $up), Restart(Worker()), Otherwise(Page(Me())))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:first": false,
+            "keeps:check": true,
+            "keeps:server": true,
+            "keeps:restart": true,
+            "keeps:worker": true,
+            "keeps:otherwise": false,
+            "keeps:page": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": false
+          },
+          "retained": 0.7142857142857143,
+          "dropped": [
+            "first",
+            "otherwise"
+          ],
+          "copied": [],
+          "match": 0.75,
+          "order": 0.7142857142857143,
+          "raw": "Check(If(Server(), Is(Up())))\nThen(Restart(Worker()))\nElse(Page(Me()))",
+          "reading": "Sequence(Mood(Imperative(), Check(If(Server(), Is(Up())))), Mood(Imperative(), Then(Restart(Worker()))), Mood(Imperative(), Else(Page(Me()))))",
+          "ms": 998,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "markdown-task-brief",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "## Task\nRefactor `parseConfig` in src/config.ts.\n\n### Requirements\n- keep the public API the same\n- add tests for the yaml path\n- don't touch the CLI\n\nThanks!",
+      "target": "Heading(2, \"Task\")\nMood(Imperative(), Refactor(InlineCode(\"parseConfig\"), In(\"src/config.ts\")))\nHeading(3, \"Requirements\")\nItem(Keep(PublicAPI(), Same()))\nItem(Add(Tests(For(Path(Yaml())))))\nItem(Do(Not(Touch(CLI()))))\nMarkEmphasis(\"!\", Thanks())",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:task": false,
+            "keeps:refactor": true,
+            "keeps:parseconfig": true,
+            "keeps:src": true,
+            "keeps:config": true,
+            "keeps:requirements": false,
+            "keeps:keep": true,
+            "keeps:public": true,
+            "keeps:api": true,
+            "keeps:same": false,
+            "keeps:add": true,
+            "keeps:tests": true,
+            "keeps:yaml": true,
+            "keeps:path": true,
+            "keeps:touch": false,
+            "keeps:cli": true,
+            "keeps:thanks": true,
+            "counts:Heading": false,
+            "counts:Mood": false,
+            "counts:Imperative": false,
+            "counts:InlineCode": false,
+            "counts:Item": false,
+            "counts:Not": false,
+            "counts:MarkEmphasis": false,
+            "numbers": false
+          },
+          "retained": 0.7647058823529411,
+          "dropped": [
+            "task",
+            "requirements",
+            "same",
+            "touch"
+          ],
+          "copied": [],
+          "match": 0.6111111111111112,
+          "order": 0.9375,
+          "raw": "Refactor(ParseConfig(), In(Source(\"src/config.ts\")))\nKeep(PublicApi())\nAdd(Tests(), For(Path(\"yaml\")))\nSkip(Cli())\nThanks()",
+          "reading": "Sequence(Refactor(ParseConfig(), In(Source(\"src/config.ts\"))), Keep(PublicApi()), Add(Tests(), For(Path(\"yaml\"))), Skip(Cli()), Thanks())",
+          "ms": 1234,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "markdown-product-brief",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "I'm building a small web app for my jam business. It needs a product page, a cart, and checkout with Stripe. Keep it simple, no user accounts for now. Use Next.js and Tailwind.\n\nCan you give me a step by step plan and then the code for the product page?",
+      "target": "$app = WebApp(Small(), For(My(JamBusiness())))\nMood(Declarative(), Me(Building($app)))\nMood(Declarative(), Needs(Ref(\"it\", $app), List(ProductPage(), Cart(), Checkout(With(Stripe())))))\nMood(Imperative(), Keep(Ref(\"it\", $app), List(Simple(), No(UserAccounts(), For(Now())))))\nMood(Imperative(), Use(NextJs(), Tailwind()))\nMood(Interrogative(), Can(You(), Give(Me(), Sequence(Plan(StepByStep()), Then(Code(For(ProductPage())))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": false,
+            "names": true,
+            "question": true,
+            "keeps:building": true,
+            "keeps:small": true,
+            "keeps:web": true,
+            "keeps:app": true,
+            "keeps:jam": true,
+            "keeps:business": true,
+            "keeps:needs": true,
+            "keeps:product": true,
+            "keeps:page": true,
+            "keeps:cart": true,
+            "keeps:checkout": true,
+            "keeps:stripe": true,
+            "keeps:keep": true,
+            "keeps:simple": true,
+            "keeps:user": true,
+            "keeps:accounts": true,
+            "keeps:now": false,
+            "keeps:use": true,
+            "keeps:next": false,
+            "keeps:tailwind": false,
+            "keeps:give": true,
+            "keeps:step": true,
+            "keeps:plan": true,
+            "keeps:code": true,
+            "counts:Mood": false,
+            "counts:Declarative": false,
+            "counts:Ref": false,
+            "counts:Imperative": false,
+            "counts:Interrogative": false
+          },
+          "retained": 0.875,
+          "dropped": [
+            "now",
+            "next",
+            "tailwind"
+          ],
+          "copied": [],
+          "match": 0.6363636363636364,
+          "order": 0.8823529411764706,
+          "raw": "Build(Ref(\"a small web app\"), For(Me(), Jam(Business())))\nNeed(Product(Page()), Cart(), Checkout(With(Stripe())))\nKeep(Simple())\nNo(User(Accounts()))\nUse(Next.Js(), Tailwind())\nGive(Me(), Step(By(Step())), Plan())\nThen(Code(For(Product(Page()))))",
+          "reading": "Sequence(Build(Ref(\"a small web app\"), For(Me(), Jam(Business()))), Need(Product(Page()), Cart(), Checkout(With(Stripe()))), Keep(Simple()), No(User(Accounts())), Give(Me(), Step(By(Step())), Plan()), Then(Code(For(Product(Page())))))",
+          "ms": 4092,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "code-write-function",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "write a python function that returns the nth fibonacci number, with memoization",
+      "target": "Mood(Imperative(), Write(Function(Python(), Returns(Nth(FibonacciNumber())), With(Memoization()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:write": true,
+            "keeps:python": true,
+            "keeps:function": true,
+            "keeps:returns": true,
+            "keeps:nth": true,
+            "keeps:fibonacci": true,
+            "keeps:number": false,
+            "keeps:memoization": true,
+            "counts:Mood": true,
+            "counts:Imperative": true
+          },
+          "retained": 0.875,
+          "dropped": [
+            "number"
+          ],
+          "copied": [],
+          "match": 0.8888888888888888,
+          "order": 1,
+          "raw": "Write(Python(), Function())\nReturns(Nth(Fibonacci()))\nWith(Memoization())",
+          "reading": "Sequence(Mood(Imperative(), Write(Python(), Function())), Mood(Imperative(), Returns(Nth(Fibonacci()))), Mood(Imperative(), With(Memoization())))",
+          "ms": 947,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "code-fix-pasted-error",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "fix this bug:\n```\nTypeError: Cannot read properties of undefined (reading 'map')\n    at List (List.tsx:14)\n```",
+      "target": "$error = Block(\"TypeError: Cannot read properties of undefined (reading 'map')\\n    at List (List.tsx:14)\")\nMood(Imperative(), Fix(Bug(Ref(\"this\", $error))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:fix": true,
+            "keeps:bug": true,
+            "keeps:typeerror": true,
+            "keeps:cannot": true,
+            "keeps:read": true,
+            "keeps:properties": false,
+            "keeps:undefined": true,
+            "keeps:reading": true,
+            "keeps:map'": false,
+            "keeps:list": true,
+            "keeps:tsx": true,
+            "counts:Block": false,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": true,
+            "digits": true
+          },
+          "retained": 0.8181818181818182,
+          "dropped": [
+            "properties",
+            "map'"
+          ],
+          "copied": [],
+          "match": 0.25,
+          "order": 1,
+          "raw": "Fix(Bug())\nType(Ref(\"error\"))\nCannot(Read(Props(Ref(\"undefined\")), Reading(\"map\")))\nAt(List(Ref(\"List.tsx\"), 14))",
+          "reading": "Sequence(Mood(Imperative(), Fix(Bug())), Mood(Imperative(), Type(Ref(\"error\"))), Mood(Imperative(), Cannot(Read(Props(Ref(\"undefined\")), Reading(\"map\")))), Mood(Imperative(), At(List(Ref(\"List.tsx\"), 14))))",
+          "ms": 1320,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "code-review-pasted",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "act as a senior rust engineer and review my code:\n\n```rust\nfn main() {\n    let v = vec![1, 2, 3];\n    println!(\"{}\", v[3]);\n}\n```",
+      "target": "Mood(Imperative(), Act(As(Engineer(Senior(), Rust()))))\n$code = Block(\"rust\", \"fn main() {\\n    let v = vec![1, 2, 3];\\n    println!(\\\"{}\\\", v[3]);\\n}\")\nMood(Imperative(), Review(Ref(\"my code\", $code)))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:act": true,
+            "keeps:senior": true,
+            "keeps:rust": true,
+            "keeps:engineer": true,
+            "keeps:review": true,
+            "keeps:code": true,
+            "keeps:main": false,
+            "keeps:vec": false,
+            "keeps:println": false,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Block": false,
+            "counts:Ref": false,
+            "digits": false
+          },
+          "retained": 0.6666666666666666,
+          "dropped": [
+            "main",
+            "vec",
+            "println"
+          ],
+          "copied": [],
+          "match": 0.8571428571428571,
+          "order": 0.875,
+          "raw": "Act(As(Senior(Rust()), Engineer()))\nReview(Code())",
+          "reading": "Sequence(Mood(Imperative(), Act(As(Senior(Rust()), Engineer()))), Mood(Imperative(), Review(Code())))",
+          "ms": 906,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "code-rename",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "rename getUser to fetchUser everywhere in src/ and update the tests",
+      "target": "Mood(Imperative(), Rename(\"getUser\", To(\"fetchUser\"), Everywhere(In(\"src/\"))))\nMood(Imperative(), Update(Tests()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:rename": true,
+            "keeps:getuser": true,
+            "keeps:fetchuser": false,
+            "keeps:everywhere": false,
+            "keeps:src": false,
+            "keeps:update": true,
+            "keeps:tests": true,
+            "counts:Mood": false,
+            "counts:Imperative": false
+          },
+          "retained": 0.5714285714285714,
+          "dropped": [
+            "fetchuser",
+            "everywhere",
+            "src"
+          ],
+          "copied": [],
+          "match": 0.42857142857142855,
+          "order": 1,
+          "raw": "Rename(Ref(\"getUser\"), To(fetchUser), Everywhere(In(Path(\"src/\"))))\nUpdate(TheTests())",
+          "reading": "Sequence(Rename(Ref(\"getUser\")), Mood(Imperative(), Update(TheTests())))",
+          "ms": 1006,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "code-run-command",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "run `pnpm test` and paste the failures",
+      "target": "Mood(Imperative(), Run(InlineCode(\"pnpm test\")))\nMood(Imperative(), Paste(Failures()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:run": true,
+            "keeps:pnpm": true,
+            "keeps:test": true,
+            "keeps:paste": true,
+            "keeps:failures": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:InlineCode": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.6,
+          "order": 1,
+          "raw": "Run(Pnpm(Test()))\nPaste(Failures())",
+          "reading": "Sequence(Mood(Imperative(), Run(Pnpm(Test()))), Mood(Imperative(), Paste(Failures())))",
+          "ms": 806,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "pr-review",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "review PR #482 in cnocept, focus on the memory changes and leave comments but don't approve",
+      "target": "Mood(Imperative(), Review(PullRequest(482), In(Cnocept())))\nMood(Imperative(), Focus(On(Changes(Memory()))))\nMood(Imperative(), Leave(Comments()))\nMood(Imperative(), But(Do(Not(Approve()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:review": true,
+            "keeps:cnocept": false,
+            "keeps:focus": true,
+            "keeps:memory": true,
+            "keeps:changes": true,
+            "keeps:leave": true,
+            "keeps:comments": true,
+            "keeps:approve": true,
+            "counts:Mood": false,
+            "counts:Imperative": false,
+            "counts:Not": false,
+            "digits": true,
+            "numbers": true
+          },
+          "retained": 0.875,
+          "dropped": [
+            "cnocept"
+          ],
+          "copied": [],
+          "match": 0.47058823529411764,
+          "order": 1,
+          "raw": "Review(PR(482), In(CNocept()), Focus(MemoryChanges()))\nLeave(Comments())\nSkip(Approve())",
+          "reading": "Sequence(Mood(Imperative(), Review(PR(482), In(CNocept()), Focus(MemoryChanges()))), Mood(Imperative(), Leave(Comments())), Mood(Imperative(), Skip(Approve())))",
+          "ms": 1108,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "pr-review-link",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "can you look at https://github.com/foo/bar/pull/12 and tell me if it's safe to merge",
+      "target": "$pr = \"https://github.com/foo/bar/pull/12\"\nMood(Interrogative(), Can(You(), List(Look(At($pr)), Tell(Me(), If(Is(Ref(\"it\", $pr), Safe(To(Merge()))))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "keeps:look": true,
+            "keeps:https": true,
+            "keeps:github": true,
+            "keeps:com": true,
+            "keeps:foo": true,
+            "keeps:bar": true,
+            "keeps:pull": true,
+            "keeps:tell": true,
+            "keeps:safe": true,
+            "keeps:merge": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:Ref": false,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.7777777777777778,
+          "order": 1,
+          "raw": "Can(You(), Look(At(Link(\"https://github.com/foo/bar/pull/12\"))), Tell(Me(), If(It()), Safe(To(Merge()))))",
+          "reading": "Mood(Interrogative(), Can(You(), Look(At(Link(\"https://github.com/foo/bar/pull/12\"))), Tell(Me(), If(It()), Safe(To(Merge())))))",
+          "ms": 1219,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-same-thing",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "do the same thing for the other file",
+      "target": "Mood(Imperative(), Do(Ref(\"the same thing\"), For(Ref(\"the other file\"))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "keeps:same": true,
+            "keeps:thing": true,
+            "keeps:other": true,
+            "keeps:file": true,
+            "counts:Mood": true,
+            "counts:Imperative": false,
+            "counts:Ref": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.16666666666666666,
+          "order": 1,
+          "raw": "Do(TheSame(Thing()), For(TheOther(File())))",
+          "reading": "Mood(Interrogative(), Do(TheSame(Thing()), For(TheOther(File()))))",
+          "ms": 820,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-send-it",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "send it to him",
+      "target": "Mood(Imperative(), Send(Ref(\"it\"), To(Ref(\"him\"))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:send": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "Send(Ref(\"it\"), To(Him()))",
+          "reading": "Mood(Imperative(), Send(Ref(\"it\"), To(Him())))",
+          "ms": 794,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-that-bug",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "remember that bug we talked about last week? is it fixed yet",
+      "target": "$bug = Ref(\"that bug we talked about last week\")\nMood(Checking(), Remember(You(), $bug))\nMood(Interrogative(), Is(Ref(\"it\", $bug), Fixed(), Yet()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:remember": true,
+            "keeps:bug": true,
+            "keeps:talked": true,
+            "keeps:last": true,
+            "keeps:week": true,
+            "keeps:fixed": true,
+            "keeps:yet": true,
+            "counts:Ref": false,
+            "counts:Mood": false,
+            "counts:Checking": false,
+            "counts:Interrogative": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.4,
+          "order": 1,
+          "raw": "Remember(That(Bug()), We(Talked(About())), Last(Week()))\nIs(It(), Fixed())\nYet()",
+          "reading": "Sequence(Remember(That(Bug()), We(Talked(About())), Last(Week())), Is(It(), Fixed()), Yet())",
+          "ms": 1054,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-follow-up",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "now make it handle unicode",
+      "target": "MarkAside(\"now\")\nMood(Imperative(), Make(Ref(\"it\"), Handle(Unicode())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:now": true,
+            "keeps:make": true,
+            "keeps:handle": true,
+            "keeps:unicode": false,
+            "counts:MarkAside": false,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": false
+          },
+          "retained": 0.75,
+          "dropped": [
+            "unicode"
+          ],
+          "copied": [],
+          "match": 0.4,
+          "order": 1,
+          "raw": "Now(Make(It()), Handle(Undecode()))",
+          "reading": "Mood(Imperative(), Now(Make(It()), Handle(Undecode())))",
+          "ms": 797,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-ordinal-follow-up",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "tell me more about the second one",
+      "target": "Mood(Imperative(), Tell(Me(), More(About(Ref(\"the second one\")))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:tell": true,
+            "keeps:more": true,
+            "keeps:second": true,
+            "keeps:one": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.5,
+          "order": 1,
+          "raw": "Tell(Me(), More(Ref(\"the second one\")))",
+          "reading": "Mood(Imperative(), Tell(Me(), More(Ref(\"the second one\"))))",
+          "ms": 818,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-what-did-i-say",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "what did i say my sister's name was?",
+      "target": "Mood(Interrogative(), What(Did(Me(), Say(My(Sister(Name(Was())))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:say": true,
+            "keeps:sister": true,
+            "keeps:name": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:What": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.8333333333333334,
+          "order": 1,
+          "raw": "What(Did(Me(), Say(My(Sister()), Name())))",
+          "reading": "Mood(Interrogative(), What(Did(Me(), Say(My(Sister()), Name()))))",
+          "ms": 820,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-elliptical-why",
+      "source": "gold",
+      "status": "open",
+      "inPrompt": false,
+      "message": "why?",
+      "target": "Mood(Interrogative(), Why())",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:Why": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Why()",
+          "reading": "Mood(Interrogative(), Why())",
+          "ms": 664,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-language-unstated",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "write a function that parses csv",
+      "target": "Mood(Imperative(), Write(Function(That(Parses(Csv())))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": false,
+            "lines": false
+          },
+          "retained": 0,
+          "dropped": [
+            "write",
+            "function",
+            "parses",
+            "csv"
+          ],
+          "copied": [],
+          "order": 0,
+          "raw": "Write(Function() That(Parses(Csv())))",
+          "reading": null,
+          "ms": 1799,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-make-it-faster",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "make it faster",
+      "target": "Mood(Imperative(), Make(Ref(\"it\"), Faster()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:make": true,
+            "keeps:faster": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Make(Faster())",
+          "reading": "Mood(Imperative(), Make(Faster()))",
+          "ms": 680,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "context-the-usual",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "run the usual",
+      "target": "Mood(Imperative(), Run(Ref(\"the usual\")))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:run": true,
+            "keeps:usual": false,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": false
+          },
+          "retained": 0.5,
+          "dropped": [
+            "usual"
+          ],
+          "copied": [],
+          "match": 0.3333333333333333,
+          "order": 1,
+          "raw": "Run(The(Ussual()))",
+          "reading": "Mood(Imperative(), Run(The(Ussual())))",
+          "ms": 724,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "missing-info-booking",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "book me a table for tonight",
+      "target": "Mood(Imperative(), Book(Me(), Table(), For(Tonight())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:book": true,
+            "keeps:table": true,
+            "keeps:tonight": true,
+            "counts:Mood": true,
+            "counts:Imperative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Book(Me(), Table(), For(Tonight()))",
+          "reading": "Mood(Imperative(), Book(Me(), Table(), For(Tonight())))",
+          "ms": 789,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "missing-info-this",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "convert this to celsius",
+      "target": "Mood(Imperative(), Convert(Ref(\"this\"), To(Celsius())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:convert": true,
+            "keeps:celsius": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Ref": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 0.75,
+          "raw": "Convert(To(Celsius()))\nRef(\"this\")",
+          "reading": "Sequence(Mood(Imperative(), Convert(To(Celsius()))), Ref(\"this\"))",
+          "ms": 802,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "multi-intent",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "thanks! also what's the weather tomorrow and can you remind me to bring an umbrella if it rains",
+      "target": "MarkEmphasis(\"!\", Thanks())\nMood(Interrogative(), Also(What(Is(Weather(Tomorrow())))))\nMood(Interrogative(), Can(You(), Remind(Me(), Bring(Umbrella()), If(It(Rains())))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:thanks": true,
+            "keeps:weather": false,
+            "keeps:tomorrow": false,
+            "keeps:remind": true,
+            "keeps:bring": true,
+            "keeps:umbrella": true,
+            "keeps:rains": true,
+            "counts:MarkEmphasis": false,
+            "counts:Mood": false,
+            "counts:Interrogative": false,
+            "counts:What": true
+          },
+          "retained": 0.7142857142857143,
+          "dropped": [
+            "weather",
+            "tomorrow"
+          ],
+          "copied": [
+            "Is"
+          ],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "Thanks()\nAlso(What(Time(), Is(Waiting())))\nRemind(Me(), Bring(Umbrella()), If(Rains()))",
+          "reading": "Sequence(Thanks(), Also(What(Time(), Is(Waiting()))), Remind(Me(), Bring(Umbrella()), If(Rains())))",
+          "ms": 1086,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "correction-mid-sentence",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "move the meeting to tuesday, no wait, wednesday",
+      "target": "Mood(Imperative(), Move(Meeting(), To(MarkCorrection(Tuesday(), Wednesday()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:move": true,
+            "keeps:meeting": true,
+            "keeps:tuesday": true,
+            "keeps:wednesday": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:MarkCorrection": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.7142857142857143,
+          "order": 1,
+          "raw": "Move(Meeting(), To(Tuesday()))\nNo(Wait())\nWednesday()",
+          "reading": "Sequence(Mood(Imperative(), Move(Meeting(), To(Tuesday()))), Mood(Imperative(), No(Wait())), Mood(Imperative(), Wednesday()))",
+          "ms": 875,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "correction-not-that-one",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "not that one, the blue one",
+      "target": "Not(Ref(\"that one\"))\nRef(\"the blue one\")",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:one": true,
+            "keeps:blue": true,
+            "counts:Not": true,
+            "counts:Ref": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0,
+          "order": 0.8333333333333334,
+          "raw": "Not(Ref(\"that one\"))\nThe(Blue())",
+          "reading": "Sequence(Mood(Imperative(), Not(Ref(\"that one\"))), Mood(Imperative(), The(Blue())))",
+          "ms": 820,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "emphasis-prohibition",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "please do NOT push to main",
+      "target": "Mood(Imperative(), Please(MarkEmphasis(\"NOT\", Do(Not(Push(To(Main())))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:push": true,
+            "keeps:main": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:Please": true,
+            "counts:MarkEmphasis": false,
+            "counts:Not": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "Please(Do(Not(Push(To(Main())))))",
+          "reading": "Mood(Imperative(), Please(Do(Not(Push(To(Main()))))))",
+          "ms": 819,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "fuzzy-quantity",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "give me like five-ish names for a cat",
+      "target": "Mood(Imperative(), Give(Me(), Names(MarkFuzzy(\"like five-ish\", Number(\"five\")), For(Cat()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:give": true,
+            "keeps:five": true,
+            "keeps:ish": false,
+            "keeps:names": true,
+            "keeps:cat": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:MarkFuzzy": false
+          },
+          "retained": 0.8,
+          "dropped": [
+            "ish"
+          ],
+          "copied": [],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "Give(Me(), Like(Fiveish()), Names(For(Cat())))",
+          "reading": "Mood(Imperative(), Give(Me(), Like(Fiveish()), Names(For(Cat()))))",
+          "ms": 851,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "misspelling-common-word",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "whats the wether in pittsburgh",
+      "target": "Mood(Interrogative(), What(Is(MarkMisspelling(\"wether\", Weather(In(Pittsburgh()))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:whats": true,
+            "keeps:wether": false,
+            "keeps:pittsburgh": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:What": true,
+            "counts:MarkMisspelling": false
+          },
+          "retained": 0.6666666666666666,
+          "dropped": [
+            "wether"
+          ],
+          "copied": [
+            "Is"
+          ],
+          "match": 1,
+          "order": 1,
+          "raw": "What(Is(Weather(In(Pittsburgh()))))",
+          "reading": "Mood(Interrogative(), What(Is(Weather(In(Pittsburgh())))))",
+          "ms": 781,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "choice-question",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "which of these is a prime: 21, 27, 29, 33?",
+      "target": "$options = List(21, 27, 29, 33)\nMood(Interrogative(), WhichOf(Ref(\"these\", $options), Is(Prime())))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:prime": true,
+            "counts:Mood": true,
+            "counts:Interrogative": true,
+            "counts:WhichOf": true,
+            "counts:Ref": false,
+            "digits": true,
+            "numbers": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.5,
+          "order": 1,
+          "raw": "WhichOf(These(), Is(A(Prime())), 21, 27, 29, 33)",
+          "reading": "Mood(Interrogative(), WhichOf(These(), Is(A(Prime())), 21, 27, 29, 33))",
+          "ms": 1060,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "hypothetical-investment",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "if i invest 1000 dollars at 5% a year, how much will i have in 10 years?",
+      "target": "$invest = Me(Invest(Dollars(1000), At(Percent(5), Per(Year()))))\nMood(Interrogative(), If($invest, HowMuch(Will(Me(), Have(In(Years(10)))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:invest": true,
+            "keeps:dollars": true,
+            "keeps:year": true,
+            "keeps:much": true,
+            "keeps:years": true,
+            "counts:Mood": true,
+            "counts:Interrogative": false,
+            "counts:HowMuch": true,
+            "digits": false,
+            "numbers": false
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "Days"
+          ],
+          "match": 0.5,
+          "order": 0.9,
+          "raw": "If(Invest(Me(), Amount(1000), Dollar()), At(Rate(5), Year()))\nHowMuch(Will(Me(), In(Days(3650))))",
+          "reading": "Sequence(Mood(Checking(), If(Invest(Me(), Amount(1000), Dollar()), At(Rate(5), Year()))), Mood(Checking(), HowMuch(Will(Me(), In(Days(3650))))))",
+          "ms": 1259,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "explain-like-five",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "explain like i'm five how vaccines work",
+      "target": "Mood(Imperative(), Explain(Like(Me(Am(Number(\"five\")))), How(Vaccines(Work()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:explain": true,
+            "keeps:five": true,
+            "keeps:vaccines": true,
+            "keeps:work": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:How": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.8,
+          "order": 1,
+          "raw": "Explain(Like(Me(), Five()), How(Vaccines(), Work()))",
+          "reading": "Mood(Imperative(), Explain(Like(Me(), Five()), How(Vaccines(), Work())))",
+          "ms": 854,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "email-draft",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "draft an email to my landlord saying the heater is broken again and asking when they can fix it, keep it polite",
+      "target": "$email = Email(To(My(Landlord())))\n$heater = Heater()\nMood(Imperative(), Draft($email, Saying(Is($heater, Broken(), Again())), Asking(When(They(Can(Fix(Ref(\"it\", $heater))))))))\nMood(Imperative(), Keep(Ref(\"it\", $email), Polite()))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:draft": true,
+            "keeps:email": true,
+            "keeps:landlord": true,
+            "keeps:saying": true,
+            "keeps:heater": true,
+            "keeps:broken": true,
+            "keeps:again": true,
+            "keeps:asking": true,
+            "keeps:fix": true,
+            "keeps:keep": false,
+            "keeps:polite": true,
+            "counts:Mood": true,
+            "counts:Imperative": true,
+            "counts:When": true,
+            "counts:Ref": false
+          },
+          "retained": 0.9090909090909091,
+          "dropped": [
+            "keep"
+          ],
+          "copied": [],
+          "match": 0.3,
+          "order": 0.8235294117647058,
+          "raw": "Draft(Email(To(Landlord()), Subject(\"Heater Broken Again\")), Polite(True()))\nSay(\"The heater is broken again\")\nAsk(When(Fix(It())))",
+          "reading": "Sequence(Mood(Imperative(), Draft(Email(To(Landlord()), Subject(\"Heater Broken Again\")), Polite(True()))), Mood(Imperative(), Say(\"The heater is broken again\")), Mood(Imperative(), Ask(When(Fix(It())))))",
+          "ms": 1244,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "forget-request",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "forget everything i told you about my ex",
+      "target": "Mood(Imperative(), Forget(Everything(Me(Told(You(), About(My(Ex())))))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:forget": true,
+            "keeps:everything": true,
+            "keeps:told": true,
+            "counts:Mood": true,
+            "counts:Imperative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.8333333333333334,
+          "order": 1,
+          "raw": "Forget(Ref(\"everything\"), Me(), Told(Me()), About(My(), Ex()))",
+          "reading": "Mood(Imperative(), Forget(Ref(\"everything\"), Me(), Told(Me()), About(My(), Ex())))",
+          "ms": 901,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "chess-bare-move",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "e4",
+      "target": "E4()",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "E4()",
+          "reading": "Mood(Imperative(), E4())",
+          "ms": 670,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "chess-no-game",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "e4",
+      "target": "E4()",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "digits": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 1,
+          "order": 1,
+          "raw": "E4()",
+          "reading": "Mood(Imperative(), E4())",
+          "ms": 97,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "ambiguous-attachment",
+      "source": "gold",
+      "status": "open",
+      "inPrompt": false,
+      "message": "i saw the man with the telescope",
+      "target": "Mood(Declarative(), Me(Saw(Man(), With(Telescope()))))",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": true,
+            "keeps:saw": true,
+            "keeps:man": true,
+            "keeps:telescope": true,
+            "counts:Mood": true,
+            "counts:Declarative": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [],
+          "match": 0.6666666666666666,
+          "order": 1,
+          "raw": "I(Saw(Me(), The(Man(), With(The(Telescope())))))",
+          "reading": "Mood(Declarative(), I(Saw(Me(), The(Man(), With(The(Telescope()))))))",
+          "ms": 879,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "check-question",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "it's tuesday, right?",
+      "target": "Mood(Checking(), It(Is(Tuesday())))\nRight()",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": true,
+            "names": true,
+            "question": false,
+            "keeps:tuesday": true,
+            "keeps:right": true,
+            "counts:Mood": true,
+            "counts:Checking": true
+          },
+          "retained": 1,
+          "dropped": [],
+          "copied": [
+            "Is"
+          ],
+          "match": 1,
+          "order": 1,
+          "raw": "Is(Ref(\"it\"), Tuesday(), Right())",
+          "reading": "Mood(Checking(), Is(Ref(\"it\"), Tuesday(), Right()))",
+          "ms": 780,
+          "backend": "model"
+        }
+      ]
+    },
+    {
+      "id": "long-rambling",
+      "source": "gold",
+      "inPrompt": false,
+      "message": "ok so basically i've been trying to get my raspberry pi to connect to wifi for like 3 hours and it keeps dropping, i already tried rebooting it and changing the channel on the router, what else should i try?? its a pi 4 btw",
+      "target": "MarkAside(\"ok so basically\")\n$pi = My(RaspberryPi())\nMood(Declarative(), Me(HaveBeen(Trying(Get($pi, Connect(To(Wifi()))), For(MarkFuzzy(\"like\", Hours(3)))))))\nMood(Declarative(), Keeps(Ref(\"it\", $pi), Dropping()))\nMood(Declarative(), Me(Already(Tried(List(Rebooting(Ref(\"it\", $pi)), Changing(Channel(On(Router()))))))))\nMood(Interrogative(), MarkEmphasis(\"??\", What(Else(), Should(Me(Try())))))\nMood(Declarative(), Is(Ref(\"its\", $pi), Pi(4)))\nMarkAside(\"btw\")",
+      "samples": [
+        {
+          "checks": {
+            "parsed": true,
+            "lines": false,
+            "names": true,
+            "question": true,
+            "keeps:basically": true,
+            "keeps:trying": true,
+            "keeps:get": true,
+            "keeps:raspberry": true,
+            "keeps:connect": false,
+            "keeps:wifi": false,
+            "keeps:hours": false,
+            "keeps:keeps": false,
+            "keeps:dropping": false,
+            "keeps:already": false,
+            "keeps:tried": false,
+            "keeps:rebooting": false,
+            "keeps:changing": false,
+            "keeps:channel": false,
+            "keeps:router": false,
+            "keeps:else": false,
+            "keeps:try": true,
+            "keeps:btw": false,
+            "counts:MarkAside": false,
+            "counts:Mood": false,
+            "counts:Declarative": false,
+            "counts:MarkFuzzy": false,
+            "counts:Ref": false,
+            "counts:Interrogative": false,
+            "counts:MarkEmphasis": true,
+            "counts:What": false,
+            "digits": false,
+            "numbers": false
+          },
+          "retained": 0.2777777777777778,
+          "dropped": [
+            "connect",
+            "wifi",
+            "hours",
+            "keeps",
+            "dropping",
+            "already",
+            "tried",
+            "rebooting",
+            "changing",
+            "channel",
+            "router",
+            "else",
+            "btw"
+          ],
+          "copied": [],
+          "match": 0.2,
+          "order": 0.8571428571428571,
+          "raw": "Ok(Ref(\"so\"), Basically(Me()))\nI(Ve(Been(Trying(Get(My(Raspberry(Pi())), Connect(Wifi()))) For(Like(Hours(3))) And(It(Keeps(Dropping()))))\nI(Already(Tried(Rebooting(Me())) And Changing(The(Channel(), On(The(Router())))) What(Elseshould(I(Try()))?\nIt(Ve(A(Pi(4))))",
+          "reading": "Sequence(Mood(Checking(), MarkEmphasis(\"??\", Ok(Ref(\"so\"), Basically(Me())))), I(Ve(Been(Trying(Get(My(Raspberry(Pi()))))))), Mood(Declarative(), It(Ve(A(Pi(4))))))",
+          "ms": 4435,
+          "backend": "model"
+        }
+      ]
+    }
+  ]
+}
