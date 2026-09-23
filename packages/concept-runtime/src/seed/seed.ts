@@ -489,11 +489,61 @@ add(concept("Fact", { relations: ["IsA(Frame())"] }));
 // Lossy, so describing the request still shows that it was an order. Without this, every
 // request the Ears framed stayed an unevaluated Do(...).
 add(concept("Do", { relations: ["IsA(Frame())"], realizations: [projection("Do($x)", 0)] }));
+/**
+ * Delivery: "tell me X", "show me X", "help me X". Under execution the frame does what it
+ * delivers, the way "can you X" does X; who it is delivered to is not part of the work. With
+ * nothing but a recipient ("tell me") there is nothing to do, so it stays residual.
+ */
+const delivery = (frame: string) =>
+  realization({
+    pattern: `${frame}(Rest($args))`,
+    context: "Execution()",
+    properties: ["Lossy()"],
+    evaluateArguments: false,
+    body: code(`async (args, bindings, api) => {
+      const recipient = (v) => v && ["Me", "You", "We", "Us", "Them"].includes(v.head) && v.args.length === 0;
+      const content = args.filter((a) => !recipient(a.value));
+      if (!content.length) return api.call("${frame}", ...args.map((a) => a.value));
+      let result;
+      for (const a of content) result = await api.evaluate(a.value);
+      return result;
+    }`),
+  });
 /** Delivery. `Do(Tell(Me(), Whether(...)))` is "tell me if...". */
-add(concept("Tell", { relations: ["IsA(Frame())"] }));
+add(concept("Tell", { relations: ["IsA(Frame())"], realizations: [delivery("Tell")] }));
 /** Asking for something to be produced, as opposed to told. */
 add(concept("Give", { relations: ["IsA(Frame())", "SynonymOf(Show())"] }));
-add(concept("Show", { relations: ["IsA(Frame())"] }));
+add(concept("Show", { relations: ["IsA(Frame())"], realizations: [delivery("Show")] }));
+/** "help me X": the help is doing X. */
+add(concept("Help", { relations: ["IsA(Frame())"], realizations: [delivery("Help")] }));
+/** Finding something out is being told it. */
+for (const phrase of ["FigureOut", "FindOut", "WorkOut"]) add(concept(phrase, { relations: ["SynonymOf(Tell())"] }));
+
+/*
+ * Social talk. A greeting or a thanks is answered, not computed: one realization on the
+ * category, inherited by every word for it, the way every question word answers through
+ * Interrogative.
+ */
+const reply = (category: string, answer: string) =>
+  concept(category, {
+    relations: ["IsA(Category())"],
+    realizations: [
+      realization({
+        pattern: "$said",
+        context: "Execution()",
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => api.call("Answer", api.call("${answer}"))`),
+      }),
+    ],
+  });
+add(reply("Greeting", "Hello"));
+add(reply("Thanking", "YoureWelcome"));
+add(reply("Farewell", "Goodbye"));
+for (const w of ["Hi", "Hello", "Hey", "HeyThere", "Howdy", "Yo", "GoodMorning", "GoodAfternoon", "GoodEvening"]) {
+  add(concept(w, { relations: ["IsA(Greeting())"] }));
+}
+for (const w of ["Thanks", "ThankYou", "Thx", "Ty"]) add(concept(w, { relations: ["IsA(Thanking())"] }));
+for (const w of ["Bye", "Goodbye", "Cya"]) add(concept(w, { relations: ["IsA(Farewell())"] }));
 /** Producing text or code, which is what makes a target language reachable from a chat. */
 add(concept("Write", { relations: ["IsA(Frame())"] }));
 
@@ -1258,6 +1308,13 @@ function reachesRealBehaviour(store: ConceptStore, identity: string, seen = new 
     const source = codeSource(r.body) ?? "";
     const to = /head: "([A-Za-z0-9_]+)"/.exec(source)?.[1];
     if (to && reachesRealBehaviour(store, to, seen)) return true;
+  }
+  // Behaviour reached by inheritance is behaviour: What has no realization of its own and
+  // answers through Interrogative's, so WhatIs forwarding to it is not a pointer at nothing.
+  for (const { claim: r } of unit.relations) {
+    if (!isCall(r) || r.head !== "IsA") continue;
+    const parent = r.args[0]?.value;
+    if (isCall(parent) && reachesRealBehaviour(store, parent.head, seen)) return true;
   }
   return false;
 }

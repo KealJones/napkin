@@ -476,22 +476,22 @@ test("a forward never goes back where the call just came from", async () => {
         body: parse(`Code(source="async (args, bindings, api) => await api.evaluate({ head: \\"${to}\\", args: [] })")`),
       }),
     );
-  forward("Hi", "Hello");
-  forward("Hello", "Hi");
+  forward("Florp", "Glorp");
+  forward("Glorp", "Florp");
 
   const rt = new Runtime(store);
   // Terminates, and as a residual: an honest "nothing here" rather than an exception.
-  assert.equal(format(await rt.evaluate(parse("Hi()"), c("Execution"))), "Hello()");
+  assert.equal(format(await rt.evaluate(parse("Florp()"), c("Execution"))), "Glorp()");
 });
 
 test("a forward that leads somewhere real still works", async () => {
   const store = new ConceptStore();
   seed(store);
-  store.addRealization("Hello", realization({ pattern: "Hello()", body: parse('"hi there"') }));
+  store.addRealization("Glorp", realization({ pattern: "Glorp()", body: parse('"hi there"') }));
   const { forwardSynonym } = await import("./seed/seed.js");
-  assert.equal(forwardSynonym(store, "Hi", "Hello"), true);
+  assert.equal(forwardSynonym(store, "Florp", "Glorp"), true);
   const rt = new Runtime(store);
-  assert.equal(format(await rt.evaluate(parse("Hi()"), c("Execution"))), '"hi there"');
+  assert.equal(format(await rt.evaluate(parse("Florp()"), c("Execution"))), '"hi there"');
 });
 
 test("emission never formats something that did not reduce", async () => {
@@ -518,4 +518,22 @@ test("a facet named in the message is lifted out of the expression", async () =>
   const named = facetsNamed(rt, parse('Write(Function(TypeScript(), Says("hello")))'));
   assert.deepEqual(named.map(format), ["TypeScript()"]);
   assert.deepEqual(facetsNamed(rt, parse("What(Time())")).map(format), []);
+});
+
+test("a synonym forwards to behaviour its target inherits", async () => {
+  // What has no realization of its own; it answers through Interrogative.
+  assert.equal(await run("WhatIs(Times(17, 3))"), "Answer(51)");
+});
+
+test("delivery frames do what they deliver, whoever it is for", async () => {
+  assert.equal(await run("Tell(Me(), What(Times(17, 3)))"), "Answer(51)");
+  assert.equal(await run("Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(WhatIs(Times(17, 3))))))"), "Answer(51)");
+  assert.equal(await run("Show(Me(), Times(2, 3))"), "6");
+  assert.equal(await run("Tell(Me())"), "Tell(Me())", "a recipient and nothing to tell stays residual");
+});
+
+test("greetings and thanks are answered", async () => {
+  assert.equal(await run("Hi()"), "Answer(Hello())");
+  assert.equal(await run("HeyThere()"), "Answer(Hello())");
+  assert.equal(await run("ThankYou()"), "Answer(YoureWelcome())");
 });
