@@ -17,8 +17,19 @@ type Summary = {
   bySource: Record<string, number>;
   byCheck: Record<string, number>;
 };
+type Backend = "model" | "rules" | "hybrid";
+const READERS: { value: Backend; label: string; title: string }[] = [
+  { value: "model", label: "LLM", title: "The model reads every message, with the prompt on the left." },
+  { value: "rules", label: "Rules", title: "The deterministic parser reads every message. The prompt is not used." },
+  { value: "hybrid", label: "Hybrid", title: "The rules read first; the model reads only what the rules refuse." },
+];
+/** Who read a run, from the share of readings the rules produced. */
+const readerOf = (ruled: number | undefined) => (ruled === undefined || ruled === 0 ? "LLM" : ruled === 1 ? "Rules" : `Hybrid (${Math.round(ruled * 100)}% rules)`);
+
 type Converted = {
   raw: string;
+  backend: "model" | "rules";
+  fallback: string | null;
   lifted: string | null;
   reading: string | null;
   problems: string[];
@@ -55,6 +66,7 @@ type RunRow = {
   order: number;
   match: number;
   copyRate: number;
+  ruled?: number;
 };
 type RunDetail = { label: string; date: string; prompt: string; unfused: boolean; summary: Summary; cases: CaseView[] };
 type Conversion = { date: string; promptHash: string; message: string; raw: string; reading: string | null };
@@ -107,7 +119,7 @@ function CaseList({ cases = [] }: { cases?: CaseView[] | undefined }) {
             <div className="lab-case-message">{c.message}</div>
             <div className="lab-pair">
               <div>
-                <label>Model</label>
+                <label>Reading</label>
                 {[...new Set(c.readings)].map((r, i) => (
                   <pre key={i}>{r}</pre>
                 ))}
@@ -126,6 +138,7 @@ function CaseList({ cases = [] }: { cases?: CaseView[] | undefined }) {
 }
 
 export function EarsLab() {
+  const [backend, setBackend] = useState<Backend>(() => (localStorage.getItem("ears-lab-backend") as Backend | null) ?? "model");
   const [defaultPrompt, setDefaultPrompt] = useState("");
   const [prompt, setPrompt] = useState("");
   const [message, setMessage] = useState("what day will it be in 5 days?");
@@ -166,6 +179,11 @@ export function EarsLab() {
 
   const edited = prompt !== defaultPrompt;
   const system = edited ? prompt : undefined;
+  const pickBackend = (next: Backend) => {
+    localStorage.setItem("ears-lab-backend", next);
+    setBackend(next);
+    setConverted(null);
+  };
 
   async function convert() {
     setConverting(true);
@@ -174,7 +192,7 @@ export function EarsLab() {
       const r = await fetch("/api/ears/convert", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message, system }),
+        body: JSON.stringify({ message, system, backend }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? r.statusText);
@@ -198,7 +216,7 @@ export function EarsLab() {
       const r = await fetch("/api/ears/eval", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ system, samples, only, questions, unfused }),
+        body: JSON.stringify({ system, samples: backend === "rules" ? 1 : samples, only, questions, unfused, backend }),
       });
       if (!r.ok || !r.body) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? r.statusText);
       const reader = r.body.getReader();
@@ -252,11 +270,31 @@ export function EarsLab() {
   return (
     <section className="page active lab">
       <div className="lab-grid">
-        <div className="lab-col">
+        <div className="lab-head lab-reader">
+        <strong>Reader</strong>
+        <div className="lab-toggle" role="radiogroup" aria-label="Reader">
+          {READERS.map((x) => (
+            <button
+              key={x.value}
+              role="radio"
+              aria-checked={backend === x.value}
+              className={backend === x.value ? "active" : "ghost"}
+              title={x.title}
+              disabled={progress !== null || converting}
+              onClick={() => pickBackend(x.value)}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+        <span className="lab-muted">{READERS.find((x) => x.value === backend)?.title}</span>
+        </div>
+        <div className={backend === "rules" ? "lab-col lab-unused" : "lab-col"}>
           <div className="lab-head">
             <strong>System prompt</strong>
             <span className="lab-muted">
               {prompt.length} chars {edited ? "· edited (not saved anywhere)" : "· current prompt.ts"}
+              {backend === "rules" ? " · not used by the rules" : backend === "hybrid" ? " · used only when the rules refuse" : ""}
             </span>
             <button className="ghost" disabled={!edited} onClick={() => setPrompt(defaultPrompt)}>
               Reset
@@ -276,8 +314,11 @@ export function EarsLab() {
             </button>
             {converted && (
               <div className="lab-out">
-                <label>Model wrote ({converted.ms} ms)</label>
-                <pre>{converted.raw}</pre>
+                <label>
+                  {converted.backend === "rules" ? "Rules wrote" : "Model wrote"} ({converted.ms} ms)
+                  {converted.fallback ? (converted.backend === "model" ? ` · rules refused (${converted.fallback}), so the model read it` : ` · rules refused (${converted.fallback})`) : ""}
+                </label>
+                <pre>{converted.raw || "(nothing)"}</pre>
                 <label>After mechanical passes (mood, repairs)</label>
                 <pre className="lab-reading">{converted.reading ?? "(nothing parsed)"}</pre>
                 {converted.problems.length > 0 && <div className="lab-bad">{converted.problems.join("; ")}</div>}
@@ -313,7 +354,7 @@ export function EarsLab() {
             <div className="lab-row">
               <label>
                 Samples{" "}
-                <select value={samples} onChange={(e) => setSamples(Number(e.target.value))}>
+                <select value={backend === "rules" ? 1 : samples} disabled={backend === "rules"} title={backend === "rules" ? "The rules read the same way every time." : ""} onChange={(e) => setSamples(Number(e.target.value))}>
                   <option value={1}>1 (fast, noisy)</option>
                   <option value={3}>3 (like the CLI)</option>
                 </select>
@@ -355,7 +396,7 @@ export function EarsLab() {
                     <tr>
                       <th />
                       <th>{b ? b.label : "baseline"}</th>
-                      <th>this prompt</th>
+                      <th>this run ({READERS.find((x) => x.value === backend)?.label})</th>
                       <th>change</th>
                     </tr>
                   </thead>
@@ -396,6 +437,7 @@ export function EarsLab() {
                 <tr>
                   <th>when</th>
                   <th>label</th>
+                  <th>reader</th>
                   <th>chars</th>
                   <th>pass</th>
                   <th>kept</th>
@@ -412,6 +454,7 @@ export function EarsLab() {
                       {r.label}
                       {r.unfused ? " (unfused)" : ""}
                     </td>
+                    <td>{readerOf(r.ruled)}</td>
                     <td>{r.promptChars}</td>
                     <td>{pct(r.headline)}</td>
                     <td>{pct(r.retained)}</td>

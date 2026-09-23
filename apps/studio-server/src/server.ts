@@ -532,7 +532,7 @@ async function handleEarsLab(path: string, request: IncomingMessage, response: S
       return {
         file, label: run.label, date: run.date, promptHash: run.promptHash, promptChars: run.promptChars, unfused: run.unfused === true,
         cases: run.cases.length, samples: run.samples,
-        headline: s.headline, retained: s.retained, order: s.order, match: s.match, copyRate: s.copyRate,
+        headline: s.headline, retained: s.retained, order: s.order, match: s.match, copyRate: s.copyRate, ruled: s.ruled,
       };
     });
     sendJson(response, 200, { runs });
@@ -609,15 +609,16 @@ async function handleEarsLab(path: string, request: IncomingMessage, response: S
       if (!response.writableEnded) response.write("data: " + JSON.stringify(event) + "\n\n");
     };
     earsEvalRunning = true;
+    const backend = options.backend === "rules" || options.backend === "hybrid" ? options.backend : "model";
     try {
       const run = await runEars({
-        label: "lab",
+        label: backend === "model" ? "lab" : `lab-${backend}`,
         ...(system ? { system } : {}),
         samples: typeof options.samples === "number" ? Math.max(1, Math.min(5, options.samples)) : 1,
         ...(typeof options.only === "string" && options.only ? { only: options.only } : {}),
         questions: options.questions === true,
         ...(options.unfused === true ? { unfused: true } : {}),
-        backend: options.backend === "rules" || options.backend === "hybrid" ? options.backend : "model",
+        backend,
         onCase: (result, done, total) =>
           send({
             type: "case",

@@ -1201,6 +1201,12 @@ button.ghost {
 .lab-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .lab-head { display: flex; align-items: center; gap: 10px; }
 .lab-head .ghost { margin-left: auto; }
+.lab-reader { grid-column: 1 / -1; }
+.lab-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lab-toggle button { margin: 0; border: none; border-radius: 0; padding: 4px 12px; }
+.lab-toggle button.ghost { margin-left: 0; }
+.lab-toggle button.active { background: var(--pink); color: var(--bg, #000); }
+.lab-unused .lab-prompt { opacity: 0.45; }
 .lab-prompt { flex: 1; min-height: 70vh; width: 100%; font: 12px/1.45 ui-monospace, Menlo, monospace; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; }
 .lab-message { width: 100%; min-height: 64px; font: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 .lab-card { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
@@ -1231,6 +1237,7 @@ button.ghost {
 .lab-pair pre { font-size: 11px; }
 .lab-gold { color: var(--purple); }
 .lab-link { background: none; border: none; padding: 0; color: var(--pink); cursor: pointer; font: inherit; text-align: left; }
+.lab-runs { display: block; max-width: 100%; overflow-x: auto; }
 .lab-runs td { font-size: 12px; white-space: nowrap; }
 .lab-selected td { color: var(--pink); }
 details > summary { cursor: pointer; }
