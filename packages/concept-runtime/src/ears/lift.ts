@@ -309,7 +309,8 @@ export function mendWords(e: Expr, message: string): Expr {
     const near = said.filter((s) => Math.abs(s.length - w.length) <= 2 && distance(s, w) <= (w.length >= 6 ? 2 : 1));
     return near.length === 1 ? near[0][0].toUpperCase() + near[0].slice(1) : head;
   };
-  const walk = (x: Expr): Expr => {
+  // `corrected`: the word a `MarkMisspelling` says was meant, which is off from what was typed on purpose.
+  const walk = (x: Expr, corrected = false): Expr => {
     if (typeof x !== "object" || x === null || !("head" in x)) return x;
     if (POINTING.has(x.head) && saidSet.has(x.head.toLowerCase())) {
       const ref = call("Ref", [{ value: x.head.toLowerCase() }]);
@@ -343,14 +344,15 @@ export function mendWords(e: Expr, message: string): Expr {
       const [only] = x.args;
       if (x.args.length === 1 && typeof only.value === "object" && only.value !== null && "head" in only.value && only.value.head === "Me") return walk(only.value);
     }
-    const head = RENAMED[x.head] ?? restore(x.head);
+    const head = RENAMED[x.head] ?? (corrected ? x.head : restore(x.head));
+    const meant = x.head === "MarkMisspelling" && x.args.length === 2 ? x.args[1] : undefined;
     const isBareArticle = (v: Expr) =>
       typeof v === "object" && v !== null && "head" in v && v.head === "Ref" && v.args.length === 1 &&
       typeof v.args[0].value === "string" && /^(a|an|the)$/i.test(v.args[0].value.trim());
     // An all-digit string the user never quoted is a number: Pr("482") for "PR #482".
     const unquote = (v: Expr): Expr =>
       typeof v === "string" && /^\d+$/.test(v) && !message.includes(`"${v}"`) ? Number(v) : v;
-    return call(head, x.args.filter((a) => !isBareArticle(a.value)).map((a) => ({ ...a, value: unquote(walk(a.value)) })));
+    return call(head, x.args.filter((a) => !isBareArticle(a.value)).map((a) => ({ ...a, value: unquote(walk(a.value, a === meant)) })));
   };
   return walk(e);
 }

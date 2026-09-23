@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { format } from "../concept/expression.js";
+import { format, parse } from "../concept/expression.js";
 import { balance, dropArticles, lift, mendNumbers, mendWords } from "./lift.js";
 import { check, looksLikeQuestion } from "./ears.js";
 
@@ -200,4 +200,9 @@ test("pointing phrases folded or wrapped are references, and unquoted digit stri
 
 test("i is Me, spelled once", () => {
   assert.equal(format(mendWords(lift("I(Me())").expression!, "i'm allergic")), "Me()");
+});
+
+test("a marked misspelling keeps the word it says was meant", () => {
+  const e = parse('What(MarkMisspelling("ahppened", Happened()))');
+  assert.equal(format(mendWords(e, "what ahppened")), 'What(MarkMisspelling("ahppened", Happened()))');
 });
