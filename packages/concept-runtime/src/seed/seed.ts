@@ -1118,7 +1118,31 @@ add(binary("Multiply", "l * r"));
 add(binary("Add", "l + r"));
 add(binary("Subtract", "l - r"));
 add(binary("GreaterThan", "l > r ? { head: 'True', args: [] } : { head: 'False', args: [] }"));
+add(binary("LessThan", "l < r ? { head: 'True', args: [] } : { head: 'False', args: [] }"));
+add(binary("AtLeast", "l >= r ? { head: 'True', args: [] } : { head: 'False', args: [] }"));
+add(binary("AtMost", "l <= r ? { head: 'True', args: [] } : { head: 'False', args: [] }"));
+// Division by zero is undefined, which is the answer, not Infinity and not a failure.
+add(binary("Divide", "r === 0 ? api.call('Undefined') : l / r"));
+add(binary("Modulo", "r === 0 ? api.call('Undefined') : l % r"));
+add(concept("Undefined", { relations: ["IsA(Result())"] }));
+add(binary("Power", "Math.pow(l, r)"));
+add(
+  concept("Negative", {
+    realizations: [
+      realization({
+        pattern: "Negative($x)",
+        context: "Execution()",
+        body: code(`(args, bindings, api) => typeof args[0].value === "number" ? -args[0].value : api.call("Negative", args[0].value)`),
+      }),
+    ],
+  }),
+);
+// The words arithmetic is read aloud in, pointing at what does it.
 add(concept("Times", { relations: ["SynonymOf(Multiply())"] }));
+add(concept("Plus", { relations: ["SynonymOf(Add())"] }));
+add(concept("Minus", { relations: ["SynonymOf(Subtract())"] }));
+add(concept("Over", { relations: ["SynonymOf(Divide())"] }));
+add(concept("Mod", { relations: ["SynonymOf(Modulo())"] }));
 
 add(
   concept("Count", {

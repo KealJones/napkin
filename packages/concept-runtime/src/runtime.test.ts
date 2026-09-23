@@ -537,3 +537,9 @@ test("greetings and thanks are answered", async () => {
   assert.equal(await run("HeyThere()"), "Answer(Hello())");
   assert.equal(await run("ThankYou()"), "Answer(YoureWelcome())");
 });
+
+test("arithmetic in symbols answers, and division by zero is undefined", async () => {
+  assert.equal(await run("Mood(Interrogative(), WhatIs(Over(Times(Plus(1, 2), Plus(3, 4)), 7)))"), "Answer(3)");
+  assert.equal(await run("Mood(Interrogative(), WhatIs(Negative(Power(2, 2))))"), "Answer(-4)");
+  assert.equal(await run("Mood(Interrogative(), WhatIs(Over(1, 0)))"), "Answer(Undefined())");
+});
