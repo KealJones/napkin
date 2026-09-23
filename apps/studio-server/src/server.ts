@@ -27,6 +27,24 @@ import {
   turn as runTurn,
 } from "@cnocept/concept-runtime";
 import { concept, realization } from "@cnocept/concept-runtime";
+import {
+  compareEars,
+  earsCases,
+  earsPrompt,
+  hashEarsPrompt,
+  listEarsRuns,
+  logEarsConversion,
+  openEarsRun,
+  recentEarsConversions,
+  hear,
+  latestEarsRun,
+  lift,
+  rescoreEars,
+  runEars,
+  saveEarsRun,
+  summarizeEars,
+  type EarsRun,
+} from "@cnocept/concept-runtime";
 
 const graphPath = resolve(process.env.CNOCEPT_GRAPH ?? resolve(homedir(), ".cnocept/graph.json"));
 const port = Number(process.env.CNOCEPT_PORT ?? 4173);
@@ -177,6 +195,11 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
   if (request.method === "POST" && path === "/api/chat/turn") {
     await runChatTurn(request, response);
+    return;
+  }
+
+  if (path.startsWith("/api/ears/")) {
+    await handleEarsLab(path, request, response);
     return;
   }
 
@@ -464,3 +487,166 @@ function sendJson(
   response.end(JSON.stringify(value));
 }
 
+
+/* ------------------------------------------------------------------ *
+ * Ears lab: try a prompt on one message, or run it against the eval cases and the gold.
+ * Observes only; nothing here changes the graph or the saved prompt.
+ * ------------------------------------------------------------------ */
+let earsEvalRunning = false;
+
+const plain = (summary: ReturnType<typeof summarizeEars>) => ({
+  ...summary,
+  bySource: Object.fromEntries(summary.bySource),
+  byCheck: Object.fromEntries(summary.byCheck),
+});
+
+/** One case of a run, with what it was scored against: the gold reading, or its checks. */
+function caseView(run: EarsRun) {
+  const known = new Map(earsCases().map((c) => [c.id, c]));
+  return run.cases.map((c) => {
+    const passes = c.samples.filter((s) => Object.values(s.checks).every(Boolean)).length;
+    const def = known.get(c.id);
+    return {
+      id: c.id,
+      source: c.status === "open" ? "gold open" : c.inPrompt ? "in prompt" : c.source,
+      message: c.message,
+      rate: c.samples.length ? passes / c.samples.length : 0,
+      failed: [...new Set(c.samples.flatMap((s) => Object.entries(s.checks).filter(([, ok]) => !ok).map(([k]) => k)))],
+      readings: c.samples.map((s) => s.reading ?? s.raw),
+      gold: c.target ?? def?.target ?? null,
+      expect: def?.expect ?? null,
+    };
+  });
+}
+
+async function handleEarsLab(path: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
+  if (path === "/api/ears/prompt" && request.method === "GET") {
+    sendJson(response, 200, { prompt: earsPrompt(store) });
+    return;
+  }
+
+  if (path === "/api/ears/runs" && request.method === "GET") {
+    const runs = listEarsRuns().map(({ file, run }) => {
+      const scored = openEarsRun(file) ?? run;
+      const s = summarizeEars(scored);
+      return {
+        file, label: run.label, date: run.date, promptHash: run.promptHash, promptChars: run.promptChars, unfused: run.unfused === true,
+        cases: run.cases.length, samples: run.samples,
+        headline: s.headline, retained: s.retained, order: s.order, match: s.match, copyRate: s.copyRate,
+      };
+    });
+    sendJson(response, 200, { runs });
+    return;
+  }
+
+  if (path.startsWith("/api/ears/runs/") && request.method === "GET") {
+    const unfused = new URL(request.url ?? "/", "http://127.0.0.1").searchParams.get("unfused");
+    const run = openEarsRun(decodeURIComponent(path.slice("/api/ears/runs/".length)), unfused === null ? undefined : unfused === "1");
+    if (!run) {
+      sendJson(response, 404, { error: "Run not found" });
+      return;
+    }
+    sendJson(response, 200, { label: run.label, date: run.date, prompt: run.prompt, unfused: run.unfused === true, summary: plain(summarizeEars(run)), cases: caseView(run) });
+    return;
+  }
+
+  if (path === "/api/ears/conversions" && request.method === "GET") {
+    sendJson(response, 200, { conversions: recentEarsConversions() });
+    return;
+  }
+
+  if (path === "/api/ears/convert" && request.method === "POST") {
+    const body = await readJson(request);
+    if (!isRecord(body) || typeof body.message !== "string" || !body.message.trim()) {
+      sendJson(response, 400, { error: "A non-empty message is required" });
+      return;
+    }
+    const system = typeof body.system === "string" && body.system.trim() ? body.system : undefined;
+    const started = Date.now();
+    // The lab always says who reads, so a change to the chat's default never changes the lab.
+    const backend = body.backend === "rules" || body.backend === "hybrid" ? body.backend : "model";
+    const heard = await hear(store, body.message, {
+      ...(system ? { system } : {}),
+      backend,
+      ...(typeof body.model === "string" ? { model: body.model } : {}),
+    });
+    const before = lift(heard.raw).expression;
+    logEarsConversion({
+      date: new Date().toISOString(),
+      promptHash: hashEarsPrompt(system ?? earsPrompt(store)),
+      message: body.message,
+      raw: heard.raw,
+      reading: heard.expression === undefined ? null : format(heard.expression),
+    });
+    sendJson(response, 200, {
+      raw: heard.raw,
+      lifted: before === undefined ? null : format(before),
+      reading: heard.expression === undefined ? null : format(heard.expression),
+      problems: heard.problems,
+      rejected: heard.rejected,
+      backend: heard.backend ?? "model",
+      fallback: heard.fallback ?? null,
+      ms: Date.now() - started,
+    });
+    return;
+  }
+
+  if (path === "/api/ears/eval" && request.method === "POST") {
+    if (earsEvalRunning) {
+      sendJson(response, 409, { error: "An eval is already running; the model runs one call at a time." });
+      return;
+    }
+    const body = await readJson(request);
+    const options = isRecord(body) ? body : {};
+    const system = typeof options.system === "string" && options.system.trim() ? options.system : undefined;
+    response.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    const send = (event: Record<string, unknown>) => {
+      if (!response.writableEnded) response.write("data: " + JSON.stringify(event) + "\n\n");
+    };
+    earsEvalRunning = true;
+    try {
+      const run = await runEars({
+        label: "lab",
+        ...(system ? { system } : {}),
+        samples: typeof options.samples === "number" ? Math.max(1, Math.min(5, options.samples)) : 1,
+        ...(typeof options.only === "string" && options.only ? { only: options.only } : {}),
+        questions: options.questions === true,
+        ...(options.unfused === true ? { unfused: true } : {}),
+        backend: options.backend === "rules" || options.backend === "hybrid" ? options.backend : "model",
+        onCase: (result, done, total) =>
+          send({
+            type: "case",
+            done,
+            total,
+            id: result.id,
+            rate: result.samples.filter((s) => Object.values(s.checks).every(Boolean)).length / result.samples.length,
+            reading: result.samples[0]?.reading ?? result.samples[0]?.raw ?? "",
+          }),
+      });
+      const file = saveEarsRun(run);
+      const previous = latestEarsRun((label) => !label.startsWith("lab") && !label.includes("rescored"));
+      const baseline: EarsRun | undefined = previous ? rescoreEars(previous, options.unfused === true) : undefined;
+      const diff = baseline ? compareEars(baseline, run) : undefined;
+      send({
+        type: "done",
+        file: file.split("/").slice(-1)[0],
+        summary: plain(summarizeEars(run)),
+        baseline: baseline && diff ? { label: previous!.label, shared: diff.shared, before: plain(diff.before), after: plain(diff.after) } : null,
+        cases: caseView(run),
+      });
+    } catch (error) {
+      send({ type: "error", error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      earsEvalRunning = false;
+      response.end();
+    }
+    return;
+  }
+
+  sendJson(response, 404, { error: "Unknown Ears lab endpoint" });
+}

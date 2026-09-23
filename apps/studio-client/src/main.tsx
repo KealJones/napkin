@@ -9,13 +9,15 @@ import {
 } from "@cnocept/concept-runtime/expression";
 import type { TraceEvent } from "@cnocept/concept-runtime";
 import "./styles.css";
+import { EarsLab } from "./EarsLab";
 
-type Page = "chat" | "concepts" | "traces";
+type Page = "chat" | "concepts" | "traces" | "ears";
 type ConversationSummary = {
   id: string;
-  title: string;
   persistent: boolean;
-  updatedAt: string;
+  startedAt: string;
+  turns: number;
+  lastMessage?: string;
 };
 type RealizationView = {
   pattern: string;
@@ -69,7 +71,13 @@ type ChatMessage = {
 type ConversationUnit = {
   identity: string;
   relations: string[];
-  turns: { at: string; message: string; parsed: string; result: string }[];
+  turns: {
+    at: string;
+    message: string;
+    parsed: string;
+    result: string;
+    spoken?: string;
+  }[];
 };
 type TraceSummary = {
   traceId: string;
@@ -166,7 +174,54 @@ function expressionOf(source: string): Expr {
   return parseExpression(source);
 }
 
+function expressionOrNull(source: string): Expr | null {
+  if (!source.trim()) return null;
+  try {
+    return expressionOf(source);
+  } catch {
+    return null;
+  }
+}
+
+function conversationTitle(summary: ConversationSummary): string {
+  return summary.lastMessage?.trim() || "New conversation";
+}
+
 function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
+  if (unit.turns?.length) {
+    return unit.turns.flatMap((turn, index) => {
+      const result = turn.result.trim();
+      const activity: Activity = {
+        id: `history-${index + 1}`,
+        meaning: turn.parsed.trim() || null,
+        result: result || null,
+        teacherUsed: false,
+        teacherLesson: null,
+        teacherResponse: null,
+        teacherStatus: "not used",
+        complete: true,
+        failed: false,
+        expanded: false,
+        heard: null,
+        resolved: [],
+        gaps: [],
+        learned: [],
+        problems: [],
+        rejected: [],
+        events: [],
+      };
+      return [
+        { role: "User", content: turn.message, activity },
+        {
+          role: "Assistant",
+          content: turn.spoken?.trim() || result || "(no response)",
+          result: expressionOrNull(result),
+        },
+      ];
+    });
+  }
+
+  // Keep reading older graph data that used the pre-HasTurn conversation shape.
   const messages: ChatMessage[] = [];
   let latestUser: ChatMessage | undefined;
   for (const relation of unit.relations ?? []) {
@@ -337,9 +392,11 @@ function App() {
       }>(`/api/conversations/${encodeURIComponent(id)}`);
       setConversationId(id);
       setMessages(activityFromConversation(data.unit));
-      setTitle(data.summary?.id ?? data.unit.identity);
-      setPersistentTurn(data.summary.persistent);
-      setNewPersistent(data.summary.persistent);
+      setTitle(
+        data.summary ? conversationTitle(data.summary) : data.unit.identity,
+      );
+      setPersistentTurn(data.summary?.persistent ?? true);
+      setNewPersistent(data.summary?.persistent ?? true);
     } catch (error) {
       setToast(error instanceof Error ? error.message : String(error));
     }
@@ -356,7 +413,7 @@ function App() {
     );
     setConversationId(data.conversation.id);
     setMessages([]);
-    setTitle(data.conversation.title);
+    setTitle(conversationTitle(data.conversation));
     setPersistentTurn(persistent);
     setNewPersistent(persistent);
     await refreshConversations(data.conversation.id);
@@ -427,6 +484,29 @@ function App() {
       await refreshConversations();
     } catch (error) {
       setToast(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function copyConversationId() {
+    if (!conversationId) return;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(conversationId);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = conversationId;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand("copy");
+        input.remove();
+        if (!copied) throw new Error("Clipboard access is unavailable");
+      }
+      setToast("Conversation ID copied.");
+    } catch {
+      setToast("Could not copy the conversation ID.");
     }
   }
 
@@ -553,7 +633,9 @@ function App() {
             resolved: Array.isArray(event.resolved)
               ? (event.resolved as Activity["resolved"])
               : item.resolved,
-            gaps: Array.isArray(event.gaps) ? (event.gaps as Activity["gaps"]) : item.gaps,
+            gaps: Array.isArray(event.gaps)
+              ? (event.gaps as Activity["gaps"])
+              : item.gaps,
             learned: Array.isArray(event.learned)
               ? (event.learned as Activity["learned"])
               : item.learned,
@@ -580,7 +662,7 @@ function App() {
           ]);
           const summary = event.conversation as ConversationSummary | undefined;
           if (summary) {
-            setTitle(summary.title);
+            setTitle(conversationTitle(summary));
             setConversations((previous) => [
               summary,
               ...previous.filter((item) => item.id !== summary.id),
@@ -634,7 +716,10 @@ function App() {
       // because that is the language — not as JSON.
       const payload = {
         identity: unit.identity,
-        relations: relations.split("\n").map((line) => line.trim()).filter(Boolean),
+        relations: relations
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
         realizations: JSON.parse(realizations) as unknown[],
       };
       await api(`/api/concepts/${encodeURIComponent(unit.identity)}`, {
@@ -701,6 +786,13 @@ function App() {
               <span>⌁</span>
               <b className="nav-label">Trace history</b>
             </button>
+            <button
+              className={page === "ears" ? "active" : ""}
+              onClick={() => setPage("ears")}
+            >
+              <span>◎</span>
+              <b className="nav-label">Ears lab</b>
+            </button>
           </nav>
         </div>
         <div className="side-bottom">
@@ -717,7 +809,9 @@ function App() {
               ? "Chat"
               : page === "concepts"
                 ? "Concept network"
-                : "Trace history"}
+                : page === "ears"
+                  ? "Ears lab"
+                  : "Trace history"}
           </h1>
           <div className="topmeta">
             <span>
@@ -728,7 +822,9 @@ function App() {
             <span className="badge">LOCAL</span>
           </div>
         </header>
-        {page === "chat" ? (
+        {page === "ears" ? (
+          <EarsLab />
+        ) : page === "chat" ? (
           <section className="page active">
             <div className="chat-layout">
               <aside className="conversation-list">
@@ -760,7 +856,7 @@ function App() {
                     className={`conversation ${item.id === conversationId ? "selected" : ""}`}
                     onClick={() => void openConversation(item.id)}
                   >
-                    <span>{item.title}</span>
+                    <span>{conversationTitle(item)}</span>
                     <span className="badge">
                       {item.persistent ? "saved" : "private"}
                     </span>
@@ -776,6 +872,21 @@ function App() {
                         ? "Global memory · saved conversation"
                         : "Isolated conversation · transcript is temporary"}
                     </small>
+                    {conversationId && (
+                      <div className="conversation-id">
+                        <span>Conversation ID</span>
+                        <code title={conversationId}>{conversationId}</code>
+                        <button
+                          className="copy-id"
+                          type="button"
+                          title="Copy conversation ID"
+                          aria-label="Copy conversation ID"
+                          onClick={() => void copyConversationId()}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {!persistentTurn && (
                     <button
@@ -1101,11 +1212,14 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             <div className="activity-step-body">
               {activity.resolved.map((item, index) => (
                 <pre key={index}>
-                  <Highlight value={`Ref(${JSON.stringify(item.reference)})\n  => ${item.to}`} />
+                  <Highlight
+                    value={`Ref(${JSON.stringify(item.reference)})\n  => ${item.to}`}
+                  />
                 </pre>
               ))}
               <small className="muted">
-                The parser marks a reference; memory resolves it. Pointing is not naming.
+                The parser marks a reference; memory resolves it. Pointing is
+                not naming.
               </small>
             </div>
           </details>
@@ -1116,7 +1230,9 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             <div className="activity-step-body">
               {activity.learned.map((item, index) => (
                 <pre key={index}>
-                  <Highlight value={`${item.how}: ${item.identity}\n  ${item.detail}`} />
+                  <Highlight
+                    value={`${item.how}: ${item.identity}\n  ${item.detail}`}
+                  />
                 </pre>
               ))}
             </div>
@@ -1134,8 +1250,9 @@ function ActivityPanel({ activity }: { activity: Activity }) {
                 />
               </pre>
               <small className="muted">
-                Unknown is something to learn. Inert means it exists and simply does not
-                realize here, which is how markers and data are supposed to behave.
+                Unknown is something to learn. Inert means it exists and simply
+                does not realize here, which is how markers and data are
+                supposed to behave.
               </small>
             </div>
           </details>
@@ -1148,7 +1265,9 @@ function ActivityPanel({ activity }: { activity: Activity }) {
                 <Highlight
                   value={[
                     ...activity.problems,
-                    ...activity.rejected.map((r) => `${r.line}  <-- ${r.reason}`),
+                    ...activity.rejected.map(
+                      (r) => `${r.line}  <-- ${r.reason}`,
+                    ),
                   ].join("\n")}
                 />
               </pre>
@@ -1339,7 +1458,10 @@ function ConceptEditor({
   const [realizations, setRealizations] = useState("[]");
   const [saved, setSaved] = useState(false);
   const expressionPreview = useMemo(() => {
-    const lines = relations.split("\n").map((line) => line.trim()).filter(Boolean);
+    const lines = relations
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
     try {
       const relationValues = lines.map(parseExpression);
       return prettyExpression(
@@ -1351,7 +1473,10 @@ function ConceptEditor({
             name: "relations",
             // One generic collection. A collection Concept earns its own identity only
             // when it has a realization, and an inert list does not.
-            value: application("List", relationValues.map((value) => ({ value }))),
+            value: application(
+              "List",
+              relationValues.map((value) => ({ value })),
+            ),
           },
           { name: "realizations", value: application("List", []) },
         ]),
@@ -1435,8 +1560,9 @@ function ConceptEditor({
           ).length === 0 && <small>Nothing is derived for this Concept.</small>}
         </div>
         <small>
-          Found through the index rather than held here. A symmetric relation appears on
-          the end that does not store it, and a transitive one chains.
+          Found through the index rather than held here. A symmetric relation
+          appears on the end that does not store it, and a transitive one
+          chains.
         </small>
       </div>
       <div className="field">
@@ -1465,20 +1591,23 @@ function ConceptEditor({
         <div className="realization-list">
           {(concept.realizations ?? []).map((r, index) => (
             <pre key={index} className={r.retired ? "retired" : ""}>
-              <Highlight value={`${r.pattern}\n  context ${r.context || "any"}${
-                r.properties.length ? `\n  ${r.properties.join(" ")}` : ""
-              }\n  => ${r.body}`} />
+              <Highlight
+                value={`${r.pattern}\n  context ${r.context || "any"}${
+                  r.properties.length ? `\n  ${r.properties.join(" ")}` : ""
+                }\n  => ${r.body}`}
+              />
             </pre>
           ))}
           {(concept.realizations ?? []).length === 0 && (
             <small>
-              No realizations. This Concept is data, and evaluating it yields itself.
+              No realizations. This Concept is data, and evaluating it yields
+              itself.
             </small>
           )}
         </div>
         <small>
-          Append-only. A newer realization with the same pattern and context shadows the
-          older, which is retained rather than deleted.
+          Append-only. A newer realization with the same pattern and context
+          shadows the older, which is retained rather than deleted.
         </small>
       </div>
       <div className="field">
