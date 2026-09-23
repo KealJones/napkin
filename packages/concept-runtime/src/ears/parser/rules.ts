@@ -14,7 +14,8 @@
  */
 import nlp from "compromise";
 import { type Expr, c, format } from "../../concept/expression.js";
-import { correct, expandBare, unclear } from "./words.js";
+import { correct, expandBare, isWord, unclear } from "./words.js";
+import { mathSpans } from "./math.js";
 import { namesOneThing } from "./names.js";
 
 interface Tok {
@@ -342,7 +343,7 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
   }
   const nouns: Tok[] = [];
   const afterDet = DET.has(r.toks[r.i - 1]?.word ?? "") || PREP.has(r.toks[r.i - 1]?.word ?? "") || POSSESSIVE[r.toks[r.i - 1]?.word ?? ""] !== undefined;
-  while (r.peek() && (r.is("Noun") || (r.is("Date") && !r.is("Value")) || r.word() === "lot" || (afterDet && nouns.length === 0 && r.is("Gerund"))) && !r.is("Pronoun") && !r.is("QuestionWord") && !PREP.has(r.word()) && !COPULA.has(r.word())) {
+  while (r.peek() && (r.is("Noun") || (r.is("Date") && !r.is("Value")) || r.word() === "lot" || (afterDet && nouns.length === 0 && r.is("Gerund"))) && !r.is("Pronoun") && !r.is("QuestionWord") && !PREP.has(r.word()) && !COPULA.has(r.word()) && !/^verbatim\d+$/.test(r.word())) {
     // "the weather tomorrow": a date word names a time, not part of the kind before it.
     if (nouns.length && r.is("Date") && !nouns[nouns.length - 1].tags.has("Date")) break;
     // "apples, pears": a comma ends the thing named; the next noun is a sibling.
@@ -375,6 +376,12 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
   }
   // A word the tagger could not place, after an owner or a determiner, is a thing: "my ex".
   if (!nouns.length && !describers.length && r.peek() && /^[a-z]+$/.test(r.word()) && (!r.is("Verb") || PREP.has(r.toks[r.i - 1]?.word ?? "")) && !PREP.has(r.word()) && !COPULA.has(r.word()) && !AUX.has(r.word()) && !/^(and|or|but|if|then|so)$/.test(r.word())) nouns.push(r.next());
+  // "open 24/7", "a quick `grep`": what is described is the verbatim span itself.
+  const kept = !nouns.length && describers.length ? /^verbatim(\d+)$/.exec(r.word()) : null;
+  if (kept) {
+    r.next();
+    return describers.reduceRight<Expr>((inner, d) => stressed(d, c(name(d.word), inner)), spans[Number(kept[1])]);
+  }
   if (!nouns.length) {
     if (describers.length) return describers.reduceRight<Expr>((inner, d) => c(name(d.word), inner), c(name(describers.pop()!.word)));
     fail(`expected a noun at "${r.word()}"`);
@@ -515,7 +522,7 @@ function complements(r: Reader, stop: (r: Reader) => boolean = () => false): Exp
       // "show me what you know", "tell me whether it will rain": a question inside, as said.
       const q = r.next();
       if (r.done() || clauseBoundary(r)) out.push(c(name(q.word)));
-      else out.push(c(name(q.word), clause(r).e));
+      else out.push(embeddedQuestion(r, q) ?? c(name(q.word), clause(r).e));
     } else if (w === "to" && r.word(1) === "like" && canBeVerb(r.word(2)) && !r.is("Noun", 2)) {
       r.next();
       r.next();
@@ -586,6 +593,12 @@ function verbPhrase(r: Reader): Expr {
     if (quoted.length === 1 && words.length === 1) return c(name(v.word), spans[Number(quoted[0]![1])]);
     const text = words.map((w) => { const m = /^verbatim(\d+)$/.exec(w.word); return m ? String(spans[Number(m[1])]) : w.raw; }).join(" ");
     return c(name(v.word), text);
+  }
+  // "figure out what", "look up the word", "give up": a verb and the particle right after it
+  // are one verb, the way "figure out" is not figuring plus out.
+  if (!r.done() && (r.is("Particle") || (PARTICLE.has(r.word()) && !r.is("Noun", 1) && !r.is("Determiner", 1)))) {
+    const particle = r.next();
+    return stressed(v, spelled(v, c(name(v.word) + name(particle.word), ...complements(r))));
   }
   return stressed(v, spelled(v, c(name(v.word), ...complements(r))));
 }
@@ -785,7 +798,9 @@ function clauses(text: string): { e: Expr; kind?: Kind }[] {
     const filler: string[] = [];
     // "like isn't who already...": a leading "like" before a clause is filler, not a hedge.
     // "yo homie can you...", "dude where is it": who is spoken to, before the clause, is an aside.
-    while ((isFiller(r.word()) && !(r.word() === "now" && r.is("Verb", 1) === false && r.done())) || ((r.word() === "like" || VOCATIVE.test(r.word())) && opensClause(r, 1))) filler.push(r.next().raw);
+    // A response that is the whole message ("hi", "lol") is said, not filler around something.
+    const alone = () => r.i === r.toks.length - 1 && responds(r.word());
+    while ((isFiller(r.word()) && !alone() && !(r.word() === "now" && r.is("Verb", 1) === false && r.done())) || ((r.word() === "like" || VOCATIVE.test(r.word())) && opensClause(r, 1))) filler.push(r.next().raw);
     if (filler.length) out.push({ e: c("MarkAside", filler.join(" ")) });
     // "yeah keep going", "sorry what did i agree to": a response said before the clause is its own line.
     const politeOnly = r.toks.length - r.i === 2 && /^(please|pls|plz|thanks|thx)$/.test(r.word(1));
@@ -824,18 +839,47 @@ function clauses(text: string): { e: Expr; kind?: Kind }[] {
       while (!r.done() && !resumes(r)) skipped.push(asTyped(r.next()));
       // Unreadable words next to each other are one span.
       const last = out[out.length - 1];
-      if (last && unread.length && typeof last.e === "object" && last.e !== null && "head" in last.e && last.e.head === "Unclear") {
-        const words = `${unread.pop()} ${skipped.join(" ")}`;
-        unread.push(words);
-        out[out.length - 1] = { e: c("Unclear", words) };
-      } else {
-        const words = skipped.join(" ");
-        unread.push(words);
-        out.push({ e: c("Unclear", words) });
-      }
+      const joins = last && unread.length && typeof last.e === "object" && last.e !== null && "head" in last.e && last.e.head === "Unclear";
+      const words = joins ? `${unread.pop()} ${skipped.join(" ")}` : skipped.join(" ");
+      unread.push(words);
+      const e = unclearSpan(words);
+      if (joins) out[out.length - 1] = { e };
+      else out.push({ e });
     }
   }
   return out;
+}
+
+/**
+ * "figure out what 17 times 3 is", "tell me where the station is": inside a sentence the
+ * question keeps statement order, and means what "what is 17 times 3" means, so it is
+ * written the same way, WhatIs(Times(17, 3)).
+ */
+function embeddedQuestion(r: Reader, q: Tok): Expr | undefined {
+  if (!WH.has(q.word)) return undefined;
+  const at = r.i;
+  try {
+    const subject = nounPhrase(r, true);
+    if (COPULA.has(r.word()) && (r.i + 1 >= r.toks.length || clauseBoundary(new Reader(r.toks.slice(r.i + 1))))) {
+      const cop = r.next().word;
+      return c(name(q.word) + name(cop === "'s" ? "is" : cop), subject);
+    }
+  } catch (error) {
+    if (!(error instanceof Unparsed)) throw error;
+  }
+  r.i = at;
+  return undefined;
+}
+
+/**
+ * Words the rules could not arrange are still words: each is a Concept, in the order said,
+ * so what is unknown about them can be learned and described. The verbatim text comes first
+ * so the system can say what it did not follow. Nothing in it being a word ("asdkjh") leaves
+ * the text alone.
+ */
+function unclearSpan(words: string): Expr {
+  const concepts = (words.toLowerCase().match(/[a-z][a-z']*/g) ?? []).filter(isWord).map((w) => c(name(w)));
+  return c("Unclear", words, ...concepts);
 }
 
 /** Where reading can start again after words it could not: a comma, a joiner, or a clause opening. */
@@ -952,8 +996,17 @@ function clause(r: Reader): { e: Expr; kind?: Kind } {
     const hedged = clause(r);
     return { e: c("MarkFuzzy", "like", hedged.e), ...(hedged.kind ? { kind: hedged.kind } : {}) };
   }
-  if (WH.has(first.word)) [e, kind] = [whQuestion(r), "Interrogative"];
-  else if (AUX.has(first.word) && !(first.word === "do" && (r.word(1) === "not" || (POINTING.has(r.word(1)) && !r.is("Verb", 2))))) [e, kind] = [helperQuestion(r), "Interrogative"];
+  if (WH.has(first.word)) {
+    // "what 17 times 3 is?": statement order after the question word, read as "what is".
+    const at = r.i;
+    r.next();
+    const plain = embeddedQuestion(r, first);
+    if (plain && (r.done() || clauseBoundary(r))) [e, kind] = [plain, "Interrogative"];
+    else {
+      r.i = at;
+      [e, kind] = [whQuestion(r), "Interrogative"];
+    }
+  } else if (AUX.has(first.word) && !(first.word === "do" && (r.word(1) === "not" || (POINTING.has(r.word(1)) && !r.is("Verb", 2))))) [e, kind] = [helperQuestion(r), "Interrogative"];
   else if (first.word === "please" || negatedOrder(new Reader(r.toks.slice(r.i))) || opensOrder(r)) [e, kind] = [order(r), "Imperative"];
   else {
     // A thing named and nothing said about it is a fragment, and a fragment has no mood.
@@ -1039,6 +1092,11 @@ export function parseRules(message: string): { reading?: RuleReading; why?: stri
   text = bareCode(text, (code) => verbatim(c("InlineCode", code)))
     .replace(/https?:\/\/[^\s)]+[^\s).,!?]/g, (url) => verbatim(url))
     .replace(/"([^"\n]+)"/g, (_m, q: string) => verbatim(q));
+  // Arithmetic in symbols is read by precedence, not by the grammar: "(2 + 3) * 4".
+  text = mathSpans(text, verbatim);
+  // "$5" is an amount, its unit around its number like Hours(3).
+  const CURRENCY: Record<string, string> = { $: "Dollars", "€": "Euros", "£": "Pounds" };
+  text = text.replace(/([$€£])(\d+(?:\.\d+)?)\b/g, (_m, sign: string, n: string) => verbatim(c(CURRENCY[sign], Number(n))));
 
   try {
     let paragraph: string[] = [];

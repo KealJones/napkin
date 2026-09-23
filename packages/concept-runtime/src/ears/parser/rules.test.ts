@@ -28,7 +28,7 @@ test("claims are subject first, with the predicate inside owners and describers"
 });
 
 test("orders are verb first, and clauses split into lines", () => {
-  assert.equal(read("turn off the lights"), "Turn(Off(), Lights())");
+  assert.equal(read("turn off the lights"), "TurnOff(Lights())");
   assert.equal(read("please add 2 and 2"), "Please(Add(2, 2))");
   assert.equal(read("take 10, double it, then subtract 5"), 'Take(10) | Double(Ref("it")) | Subtract(5)');
   assert.equal(read("do NOT delete the backups"), 'MarkEmphasis("NOT", DoNot(Delete(Backups())))');
@@ -110,8 +110,8 @@ test("ordinals and comparatives keep their words", () => {
 test("words the rules cannot read are kept as typed, and the rest is still read", () => {
   const r = parseRules("of to in, can you check the logs");
   assert.deepEqual(r.unread, ["of to in"]);
-  assert.equal(r.reading?.lines[0], 'Unclear("of to in")');
-  assert.equal(parseRules("is is is, can you check the logs").reading?.lines[0], 'Unclear("is is is")', "neighbouring spans are one");
+  assert.equal(r.reading?.lines[0], 'Unclear("of to in", Of(), To(), In())', "the words are still Concepts to learn");
+  assert.equal(parseRules("is is is, can you check the logs").reading?.lines[0], 'Unclear("is is is", Is(), Is(), Is())', "neighbouring spans are one");
   assert.match(r.reading!.lines[1], /Can\(You\(\), Check\(Logs\(\)\)\)/);
   assert.equal(parseRules("check the logs").unread, undefined);
 });
@@ -119,7 +119,7 @@ test("words the rules cannot read are kept as typed, and the rest is still read"
 test("who is spoken to is an aside, and a typo between numbers is an operator", () => {
   assert.equal(
     lines("yo homie can you help me figure out what 5 time 17 is?"),
-    'MarkAside("yo homie") | Mood(Interrogative(), Can(You(), Help(Me(), Figure(Out(), What(MarkMisspelling("time", Times(5, 17, Is())))))))',
+    'MarkAside("yo homie") | Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(WhatIs(MarkMisspelling("time", Times(5, 17)))))))',
   );
   assert.equal(lines("dude where is my car"), 'MarkAside("dude") | Mood(Interrogative(), WhereIs(My(Car())))');
 });
@@ -132,4 +132,20 @@ test("two swapped letters are the commonest typo, at any length", () => {
 test("an invented word is not corrected to a rare one", () => {
   assert.equal(read("blorp zap the frobnicator"), "Blorp(Zap(), Frobnicator())");
   assert.equal(read("you specificlly stated it"), 'You(MarkMisspelling("specificlly", Specifically(Stated(Ref("it")))))');
+});
+
+test("symbols in a sentence: arithmetic, amounts and codes", () => {
+  assert.equal(read("what is 5 * 3?"), "WhatIs(Times(5, 3))");
+  assert.equal(read("what is (2 + 3) * 4"), "WhatIs(Times(Plus(2, 3), 4))");
+  assert.equal(read("is 5 > 3?"), "Is(GreaterThan(5, 3))");
+  assert.equal(read("it costs $5"), "Costs(Ref(\"it\"), Dollars(5))");
+  assert.equal(read("call me at 555-1234"), 'Call(Me(), At("555-1234"))');
+  assert.equal(read("we are open 24/7"), 'We(Are(Open("24/7")))');
+});
+
+test("a phrasal verb is one verb, and an embedded question reads like a plain one", () => {
+  assert.equal(read("look up the word"), "LookUp(Word())");
+  assert.equal(read("tell me where the station is"), "Tell(Me(), WhereIs(Station()))");
+  assert.equal(read("what 17 times 3 is?"), "WhatIs(Times(17, 3))");
+  assert.equal(lines("hi"), "Hi()", "a greeting alone is said, not filler");
 });

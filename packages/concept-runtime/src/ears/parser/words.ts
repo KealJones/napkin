@@ -50,7 +50,7 @@ export function expandBare(text: string): string {
     .replace(/\byour\b(?=\s+(not|so|welcome|right|wrong|the best|a|an|going|gonna|being))/gi, "you are");
 }
 
-const isWord = (w: string): boolean => ENGLISH.has(w) || LEXICON[w] !== undefined || known.has(w);
+export const isWord = (w: string): boolean => ENGLISH.has(w) || LEXICON[w] !== undefined || known.has(w);
 
 /** Stripping a regular ending leaves a known word: "memes", "tried", "dropping". */
 function inflects(w: string): boolean {
