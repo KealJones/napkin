@@ -255,7 +255,9 @@ export function score(
   }
 
   const hay = haystack(e);
-  for (const h of x.has ?? []) checks[`has:${h}`] = heads(e).has(h);
+  // A fused name holds its parts: DoNot satisfies an expected Not.
+  const held = new Set([...heads(e)].flatMap((h) => (h === "DoNot" ? [h, "Do", "Not"] : [h])));
+  for (const h of x.has ?? []) checks[`has:${h}`] = held.has(h);
   for (const h of x.lacks ?? []) checks[`lacks:${h}`] = !heads(e).has(h);
   const text = format(e);
   for (const t of x.lacksText ?? []) checks[`lacksText:${t}`] = !text.includes(t);

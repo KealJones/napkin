@@ -124,9 +124,13 @@ export function unfuse(target: string): string {
     .join("\n");
 }
 
-/** In unfused scoring the reading is unfused too, so both sides are treated alike. */
-const readFor = (raw: string, message: string, unfused: boolean) => {
-  const read = readRaw(raw, message);
+/**
+ * The reading of a saved output. The rules write their own moods, so their lines are not
+ * framed again; rules runs saved before they did carry no mood at all, and are framed like
+ * the model's. In unfused scoring the reading is unfused too, so both sides are treated alike.
+ */
+const readFor = (raw: string, message: string, unfused: boolean, backend?: "rules" | "model") => {
+  const read = readRaw(raw, message, backend === "rules" && /^Mood\(/m.test(raw));
   return unfused && read.expression !== undefined ? { ...read, expression: unfuseExpr(read.expression) } : read;
 };
 
@@ -155,8 +159,11 @@ export function rescore(old: Run, unfused = old.unfused === true): Run {
     if (!c) return [];
     const inPrompt = old.prompt.toLowerCase().includes(`"${c.message.toLowerCase()}"`);
     const samples = r.samples.map((s) => {
-      const read = readFor(s.raw, c.message, unfused);
-      return { ...score(c, read, names), raw: s.raw, reading: read.expression === undefined ? null : format(read.expression), ms: s.ms };
+      const read = readFor(s.raw, c.message, unfused, s.backend);
+      return {
+        ...score(c, read, names), raw: s.raw, reading: read.expression === undefined ? null : format(read.expression), ms: s.ms,
+        ...(s.backend ? { backend: s.backend } : {}), ...(s.fallback ? { fallback: s.fallback } : {}),
+      };
     });
     return [{ ...r, status: c.status, inPrompt, ...(c.target === undefined ? {} : { target: c.target }), samples }];
   });
