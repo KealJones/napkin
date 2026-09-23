@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { format } from "../concept/expression.js";
-import { balance, lift } from "./lift.js";
+import { balance, dropArticles, lift, mendNumbers, mendWords } from "./lift.js";
 import { check, looksLikeQuestion } from "./ears.js";
 
 test("one line lifts to itself, with no root wrapper", () => {
@@ -39,6 +39,10 @@ test("a question with no interrogative is caught mechanically", () => {
 
 test("a statement is not required to carry an interrogative", () => {
   assert.ok(!looksLikeQuestion("i went to virginya"));
+  assert.ok(looksLikeQuestion("can you write me a typescript function"), "mood, not use");
+  assert.ok(!looksLikeQuestion("do NOT delete the backups"));
+  assert.ok(looksLikeQuestion("can birds fly"));
+  assert.ok(looksLikeQuestion("do you know the time?"));
   assert.deepEqual(check("i went to virginya", lift("Fact(Visited(Me()))").expression), []);
 });
 
@@ -126,7 +130,7 @@ test("the Ears is shown no vocabulary, so it renders the idea rather than pickin
   assert.ok(!prompt.includes("VOCABULARY"));
   // The form rules are the contract (ir-spec Part 9), and they stay.
   assert.match(prompt, /one line for each phrase/i);
-  assert.match(prompt, /MUST contain an interrogative/);
+  assert.match(prompt, /MUST start that line with the question word/);
 });
 
 test("history shows the parser what was said, not the expression that said it", async () => {
@@ -138,4 +142,62 @@ test("history shows the parser what was said, not the expression that said it", 
   assert.match(shown, /It is 10:15 AM\./);
   assert.ok(!shown.includes("Answer(Time("));
   assert.match(shown, /Never copy an earlier answer/);
+});
+
+test("Number(...) slips are mended mechanically, and only the unambiguous ones", () => {
+  const mend = (text: string, message: string) => format(mendNumbers(lift(text).expression!, message));
+  assert.equal(mend('Take(Number("10"))', "take 10"), "Take(10)");
+  assert.equal(mend('Times(17, Number("four"))', "what is 17 times 4"), "Times(17, 4)");
+  assert.equal(mend('Times(5, Number("three"))', "what is 5 times three"), 'Times(5, Number("three"))');
+  assert.equal(mend('What(Multiply(21, Number("double")))', "what is double 21"), "What(Multiply(21, Double()))");
+  assert.equal(mend('Names(Fuzzy(Number("five-ish")))', "five-ish names"), 'Names(Fuzzy(Number("five-ish")))');
+  assert.equal(mend("In(Days(Five()))", "what day will it be in 5 days"), "In(Days(5))");
+  assert.equal(mend("Three(Examples())", "give me three examples"), "Three(Examples())");
+});
+
+test("articles come off mechanically, and only ones the message said", () => {
+  const drop = (text: string, message: string) => format(dropArticles(lift(text).expression!, message));
+  const msg = "can you write me a typescript function that says hello world";
+  assert.equal(drop('Can(You(), Write(Me(), A(TypeScript(Function(Says("hello world"))))))', msg),
+    'Can(You(), Write(Me(), TypeScript(Function(Says("hello world")))))');
+  assert.equal(drop("Is(Tomato(), A(), Fruit())", "is a tomato a fruit"), "Is(Tomato(), Fruit())");
+  assert.equal(drop("Option(A(Sept(20)))", "today is ____. A. Sept 20"), "Option(A(Sept(20)))");
+  assert.equal(drop('Write(Me(), A(TypeScript(Function()), That(Says("hi"))))', msg), 'Write(Me(), TypeScript(Function()), That(Says("hi")))');
+});
+
+test("surface slips are mended against the message", () => {
+  const mend = (text: string, message: string) => format(mendWords(lift(text).expression!, message));
+  assert.equal(mend("Send(Ref(\"it\"), To(Him()))", "send it to him"), 'Send(Ref("it"), To(Ref("him")))');
+  assert.equal(mend("Can(You(), Add(Empphasis()))", "can you add emphasis to this"), "Can(You(), Add(Emphasis()))");
+  assert.equal(mend("Run(Ussual())", "run the usual"), "Run(Usual())");
+  assert.equal(mend("Me(Visited(Mom()))", "i visit my mom"), "Me(Visited(Mom()))", "an inflection is not a typo");
+  assert.equal(mend("Dont(Tell(Me()))", "dont tell me"), "DoNot(Tell(Me()))");
+  assert.equal(mend("What(Time(), Is(It()))", "what time is it"), "What(Time(), Is(It()))");
+});
+
+test("a Ref that does not point is mended, and one that does is kept", () => {
+  const mend = (text: string, message: string) => format(mendWords(lift(text).expression!, message));
+  assert.equal(mend('WhichOf(Ref("these"), Ref("21"), Ref("27"))', "which of these: 21, 27"), 'WhichOf(Ref("these"), 21, 27)');
+  assert.equal(mend('Bigger(Ref("a mouse"), Ref("an elephant"))', "which is bigger, a mouse or an elephant"), "Bigger(Mouse(), Elephant())");
+  assert.equal(mend('Refactor(Ref("parseConfig"))', "refactor `parseConfig`"), 'Refactor("parseConfig")');
+  assert.equal(mend('Give(Three(Examples(), Ref("a"), Bird()))', "give me three examples of a bird"), "Give(Three(Examples(), Bird()))");
+  assert.equal(mend("That(Was(Wrong()))", "that was wrong"), 'Was(Ref("that"), Wrong())');
+  assert.equal(mend('Tell(More(About(Ref("the second one"))))', "tell me more about the second one"), 'Tell(More(About(Ref("the second one"))))');
+});
+
+test("slips that break parsing are repaired: digit calls, missing commas, calls side by side", () => {
+  assert.equal(format(lift("My(Birthday(On(June(), 3())))").expression!), "My(Birthday(On(June(), 3)))");
+  assert.equal(format(lift("Saying(The(Heater()) Is(Broken()))").expression!), "Saying(The(Heater()), Is(Broken()))");
+  assert.equal(format(lift("I(Me()) Am(Allergic())").expression!), "Sequence(I(Me()), Am(Allergic()))");
+});
+
+test("pointing phrases folded or wrapped are references, and unquoted digit strings are numbers", () => {
+  const mend = (text: string, message: string) => format(mendWords(lift(text).expression!, message));
+  assert.equal(mend("Do(TheSameThing(), For(TheOtherFile()))", "do the same thing for the other file"), 'Do(Ref("the same thing"), For(Ref("the other file")))');
+  assert.equal(mend("Run(The(Ussual()))", "run the usual"), 'Run(Ref("the usual"))');
+  assert.equal(mend('Review(Pr("482"))', "review PR #482"), "Review(Pr(482))");
+});
+
+test("i is Me, spelled once", () => {
+  assert.equal(format(mendWords(lift("I(Me())").expression!, "i'm allergic")), "Me()");
 });

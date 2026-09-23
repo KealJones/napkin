@@ -63,7 +63,7 @@ test("an absent Concept is a residual, not an error", async () => {
 });
 
 test("a Concept with no applicable realization is a residual", async () => {
-  assert.equal(await run("Aside(\"it was crazy.\")"), 'Aside("it was crazy.")');
+  assert.equal(await run("MarkAside(\"it was crazy.\")"), 'MarkAside("it was crazy.")');
 });
 
 test("invention is never fatal, so the learning path has something to collect", async () => {
@@ -153,10 +153,10 @@ test("clock arithmetic wraps around midnight", async () => {
 
 test("a marker projects under Execution and survives under Describe", async () => {
   const rt = createRuntime();
-  const e = parse('Correction(Field("weights"), Field("scores"))');
+  const e = parse('MarkCorrection(Field("weights"), Field("scores"))');
   assert.equal(format(await rt.evaluate(e, c("Execution"))), 'Field("scores")');
   // Describe suppresses Lossy, so the correction stays visible in its own description.
-  assert.equal(format(await rt.evaluate(e, c("Describe"))), 'Correction(Field("weights"), Field("scores"))');
+  assert.equal(format(await rt.evaluate(e, c("Describe"))), 'MarkCorrection(Field("weights"), Field("scores"))');
 });
 
 test("facets compose additively and are matched by subset", async () => {

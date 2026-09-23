@@ -48,6 +48,9 @@ export function resolveReferences(
   const walk = (e: Expr): Expr => {
     if (!isCall(e)) return e;
     if (e.head === "Ref") {
+      // Already resolved, by the Ears inside the message or by an earlier pass. History
+      // must not overwrite it: "it" pointing at a link in this message is not the last answer.
+      if (e.args.length > 1) return e;
       const text = e.args[0]?.value;
       if (typeof text === "string") {
         const to = referent(text, history);

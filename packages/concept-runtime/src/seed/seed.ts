@@ -447,12 +447,29 @@ const projection = (pattern: string, pick: number) =>
     body: code(`async (args, bindings, api) => await api.evaluate(args[${pick}].value)`),
   });
 
-add(concept("Correction", { realizations: [projection("Correction($old, $new)", 1)] }));
-add(concept("Misspelling", { realizations: [projection("Misspelling($wrote, $meant)", 1)] }));
-add(concept("Fuzzy", { realizations: [projection("Fuzzy($x)", 0)] }));
-add(concept("Emphasis", { realizations: [projection("Emphasis($x)", 0)] }));
+// Markers are named Mark* so no English word collides with one: "a fuzzy bear" is the
+// adjective Fuzzy(Bear()), never a marker. A marker whose trigger words would otherwise be
+// lost carries them verbatim first: MarkFuzzy("or whatever", x), MarkEmphasis("NOT", x).
+add(concept("MarkCorrection", { relations: ["IsA(Marker())"], realizations: [projection("MarkCorrection($old, $new)", 1)] }));
+add(concept("MarkMisspelling", { relations: ["IsA(Marker())"], realizations: [projection("MarkMisspelling($wrote, $meant)", 1)] }));
+add(concept("MarkFuzzy", { relations: ["IsA(Marker())"], realizations: [projection("MarkFuzzy($words, $x)", 1)] }));
+add(concept("MarkEmphasis", { relations: ["IsA(Marker())"], realizations: [projection("MarkEmphasis($words, $x)", 1)] }));
 // Aside and Ref have no execution realization at all, deliberately: both should stay
 // visible until something resolves them rather than quietly evaluating to anything.
+
+/**
+ * Layout, kept rather than dropped (`eval/ears/gold.md`, convention 7). A list entry and a
+ * fenced block project to their content; a heading is like an aside and stays visible.
+ */
+add(concept("Heading", { relations: ["IsA(Marker())"] }));
+add(concept("Item", {
+  relations: ["IsA(Marker())"],
+  realizations: [projection("Item($n, $x)", 1), projection("Item($x)", 0)],
+}));
+add(concept("Block", {
+  relations: ["IsA(Marker())"],
+  realizations: [projection("Block($language, $text)", 1), projection("Block($text)", 0)],
+}));
 /* ------------------------------------------------------------------ *
  * Request vocabulary (seed-concepts Part 10).
  *
@@ -468,7 +485,10 @@ add(concept("Frame", { relations: ["IsA(Category())"] }));
 /** The user asserting something, as opposed to asking. */
 add(concept("Fact", { relations: ["IsA(Frame())"] }));
 /** The user requesting an action. Not a question, and not a claim. */
-add(concept("Do", { relations: ["IsA(Frame())"] }));
+// An imperative is performed: under execution the frame projects to what it frames. It is
+// Lossy, so describing the request still shows that it was an order. Without this, every
+// request the Ears framed stayed an unevaluated Do(...).
+add(concept("Do", { relations: ["IsA(Frame())"], realizations: [projection("Do($x)", 0)] }));
 /** Delivery. `Do(Tell(Me(), Whether(...)))` is "tell me if...". */
 add(concept("Tell", { relations: ["IsA(Frame())"] }));
 /** Asking for something to be produced, as opposed to told. */
@@ -489,9 +509,11 @@ add(concept("Politeness", { relations: ["IsA(Marker())"] }));
 for (const m of ["Please", "Can", "Could", "Would", "Will", "Should"]) {
   add(concept(m, { relations: ["IsA(Politeness())"] }));
 }
+// "please" stays where it was said, around what it asks, and projects to it.
+add(concept("Please", { realizations: [projection("Please($x)", 0)] }));
 
 add(concept("Marker", { relations: ["IsA(Category())"] }));
-add(concept("Aside", { relations: ["IsA(Marker())"] }));
+add(concept("MarkAside", { relations: ["IsA(Marker())"] }));
 add(
   concept("Ref", {
     relations: ["IsA(Marker())"],
@@ -524,6 +546,51 @@ add(
 );
 
 /* ------------------------------------------------------------------ *
+ * Mood (`design/reading-spec.md`). Added after the Ears by `ears/mood.ts`, never by the
+ * model, named for what it does so no English word collides with it. Running a line in
+ * a mood adds the mood as a facet, so realizations select by mood through ordinary
+ * context specificity instead of a special case.
+ * ------------------------------------------------------------------ */
+for (const kind of ["Imperative", "Declarative", "Interrogative", "Checking"]) {
+  add(concept(kind, { relations: ["IsA(ContextFacet())", "IsA(MoodKind())"] }));
+}
+add(concept("MoodKind", { relations: ["IsA(Category())"] }));
+add(concept("Mood", {
+  relations: ["IsA(Marker())"],
+  realizations: [
+    realization({
+      pattern: "Mood($kind, $line)",
+      context: "Execution()",
+      properties: ["Lossy()"],
+      evaluateArguments: false,
+      body: code(`async (args, bindings, api) => {
+        const ctx = api.context;
+        const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
+        return await api.evaluate(args[1].value, api.call("Context", ...facets, args[0].value));
+      }`),
+    }),
+  ],
+}));
+// "can you X" is a question about ability in form and a request in use (Searle). Read as
+// the request only when asked as a question, which the Interrogative facet says.
+for (const modal of ["Can", "Could", "Would", "Will"]) {
+  add(concept(modal, {
+    realizations: [
+      realization({
+        pattern: `${modal}(You(), $x)`,
+        context: "Context(Execution(), Interrogative())",
+        properties: ["Lossy()"],
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => await api.evaluate(args[1].value)`),
+      }),
+    ],
+  }));
+}
+add(concept("InlineCode", { relations: ["IsA(Marker())"], realizations: [projection("InlineCode($text)", 0)] }));
+// Nothing in it names anything; it stays visible so the system can say it did not understand.
+add(concept("Unclear", { relations: ["IsA(Marker())"] }));
+
+/* ------------------------------------------------------------------ *
  * Interrogatives. An interrogative goes where the unknown is.
  * ------------------------------------------------------------------ */
 // One realization serves every question word, reached by inheritance. Asking for the
@@ -550,13 +617,19 @@ add(
   }),
 );
 
-for (const q of ["What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf"]) {
+for (const q of ["What", "Who", "When", "Where", "Why", "How", "HowMany", "HowMuch", "WhichOf"]) {
   add(concept(q, { relations: ["IsA(Interrogative())"] }));
 }
 add(concept("WhatIs", { relations: ["SynonymOf(What())"] }));
 
 // A yes/no question wants a truth value, not a subject, so it declares its own
-// realization locally — which beats the inherited one on distance.
+// realization locally, which beats the inherited one on distance.
+//
+// One question in form is a request in use: "can you write me X" asks about ability and
+// wants X (Searle's indirect speech acts). The Ears writes the form it heard,
+// Whether(Can(You(), X)), and this is where the use is read. One realization rather than
+// two, because two overlapping patterns on one Concept are ordered only by declaration
+// order (concept-spec Part 9 has no rule for pattern specificity).
 add(
   concept("Whether", {
     relations: ["IsA(Interrogative())"],
@@ -564,8 +637,13 @@ add(
       realization({
         pattern: "Whether($proposition)",
         context: "Execution()",
-        body: code(`(args, bindings, api) => {
-          const v = args[0].value;
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => {
+          const p = args[0].value;
+          const asking = p && ["Can", "Could", "Would", "Will"].includes(p.head) &&
+            p.args.length === 2 && p.args[0].value && p.args[0].value.head === "You";
+          if (asking) return await api.evaluate(p.args[1].value);
+          const v = await api.evaluate(p);
           if (v === true || (v && v.head === "True")) return api.call("Answer", api.call("True"));
           if (v === false || (v && v.head === "False")) return api.call("Answer", api.call("False"));
           return api.call("Answer", api.call("UnknownTruth"));
@@ -786,9 +864,36 @@ add(
           ]};
         }`),
       }),
+      // A clock time as said is a reading: Time(7, Am()), Time(7, 30, Pm()), Time(19, 0).
+      // It realizes to the named value record the clock Concepts compute with. The pattern
+      // variables are deliberately not named hour or minute: the matcher aligns an
+      // all-named call by name, so a value record can never be re-read as a reading.
+      ...[1, 2].map((extra) =>
+        realization({
+          pattern: extra === 1 ? "Time($h, $b)" : "Time($h, $b, $c)",
+          context: "Execution()",
+          evaluateArguments: false,
+          body: code(`(args, bindings, api) => {
+            const vals = args.map((a) => a.value);
+            const period = vals.find((v) => v && (v.head === "Am" || v.head === "Pm"));
+            const nums = vals.filter((v) => typeof v === "number");
+            if (!nums.length || nums.length + (period ? 1 : 0) !== vals.length) return api.call("Time", ...vals);
+            const [h, m = 0] = nums;
+            const h24 = period ? (h % 12) + (period.head === "Pm" ? 12 : 0) : h;
+            const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+            return { head: "Time", args: [
+              { name: "hour", value: h24 },
+              { name: "minute", value: m },
+              { name: "spoken", value: h12 + ":" + String(m).padStart(2, "0") + " " + (h24 < 12 ? "AM" : "PM") },
+            ]};
+          }`),
+        }),
+      ),
     ],
   }),
 );
+add(concept("Am", { relations: ["IsA(Data())"] }));
+add(concept("Pm", { relations: ["IsA(Data())"] }));
 add(
   concept("Today", {
     relations: ["IsA(Date())"],
@@ -1194,6 +1299,109 @@ function deriveSynonymForwarding(store: ConceptStore): number {
   }
   return derived;
 }
+
+/* ------------------------------------------------------------------ *
+ * Durations and shifting dates and clock times by them.
+ *
+ * "what day will it be in 5 days" reads as What(Day(Will(Be(In(Days(5)))))): every word as
+ * said. A duration is data. In, Ago, Add and Subtract shift a date or a clock time by one,
+ * sharing one routine, and each checks the value it received rather than its pattern,
+ * because patterns cannot yet say "any date" (no typed variables; reading-spec Part 5.7).
+ * ------------------------------------------------------------------ */
+const SHIFT = `
+  const field = (r, n) => { const a = r.args.find((x) => x.name === n); return a ? a.value : undefined; };
+  const DAY = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const units = { Days: [1, "day"], Weeks: [7, "day"], Hours: [60, "minute"], Minutes: [1, "minute"] };
+  const isDuration = (v) => v && units[v.head] && v.args.length === 1 && typeof v.args[0].value === "number";
+  const isRecord = (v) => v && (v.head === "Date" || v.head === "Time") && v.args.every((a) => a.name !== undefined);
+  const clock = (t) => {
+    const h24 = Math.floor(t / 60), mm = t % 60, h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return { head: "Time", args: [
+      { name: "hour", value: h24 }, { name: "minute", value: mm },
+      { name: "spoken", value: h12 + ":" + String(mm).padStart(2, "0") + " " + (h24 < 12 ? "AM" : "PM") } ] };
+  };
+  const date = (d, time) => ({ head: "Date", args: [
+    { name: "year", value: d.getFullYear() }, { name: "month", value: d.getMonth() + 1 },
+    { name: "day", value: d.getDate() }, { name: "weekday", value: DAY[d.getDay()] },
+    ...(time ? [{ name: "time", value: time }] : []) ] });
+  const minutesOf = (t) => Number(field(t, "hour")) * 60 + Number(field(t, "minute"));
+  // A date carrying a time is a moment: shifting its time past midnight moves its date.
+  // A bare clock time has no date, so it wraps; a bare date has no time, so hours cannot
+  // shift it.
+  const shift = (record, duration, sign) => {
+    const [per, kind] = units[duration.head];
+    const n = duration.args[0].value * per * sign;
+    if (record.head === "Date") {
+      const time = field(record, "time");
+      const total = kind === "day" ? n * 1440 : n;
+      if (kind !== "day" && !time) return undefined;
+      const t = (time ? minutesOf(time) : 0) + total;
+      const carry = Math.floor(t / 1440), rest = ((t % 1440) + 1440) % 1440;
+      const d = new Date(Number(field(record, "year")), Number(field(record, "month")) - 1, Number(field(record, "day")) + carry);
+      return date(d, time ? clock(rest) : undefined);
+    }
+    const total = kind === "day" ? n * 1440 : n;
+    return clock((((minutesOf(record) + total) % 1440) + 1440) % 1440);
+  };
+  const now = async (duration) => api.evaluate(api.call(units[duration.head][1] === "day" ? "Today" : "Time"));
+`;
+for (const unit of ["Days", "Weeks", "Hours", "Minutes"]) {
+  add(concept(unit, { relations: ["IsA(Duration())", "IsA(Data())"] }));
+}
+add(concept("Duration", { relations: ["IsA(Category())"] }));
+const shifting = (pattern: string, body: string) =>
+  realization({ pattern, context: "Execution()", body: code(`async (args, bindings, api) => {${SHIFT}${body}}`) });
+add(concept("In", {
+  realizations: [shifting("In($x)", `
+    const x = args[0].value;
+    return isDuration(x) ? shift(await now(x), x, 1) ?? api.call("In", x) : api.call("In", x);`)],
+}));
+add(concept("Ago", {
+  relations: ["IsA(Relation())"],
+  realizations: [shifting("Ago($x)", `
+    const x = args[0].value;
+    return isDuration(x) ? shift(await now(x), x, -1) ?? api.call("Ago", x) : api.call("Ago", x);`)],
+}));
+for (const [op, sign] of [["Add", 1], ["Subtract", -1]] as const) {
+  add(concept(op, {
+    realizations: [shifting(`${op}($a, $b)`, `
+      const [a, b] = args.map((x) => x.value);
+      if (typeof a === "number" && typeof b === "number") return a + ${sign} * b;
+      if (isRecord(a) && isDuration(b)) return shift(a, b, ${sign}) ?? api.call("${op}", a, b);
+      if (${sign} === 1 && isDuration(a) && isRecord(b)) return shift(b, a, 1) ?? api.call("${op}", a, b);
+      return api.call("${op}", a, b);`)],
+  }));
+}
+// "tomorrow at 3pm" is At(Tomorrow(), Time(3, Pm())): a date and a clock time, joined by the
+// user's own word, realize to the date carrying its time. No DateTime Concept: half a moment
+// ("at 3pm", "tomorrow") stays the half it is.
+add(concept("At", {
+  realizations: [shifting("At($a, $b)", `
+    const [a, b] = args.map((x) => x.value);
+    const [d, t] = a && a.head === "Date" ? [a, b] : [b, a];
+    if (!isRecord(d) || d.head !== "Date" || !isRecord(t) || t.head !== "Time") return api.call("At", a, b);
+    return { head: "Date", args: [...d.args.filter((x) => x.name !== "time"), { name: "time", value: t }] };`)],
+}));
+
+// Tense words are kept as said and project to what they wrap when a value is wanted.
+for (const tense of ["Will", "Be", "Was", "Is"]) {
+  add(concept(tense, { realizations: [projection(`${tense}($x)`, 0)] }));
+}
+// A day, asked of a date, is its weekday; asked of nothing, today's.
+add(concept("Day", {
+  realizations: [
+    realization({ pattern: "Day()", context: "Execution()", body: parse("Day(Today())") }),
+    realization({
+      pattern: "Day($date)",
+      context: "Execution()",
+      body: code(`(args, bindings, api) => {
+        const d = args[0].value;
+        const w = d && d.head === "Date" ? d.args.find((a) => a.name === "weekday") : undefined;
+        return w ? w.value : api.call("Day", d);
+      }`),
+    }),
+  ],
+}));
 
 export interface SeedReport {
   created: number;
