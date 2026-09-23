@@ -24,7 +24,9 @@
     }
   },
   "dependencies": {
+    "an-array-of-english-words": "^2.0.0",
     "compromise": "^14.17.0",
+    "node-symspell": "^0.1.0",
     "typescript": "^5.6.0"
   }
 }

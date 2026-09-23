@@ -10,8 +10,13 @@ import type { ConceptStore } from "../store/store.js";
 import { dropArticles, lift as liftLines, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
 import { frame } from "./mood.js";
 import { parseRules } from "./parser/rules.js";
+import { learnNames, takeWanted, useGraph } from "./parser/names.js";
+import { useGraphNames } from "./parser/words.js";
 import { generate, type ModelOptions } from "./ollama.js";
 import { earsPrompt } from "./prompt.js";
+
+/** The graph size the speller last took names from, so it refreshes only when the graph grows. */
+let graphNamesAt = -1;
 
 const INTERROGATIVES = new Set([
   "What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf", "Whether", "WhatIs",
@@ -51,7 +56,8 @@ export function check(message: string, expression: Expr | undefined): string[] {
     return problems;
   }
   if (looksLikeQuestion(message)) {
-    const present = [...heads(expression)].some((h) => INTERROGATIVES.has(h));
+    // A yes/no question is marked by its mood, not by a question word (reading-spec.md).
+    const present = [...heads(expression)].some((h) => INTERROGATIVES.has(h) || h === "Interrogative" || h === "Checking");
     if (!present) {
       problems.push(
         "the message asks a question but the parse contains no interrogative " +
@@ -116,8 +122,9 @@ export interface HearOptions extends ModelOptions {
 }
 
 /** Lift, then apply the repairs that need the message itself. */
-export function read(raw: string, message: string): Lifted {
-  const lifted = liftLines(frame(stripFence(raw), message));
+export function read(raw: string, message: string, framed = false): Lifted {
+  // A reader that already wrote each line's mood (the rules) skips the surface guess.
+  const lifted = liftLines(framed ? stripFence(raw) : frame(stripFence(raw), message));
   return lifted.expression === undefined ? lifted : { ...lifted, expression: dropArticles(mendWords(mendNumbers(lifted.expression, message), message), message) };
 }
 
@@ -128,13 +135,25 @@ export async function hear(
 ): Promise<EarsResult> {
   let fallback: string | undefined;
   if (options.backend === "rules" || options.backend === "hybrid") {
-    const ruled = parseRules(message);
-    if (ruled.reading) {
-      const raw = ruled.reading.lines.join("\n");
-      const lifted = read(raw, message);
-      return { message, raw, expression: lifted.expression, problems: check(message, lifted.expression), rejected: lifted.rejected, attempts: 0, backend: "rules" };
+    // What the words name comes from Wikidata and the graph, never from a model.
+    if (store.size() !== graphNamesAt) {
+      useGraphNames(store.all().map((u) => u.identity));
+      graphNamesAt = store.size();
     }
-    fallback = ruled.why ?? "no reading";
+    useGraph(store);
+    takeWanted();
+    let ruled = parseRules(message);
+    // Phrases the rules could not decide are looked up on Wikidata once, then read again.
+    const wanted = takeWanted();
+    if (wanted.length && (await learnNames(wanted).catch(() => false))) ruled = parseRules(message);
+    // In hybrid, a reading with words the rules could not read goes to the model instead.
+    if (ruled.reading && !(options.backend === "hybrid" && ruled.unread)) {
+      const raw = ruled.reading.lines.join("\n");
+      const lifted = read(raw, message, true);
+      const unread = (ruled.unread ?? []).map((w) => `rules could not read "${w}"`);
+      return { message, raw, expression: lifted.expression, problems: [...unread, ...check(message, lifted.expression)], rejected: lifted.rejected, attempts: 0, backend: "rules" };
+    }
+    fallback = ruled.unread ? `could not read "${ruled.unread.join('", "')}"` : ruled.why ?? "no reading";
     if (options.backend === "rules") {
       return { message, raw: "", expression: undefined, problems: [`rules: ${fallback}`], rejected: [], attempts: 0, backend: "rules", fallback };
     }
