@@ -7,6 +7,9 @@ point of this file is that a reader should never have to guess whether a claim i
 implementation and has drifted from them in both directions — sometimes the code is wrong
 and sometimes the spec is. Every known divergence is listed below.
 
+Rules for what may and may not go in the Ears prompt:
+`packages/concept-runtime/src/ears/AGENTS.md`.
+
 ---
 
 ## Current and trustworthy
@@ -16,9 +19,12 @@ and sometimes the spec is. Every known divergence is listed below.
 | **`concept-spec.md`** (1483 lines) | The Concept unit, relations, realizations, contexts, selection, evaluation, description, learning, persistence. The primary source. | Three corrections below. |
 | **`ir-spec.md`** (1010 lines) | The expression language, grammar, markers, the Ears contract, the code IR. | One correction below. Part 8.3 was unimplemented until 2026-09-21 and now is. |
 | **`seed-concepts.md`** (395 lines) | What the graph starts with, and Part 12's deliberate omissions. | Two corrections below. Part 10's request vocabulary was specified and unseeded until 2026-09-22. |
+| **`reading-spec.md`** (620 lines) | How a message is represented as a Concept expression: said order, heads, fusion, mood, markers, and who writes what (Ears, mechanical passes, graph). | Draft 1, 2026-09-23, supersedes ir-spec.md Parts 7-9 and seed-concepts.md Part 10 where they differ. |
 | **`ir-spec-appendix-code.md`** (678 lines) | A page of the runtime translated node for node into the IR. 43 constructs. | Fully current, and now doubles as the importer's specification and test. |
 | **`judgment-research.md`** (806 lines) | Why preference cannot be stored as a fact. Six literatures, the philosophy, and Part 14 on contextual relations. | Current. Part 14.2 says "not built" — it was built on 2026-09-22, see below. |
 | **`self-hosting.md`** (160 lines) | Writing the runtime in Rust. Why that target is verifiable where others are not. | Current. Rung 1, the importer, is done. |
+| **`memory-spec.md`** (868 lines) | Memory: kinds, individuals and expressions; stamps and the two times; said versus believed; processes such as games; routing by focus; recall; dormancy, consolidation and collection. | Draft 1, 2026-09-22, nothing built. Replaces `concept-spec.md` Part 13.2 and refines Parts 1, 13.1 and 14; its Part 16 lists every change. |
+| **`emergent-judgment-plan.md`** (506 lines) | Evidence, expectations, relevance, generalisation, choice, prediction, all as mechanisms over the trace. | Draft 1, 2026-09-22, nothing built. Shares stamps, activation, resolution and provenance with `memory-spec.md`; its section 7 says which owns what and gives the merged build order. |
 | **`novel-prompt-findings.md`** (179 lines) | 45 prompts through the parser, 10 through the pipeline. What breaks on input nobody tried. | Current, and the most useful single document for "what is actually wrong". |
 
 Research, all current and all sourced:
@@ -28,6 +34,12 @@ Research, all current and all sourced:
 - `research/judgment/*.md` — decision theory, preference representation, qualitative
   reasoning, prior systems, metaethics, practical reason.
 - `research/novel-prompts/*` — raw data behind `novel-prompt-findings.md`.
+- `research/seed-dataset-sources.md`: seed sources (NSM, NGSL, WordNet, ConceptNet,
+  Wikidata, MASSIVE) with licenses; research input, with corrections at the top, not a
+  spec.
+- `research/compression-as-prediction.md`: the gzip language model post, why it fits the
+  architecture better than a neural net, and minimum description length as a candidate
+  test for generalisation, consolidation and surprise. Idea note, nothing built.
 
 ---
 
