@@ -274,8 +274,12 @@ export interface TurnOptions extends HearOptions {
  */
 export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
   const found = new Map<string, Expr>();
+  // A line's mood is scoped by Mood itself, to that line; lifting it would leave Mood with
+  // nothing to scope and put one line's mood on every line.
+  const scoped = new Set<Expr>();
+  for (const node of walk(expression)) if (isCall(node) && node.head === "Mood" && node.args[0]) scoped.add(node.args[0].value);
   for (const node of walk(expression)) {
-    if (!isCall(node) || node.args.length > 0) continue;
+    if (!isCall(node) || node.args.length > 0 || scoped.has(node)) continue;
     if (node.head === "Context") continue;
     if (lineage(runtime.store, node.head).some((u) => u.identity === "ContextFacet")) {
       found.set(node.head, c(node.head));
@@ -287,7 +291,8 @@ export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
 /** Drop the facets that have moved into the context, so the shape says what it means. */
 function withoutFacets(runtime: Runtime, e: Expr): Expr {
   if (!isCall(e)) return e;
-  const kept = e.args.filter((a) => {
+  const kept = e.args.filter((a, i) => {
+    if (e.head === "Mood" && i === 0) return true;
     const v = a.value;
     return !(
       isCall(v) &&
