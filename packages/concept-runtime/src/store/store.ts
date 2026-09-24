@@ -74,7 +74,37 @@ function mentionsOf(r: Relation): Set<string> {
   return keys;
 }
 
+/**
+ * A change the store made, in the terms the journal writes it (store/journal.ts). What a
+ * pack seeds is not a change: packs are seeded again on every load.
+ */
+export type Change =
+  | { kind: "mint"; identity: string }
+  | { kind: "seed"; unit: ConceptUnit }
+  | { kind: "assert"; identity: string; relation: Relation; stamp: Stamp }
+  | { kind: "realize"; identity: string; realization: Realization }
+  | { kind: "realizations"; identity: string; realizations: readonly Realization[] }
+  | { kind: "collect"; seqs: readonly number[] }
+  | { kind: "resource"; from: readonly number[]; to: number }
+  | { kind: "forget"; identity: string };
+
 export class ConceptStore {
+  /** Told every change as it is made, unless replaying: how the journal appends. */
+  onChange?: (change: Change) => void;
+  private replayingDepth = 0;
+  private changed(change: () => Change): void {
+    if (this.onChange && this.replayingDepth === 0) this.onChange(change());
+  }
+  /** Changes made inside `f` are the journal being read back, so they are not written again. */
+  replaying<T>(f: () => T): T {
+    this.replayingDepth += 1;
+    try {
+      return f();
+    } finally {
+      this.replayingDepth -= 1;
+    }
+  }
+
   private readonly units = new Map<string, ConceptUnit>();
   private readonly bySubject = new Map<string, Triple[]>();
   /**
@@ -141,8 +171,23 @@ export class ConceptStore {
    * the count moves past them so no `seq` is handed out twice. One that has none is being
    * recorded now.
    */
-  private withStamps(r: Relation, pack?: string): Relation {
-    if (!r.stamps?.length) return { ...r, stamps: [this.stamp(undefined, pack)] };
+  /**
+   * What a pack says is stamped the same on every load, since packs are seeded again each
+   * time (store/journal.ts): its seq comes from the fact itself, negative, as before anything
+   * said. So a `Retracts(seq)` of a pack's fact still retracts it after a restart.
+   */
+  private packStamp(pack: string, identity: string, r: Relation): Stamp {
+    const text = `${pack}\u0000${identity}\u0000${format(r.claim)}\u0000${r.context === undefined ? "" : format(r.context)}`;
+    // A rolling hash modulo a prime under 2^47, exact in a double: distinct for every fact a
+    // pack could hold (ten thousand facts collide with odds of about one in three million).
+    const PRIME = 140737488355213;
+    const hash = [...text].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % PRIME, 7);
+    const seq = -(hash + 1);
+    return { seq, recordedAt: new Date().toISOString(), pack };
+  }
+
+  private withStamps(r: Relation, pack?: string, identity?: string): Relation {
+    if (!r.stamps?.length) return { ...r, stamps: [pack !== undefined && identity !== undefined ? this.packStamp(pack, identity, r) : this.stamp(undefined, pack)] };
     for (const s of r.stamps) if (s.seq >= this.nextSeq) this.nextSeq = s.seq + 1;
     return r;
   }
@@ -176,6 +221,7 @@ export class ConceptStore {
     } while (this.units.has(identity));
     this.mintCounters.set(base, n);
     this.put({ identity, relations: [], realizations: [] });
+    this.changed(() => ({ kind: "mint", identity }));
     return identity;
   }
 
@@ -205,10 +251,11 @@ export class ConceptStore {
     options: { authoritative?: boolean; pack?: string } = {},
   ): { created: boolean; addedRelations: number; addedRealizations: number } {
     const { pack } = options;
+    if (pack === undefined) this.changed(() => ({ kind: "seed", unit }));
     const own = (r: Realization): Realization => (pack === undefined ? r : { ...r, seededFrom: pack });
     const existing = this.units.get(unit.identity);
     if (!existing) {
-      this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r, pack)), realizations: unit.realizations.map(own) });
+      this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r, pack, unit.identity)), realizations: unit.realizations.map(own) });
       return { created: true, addedRelations: unit.relations.length, addedRealizations: unit.realizations.length };
     }
     // Seeding again is not asserting again, so a relation already held gains no stamp.
@@ -216,7 +263,7 @@ export class ConceptStore {
     let addedRelations = 0;
     for (const r of unit.relations) {
       if (!relations.some((x) => sameRelation(x, r))) {
-        relations.push(this.withStamps(r, pack));
+        relations.push(this.withStamps(r, pack, unit.identity));
         addedRelations += 1;
       }
     }
@@ -277,9 +324,11 @@ export class ConceptStore {
    * with the same pattern and context as an existing one shadows it: the newer is
    * selected, the older is retained and simply not chosen.
    */
-  addRealization(identity: string, r: Realization): void {
+  addRealization(identity: string, r: Realization, addedAt = new Date().toISOString()): void {
     const existing = this.units.get(identity) ?? { identity, relations: [], realizations: [] };
-    this.put({ ...existing, realizations: [...existing.realizations, { ...r, addedAt: new Date().toISOString() }] });
+    const added = { ...r, addedAt };
+    this.put({ ...existing, realizations: [...existing.realizations, added] });
+    this.changed(() => ({ kind: "realize", identity, realization: added }));
   }
 
   /**
@@ -308,6 +357,7 @@ export class ConceptStore {
         ? [...existing.relations, { ...added, stamps: [stamp] }]
         : existing.relations.map((r, i) => (i === at ? { ...r, stamps: [...(r.stamps ?? []), stamp] } : r));
     this.put({ ...existing, relations });
+    this.changed(() => ({ kind: "assert", identity, relation: { claim: added.claim, ...(added.context === undefined ? {} : { context: added.context }) }, stamp }));
     return stamp;
   }
 
@@ -391,6 +441,7 @@ export class ConceptStore {
         });
       this.put({ ...unit, relations });
     }
+    this.changed(() => ({ kind: "collect", seqs: [...seqs] }));
     return removed;
   }
 
@@ -429,6 +480,7 @@ export class ConceptStore {
     if (!existing) return;
     this.put({ ...existing, realizations });
     this.lastSelected.clear();
+    this.changed(() => ({ kind: "realizations", identity, realizations }));
   }
 
   /**
@@ -459,6 +511,7 @@ export class ConceptStore {
    * the beliefs they caused are kept and attributed to `Isolated()` (memory-spec Part 12).
    */
   resource(from: ReadonlySet<number>, to: number): number {
+    this.changed(() => ({ kind: "resource", from: [...from], to }));
     const touched = new Set<string>();
     for (const entry of this.byStamp.values()) {
       if (entry.stamp.source !== undefined && from.has(entry.stamp.source)) touched.add(entry.identity);
@@ -485,6 +538,7 @@ export class ConceptStore {
     this.unindex(unit);
     this.units.delete(identity);
     this.writes += 1;
+    this.changed(() => ({ kind: "forget", identity }));
     return true;
   }
 

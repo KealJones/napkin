@@ -21,7 +21,7 @@ import { forget } from "./store/forget.js";
 import { collect } from "./store/collect.js";
 import { seed } from "./seed/seed.js";
 import { DATA, groundAll } from "./seed/grounding/layer.js";
-import { load, save } from "./store/persist.js";
+import { compact, openNapkinGraph } from "./store/journal.js";
 import { ConceptStore } from "./store/store.js";
 import { appendTrace } from "./store/traces.js";
 
@@ -32,20 +32,42 @@ const value = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 
-/** Learning that does not survive a restart is not learning. */
-const graphPath = value("--graph") ?? `${process.env.HOME}/.napkin/graph.json`;
+/**
+ * Learning that does not survive a restart is not learning. The graph is the packs, the
+ * built-in ones and a user's own beside it (~/.napkin/packs/*.ncon), plus the journal of
+ * everything learned on top of them (store/journal.ts). A path ending .json is an old
+ * snapshot, still read and saved whole.
+ */
+const graphPath = value("--graph") ?? `${process.env.HOME}/.napkin/store.ncon`;
 const store = new ConceptStore();
-// Load before seeding. A snapshot can hold an older copy of a seeded realization, and
-// since a newer realization shadows an older one with the same pattern and context,
-// seeding last is what makes the current definition win.
-const loaded = flag("--fresh") ? 0 : load(store, graphPath);
-// The built-in packs, and a user's own beside the graph (~/.napkin/packs/*.ncon).
-const report = seed(store, { packs: [resolve(dirname(graphPath), "packs")] });
+const opened = flag("--fresh")
+  ? { units: 0, seeded: seed(store, { packs: [resolve(dirname(graphPath), "packs")] }), save: () => undefined }
+  : await openNapkinGraph(store, graphPath);
+const loaded = opened.units;
+const report = opened.seeded;
+const journal = "journal" in opened ? opened.journal : undefined;
+if (journal?.migratedFrom) console.error(`Migrated ${journal.migratedFrom} to ${graphPath} (the old graph is kept as ${journal.migratedFrom}.migrated).`);
+if (journal?.readOnly) console.error(`${graphPath} is open in another process (the studio?): reading it only, and nothing learned here is kept.`);
+for (const [pack, n] of Object.entries(journal?.overMissing ?? {})) console.error(`${n} change(s) in the graph are over the pack ${pack}, which is not loaded: they are kept.`);
+if (journal?.skipped.length) console.error(`Skipped ${journal.skipped.length} unreadable line(s) in ${graphPath}:\n  ${journal.skipped.slice(0, 5).join("\n  ")}`);
 // The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
 const tracePath = resolve(dirname(graphPath), "trace.jsonl");
 const runtime = new Runtime(store, { tracePath });
 const context = c("Execution");
-const persist = () => (flag("--fresh") ? 0 : save(store, graphPath));
+/** Every change is appended as it is made; a JSON graph is written whole. Answers the size. */
+const persist = () => {
+  if (!flag("--fresh")) opened.save();
+  return store.size();
+};
+if (flag("--compact")) {
+  if (!journal || journal.readOnly) {
+    console.error(journal ? `${graphPath} is open in another process; stop it first.` : `${graphPath} is not a journal.`);
+    process.exit(1);
+  }
+  const lines = compact(store, graphPath);
+  console.log(`${graphPath}: ${lines} lines`);
+  process.exit(0);
+}
 /** This run's events, appended once the turn is done, so evidence survives a restart. */
 const persistTrace = () => {
   if (flag("--fresh")) return;
@@ -326,5 +348,6 @@ if (expr) {
   napkin --fresh ...                    do not load or save the persistent graph
   napkin --graph <path> ...             use a different graph file
 
-The graph lives at ~/.napkin/graph.json and grows as the system learns.`);
+The graph is the packs plus ~/.napkin/store.ncon, a journal that grows as the system learns
+(napkin --compact rewrites it as what it holds now).`);
 }

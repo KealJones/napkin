@@ -64,7 +64,7 @@ export function templateParts(template: string): Call {
 const context = (language: Expr, ...facets: Expr[]): Expr =>
   call("Context", [language, ...facets].map((value) => ({ value })));
 
-function readRealization(pack: string, e: Call): Realization {
+export function readRealization(pack: string, e: Call): Realization {
   const [pattern] = positional(e);
   const body = named(e, "body");
   if (pattern === undefined || body === undefined) throw new PackError(pack, `a Realization needs a pattern and body=: ${format(e)}`);
@@ -217,6 +217,19 @@ const flat = (e: Expr): string => {
 
 /** An expression as a pack writes it, laid out by the .ncon rules (code/format.ts). */
 export const pretty = (e: Expr): string => formatNcon(flat(e)).trimEnd();
+
+/** A realization as the expression a pack writes it as, settings before its body. */
+export function realizationExpr(r: Realization): Expr {
+  return call("Realization", [
+    { value: r.pattern },
+    ...(r.context === undefined ? [] : [{ name: "context", value: r.context }]),
+    ...(r.evaluateArguments ? [] : [{ name: "evaluateArguments", value: false }]),
+    ...(r.evaluateResult ? [{ name: "evaluateResult", value: true }] : []),
+    ...(r.resultContext === undefined ? [] : [{ name: "resultContext", value: r.resultContext }]),
+    ...(r.properties.length ? [{ name: "properties", value: call("List", r.properties.map((value) => ({ value }))) }] : []),
+    { name: "body", value: r.body },
+  ]);
+}
 
 /** A realization with its settings before its body. */
 function realizationText(r: Realization): string {

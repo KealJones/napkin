@@ -1258,7 +1258,37 @@ The policy above — the thresholds, the conditions, what counts as long — is 
 not host code. Otherwise it could not be tuned without editing the harness, which Part 2.1
 forbids.
 
-### 13.3 No fourth store
+### 13.3 Where the graph is kept: packs plus a journal
+
+The graph is its packs (Part 17.2) plus a journal, `~/.napkin/store.ncon`, of everything the
+store did beyond them (`store/journal.ts`). The packs are seeded again on every load, and the
+journal is read back over them.
+
+- **One change per line, in the IR**, in the order made. `Mint`, `Assert` (with its stamp's
+  `seq`, `at` and `source`), `Realize`, `Realizations`, `Retire`, `Collect`, `Resource`,
+  `Forget` and `Seed`, each for one store operation. What a pack seeds is never written.
+- **Saving is appending.** A crash loses at most the line being written, and a line that
+  does not read is skipped and reported, not fatal.
+- **Stamps are kept.** Every assertion's line carries its `seq`, when it was recorded and what
+  caused it, so `Retracts(seq)`, sources and the trace's said turns still point where they
+  did. A pack's own facts are stamped from the fact itself, a negative `seq` (before anything
+  said), so they are stamped the same on every load and retracting one survives a restart.
+- **A change over a pack that is not loaded is kept**, and reported by pack: each line about
+  a Concept a pack seeded names it, `over = Pack("chess")`.
+- **Compaction** rewrites the journal as the fewest lines that rebuild what the graph holds.
+  It runs after anything is collected or forgotten, so what was forgotten leaves the file
+  rather than staying as lines a later one undoes, and on `napkin --compact`.
+- **Not formatted.** A machine writes it, and it is the file that grows: the formatter leaves
+  a text whose first form is `Journal(...)` as written.
+- **One writer.** The process that opens it holds `store.ncon.lock`; another that finds a
+  live lock opens the graph to read only.
+- **Migration.** A `graph.json` with no journal beside it is read the old way, compacted into
+  the journal, and kept as `graph.json.migrated`. A path ending `.json` is still read and
+  saved whole, for old graphs and tests.
+
+On the real graph the journal is 645 KB against 2.3 MB of JSON, and loads in about 50 ms.
+
+### 13.4 No fourth store
 
 Anything that looks like it needs a new store should first be checked against these. A new
 special-purpose store for one capability is the Part 2 failure mode arriving quietly.

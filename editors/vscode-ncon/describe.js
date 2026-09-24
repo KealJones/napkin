@@ -109,6 +109,60 @@ function indexPack(text, file) {
  * What a saved graph holds about a Concept: its relations, as claims.
  * @param {{ units?: { identity: string, relations?: (string | { claim: string, context?: string })[] }[] }} graph
  */
+/**
+ * The top-level arguments of a call written on one line: `Assert(A(), B(1, 2), seq = 3)` is
+ * `A()`, `B(1, 2)` and `seq = 3`. Strings are stepped over.
+ * @param {string} line
+ */
+function topLevelArgs(line) {
+  const open = line.indexOf("(");
+  const out = [];
+  let depth = 0;
+  let start = open + 1;
+  for (let i = open + 1; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      for (i++; i < line.length && line[i] !== '"'; i++) if (line[i] === "\\") i++;
+      continue;
+    }
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      if (depth === 0) {
+        out.push(line.slice(start, i).trim());
+        break;
+      }
+      depth--;
+    } else if (ch === "," && depth === 0) {
+      out.push(line.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  return out.filter(Boolean);
+}
+
+/**
+ * What the graph's journal (~/.napkin/store.ncon) says was asserted of each Concept: the
+ * claim of each `Assert` line, and its context. What was retracted stays listed, as the
+ * graph keeps it.
+ * @param {string} text
+ */
+function indexJournal(text) {
+  /** @type {Map<string, string[]>} */
+  const out = new Map();
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("Assert(")) continue;
+    const [who, claim, ...rest] = topLevelArgs(line);
+    if (!who || !claim) continue;
+    const identity = who.startsWith('"') ? JSON.parse(who) : who.replace(/\(\)$/, "");
+    const context = rest.find((a) => a.startsWith("context ="))?.slice("context =".length).trim();
+    const claims = out.get(identity) ?? [];
+    const said = context ? `${claim} in ${context}` : claim;
+    if (!claims.includes(said)) claims.push(said);
+    out.set(identity, claims);
+  }
+  return out;
+}
+
 function indexGraph(graph) {
   /** @type {Map<string, string[]>} */
   const out = new Map();
@@ -214,4 +268,4 @@ function describePlain(name, defs, learned, operator) {
   return md.join("\n\n---\n\n");
 }
 
-module.exports = { indexPack, indexGraph, describe, PACK_FORMS };
+module.exports = { indexPack, indexGraph, indexJournal, describe, PACK_FORMS };

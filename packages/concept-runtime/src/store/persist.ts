@@ -43,7 +43,7 @@ type StoredRelation = string | { claim: string; context?: string; stamps?: strin
 const stampText = (s: Stamp): string =>
   `#${s.seq} ${s.recordedAt}${s.source === undefined ? "" : ` from #${s.source}`}${s.pack === undefined ? "" : ` pack ${s.pack}`}`;
 
-const STAMP = /^#(\d+) (\S+)(?: from #(\d+))?(?: pack (\S+))?$/;
+const STAMP = /^#(-?\d+) (\S+)(?: from #(-?\d+))?(?: pack (\S+))?$/;
 
 const readStamp = (text: string): Stamp => {
   const m = STAMP.exec(text);

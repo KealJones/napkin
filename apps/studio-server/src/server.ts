@@ -17,12 +17,10 @@ import {
   ConversationRepository,
   evidenceStoreFor,
   format,
-  load,
   parse,
   Relations,
   Runtime,
-  save,
-  seed,
+  openNapkinGraph,
   type ConceptUnit,
   type Expr,
   type TraceEvent,
@@ -48,7 +46,9 @@ import {
   type EarsRun,
 } from "@napkin/concept-runtime";
 
-const graphPath = resolve(process.env.NAPKIN_GRAPH ?? resolve(homedir(), ".napkin/graph.json"));
+// The packs plus the journal of what was learned on top of them (store/journal.ts). A
+// NAPKIN_GRAPH ending .json is an old snapshot, read and saved whole.
+const graphPath = resolve(process.env.NAPKIN_GRAPH ?? resolve(homedir(), ".napkin/store.ncon"));
 // The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
 const tracePath = resolve(dirname(graphPath), "trace.jsonl");
 const port = Number(process.env.NAPKIN_PORT ?? 4173);
@@ -56,11 +56,16 @@ const clientBuildPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../
 
 await mkdir(dirname(graphPath), { recursive: true });
 const store = new ConceptStore();
-// Load before seeding, so a stale copy of a seeded realization cannot shadow the current
-// one: newer shadows older, and the seed must be newer.
-const loaded = load(store, graphPath);
-// The built-in packs, and a user's own beside the graph (~/.napkin/packs/*.ncon).
-const seedReport = seed(store, { packs: [resolve(dirname(graphPath), "packs")] });
+// The built-in packs, a user's own beside the graph (~/.napkin/packs/*.ncon), then the journal.
+const opened = await openNapkinGraph(store, graphPath);
+const loaded = opened.units;
+const seedReport = opened.seeded;
+if (opened.journal?.migratedFrom) console.log(`Migrated ${opened.journal.migratedFrom} to ${graphPath} (kept as ${opened.journal.migratedFrom}.migrated)`);
+if (opened.journal?.readOnly) console.warn(`${graphPath} is open in another process: reading it only, and nothing learned here is kept.`);
+for (const [pack, n] of Object.entries(opened.journal?.overMissing ?? {})) console.warn(`${n} change(s) in the graph are over the pack ${pack}, which is not loaded: they are kept.`);
+if (opened.journal?.skipped.length) console.warn(`Skipped ${opened.journal.skipped.length} unreadable line(s) in ${graphPath}`);
+/** Every change is already appended to the journal; a JSON graph is written whole. */
+const save = (_store: ConceptStore, _path: string) => opened.save();
 const relations = new Relations(store);
 const conversations = new ConversationRepository(store);
 

@@ -111,6 +111,8 @@ export interface SeedReport {
   retired: number;
   removed: number;
   synonymsDerived: number;
+  /** The packs seeded, by name. */
+  packs: string[];
 }
 
 /** Packs are read once per set of directories; seeding many stores does not reread them. */
@@ -124,8 +126,9 @@ const packsIn = (dirs: readonly string[]): Pack[] => {
 
 /** Seed the built-in packs, and those in `packs` (a user's `~/.napkin/packs/`, say). */
 export function seed(store: ConceptStore, options: { packs?: readonly string[] } = {}): SeedReport {
-  const report = seedPacks(store, packsIn([BUILT_IN_PACKS, ...(options.packs ?? [])]));
-  return { ...report, synonymsDerived: deriveSynonymForwarding(store) };
+  const packs = packsIn([BUILT_IN_PACKS, ...(options.packs ?? [])]);
+  const report = seedPacks(store, packs);
+  return { ...report, synonymsDerived: deriveSynonymForwarding(store), packs: packs.map((p) => p.name) };
 }
 
 /** Every unit the built-in packs seed. */

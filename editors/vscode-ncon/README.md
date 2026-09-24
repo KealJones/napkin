@@ -35,7 +35,7 @@ A copy of the rainbow version as first built is kept in `snapshots/rainbow/`.
   three lines `= condition`, `= then`, `= otherwise`. `ncon.parameterNames` turns them off.
 - **Hover.** Hovering a Concept shows what it is: the comment above its `Concept(...)` in the
   packs that define it, its relations, its realizations' patterns and contexts, and what the
-  saved graph (`~/.napkin/graph.json`, or `ncon.graph`) has learned about it since, so a
+  saved graph (its journal `~/.napkin/store.ncon`, or `ncon.graph`) has learned about it since, so a
   Concept only the graph knows (a Wikidata tie, say) is described too. Hovering a variable
   shows the value its local was bound to (`Bind($v, value, ...)`), or the pattern or Lambda
   that binds it.

@@ -16,7 +16,7 @@ From `packages/concept-runtime`:
 ```sh
 sh src/seed/grounding/fetch.sh              # downloads ~511 MB into data/grounding/dumps
 pnpm build && node dist/seed/grounding/build.js   # writes data/grounding/layers/*.json
-node dist/cli.js --ground                   # grounds ~/.napkin/graph.json and saves it
+node dist/cli.js --ground                   # grounds the graph (~/.napkin/store.ncon)
 ```
 
 `data/` is gitignored: dumps and layers are generated, and the share-alike ones should not

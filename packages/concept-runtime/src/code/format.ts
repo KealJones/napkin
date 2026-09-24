@@ -13,6 +13,7 @@
  *   before the closing parenthesis they came before.
  * - Raw strings (`"""..."""`) are kept exactly as written.
  * - Between top-level forms, blank lines are kept, at most one in a row.
+ * - A journal, whose first form is `Journal(...)`, is left as written: one change per line.
  */
 
 const WIDTH = 120;
@@ -228,6 +229,8 @@ function print(node: Node, indent: number, column: number): string {
 
 /** A pack's text, formatted. */
 export function formatNcon(text: string): string {
+  // A journal (store/journal.ts) is one change per line, machine-written: left as it is.
+  if (/^\s*(?:\/\/[^\n]*\n\s*)*Journal\(/.test(text)) return text;
   const { items, trailing } = parse(text);
   const out: string[] = [];
   items.forEach((item, k) => {

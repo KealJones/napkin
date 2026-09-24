@@ -5,6 +5,7 @@ export * from "./store/store.js";
 export * from "./store/relations.js";
 export * from "./store/cells.js";
 export * from "./store/persist.js";
+export * from "./store/journal.js";
 export * from "./store/forget.js";
 export * from "./store/traces.js";
 export * from "./runtime/context.js";

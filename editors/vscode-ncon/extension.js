@@ -10,9 +10,9 @@
  */
 const vscode = require("vscode");
 const { scan, variableAt, callAt, variablesAt, parameterNames, PARAMETERS, RAINBOW, PALETTE, ROLES, SYNTAX_TOKENS, GHOSTS, PREFIX_GHOSTS } = require("./scan.js");
-const { indexPack, indexGraph, describe, PACK_FORMS } = require("./describe.js");
+const { indexPack, indexGraph, indexJournal, describe, PACK_FORMS } = require("./describe.js");
 const { format, isFormatError } = require("./format.js");
-const { readFileSync, statSync } = require("node:fs");
+const { existsSync, readFileSync, statSync } = require("node:fs");
 const { homedir } = require("node:os");
 const { basename } = require("node:path");
 
@@ -186,10 +186,15 @@ function indexFile(uri) {
 /** What the saved graph holds, reread when the file changes. */
 function learned() {
   const configured = String(config().get("graph", "") || "").replace(/^~/, homedir());
-  const path = configured || `${homedir()}/.napkin/graph.json`;
+  // The journal the runtime keeps (store/journal.ts), or an older graph.json.
+  const journal = `${homedir()}/.napkin/store.ncon`;
+  const path = configured || (existsSync(journal) ? journal : `${homedir()}/.napkin/graph.json`);
   try {
     const mtime = statSync(path).mtimeMs;
-    if (!graph || graph.path !== path || graph.mtime !== mtime) graph = { path, mtime, relations: indexGraph(JSON.parse(readFileSync(path, "utf8"))) };
+    if (!graph || graph.path !== path || graph.mtime !== mtime) {
+      const text = readFileSync(path, "utf8");
+      graph = { path, mtime, relations: path.endsWith(".json") ? indexGraph(JSON.parse(text)) : indexJournal(text) };
+    }
     return graph.relations;
   } catch {
     return new Map();

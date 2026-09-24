@@ -69,7 +69,7 @@ result   Describes(Chess(), List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ..
 ```
 
 Invent, realize, collect what came back residual, try the graph, ask the Teacher last, save,
-re-answer. The graph persists to `~/.napkin/graph.json`, so asking again in a fresh process
+re-answer. The graph persists to `~/.napkin/store.ncon`, a journal over the packs, so asking again in a fresh process
 needs no model call.
 
 Wikidata and web search run **before** the Teacher, so it is a last resort rather than the
