@@ -11,6 +11,7 @@
 import { type Expr, c, call, format, isCall, parse } from "../concept/expression.js";
 import { codeSource, concept, declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
+import { groundingVocabulary } from "./grounding/vocabulary.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1483,6 +1484,9 @@ add(concept("Day", {
     }),
   ],
 }));
+
+// The relations the grounding layers write (seed/grounding/README.md).
+groundingVocabulary.forEach(add);
 
 export interface SeedReport {
   created: number;

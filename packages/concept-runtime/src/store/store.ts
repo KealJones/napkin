@@ -10,7 +10,7 @@ import { type Expr, isCall, format, equal } from "../concept/expression.js";
 import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
 
 /** Same claim AND same context. Differing on either makes it a separate assertion. */
-const sameRelation = (a: Relation, b: Relation): boolean =>
+export const sameRelation = (a: Relation, b: Relation): boolean =>
   equal(a.claim, b.claim) &&
   (a.context === undefined
     ? b.context === undefined

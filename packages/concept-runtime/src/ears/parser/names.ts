@@ -38,12 +38,20 @@ const key = (phrase: string): string => {
   return [...words.slice(0, -1), last].join(" ");
 };
 
-const identity = (phrase: string): string =>
-  key(phrase)
+/**
+ * The name a written form is known by: "cover letter" is `CoverLetter`. Shared with the
+ * grounding import, so a word the import seeded and a phrase the parser meets land on one
+ * Concept rather than two spellings of it.
+ */
+export const nameOf = (written: string): string =>
+  written
+    .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join("");
+
+const identity = (phrase: string): string => nameOf(key(phrase));
 
 /** Whether the phrase names one kind of thing, if anyone knows. Undefined means not yet. */
 export function namesOneThing(phrase: string): boolean | undefined {
