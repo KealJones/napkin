@@ -352,6 +352,8 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
     if (nouns.length && r.is("Date") && !nouns[nouns.length - 1].tags.has("Date")) break;
     // "apples, pears": a comma ends the thing named; the next noun is a sibling.
     if (nouns.length && nouns[nouns.length - 1].comma) break;
+    // "is greg my coworker": the tagger calls "my" a noun, but an owner opens a new phrase.
+    if (nouns.length && POSSESSIVE[r.word()]) break;
     // "sister's birthday": an owning noun wraps what it owns.
     if (r.is("Possessive") && nouns.length === 0 && r.is("Noun", 1)) {
       const owner = r.next();

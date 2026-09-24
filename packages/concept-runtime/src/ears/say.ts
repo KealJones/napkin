@@ -181,6 +181,18 @@ export async function say(
   if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];
   // "and plus 3?" works on an answer the message never states, and a model shown only the
   // message and 87 added the 3 again. A number from a follow-up is said as it is.
+  // Not knowing is said plainly: "I don't know your favorite food yet".
+  if (answered !== undefined && isCall(answered) && answered.head === "Unknown") {
+    const what = answered.args[0]?.value;
+    const phrase = (e: Expr | undefined): string => {
+      if (e === undefined || !isCall(e)) return "";
+      const OWN: Record<string, string> = { My: "your", Your: "my", Our: "our" };
+      const rest = e.args.length === 1 ? phrase(e.args[0].value) : "";
+      return [OWN[e.head] ?? words(e.head), rest].filter(Boolean).join(" ");
+    };
+    const said = phrase(what);
+    return said ? `I don't know ${said} yet.` : "I don't know that yet.";
+  }
   const followUp = options.asked !== undefined && [...walk(options.asked)].some((n) => isCall(n) && n.head === "Ref");
   if (typeof answered === "number" && followUp) return `That makes ${Number.isInteger(answered) ? answered : +answered.toFixed(6)}.`;
   const straightforward = direct(result, tense(options.asked));

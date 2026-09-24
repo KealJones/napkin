@@ -116,3 +116,46 @@ export function forSaying(store: ConceptStore, e: Expr): Expr {
   }
   return call(e.head, args);
 }
+
+const PRONOUNS = new Set(["He", "She", "Him", "Her"]);
+
+/**
+ * "what does he like": a third-person pronoun points at the individual talked about last,
+ * found through the time index in what was said recently and recorded in place, once, the
+ * way a name is (memory-spec Part 8.3). The user is never "he". With nobody recent it stays
+ * as said.
+ */
+export function resolvePronouns(store: ConceptStore, expression: Expr, withinMs = 30 * 60_000): Expr {
+  const now = new Date();
+  const recent = store.between(new Date(now.getTime() - withinMs).toISOString(), now.toISOString()).reverse();
+  let latest: string | undefined;
+  const find = (e: Expr): void => {
+    if (latest || !isCall(e)) return;
+    const to = e.args.find((a) => a.name === "resolvedTo")?.value;
+    if (to !== undefined && isCall(to) && e.head !== "Ref") {
+      latest = to.head;
+      return;
+    }
+    for (const a of e.args) find(a.value);
+  };
+  // A minted individual something was just recorded about ("greg is my coworker" stamps
+  // Greg_1), or one a recent message named. Not the user, and not the system.
+  const minted = (identity: string): boolean =>
+    /_\d+$/.test(identity) &&
+    !store.asSubject(identity).some((t) => t.predicate === "IsA" && t.object !== undefined && isCall(t.object) && t.object.head === "User");
+  for (const entry of recent) {
+    if (minted(entry.identity)) latest = entry.identity;
+    else if (isCall(entry.relation.claim) && entry.relation.claim.head === "Said") find(entry.relation.claim);
+    if (latest) break;
+  }
+  if (!latest) return expression;
+  const walk = (e: Expr): Expr => {
+    if (!isCall(e)) return e;
+    const pointing =
+      (PRONOUNS.has(e.head) && e.args.length === 0) ||
+      (e.head === "Ref" && e.args.length === 1 && typeof e.args[0].value === "string" && /^(he|she|him|her)$/i.test(e.args[0].value));
+    if (pointing) return call(e.head, [...e.args, { name: "resolvedTo", value: c(latest!) }]);
+    return call(e.head, e.args.map((a) => ({ ...a, value: walk(a.value) })));
+  };
+  return walk(expression);
+}

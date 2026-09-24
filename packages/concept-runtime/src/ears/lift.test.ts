@@ -206,3 +206,10 @@ test("a marked misspelling keeps the word it says was meant", () => {
   const e = parse('What(MarkMisspelling("ahppened", Happened()))');
   assert.equal(format(mendWords(e, "what ahppened")), 'What(MarkMisspelling("ahppened", Happened()))');
 });
+
+test("the reading's own structure is never mended toward a word that was said", () => {
+  assert.equal(
+    format(mendWords(lift("Mood(Interrogative(), WhatIs(My(Favorite(Food()))))").expression!, "what is my favorite food")),
+    "Mood(Interrogative(), WhatIs(My(Favorite(Food()))))",
+  );
+});

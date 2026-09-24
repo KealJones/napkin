@@ -13,7 +13,7 @@ import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
-import { resolveNames, type NameResolution } from "./individuals.js";
+import { resolveNames, resolvePronouns, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 import { lineage, reachesBehaviour } from "./select.js";
@@ -375,7 +375,9 @@ export async function turn(
   const read = (
     h: EarsResult,
   ): { expression: Expr; resolved: { reference: string; to: string }[]; resolvedNames: NameResolution[] } => {
-    const { expression: maybe, resolved } = resolveReferences(h.expression, options.history ?? []);
+    // A pronoun for a person first, so "him" is not taken for the last answer.
+    const pointed = h.expression === undefined ? undefined : resolvePronouns(runtime.store, h.expression);
+    const { expression: maybe, resolved } = resolveReferences(pointed, options.history ?? []);
     const { expression: named, resolved: resolvedNames } = resolveNames(
       runtime.store,
       maybe ?? h.expression!,

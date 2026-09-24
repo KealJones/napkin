@@ -770,7 +770,16 @@ for (const copula of ["Is", "Are"]) {
               !api.store.has(head) && /[^s]s$/.test(head) && api.store.has(head.slice(0, -1)) ? head.slice(0, -1) : head;
             const kind = known(category.head);
             if (!subject || !subject.head) return answer("UnknownTruth");
-            const what = known(subject.head);
+            const resolved = subject.args.find((a) => a.name === "resolvedTo")?.value;
+            const what = resolved && resolved.head ? resolved.head : known(subject.head);
+            // "is he my coworker": a role held for someone, CoworkerOf(<the user>).
+            const owners = { My: "User", Your: "Self" };
+            const role = category.args[0]?.value;
+            if (owners[category.head] && role && role.head) {
+              const owner = category.head === "My" ? api.store.asObject("User").find((t) => t.predicate === "IsA")?.subject : "Self";
+              const holds = owner && api.relations.of(what).some((t) => t.predicate === role.head + "Of" && t.object && t.object.head === owner);
+              return answer(holds ? "True" : "UnknownTruth");
+            }
             // A kind, or a property held: IsA reaches ancestors through inheritance, and a
             // nullary claim like Small() is something the subject is.
             const truth = api.relations.truth(what, "IsA", api.call(kind));

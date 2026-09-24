@@ -105,3 +105,21 @@ test("what was told about someone is what was claimed, not what was asked", asyn
   assert.ok(!told.includes("Interrogative"), told);
   assert.match((await say("tell me about greg")).rendered, /Said\(List\(/);
 });
+
+test("an attribute of the user is kept under its whole name and read back", async () => {
+  const { say } = chat();
+  assert.equal((await say("what is my favorite color")).rendered, "Answer(Unknown(My(Favorite(Color()))))");
+  await say("my favorite color is blue");
+  assert.equal((await say("what is my favorite color")).rendered, "Answer(Blue())");
+  await say("my birthday is june 5");
+  assert.equal((await say("when is my birthday")).rendered, "Answer(Birthday(June(), 5))");
+});
+
+test("he points at the person just talked about, and a role can be asked about", async () => {
+  const { say } = chat();
+  await say("greg is my coworker");
+  assert.equal((await say("is he my coworker")).rendered, "Answer(True())");
+  assert.equal((await say("is greg my coworker?")).rendered, "Answer(True())");
+  await say("greg likes cats");
+  assert.equal((await say("what does he like")).rendered, "Answer(Cats())");
+});

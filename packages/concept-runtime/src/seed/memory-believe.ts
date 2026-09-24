@@ -111,11 +111,23 @@ export function memoryBelieveUnits(): ConceptUnit[] {
                 owner = OWNER[node.head];
                 node = positional(node)[0];
               }
+              // "my favorite color is blue" is My(Favorite(Color(Is(Blue())))): a describing
+              // word before a copula is part of what is named, so the attribute is
+              // FavoriteColor. Only before a copula: in Blorp(IsA(Small(Dog()))) the Small
+              // describes the category, not the subject.
+              const COPULA = ["Is", "IsA", "Are", "Was", "Were"];
+              const describers = [];
+              while (isCall(node) && positional(node).length === 1 && isCall(positional(node)[0]) &&
+                positional(positional(node)[0]).length === 1 && isCall(positional(positional(node)[0])[0]) &&
+                COPULA.includes(positional(positional(node)[0])[0].head)) {
+                describers.push(node.head);
+                node = positional(node)[0];
+              }
               const inner = positional(node);
               if (!isCall(node) || inner.length !== 1 || !isCall(inner[0]) || (realizes(node.head) && !OWNER[node.head])) {
                 return await evaluateAsSaid();
               }
-              subject = owner ? api.call(node.head) : node;
+              subject = owner || describers.length ? api.call(describers.join("") + node.head) : node;
               claim = inner[0];
             }
             if (!isCall(claim) || !isCall(subject)) return await evaluateAsSaid();
@@ -139,6 +151,17 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               const name = text.replace(/\\b\\w/g, (ch) => ch.toUpperCase());
               api.store.addRelation(target, api.call("Named", name), undefined, cause);
               return api.call("Believed", api.call("Me"), api.call("List", api.call("Named", name)));
+            }
+            if (owner && claim.head === "Is" && positional(claim).length >= 1 && !(isCall(role) && OWNER[role.head])) {
+              // "my favorite color is blue", "my birthday is june 5": an attribute of the
+              // owner, FavoriteColor(Blue()), unless someone already holds the role, in
+              // which case it is said about them and stays as said.
+              const ownerId = who(owner, true);
+              if (!ownerId || holderOf(subject.head, ownerId)) return api.call("Noted", line);
+              const attribute = api.call(subject.head, ...positional(claim));
+              api.store.addRelation(ownerId, attribute, undefined, cause);
+              const possessive = Object.keys(OWNER).find((k) => OWNER[k] === owner);
+              return api.call("Believed", api.call(possessive, api.call(subject.head)), api.call("List", attribute));
             }
             if (isCall(role) && OWNER[role.head] && positional(role).length === 1 && isCall(positional(role)[0])) {
               // "greg is my coworker": the subject holds the role for the owner.
@@ -248,14 +271,29 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               ${HELPERS}
               const thing = args[0].value;
               const ownerId = who(OWNER["${possessive}"], false);
-              if (!isCall(thing) || !ownerId) return api.call("${possessive}", thing);
+              if (!isCall(thing)) return api.call("${possessive}", thing);
+              if (!ownerId) return api.call("Unknown", api.call("${possessive}", thing));
               if (thing.head === "Name") {
                 const name = api.store.asSubject(ownerId).find((t) => t.predicate === "Named");
                 if (name && typeof name.object === "string") return name.object;
               }
-              const holder = holderOf(thing.head, ownerId);
+              // "my favorite color" is My(Favorite(Color())), the attribute FavoriteColor.
+              let key = "";
+              let part = thing;
+              while (isCall(part)) {
+                key += part.head;
+                const rest = positional(part);
+                part = rest.length === 1 ? rest[0] : undefined;
+              }
+              const attribute = api.store.asSubject(ownerId).find((t) => t.predicate === key);
+              if (attribute) {
+                const values = positional(attribute.expr);
+                return values.length === 1 ? values[0] : attribute.expr;
+              }
+              const holder = holderOf(key, ownerId);
               if (holder) return api.call(holder);
-              return api.call("${possessive}", thing);
+              // Asked for and never told: not knowing is the answer, not the word "my".
+              return api.call("Unknown", api.call("${possessive}", thing));
             }`),
           }),
         ],

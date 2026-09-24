@@ -298,10 +298,16 @@ function distance(a: string, b: string): number {
  *
  * `It()` is not a pointing word here: in "what time is it" it points at nothing.
  */
+/** Names the reading is built from rather than names for what was said. */
+const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Item", "Heading", "Aside"]);
+
 export function mendWords(e: Expr, message: string): Expr {
   const said = [...new Set((message.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length >= 3))];
   const saidSet = new Set(message.toLowerCase().match(/[a-z]+/g) ?? []);
   const restore = (head: string): string => {
+    // The reading's own structure is never a typo of the user's words: "what is my favorite
+    // food" had its Mood wrapper "restored" to Food, one letter away.
+    if (STRUCTURE.has(head)) return head;
     if (!/^[A-Z][a-z]+$/.test(head)) return head;
     const w = head.toLowerCase();
     if (saidSet.has(w) || w.length < 3) return head;
