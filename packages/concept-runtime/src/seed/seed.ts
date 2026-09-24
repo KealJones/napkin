@@ -15,6 +15,7 @@ import { memoryIndividualUnits } from "./memory-individuals.js";
 import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
 import { selfUnits } from "./self.js";
+import { everydayUnits } from "./everyday.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 import { judgmentEvidenceUnits } from "./judgment-evidence.js";
@@ -328,9 +329,36 @@ add(
         pattern: "Sequence(Rest($steps))",
         evaluateArguments: false,
         body: code(`async (args, bindings, api) => {
+          // "take 10, double it, then subtract 5": a later line works on the line before,
+          // through an "it" nobody resolved or an operator missing what it works on.
+          // "what day is it and what time is it": lines that each answer are all answered.
+          const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
+          const unmood = (e) => (isCall(e) && e.head === "Mood" && e.args.length === 2 ? e.args[1].value : e);
+          const binary = (head) =>
+            (api.store.get(head)?.realizations ?? []).some((r) => isCall(r.pattern) && r.pattern.args.length === 2);
+          const carry = (e, prev) => {
+            if (!isCall(e)) return e;
+            if (e.head === "Ref" && e.args.length === 1 && /^(it|that|this|)$/.test(String(e.args[0].value))) return prev;
+            return api.call(e.head, ...e.args.map((a) => carry(a.value, prev)));
+          };
           let last = null;
-          for (const a of args) last = await api.evaluate(a.value);
-          return last;
+          const answers = [];
+          for (const [i, a] of args.entries()) {
+            let line = a.value;
+            if (i > 0 && last !== null && (typeof last === "number" || isCall(last))) {
+              const prev = isCall(last) && last.head === "Answer" && last.args.length === 1 ? last.args[0].value : last;
+              line = carry(line, prev);
+              const core = unmood(line);
+              if (isCall(core) && core.args.length === 1 && core.args[0].name === undefined && binary(core.head) && typeof prev === "number") {
+                const applied = api.call(core.head, prev, core.args[0].value);
+                line = line === core ? applied : api.call("Mood", line.args[0].value, applied);
+              }
+            }
+            const value = await api.evaluate(line);
+            if (isCall(value) && value.head === "Answer") answers.push(value);
+            last = value;
+          }
+          return answers.length > 1 ? api.call("Sequence", ...answers) : last;
         }`),
       }),
     ],
@@ -692,6 +720,10 @@ add(
           };
           const at = args.slice(1).map((a) => when(a.value)).find((w) => w !== undefined);
           if (at && subject && subject.head && subject.args.length === 0) subject = api.call(subject.head, at);
+          // "what is double 8": the number said after a bare operation is what it works on.
+          if (!at && args.length === 2 && typeof args[1].value === "number" && subject && subject.head && subject.args.length === 0) {
+            subject = api.call(subject.head, args[1].value);
+          }
           const value = await api.evaluate(subject);
           // If it computed, answer. If it did not, it is a residual, so describe instead:
           // the graph decides whether a question wants a value or a definition.
@@ -769,6 +801,13 @@ for (const copula of ["Is", "Are"]) {
             const known = (head) =>
               !api.store.has(head) && /[^s]s$/.test(head) && api.store.has(head.slice(0, -1)) ? head.slice(0, -1) : head;
             const kind = known(category.head);
+            // "is 100 more than 99": a comparison, decided by computing it.
+            const comparison = /^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$/.test(category.head) ? "GreaterThan"
+              : /^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$/.test(category.head) ? "LessThan" : undefined;
+            if (comparison && category.args.length === 1) {
+              const v = await api.evaluate(api.call(comparison, await api.evaluate(subject), await api.evaluate(category.args[0].value)));
+              if (v && (v.head === "True" || v.head === "False")) return answer(v.head);
+            }
             if (!subject || !subject.head) return answer("UnknownTruth");
             const resolved = subject.args.find((a) => a.name === "resolvedTo")?.value;
             const what = resolved && resolved.head ? resolved.head : known(subject.head);
@@ -780,6 +819,9 @@ for (const copula of ["Is", "Are"]) {
               const holds = owner && api.relations.of(what).some((t) => t.predicate === role.head + "Of" && t.object && t.object.head === owner);
               return answer(holds ? "True" : "UnknownTruth");
             }
+            // Never heard of: evaluating it leaves the gap where learning can find it, so
+            // "is a tomato a fruit" learns Tomato and asks again, without teaching Is.
+            if (!api.store.has(what) && !resolved) await api.evaluate(api.call(what));
             // A kind, or a property held: IsA reaches ancestors through inheritance, and a
             // nullary claim like Small() is something the subject is.
             const truth = api.relations.truth(what, "IsA", api.call(kind));
@@ -1625,6 +1667,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
   applyUnits(store, selfUnits(), report);
+  applyUnits(store, everydayUnits(), report);
   applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;

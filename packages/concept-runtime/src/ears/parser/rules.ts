@@ -571,6 +571,8 @@ function clauseBoundary(r: Reader): boolean {
   const before = r.toks[r.i - 1];
   if (before?.comma && (r.is("Verb") || r.word() === "then" || AUX.has(r.word()) || WH.has(r.word()))) return true;
   if (r.word() === "and" && (PERSON[r.word(1)] || r.word(1) === "it") && (r.is("Verb", 2) || COPULA.has(r.word(2)))) return true;
+  // "what day is it and what time is it": a question word after "and" asks a second question.
+  if (r.word() === "and" && WH.has(r.word(1)) && r.i + 2 < r.toks.length) return true;
   // "and update the tests", "and tell me": an order joined on, recognised by what follows it.
   if (r.word() === "and" && canBeVerb(r.word(1)) && (DET.has(r.word(2)) || POSSESSIVE[r.word(2)] || PERSON[r.word(2)] || POINTING.has(r.word(2)))) return true;
   // "and like add them up": a hedge before the verb of a new order.
@@ -1044,6 +1046,11 @@ const INTERJECTION = /^(thanks|thank|thx|ty|hi|hello|hey|sorry|ok|okay|cool|nice
 
 function clause(r: Reader): { e: Expr; kind?: Kind } {
   const first = r.peek()!;
+  // "cool, thanks": an interjection before a comma is its own fragment too.
+  if ((INTERJECTION.test(first.word) || EXPRESSION.has(first.word)) && first.comma && r.toks.length - r.i > 1) {
+    r.next();
+    return { e: stressed(first, c(name(first.word))) };
+  }
   // "thanks", "thank you", "cool": an interjection is a fragment, with no mood.
   if ((INTERJECTION.test(first.word) || EXPRESSION.has(first.word)) && (r.toks.length - r.i === 1 || (first.word === "thank" && r.word(1) === "you" && r.toks.length - r.i === 2))) {
     const words = r.toks.slice(r.i).map((t) => t.word);

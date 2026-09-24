@@ -26,6 +26,7 @@ A fact written In(fact, Sense()) holds only in that sense; say which sense it is
 Me() in a result is the person you are talking to, so it is "you" when you say it.
 Self() is you, the one replying, so it is "I".
 If the result is Answer(List(...)) of capabilities, say what you can do as a short list.
+If the result is Sequence(...), each part answers the next part of the message, in order.
 If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
 facts back in plain words. If the result is Noted(x), acknowledge it in a few words and
 say it back to them, for example "Got it, you ate an apple."
@@ -170,17 +171,17 @@ const SOCIAL: Record<string, string> = {
   GotIt: "Got it.",
   GladYouLikeIt: "Glad you like it!",
   Laughing: "Ha!",
+  Sorry: "Sorry about that.",
+  Okay: "Okay.",
 };
 
-export async function say(
-  message: string,
-  result: Expr,
-  options: SayOptions = {},
-): Promise<string> {
+/**
+ * The answers with one right wording, said without a model: small talk, not knowing, a
+ * follow-up number, a date or a time, a missing input. Undefined when a model is needed.
+ */
+function plainly(result: Expr, options: SayOptions): string | undefined {
   const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
   if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];
-  // "and plus 3?" works on an answer the message never states, and a model shown only the
-  // message and 87 added the 3 again. A number from a follow-up is said as it is.
   // Not knowing is said plainly: "I don't know your favorite food yet".
   if (answered !== undefined && isCall(answered) && answered.head === "Unknown") {
     const what = answered.args[0]?.value;
@@ -193,13 +194,23 @@ export async function say(
     const said = phrase(what);
     return said ? `I don't know ${said} yet.` : "I don't know that yet.";
   }
+  // "and plus 3?" works on an answer the message never states, and a model shown only the
+  // message and 87 added the 3 again. A number from a follow-up is said as it is.
   const followUp = options.asked !== undefined && [...walk(options.asked)].some((n) => isCall(n) && n.head === "Ref");
   if (typeof answered === "number" && followUp) return `That makes ${Number.isInteger(answered) ? answered : +answered.toFixed(6)}.`;
-  const straightforward = direct(result, tense(options.asked));
-  if (straightforward) return straightforward;
+  return direct(result, tense(options.asked)) ?? question(result);
+}
 
-  const asking = question(result);
-  if (asking) return asking;
+export async function say(
+  message: string,
+  result: Expr,
+  options: SayOptions = {},
+): Promise<string> {
+  // Several answers to one message: said one after another when each has one wording,
+  // otherwise together, so the model sees which part of the message each one answers.
+  const parts = isCall(result) && result.head === "Sequence" && result.args.length > 1 ? result.args.map((a) => a.value) : [result];
+  const plain = parts.map((p) => plainly(p, options));
+  if (plain.every((p) => p !== undefined)) return plain.join(" ");
 
   // Say plainly that it did not work out, rather than describing the expression that
   // failed to, or worse, answering it from memory.

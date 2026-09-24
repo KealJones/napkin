@@ -47,6 +47,11 @@ export function resolveReferences(
 
   const walk = (e: Expr): Expr => {
     if (!isCall(e)) return e;
+    // "take 10, double it": after the first line of a message, a bare "it" points at the
+    // line before, which the Sequence resolves as it runs, not at the last turn.
+    if (e.head === "Sequence") {
+      return call("Sequence", e.args.map((a, i) => ({ ...a, value: i === 0 ? walk(a.value) : a.value })));
+    }
     if (e.head === "Ref") {
       // Already resolved, by the Ears inside the message or by an earlier pass. History
       // must not overwrite it: "it" pointing at a link in this message is not the last answer.

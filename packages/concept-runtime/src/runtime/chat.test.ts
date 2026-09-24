@@ -45,3 +45,25 @@ test("the system can say who it is and what it can do", async () => {
   assert.match(await ask("who are you"), /IsA\(Assistant\(\)\)/);
   assert.doesNotMatch(await ask("who are you"), /CanDo/, "capabilities are answered when asked, not recited");
 });
+
+test("everyday arithmetic words, chains of steps, and comparisons", async () => {
+  assert.equal(await ask("what is half of 90"), "Answer(45)");
+  assert.equal(await ask("what is double 8"), "Answer(16)");
+  assert.equal(await ask("what's the average of 2, 4 and 9"), "Answer(5)");
+  assert.equal(await ask("add up 3, 4 and 5"), "12");
+  assert.equal(await ask("take 10, double it, then subtract 5"), "15");
+  assert.equal(await ask("is 100 more than 99"), "Answer(True())");
+  assert.equal(await ask("is 3 bigger than 5"), "Answer(False())");
+});
+
+test("each question in a message is answered", async () => {
+  assert.equal(await ask("what is 2 plus 2 and what is 3 times 3"), "Sequence(Answer(4), Answer(9))");
+  assert.equal(await say("cool, thanks", c("Sequence", c("Answer", c("GladYouLikeIt")), c("Answer", c("YoureWelcome")))), "Glad you like it! You're welcome!");
+});
+
+test("holidays are dates, and being told it was wrong is apologised for", async () => {
+  const days = await ask("how many days until christmas");
+  assert.match(days, /^Answer\(Days\(\d+\)\)$/);
+  assert.equal(await ask("that was wrong"), "Answer(Sorry())");
+  assert.equal(await ask("no"), "Answer(Okay())");
+});
