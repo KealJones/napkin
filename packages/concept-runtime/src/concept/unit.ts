@@ -23,6 +23,8 @@ export interface Realization {
   /** Retired realizations are retained but never selected (concept-spec Part 3.2). */
   readonly retired?: boolean;
   readonly addedAt?: string;
+  /** The pack that seeded it, so a pack that no longer has it retires it. */
+  readonly seededFrom?: string;
 }
 
 /**
@@ -60,6 +62,8 @@ export interface Stamp {
   readonly seq: number;
   readonly recordedAt: string;
   readonly source?: number;
+  /** The pack that seeded it. A relation only packs stamped is theirs to take back. */
+  readonly pack?: string;
 }
 
 export interface ConceptUnit {

@@ -7,6 +7,9 @@
  *   call     := Head "(" [ arg { "," arg } ] ")"
  *   arg      := [ name "=" ] expr
  *
+ * A string is JSON-quoted, or raw between triple quotes (`"""..."""`, no escapes, for source
+ * held as text). `//` starts a comment that runs to the end of the line.
+ *
  * There is no list syntax, no object syntax, and no infix operators. Collections are
  * Concepts; keyed collections use the named arguments the grammar already has.
  */
@@ -66,10 +69,18 @@ class Parser {
     return value;
   }
 
+  /** Every expression in the source, one after another, as a `.ncon` file holds them. */
+  parseMany(): Expr[] {
+    const out: Expr[] = [];
+    for (this.ws(); this.i < this.src.length; this.ws()) out.push(this.value());
+    return out;
+  }
+
   private value(): Expr {
     this.ws();
     const ch = this.src[this.i];
     if (ch === undefined) this.fail("Unexpected end of input");
+    if (this.src.startsWith('"""', this.i)) return this.raw();
     if (ch === '"') return this.string();
     if (ch === "$") return this.variable();
     if (ch === "-" || (ch >= "0" && ch <= "9")) return this.number();
@@ -158,8 +169,21 @@ class Parser {
     this.fail("Unterminated string");
   }
 
+  private raw(): string {
+    const end = this.src.indexOf('"""', this.i + 3);
+    if (end < 0) this.fail("Unterminated raw string");
+    const text = this.src.slice(this.i + 3, end);
+    this.i = end + 3;
+    return text;
+  }
+
   private ws(): void {
-    while (this.i < this.src.length && /\s/.test(this.src[this.i])) this.i += 1;
+    for (;;) {
+      while (this.i < this.src.length && /\s/.test(this.src[this.i])) this.i += 1;
+      if (!this.src.startsWith("//", this.i)) return;
+      const end = this.src.indexOf("\n", this.i);
+      this.i = end < 0 ? this.src.length : end + 1;
+    }
   }
 
   private fail(message: string): never {
@@ -168,6 +192,7 @@ class Parser {
 }
 
 export const parse = (source: string): Expr => new Parser(source).parse();
+export const parseMany = (source: string): Expr[] => new Parser(source).parseMany();
 
 export function format(e: Expr): string {
   if (e === null) return "null";

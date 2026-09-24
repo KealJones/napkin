@@ -130,10 +130,10 @@ export class ConceptStore {
     return this.stamp(source);
   }
 
-  private stamp(source?: number): Stamp {
+  private stamp(source?: number, pack?: string): Stamp {
     const seq = this.nextSeq++;
     const recordedAt = new Date().toISOString();
-    return source === undefined ? { seq, recordedAt } : { seq, recordedAt, source };
+    return { seq, recordedAt, ...(source === undefined ? {} : { source }), ...(pack === undefined ? {} : { pack }) };
   }
 
   /**
@@ -141,8 +141,8 @@ export class ConceptStore {
    * the count moves past them so no `seq` is handed out twice. One that has none is being
    * recorded now.
    */
-  private withStamps(r: Relation): Relation {
-    if (!r.stamps?.length) return { ...r, stamps: [this.stamp()] };
+  private withStamps(r: Relation, pack?: string): Relation {
+    if (!r.stamps?.length) return { ...r, stamps: [this.stamp(undefined, pack)] };
     for (const s of r.stamps) if (s.seq >= this.nextSeq) this.nextSeq = s.seq + 1;
     return r;
   }
@@ -202,11 +202,13 @@ export class ConceptStore {
    */
   seed(
     unit: ConceptUnit,
-    options: { authoritative?: boolean } = {},
+    options: { authoritative?: boolean; pack?: string } = {},
   ): { created: boolean; addedRelations: number; addedRealizations: number } {
+    const { pack } = options;
+    const own = (r: Realization): Realization => (pack === undefined ? r : { ...r, seededFrom: pack });
     const existing = this.units.get(unit.identity);
     if (!existing) {
-      this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r)) });
+      this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r, pack)), realizations: unit.realizations.map(own) });
       return { created: true, addedRelations: unit.relations.length, addedRealizations: unit.realizations.length };
     }
     // Seeding again is not asserting again, so a relation already held gains no stamp.
@@ -214,7 +216,7 @@ export class ConceptStore {
     let addedRelations = 0;
     for (const r of unit.relations) {
       if (!relations.some((x) => sameRelation(x, r))) {
-        relations.push(this.withStamps(r));
+        relations.push(this.withStamps(r, pack));
         addedRelations += 1;
       }
     }
@@ -230,13 +232,44 @@ export class ConceptStore {
           !x.retired && x.addedAt === undefined && sameKey(x, r) && !sameRealization(x, r) ? { ...x, retired: true } : x,
         );
       }
-      if (!realizations.some((x) => sameRealization(x, r))) {
-        realizations.push(r);
+      const same = realizations.findIndex((x) => sameRealization(x, r));
+      if (same < 0) {
+        realizations.push(own(r));
         addedRealizations += 1;
+      } else if (pack !== undefined && realizations[same].addedAt === undefined && realizations[same].seededFrom === undefined) {
+        // A copy an older seed left carries no origin; the pack that seeds it now owns it.
+        realizations[same] = own(realizations[same]);
       }
     }
     this.put({ ...existing, relations, realizations });
     return { created: false, addedRelations, addedRealizations };
+  }
+
+  /**
+   * What a pack seeded and no longer has: its realizations are retired, and a relation only
+   * that pack stamped is removed. What anyone else added or also asserted is untouched.
+   */
+  prunePack(pack: string, units: readonly ConceptUnit[]): { retired: number; removed: number } {
+    const kept = new Map(units.map((u) => [u.identity, u]));
+    let retired = 0;
+    let removed = 0;
+    for (const unit of [...this.units.values()]) {
+      const now = kept.get(unit.identity);
+      const before = retired + removed;
+      const realizations = unit.realizations.map((r) => {
+        if (r.retired || r.seededFrom !== pack || now?.realizations.some((x) => sameRealization(x, r))) return r;
+        retired += 1;
+        return { ...r, retired: true };
+      });
+      const relations = unit.relations.filter((r) => {
+        const theirs = !!r.stamps?.length && r.stamps.every((s) => s.pack === pack);
+        if (!theirs || now?.relations.some((x) => sameRelation(x, r))) return true;
+        removed += 1;
+        return false;
+      });
+      if (retired + removed > before) this.put({ ...unit, relations, realizations });
+    }
+    return { retired, removed };
   }
 
   /**

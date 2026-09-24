@@ -24,6 +24,7 @@ interface StoredRealization {
   resultContext?: string;
   retired?: boolean;
   addedAt?: string;
+  seededFrom?: string;
 }
 
 /**
@@ -40,16 +41,19 @@ type StoredRelation = string | { claim: string; context?: string; stamps?: strin
  * size of the graph.
  */
 const stampText = (s: Stamp): string =>
-  `#${s.seq} ${s.recordedAt}${s.source === undefined ? "" : ` from #${s.source}`}`;
+  `#${s.seq} ${s.recordedAt}${s.source === undefined ? "" : ` from #${s.source}`}${s.pack === undefined ? "" : ` pack ${s.pack}`}`;
 
-const STAMP = /^#(\d+) (\S+)(?: from #(\d+))?$/;
+const STAMP = /^#(\d+) (\S+)(?: from #(\d+))?(?: pack (\S+))?$/;
 
 const readStamp = (text: string): Stamp => {
   const m = STAMP.exec(text);
   if (!m) throw new Error(`Unreadable stamp: ${text}`);
-  return m[3] === undefined
-    ? { seq: Number(m[1]), recordedAt: m[2] }
-    : { seq: Number(m[1]), recordedAt: m[2], source: Number(m[3]) };
+  return {
+    seq: Number(m[1]),
+    recordedAt: m[2],
+    ...(m[3] === undefined ? {} : { source: Number(m[3]) }),
+    ...(m[4] === undefined ? {} : { pack: m[4] }),
+  };
 };
 
 interface StoredUnit {
@@ -95,6 +99,7 @@ const toStored = (u: ConceptUnit): StoredUnit => ({
     resultContext: r.resultContext === undefined ? undefined : format(r.resultContext),
     retired: r.retired,
     addedAt: r.addedAt,
+    seededFrom: r.seededFrom,
   })),
   updatedAt: u.updatedAt,
 });
@@ -128,6 +133,7 @@ const fromStored = (s: StoredUnit): ConceptUnit => ({
       resultContext: r.resultContext === undefined ? undefined : parse(r.resultContext),
       retired: r.retired,
       addedAt: r.addedAt,
+      ...(r.seededFrom === undefined ? {} : { seededFrom: r.seededFrom }),
     }),
   ),
   updatedAt: s.updatedAt,
