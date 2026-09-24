@@ -61,7 +61,7 @@ const COMPOUND: Partial<Record<ts.SyntaxKind, string>> = {
 };
 
 /**
- * Array methods that are code-IR primitives (seed/code-ir.ts), with the callback's
+ * Array methods that are code-IR primitives (packs/code.ncon), with the callback's
  * parameter count each passes. `xs.map(f)` imports as `Map($xs, f)`, which runs and
  * compiles, rather than `Call(Member($xs, "map"), f)`, which has nothing to run it. A
  * callback taking more (the index, the array) stays a method call: the primitive does not

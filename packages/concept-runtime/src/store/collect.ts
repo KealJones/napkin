@@ -112,10 +112,10 @@ function liveSources(store: ConceptStore): Set<number> {
 
 /**
  * `Said` stores the whole parse, mood included (`memory/conversations.ts`), but
- * `Consolidate` (`seed/memory-consolidate.ts`) records the unwrapped clause it actually
+ * `Consolidate` (`packs/memory.ncon`) records the unwrapped clause it actually
  * matched on. Unwrapping the same way here is what lets a `Said` relation's own claim be
  * compared against a `Consolidation`'s at all; naming `Said` is the same precedent
- * `seed/memory-forget.ts` already sets for structural host code.
+ * `packs/memory.ncon` already sets for structural host code.
  */
 function contentOf(claim: Expr): Expr {
   if (!isCall(claim) || claim.head !== "Said") return claim;

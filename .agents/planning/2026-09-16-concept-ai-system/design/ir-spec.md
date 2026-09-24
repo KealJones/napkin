@@ -900,7 +900,7 @@ code that mutates foreign objects cannot execute".
 
 The code IR runs. A realization's body can be written in Concepts instead of as a
 JavaScript string, and the graph can read, compare and one day learn it. The primitives
-are Concepts in `seed/code-ir.ts`, each one small `Code(...)` body under `Execution()`:
+are Concepts in `packs/code.ncon`, each one small `Code(...)` body under `Execution()`:
 
 | Group | Primitives |
 |---|---|
@@ -968,7 +968,7 @@ context read as a cycle to the evaluator's guard.
 Compiled IR is 3x to 6x hand JavaScript and far under what a turn costs. What remains is
 the Concepts it still calls by selection, including nullary literals like `True()`.
 
-`Members` and the yes/no `Is` are written this way now (`seed/members.ts`, `seed/seed.ts`).
+`Members` and the yes/no `Is` are written this way now (`packs/members.ncon`, `packs/basic.ncon`).
 Only word morphology (`Singular`, "games" names Game) stays JavaScript.
 
 #### Why the rest is not migrated mechanically yet

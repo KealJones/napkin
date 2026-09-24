@@ -1,0 +1,62 @@
+Requires(Basic())
+
+// ================================================================
+// From src/seed/members.ts
+//
+// "do you know any games", "what games do you know", "which birds do you know": the
+// members of a kind, found as every unit holding `IsA(kind)` on the relation index
+// (concept-spec Part 5.1.1), following sub-kinds, in the general sense only. One lookup for
+// every kind, so knowing a new game, bird or city needs nothing added here.
+
+// "games" names the kind Game: the plural a kind is asked about in. Word morphology, so JavaScript.
+// Everything reached from a frontier by IsA (instances) or SubclassOf (kinds of it), in the
+// general sense only and never retracted, one level at a time. Written in the code IR.
+// Kinds answer "what games do you know"; individuals only when there is nothing else, as for "any friends".
+Concept(Members(),
+  Realization(Members($kind), context=Execution(), evaluateArguments=false, properties=List(Compile()),
+    body=Let(
+      $all,
+      Let($root, Singular($kind), Reach(List($root), List($root))),
+      Let(
+        $kinds,
+        Filter($all, Lambda(List($x), Not(Matches(Head($x), "_[0-9]+$")))),
+        If(GreaterThan(Length($kinds), 0), $kinds, $all)))))
+
+Concept(Reach(),
+  Realization(Reach($frontier, $seen), context=Execution(), properties=List(Compile()),
+    body=Let(
+      $next,
+      Unique(
+        Filter(
+          FlatMap(
+            $frontier,
+            Lambda(List($k), Concat(Subjects("IsA", $k), Subjects("SubclassOf", $k)))),
+          Lambda(List($x), Not(Includes($seen, $x))))),
+      If(
+        Or(Equals(Length($next), 0), GreaterThan(Length($seen), 200)),
+        $next,
+        Concat($next, Reach($next, Concat($seen, $next)))))))
+
+Concept(Singular(),
+  Realization(Singular($kind), context=Execution(), evaluateArguments=false,
+    body=Code(
+      source="""async (args, bindings, api) => {
+  const kind = args[0].value;
+  if (kind === null || typeof kind !== "object" || !("head" in kind)) return api.call("Nothing");
+  const head = kind.head;
+  const known = (h) => api.store.has(h) || api.store.asObject(h).some((t) => t.predicate === "IsA");
+  if (known(head) && !/s$/.test(head)) return api.call(head);
+  for (const h of [head.replace(/ies$/, "y"), head.replace(/es$/, ""), head.replace(/s$/, "")]) if (h !== head && known(h)) return api.call(h);
+  return api.call(head);
+}""")))
+
+// "any games", "some birds", asked about: the members of the kind.
+Concept(Any(),
+  Realization(Any($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(
+      source="async (args, bindings, api) => await api.evaluate(api.call(\"Members\", args[0].value))")))
+
+Concept(Some(),
+  Realization(Some($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(
+      source="async (args, bindings, api) => await api.evaluate(api.call(\"Members\", args[0].value))")))

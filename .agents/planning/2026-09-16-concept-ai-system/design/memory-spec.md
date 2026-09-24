@@ -865,7 +865,7 @@ Easiest first. Each step is usable on its own.
 
 Status, 2026-09-24: all eight steps are built.
 
-- Steps 5 and 6 are demonstrated with tic-tac-toe (`seed/memory-process.ts`). Step 3 of
+- Steps 5 and 6 are demonstrated with tic-tac-toe (`packs/memory.ncon`). Step 3 of
   Part 8.2 ranks by `Activation`. Step 6 has no cell cache: the fold is replayed on every
   read, since a cache would be a second copy of what the moves say.
 - The user's `Said` does not carry `resolvedTo` for a routed move; the committed effect

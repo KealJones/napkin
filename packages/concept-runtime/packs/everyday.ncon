@@ -1,0 +1,390 @@
+Requires(Basic(), Self())
+
+// ================================================================
+// From src/seed/everyday.ts
+//
+// Everyday requests a chat gets that the core seed had no words for: halves and doubles,
+// averages and totals, holidays and how far off they are, "define", and being told it was
+// wrong. Each is an ordinary realization; nothing here is host code.
+
+// "half of 90", "double it": one number in, one out, said with or without "of".
+// "the average of 2, 4 and 9", "add up 3, 4 and 5": over a list, said with or without "of".
+// A holiday on a fixed date is the next time that date comes round.
+Concept(Half(),
+  Realization(Half($x), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Half", args[0].value) : x / 2;
+        }""")),
+  Realization(Half(Of($x)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Half", args[0].value) : x / 2;
+        }""")))
+
+Concept(Double(),
+  Realization(Double($x), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Double", args[0].value) : x * 2;
+        }""")),
+  Realization(Double(Of($x)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Double", args[0].value) : x * 2;
+        }""")))
+
+Concept(Twice(),
+  Realization(Twice($x), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Twice", args[0].value) : x * 2;
+        }""")),
+  Realization(Twice(Of($x)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Twice", args[0].value) : x * 2;
+        }""")))
+
+Concept(Triple(),
+  Realization(Triple($x), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Triple", args[0].value) : x * 3;
+        }""")),
+  Realization(Triple(Of($x)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[0].value);
+          return Number.isNaN(x) ? api.call("Triple", args[0].value) : x * 3;
+        }""")))
+
+Concept(Average(),
+  Realization(Average($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Average", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")),
+  Realization(Average(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Average", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")))
+
+Concept(Mean(),
+  Realization(Mean($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Mean", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")),
+  Realization(Mean(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Mean", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")))
+
+Concept(ArithmeticMean(),
+  Realization(ArithmeticMean($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("ArithmeticMean", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")),
+  Realization(ArithmeticMean(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("ArithmeticMean", args[0].value);
+          return xs.reduce((a, b) => a + b, 0) / xs.length;
+        }""")))
+
+Concept(Sum(),
+  Realization(Sum($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Sum", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")),
+  Realization(Sum(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Sum", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")))
+
+Concept(Total(),
+  Realization(Total($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Total", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")),
+  Realization(Total(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("Total", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")))
+
+Concept(AddUp(),
+  Realization(AddUp($xs), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("AddUp", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")),
+  Realization(AddUp(Of($xs)), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
+          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
+          if (!xs.length || xs.some(Number.isNaN)) return api.call("AddUp", args[0].value);
+          return xs.reduce((a, b) => a + b, 0);
+        }""")))
+
+// "take 10, double it": the number a chain of steps starts from.
+Concept(Take(),
+  Realization(Take($x), context=Execution(),
+    body=Code(
+      source="(args, bindings, api) => (typeof args[0].value === \"number\" ? args[0].value : api.call(\"Take\", args[0].value))")))
+
+// "half of 90", "until christmas": the preposition is held in the pattern that reads it.
+// Left over on its own it is structure, not a word to learn.
+Concept(Of(), IsA(Marker()))
+
+Concept(Until(), IsA(Marker()))
+
+Concept(Holiday(), IsA(Category()))
+
+Concept(Christmas(),
+  IsA(Holiday()),
+  Realization(Christmas(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 11, 25);
+          if (when < today) when = new Date(now.getFullYear() + 1, 11, 25);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+Concept(ChristmasEve(),
+  IsA(Holiday()),
+  Realization(ChristmasEve(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 11, 24);
+          if (when < today) when = new Date(now.getFullYear() + 1, 11, 24);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+Concept(NewYearsDay(),
+  IsA(Holiday()),
+  Realization(NewYearsDay(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 0, 1);
+          if (when < today) when = new Date(now.getFullYear() + 1, 0, 1);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+Concept(NewYearsEve(),
+  IsA(Holiday()),
+  Realization(NewYearsEve(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 11, 31);
+          if (when < today) when = new Date(now.getFullYear() + 1, 11, 31);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+Concept(Halloween(),
+  IsA(Holiday()),
+  Realization(Halloween(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 9, 31);
+          if (when < today) when = new Date(now.getFullYear() + 1, 9, 31);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+Concept(ValentinesDay(),
+  IsA(Holiday()),
+  Realization(ValentinesDay(), context=Execution(),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const now = new Date();
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          let when = new Date(now.getFullYear(), 1, 14);
+          if (when < today) when = new Date(now.getFullYear() + 1, 1, 14);
+          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+          return { head: "Date", args: [
+            { name: "year", value: when.getFullYear() },
+            { name: "month", value: when.getMonth() + 1 },
+            { name: "day", value: when.getDate() },
+            { name: "weekday", value: days[when.getDay()] },
+          ]};
+        }""")))
+
+// "how many days until christmas": from today to the date, in whole days.
+Concept(HowMany(),
+  Realization(HowMany(Days(), Until($when)), context=Execution(), evaluateArguments=false,
+    body=Code(
+      source="""async (args, bindings, api) => {
+            const until = args[1].value.args[0].value;
+            const date = await api.evaluate(until);
+            const field = (n) => date && date.head === "Date" ? date.args.find((a) => a.name === n)?.value : undefined;
+            if (typeof field("year") !== "number") return api.call("HowMany", ...args.map((a) => a.value));
+            const now = new Date();
+            const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+            const then = Date.UTC(field("year"), field("month") - 1, field("day"));
+            return api.call("Answer", api.call("Days", Math.round((then - today) / 86400000)));
+          }""")))
+
+// "wanna play tic tac toe?", "can we play chess": wanting to do something together, said
+// to the one who would do it, is asking for it (Searle's indirect requests), the way
+// "can you X" already is. Only a thing to do: "want pizza" stays a want.
+Concept(Want(),
+  Realization(Want($x), context=Execution(), evaluateArguments=false,
+    body=Code(
+      source="""async (args, bindings, api) => {
+            const x = args[0].value;
+            const doable = x && x.head && (api.store.get(x.head)?.realizations.length ?? 0) > 0 && x.args.length > 0;
+            if (!doable) return api.call("Want", x);
+            const ctx = api.context;
+            const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
+            return await api.evaluate(x, api.call("Context", ...facets.filter((f) => f && !["Checking", "Interrogative", "Declarative"].includes(f.head)), api.call("Imperative")));
+          }""")))
+
+Concept(Can(),
+  Realization(Can(We(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(
+      source="async (args, bindings, api) => await api.evaluate(args[1].value, api.call(\"Context\", api.call(\"Execution\"), api.call(\"Imperative\")))")))
+
+// "define recursion", "explain recursion": asking what it is, in another form.
+Concept(Define(), SynonymOf(What()))
+
+Concept(Explain(), SynonymOf(What()))
+
+// "that was wrong", "that's wrong": told it made a mistake. Apologising is the reply;
+// the correction itself is evidence the next turn carries (emergent-judgment-plan
+// Part 3.1), not something to believe.
+Concept(Was(),
+  Realization(Was($said, Wrong()), context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Sorry\"))")))
+
+Concept(Is(),
+  Realization(Is($said, Wrong()), context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Sorry\"))")))
+
+Concept(Sorry(), IsA(Data()))
+
+Concept(Okay(), IsA(Data()))
+
+// "yes", "no" on their own: a reply to a reply.
+Concept(Yes(), IsA(Agreement()))
+
+Concept(Yeah(), IsA(Agreement()))
+
+Concept(Yep(), IsA(Agreement()))
+
+Concept(Refusal(),
+  IsA(Category()),
+  Realization($said, context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Okay\"))")))
+
+Concept(No(), IsA(Refusal()))
+
+Concept(Nope(), IsA(Refusal()))
+
+Concept(Nah(), IsA(Refusal()))

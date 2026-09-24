@@ -12,7 +12,7 @@
  *
  * Design decision, following `evidence.ts`: the formula is computed here, generically over
  * stamps, indexes and trace events, with no semantic Concept named. Its numbers are not:
- * they are relations on the `Activation` Concept (`seed/memory-activation.ts`), read on every
+ * they are relations on the `Activation` Concept (`packs/memory.ncon`), read on every
  * call, so changing how fast things fade is editing the graph, not this file (Part 13). A
  * Code body cannot share a host function, and pronoun resolution runs outside evaluation,
  * so putting the formula itself in a realization would mean two copies of it.

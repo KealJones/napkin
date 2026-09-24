@@ -1,0 +1,135 @@
+Requires(Basic(), Memory())
+
+// ================================================================
+// From src/seed/self.ts
+//
+// The system as something that can be asked about, and the small talk around a chat.
+//
+// "who are you", "what is your name" and "what can you do" are questions about `Self`, the
+// speaker of every reply (memory-spec Part 5.2). The answers are relations on `Self`,
+// ordinary graph data, so what the system says it can do is edited the same way anything
+// else it knows is. Small talk ("how are you", "cool", "good night") is answered, not
+// computed, like greetings already are.
+
+// What the system can actually do today. Each is something a test exercises.
+Concept(Self(),
+  Named("Napkin"),
+  IsA(Assistant()),
+  CanDo(Arithmetic()),
+  CanDo(FollowUpArithmetic()),
+  CanDo(DatesAndTimes()),
+  CanDo(RememberWhatYouTellMe()),
+  CanDo(RecallWhatYouSaid()),
+  CanDo(DescribeWhatIKnow()),
+  CanDo(LearnNewWords()),
+  CanDo(PlayTicTacToe()),
+  CanDo(ForgetWhatYouAsk()))
+
+Concept(Assistant(), IsA(Category()))
+
+// Incidental: what it can do is answered when asked, not recited in every description.
+Concept(CanDo(), Enduring(), Incidental())
+
+Concept(Arithmetic(), IsA(Capability()))
+
+Concept(FollowUpArithmetic(), IsA(Capability()))
+
+Concept(DatesAndTimes(), IsA(Capability()))
+
+Concept(RememberWhatYouTellMe(), IsA(Capability()))
+
+Concept(RecallWhatYouSaid(), IsA(Capability()))
+
+Concept(DescribeWhatIKnow(), IsA(Capability()))
+
+Concept(LearnNewWords(), IsA(Capability()))
+
+Concept(PlayTicTacToe(), IsA(Capability()))
+
+Concept(ForgetWhatYouAsk(), IsA(Capability()))
+
+Concept(Capability(), IsA(Category()))
+
+// "what can you do": what `Self` holds `CanDo`.
+Concept(WhatCan(),
+  Realization(WhatCan(You(), Do()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(
+      source="""async (args, bindings, api) => {
+            const can = api.store.asSubject("Self").filter((t) => t.predicate === "CanDo").map((t) => t.object);
+            return api.call("Answer", api.call("List", ...can));
+          }""")))
+
+// "how are you", "how are you doing": asked to be polite, answered the same way.
+Concept(HowAre(),
+  Realization(HowAre(You()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"DoingWell\"))")),
+  Realization(HowAre(You(), $doing), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"DoingWell\"))")))
+
+Concept(DoingWell(), IsA(Data()))
+
+// "cool", "ok", "lol": a reaction, answered briefly rather than looked up.
+Concept(Approval(),
+  IsA(Category()),
+  Realization($said, context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"GladYouLikeIt\"))")))
+
+Concept(Cool(), IsA(Approval()))
+
+Concept(Nice(), IsA(Approval()))
+
+Concept(Great(), IsA(Approval()))
+
+Concept(Awesome(), IsA(Approval()))
+
+Concept(Neat(), IsA(Approval()))
+
+Concept(Wow(), IsA(Approval()))
+
+Concept(Sick(), IsA(Approval()))
+
+Concept(Perfect(), IsA(Approval()))
+
+Concept(Agreement(),
+  IsA(Category()),
+  Realization($said, context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"GotIt\"))")))
+
+Concept(Ok(), IsA(Agreement()))
+
+Concept(Okay(), IsA(Agreement()))
+
+Concept(Gotcha(), IsA(Agreement()))
+
+Concept(Alright(), IsA(Agreement()))
+
+Concept(Agreed(), IsA(Agreement()))
+
+Concept(Sure(), IsA(Agreement()))
+
+Concept(Understood(), IsA(Agreement()))
+
+Concept(Laughter(),
+  IsA(Category()),
+  Realization($said, context=Execution(), evaluateArguments=false,
+    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Laughing\"))")))
+
+Concept(Lol(), IsA(Laughter()))
+
+Concept(Haha(), IsA(Laughter()))
+
+Concept(Lmao(), IsA(Laughter()))
+
+Concept(GladYouLikeIt(), IsA(Data()))
+
+Concept(GotIt(), IsA(Data()))
+
+Concept(Laughing(), IsA(Data()))
+
+Concept(WhatsUp(), IsA(Greeting()))
+
+Concept(NiceToMeetYou(), IsA(Greeting()))
+
+Concept(GoodNight(), IsA(Farewell()))
+
+Concept(SeeYouLater(), IsA(Farewell()))

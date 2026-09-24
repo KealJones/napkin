@@ -190,30 +190,36 @@ export function pretty(e: Expr, indent = 0): string {
   const one = flat(e);
   if (!isCall(e) || (!one.includes("\n") && indent + one.length <= WIDTH) || !e.args.length) return one;
   const pad = " ".repeat(indent + 2);
-  const arg = (a: Argument) => `${pad}${a.name === undefined ? "" : `${a.name}=`}${pretty(a.value, indent + 2 + (a.name?.length ?? -1) + 1)}`;
+  const arg = (a: Argument) => `${pad}${a.name === undefined ? "" : `${a.name}=`}${pretty(a.value, indent + 2)}`;
   return `${e.head}(\n${e.args.map(arg).join(",\n")})`;
 }
 
-function realizationExpr(r: Realization): Call {
-  const args: Argument[] = [{ value: r.pattern }];
-  if (r.context !== undefined) args.push({ name: "context", value: r.context });
-  if (!r.evaluateArguments) args.push({ name: "evaluateArguments", value: false });
-  if (r.evaluateResult) args.push({ name: "evaluateResult", value: true });
-  if (r.resultContext !== undefined) args.push({ name: "resultContext", value: r.resultContext });
-  if (r.properties.length) args.push({ name: "properties", value: call("List", r.properties.map((value) => ({ value }))) });
-  args.push({ name: "body", value: r.body });
-  return call("Realization", args);
+/** A realization's settings on its first line, its body after them when it does not fit. */
+function realizationText(r: Realization, indent: number): string {
+  const head: string[] = [flat(r.pattern)];
+  if (r.context !== undefined) head.push(`context=${flat(r.context)}`);
+  if (!r.evaluateArguments) head.push("evaluateArguments=false");
+  if (r.evaluateResult) head.push("evaluateResult=true");
+  if (r.resultContext !== undefined) head.push(`resultContext=${flat(r.resultContext)}`);
+  if (r.properties.length) head.push(`properties=List(${r.properties.map(flat).join(", ")})`);
+  const one = `Realization(${head.join(", ")}, body=${flat(r.body)})`;
+  if (!one.includes("\n") && indent + one.length <= WIDTH) return one;
+  return `Realization(${head.join(", ")},\n${" ".repeat(indent + 2)}body=${pretty(r.body, indent + 2)})`;
 }
 
 const relationExpr = (r: Relation): Expr =>
   r.context === undefined ? r.claim : call("Relation", [{ value: r.claim }, { name: "context", value: r.context }]);
 
-export function unitExpr(u: ConceptUnit): Call {
-  return call("Concept", [
-    { value: call(u.identity) },
-    ...u.relations.map((r) => ({ value: relationExpr(r) })),
-    ...u.realizations.filter((r) => !r.retired).map((r) => ({ value: realizationExpr(r) })),
-  ]);
+/** A unit as a pack writes it: its name first, then a relation or realization per line. */
+export function unitText(u: ConceptUnit): string {
+  const parts = [
+    ...u.relations.map((r) => flat(relationExpr(r))),
+    ...u.realizations.filter((r) => !r.retired).map((r) => realizationText(r, 2)),
+  ];
+  const one = `Concept(${u.identity}(), ${parts.join(", ")})`;
+  if (!parts.length) return `Concept(${u.identity}())`;
+  if (!one.includes("\n") && one.length <= WIDTH) return one;
+  return `Concept(${u.identity}(),\n${parts.map((p) => `  ${p}`).join(",\n")})`;
 }
 
 /** A pack's text: `Requires`, then each unit, with any comment it carries above it. */
@@ -230,7 +236,7 @@ export function formatPack(
   for (const u of units) {
     const comment = options.comments?.get(u.identity);
     if (comment) out.push(comment.trimEnd());
-    out.push(pretty(unitExpr(u)), "");
+    out.push(unitText(u), "");
   }
   return out.join("\n");
 }
