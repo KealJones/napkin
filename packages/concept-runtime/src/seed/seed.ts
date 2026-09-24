@@ -14,6 +14,7 @@ import type { ConceptStore } from "../store/store.js";
 import { memoryIndividualUnits } from "./memory-individuals.js";
 import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
+import { selfUnits } from "./self.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 import { judgmentEvidenceUnits } from "./judgment-evidence.js";
@@ -292,7 +293,8 @@ add(
           // the user, found by what the user is rather than by identity.
           const resolved = subject.args.find((a) => a.name === "resolvedTo")?.value;
           const user = subject.head === "Me" ? api.store.asObject("User").find((t) => t.predicate === "IsA")?.subject : undefined;
-          const about = resolved && resolved.head ? resolved.head : user ?? subject.head;
+          const self = subject.head === "You" && subject.args.length === 0 ? "Self" : undefined;
+          const about = resolved && resolved.head ? resolved.head : user ?? self ?? subject.head;
           const triples = api.relations.of(about)
             .filter((t) => {
               const unit = api.store.get(t.predicate);
@@ -672,7 +674,24 @@ add(
         evaluateArguments: false,
         body: code(`async (args, bindings, api) => {
           if (!args.length) return api.call("Unknown");
-          const subject = args[0].value;
+          let subject = args[0].value;
+          // "what day will it be tomorrow" is What(Day(), Will(It(), Be(Tomorrow()))), and
+          // "what is the date tomorrow" is WhatIs(Date(), Tomorrow()): the when is said after
+          // what is asked, and belongs to it. Dropping it answered today for tomorrow.
+          const WHEN = ["Tomorrow", "Yesterday", "Today", "Tonight", "In", "Ago", "Next", "Last", "On", "After", "Before"];
+          const when = (e) => {
+            if (!e || !e.head) return undefined;
+            if (WHEN.includes(e.head)) return e;
+            const inner = e.args.filter((a) => a.name === undefined).map((a) => a.value);
+            if (e.head === "Will" || e.head === "Is" || e.head === "Was") {
+              const rest = inner.filter((v) => !(v && v.head === "It" && v.args.length === 0));
+              return rest.length === 1 ? when(rest[0]) : undefined;
+            }
+            if (e.head === "Be" && inner.length === 1) return when(inner[0]);
+            return undefined;
+          };
+          const at = args.slice(1).map((a) => when(a.value)).find((w) => w !== undefined);
+          if (at && subject && subject.head && subject.args.length === 0) subject = api.call(subject.head, at);
           const value = await api.evaluate(subject);
           // If it computed, answer. If it did not, it is a residual, so describe instead:
           // the graph decides whether a question wants a value or a definition.
@@ -1189,6 +1208,27 @@ add(binary("Divide", "r === 0 ? api.call('Undefined') : l / r"));
 add(binary("Modulo", "r === 0 ? api.call('Undefined') : l % r"));
 add(concept("Undefined", { relations: ["IsA(Result())"] }));
 add(binary("Power", "Math.pow(l, r)"));
+// "the square root of 144", "15% of 80": said with "of", so the pattern keeps it. A
+// negative has no real square root, which is the answer, as division by zero is.
+const ofNumber = (head: string, arity: 1 | 2, op: string) =>
+  concept(head, {
+    realizations: (arity === 1 ? [`${head}($x)`, `${head}(Of($x))`] : [`${head}($p, Of($x))`, `${head}($p, $x)`]).map((pattern) =>
+      realization({
+        pattern,
+        context: "Execution()",
+        body: code(`(args, bindings, api) => {
+          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
+          const x = asNumber(args[args.length - 1].value);
+          const p = ${arity === 2 ? "asNumber(args[0].value)" : "0"};
+          if (Number.isNaN(x) || Number.isNaN(p)) return api.call("${head}", ...args.map((a) => a.value));
+          return ${op};
+        }`),
+      }),
+    ),
+  });
+add(ofNumber("SquareRoot", 1, "x < 0 ? api.call('Undefined') : Math.sqrt(x)"));
+add(ofNumber("CubeRoot", 1, "Math.cbrt(x)"));
+add(ofNumber("Percent", 2, "(p / 100) * x"));
 add(
   concept("Negative", {
     realizations: [
@@ -1575,6 +1615,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryIndividualUnits(), report); // memory-spec Part 18 step 3
   applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
+  applyUnits(store, selfUnits(), report);
   applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;

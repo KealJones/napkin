@@ -16,7 +16,7 @@ import nlp from "compromise";
 import { type Expr, c, format, isCall } from "../../concept/expression.js";
 import { correct, expandBare, isWord, unclear } from "./words.js";
 import { mathSpans } from "./math.js";
-import { namesOneThing } from "./names.js";
+import { knownName, namesOneThing } from "./names.js";
 
 interface Tok {
   word: string;
@@ -365,7 +365,7 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
     return c(kind, Number(r.next().word));
   }
   // After a helper, "the build go": the last word is the verb the helper carries.
-  if (stopAtVerb && nouns.length > 1 && canBeVerb(nouns[nouns.length - 1].word)) {
+  if (stopAtVerb && nouns.length > 1 && canBeVerb(nouns[nouns.length - 1].word) && !knownName(nouns.map((n) => n.word).join(" "))) {
     r.i -= 1;
     nouns.pop();
   }
@@ -795,6 +795,17 @@ function clauses(text: string): { e: Expr; kind?: Kind }[] {
   if (!toks.length) fail("empty");
   const out: { e: Expr; kind?: Kind }[] = [];
   const r = new Reader(toks);
+  // A whole message that is one fixed phrase is one name (reading-spec P4): its words do
+  // not mean themselves. "good morning" is a greeting, not a claim that the morning is good.
+  const words = (from: number, to: number) => toks.slice(from, to).map((t) => t.word).join(" ").replace(/\s*'s\b/g, "s");
+  const phrase = FIXED[words(0, toks.length)];
+  if (phrase) return [{ e: phrase }];
+  // "good morning, what time is it": the phrase before the first comma, then the rest.
+  const comma = toks.findIndex((t) => t.comma);
+  if (comma >= 0 && FIXED[words(0, comma + 1)]) {
+    out.push({ e: FIXED[words(0, comma + 1)] });
+    r.i = comma + 1;
+  }
   // "hey there" is one fixed phrase; other leading filler is kept verbatim as an aside.
   if (r.word() === "hey" && r.word(1) === "there") {
     r.next();
@@ -1007,6 +1018,24 @@ function opensOrder(r: Reader): boolean {
   return canBeVerb(t.word) && !t.tags.has("Plural") && !t.tags.has("ProperNoun") && !t.tags.has("Date") &&
     !r.is("Verb", 1) && !COPULA.has(r.word(1));
 }
+
+/** Phrases whose words do not mean themselves, read as one name when they are the whole message. */
+const FIXED: Record<string, Expr> = {
+  "good morning": c("GoodMorning"),
+  "good afternoon": c("GoodAfternoon"),
+  "good evening": c("GoodEvening"),
+  "good night": c("GoodNight"),
+  "whats up": c("WhatsUp"),
+  "what is up": c("WhatsUp"),
+  sup: c("WhatsUp"),
+  "nice to meet you": c("NiceToMeetYou"),
+  "thank you so much": c("ThankYou", c("SoMuch")),
+  "thank you very much": c("ThankYou", c("VeryMuch")),
+  "thanks so much": c("Thanks", c("SoMuch")),
+  "thanks a lot": c("Thanks", c("ALot")),
+  "see you later": c("SeeYouLater"),
+  "see ya": c("SeeYouLater"),
+};
 
 /** Words that are a whole utterance on their own: said, not asserted, asked or ordered. */
 const INTERJECTION = /^(thanks|thank|thx|ty|hi|hello|hey|sorry|ok|okay|cool|nice|sick|yes|yeah|yep|nope|no|wow|oops|great|awesome|agreed|sure)$/;

@@ -17,13 +17,15 @@ facts, do not hedge, do not explain the notation, and do not mention Concepts.
 If the result is Answer(x), say x.
 If the result is Answer(True()), answer yes by stating what was asked as a fact.
 If the result is Answer(False()), answer no by stating the opposite as a fact.
-If the result is Answer(UnknownTruth()), say you do not know yet, naming what was asked.
+If the result is Answer(UnknownTruth()), say "I don't know yet whether" and then what was asked.
 If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
 Every fact in the list is about the thing: Describes(Greg(), List(CoworkerOf(Me()))) means
 Greg is your coworker.
 A fact written In(fact, Sense()) holds only in that sense. Lead with the facts that are not
 wrapped in In, and if there are any, give the other senses at most a short "it is also".
 Me() in a result is the person you are talking to, so it is "you" when you say it.
+Self() is you, the one replying, so it is "I".
+If the result is Answer(List(...)) of capabilities, say what you can do as a short list.
 If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
 facts back in plain words. If the result is Noted(x), acknowledge it in a few words and
 say it back to them, for example "Got it, you ate an apple."
@@ -156,11 +158,27 @@ export interface SayOptions extends ModelOptions {
   asked?: Expr;
 }
 
+/**
+ * Small talk has one right reply each, so it is said directly: a model adds nothing but
+ * latency, and "I acknowledge that" was what it added to "cool".
+ */
+const SOCIAL: Record<string, string> = {
+  Hello: "Hello!",
+  Goodbye: "Goodbye!",
+  YoureWelcome: "You're welcome!",
+  DoingWell: "I'm doing well, thanks for asking!",
+  GotIt: "Got it.",
+  GladYouLikeIt: "Glad you like it!",
+  Laughing: "Ha!",
+};
+
 export async function say(
   message: string,
   result: Expr,
   options: SayOptions = {},
 ): Promise<string> {
+  const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : undefined;
+  if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];
   const straightforward = direct(result, tense(options.asked));
   if (straightforward) return straightforward;
 

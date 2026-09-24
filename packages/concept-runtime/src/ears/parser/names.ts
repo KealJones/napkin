@@ -53,6 +53,9 @@ export const nameOf = (written: string): string =>
 
 const identity = (phrase: string): string => nameOf(key(phrase));
 
+/** Whether the graph already knows the phrase as one name. Asks nobody. */
+export const knownName = (phrase: string): boolean => graph?.has(identity(phrase)) ?? false;
+
 /** Whether the phrase names one kind of thing, if anyone knows. Undefined means not yet. */
 export function namesOneThing(phrase: string): boolean | undefined {
   if (graph?.has(identity(phrase))) return true;
