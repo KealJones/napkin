@@ -271,11 +271,11 @@ test("expressing in a context is offered for anything in the graph", async () =>
   assert.ok(missing.steps.some((s) => /not in the graph/.test(s.detail)));
 });
 
-test("a Concept that already speaks the context is left alone", async () => {
+test("a Concept that already speaks the context is left alone, and TypeScript is spoken as JavaScript", async () => {
   const { study } = await import("./study.js");
   const rt = fresh();
   await rt.evaluate(
-    parse('Concept(identity="If", realizations=List(Realization(pattern=If($c, $t, $e), context=TypeScript(), body=Text("x"))))'),
+    parse('Concept(identity="If", realizations=List(Realization(pattern=If($c, $t, $e), context=JavaScript(), body=Text("x"))))'),
     EXEC,
   );
   const result = await study(rt, ["if"], { as: "TypeScript", teacher: false });

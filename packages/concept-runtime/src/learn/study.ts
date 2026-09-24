@@ -19,6 +19,7 @@
 import { type Expr, isCall, walk } from "../concept/expression.js";
 import type { ConceptUnit } from "../concept/unit.js";
 import { activation } from "../runtime/activation.js";
+import { facetAncestors } from "../runtime/select.js";
 import { groundInWikidata } from "../research/wikidata.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
@@ -224,7 +225,10 @@ export async function study(
 
     // Expressing rather than learning: the gap is a Concept that works but is mute in
     // this context. One that the graph does not have at all is somebody else's job.
-    if (options.as !== undefined) {
+    // A language is taught where its templates live: TypeScript is a SubclassOf
+    // JavaScript, so it is expressed in JavaScript until it has types of its own to add.
+    const language = options.as === undefined ? undefined : [options.as, ...facetAncestors(runtime.store, options.as)].pop()!;
+    if (language !== undefined) {
       const unit = runtime.store.get(identity);
       if (!unit) {
         record({ identity, depth, how: "failed", detail: "not in the graph", discovered: [] });
@@ -236,8 +240,8 @@ export async function study(
       // has. Whether something has a sensible rendering is a judgement the Teacher is
       // better placed to make than a heuristic, and CONTEXT_SYSTEM rule 7 already tells it
       // to return realizations=List() when the answer is no.
-      if (speaks(runtime, identity, options.as)) {
-        record({ identity, depth, how: "known", detail: `already speaks ${options.as}`, discovered: [] });
+      if (speaks(runtime, identity, language)) {
+        record({ identity, depth, how: "known", detail: `already speaks ${language}`, discovered: [] });
         continue;
       }
       if (options.teacher === false) {
@@ -251,9 +255,9 @@ export async function study(
           runtime.store,
           {
             identity,
-            message: `Express ${readable(identity)} in ${options.as}.`,
+            message: `Express ${readable(identity)} in ${language}.`,
             expression: `${identity}()`,
-            inContext: `${options.as}()`,
+            inContext: `${language}()`,
             existing: unit.realizations.map((r) => `  ${format(r.pattern)}`).join("\n"),
           },
           options,

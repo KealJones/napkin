@@ -16,7 +16,7 @@ import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
-import { lineage, reachesBehaviour } from "./select.js";
+import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 
@@ -330,8 +330,10 @@ function withoutFacets(runtime: Runtime, e: Expr): Expr {
  * those facets lifted out of it.
  */
 function lift(runtime: Runtime, expression: Expr, given: Expr): { expression: Expr; context: Expr } {
-  const named = facetsNamed(runtime, expression);
-  if (!named.length) return { expression, context: given };
+  const said = facetsNamed(runtime, expression);
+  if (!said.length) return { expression, context: given };
+  // A facet brings what it is a kind of: "typescript" is JavaScript as well.
+  const named = [...said, ...said.flatMap((f) => (isCall(f) ? facetAncestors(runtime.store, f.head).map((h) => c(h)) : []))];
   const already = facets(given);
   const extra = named.filter((f) => !already.some((a) => equal(a, f)));
   const lifted = withoutFacets(runtime, expression);

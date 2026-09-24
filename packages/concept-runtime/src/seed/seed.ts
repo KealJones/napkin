@@ -86,7 +86,7 @@ add(concept("Teaching", { relations: ["IsA(ContextFacet())"] }));
 add(concept("Lexical", { relations: ["IsA(ContextFacet())"] }));
 add(concept("JavaScript", { relations: ["IsA(TargetLanguage())"] }));
 add(concept("Rust", { relations: ["IsA(TargetLanguage())"] }));
-add(concept("TypeScript", { relations: ["IsA(TargetLanguage())"] }));
+add(concept("TypeScript", { relations: ["IsA(TargetLanguage())", "SubclassOf(JavaScript())"] }));
 add(concept("Python", { relations: ["IsA(TargetLanguage())"] }));
 add(
   concept("Describe", {
