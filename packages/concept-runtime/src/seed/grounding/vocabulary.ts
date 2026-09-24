@@ -18,6 +18,8 @@ export const groundingVocabulary: readonly ConceptUnit[] = [
   rel("CapableOf"),
   rel("Causes"),
   rel("SameAs"),
+  // Membership, not kind: not Transitive, unlike IsA (research/wikidata.ts).
+  rel("InstanceOf", "Enduring()"),
   rel("Named"),
   // Scoped to Lexical(): a fact about the word, read by reading-spec R14 when it lands.
   rel("PartOfSpeech"),

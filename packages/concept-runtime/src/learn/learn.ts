@@ -10,6 +10,7 @@ import { type Expr, c, format, isCall, walk } from "../concept/expression.js";
 import { facets } from "../runtime/context.js";
 import { lineage, reachesBehaviour } from "../runtime/select.js";
 import type { ModelOptions } from "../ears/ollama.js";
+import { groundInWikidata } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
@@ -21,7 +22,7 @@ import { teach } from "./teacher.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "research" | "teacher" | "unresolved";
+  readonly how: "graph" | "research" | "wikidata" | "teacher" | "unresolved";
   readonly detail: string;
 }
 
@@ -131,6 +132,22 @@ export async function learn(
       if (options.teacher === false) continue;
       if (attempted.has(gap.identity)) continue;
       attempted.add(gap.identity);
+
+      // A word Wikidata knows is grounded there, deterministically and with its source:
+      // what a thing is, what it is not, what it is part of. The Teacher, asked to recall
+      // the same, invents (it made emoji a synonym of emoticon).
+      if (gap.kind === "unknown" && options.research !== false) {
+        try {
+          const grounded = await groundInWikidata(runtime.store, gap.identity, { cause: runtime.trace.cause });
+          if (grounded?.relations.length) {
+            steps.push({ identity: gap.identity, how: "wikidata", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
+            learnedSomething = true;
+            continue;
+          }
+        } catch {
+          // Unreachable is not an answer: fall through to research and the Teacher.
+        }
+      }
 
       // Research before asking. The Teacher is a last resort, and grounding it in
       // source-attributed evidence is the difference between learning and inventing.

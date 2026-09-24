@@ -187,7 +187,7 @@ if (flag("--study")) {
     research: !flag("--no-research"),
     reading,
     onStep: (s) => {
-      const mark = { taught: "+", attached: "&", known: "=", read: ".", refused: "~", failed: "!" }[s.how];
+      const mark = { taught: "+", grounded: "@", attached: "&", known: "=", read: ".", refused: "~", failed: "!" }[s.how];
       console.log(`${mark} ${"  ".repeat(s.depth)}${s.identity}  ${s.detail.slice(0, 120)}`);
       if (s.discovered.length) {
         console.log(`  ${"  ".repeat(s.depth)}\x1b[2m-> ${s.discovered.join(" ")}\x1b[0m`);
@@ -220,6 +220,22 @@ if (importing) {
 const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
+
+// napkin --ground Emoji Emoticon: tie Concepts to Wikidata and take their classifying
+// relations, deterministically, whether or not they are already known.
+if (flag("--ground")) {
+  const names = args.filter((a) => !a.startsWith("--") && a !== value("--graph"));
+  const { groundInWikidata } = await import("./research/wikidata.js");
+  for (const name of names) {
+    const grounded = await groundInWikidata(store, name).catch((e: Error) => {
+      console.log(`${name}: ${e.message}`);
+      return undefined;
+    });
+    console.log(grounded ? `@ ${name}  ${grounded.item}  ${grounded.relations.map(format).join("  ")}` : `  ${name}  not in Wikidata`);
+  }
+  persist();
+  process.exit(0);
+}
 
 if (flag("--evidence")) {
   const name = args[args.indexOf("--evidence") + 1];

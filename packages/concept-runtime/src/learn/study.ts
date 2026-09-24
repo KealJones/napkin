@@ -19,6 +19,7 @@
 import { type Expr, isCall, walk } from "../concept/expression.js";
 import type { ConceptUnit } from "../concept/unit.js";
 import { activation } from "../runtime/activation.js";
+import { groundInWikidata } from "../research/wikidata.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -86,7 +87,7 @@ export interface StudyStep {
    * `refused`   — a declaration came back and saved nothing;
    * `failed`    — no usable declaration.
    */
-  readonly how: "taught" | "attached" | "known" | "read" | "refused" | "failed";
+  readonly how: "taught" | "grounded" | "attached" | "known" | "read" | "refused" | "failed";
   readonly detail: string;
   /** Concepts this step put on the frontier. */
   readonly discovered: readonly string[];
@@ -132,9 +133,10 @@ export interface StudyOptions extends ModelOptions {
 function understood(runtime: Runtime, identity: string): boolean {
   const unit = runtime.store.get(identity);
   if (!unit) return false;
-  // A retracted fact is no longer understanding, and a Retracts is a record, not a fact.
+  // A retracted fact is no longer understanding, a Retracts is a record, not a fact, and a
+  // Concept known only in narrow senses has not been taught what it means to everyone else.
   const holding = unit.relations.filter(
-    (r) => !(isCall(r.claim) && r.claim.head === "Retracts") && !runtime.store.retracted(identity, r.claim),
+    (r) => r.context === undefined && !(isCall(r.claim) && r.claim.head === "Retracts") && !runtime.store.retracted(identity, r.claim),
   );
   return holding.length > 0 || unit.realizations.length > 0;
 }
@@ -301,6 +303,23 @@ export async function study(
       });
       if (attached) options.onProgress?.();
       continue;
+    }
+
+    // Wikidata before the Teacher: what it states about a word is sourced and the same
+    // every time; what the Teacher recalls is neither.
+    if (options.research !== false) {
+      try {
+        const grounded = await groundInWikidata(runtime.store, identity);
+        if (grounded?.relations.length) {
+          taught += 1;
+          const discovered = follow(runtime.store.get(identity), depth + 1);
+          record({ identity, depth, how: "grounded", detail: `${grounded.item}: ${grounded.relations.map(format).join(" ")}`, discovered });
+          options.onProgress?.();
+          continue;
+        }
+      } catch {
+        // Unreachable: the Teacher below is still there.
+      }
     }
 
     if (options.teacher === false) {

@@ -874,6 +874,13 @@ for (const copula of ["Is", "Are"]) {
             // nullary claim like Small() is something the subject is.
             const truth = api.relations.truth(what, "IsA", api.call(kind));
             if (truth === "true") return answer("True");
+            // An instance of a kind is one of it, and of every kind that kind is a subclass
+            // of: membership takes one step, then the subclass chain.
+            const classes = api.relations.of(what, { transitive: false }).filter((t) => t.predicate === "InstanceOf" && t.object && t.object.head).map((t) => t.object.head);
+            if (classes.some((k) => k === kind || api.relations.truth(k, "IsA", api.call(kind)) === "true")) return answer("True");
+            // "different from" (DistinctFrom, symmetric) says they are not the same thing, so
+            // one is not a kind of the other: an emoji is not an emoticon.
+            if (api.relations.of(what, { transitive: false }).some((t) => t.predicate === "DistinctFrom" && t.object && t.object.head === kind)) return answer("False");
             if (api.relations.of(what).some((t) => t.predicate === kind && t.object === undefined)) return answer("True");
             if (truth === "false") return answer("False");
             return answer("UnknownTruth");
