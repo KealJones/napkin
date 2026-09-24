@@ -25,6 +25,7 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
+import { fromHost, toHost } from "./host.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -88,6 +89,15 @@ export interface CodeApi {
   bind(expression: Expr, bindings: Bindings): Expr;
   /** An expression evaluated, where a held value is itself: binding a value copies it. */
   resolve(expression: Expr, context?: Expr): Promise<Expr>;
+  /**
+   * A function value applied to values: Lambda(List($a), body), or Recursive($f, Lambda(...)),
+   * which is itself wherever its body names $f. The values are bound as Bind binds them, and
+   * a Rest($xs) parameter binds every value from there on, as a List.
+   */
+  applyLambda(f: Expr, values: Expr[]): Promise<Expr>;
+  /** A Concept value as the host value it stands for, and back (runtime/host.ts). */
+  toHost(value: Expr): unknown;
+  fromHost(value: unknown): Expr;
   parse(source: string): Expr;
   /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
   ambient(key: string): string | undefined;
@@ -507,6 +517,24 @@ export class Runtime {
       substitute: (expression, bindings) => this.substituteValues(expression, bindings),
       bind: (expression, bindings) => this.substituteValues(expression, bindings),
       resolve: (expression, ctx) => this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
+      applyLambda: async (f, values) => {
+        let fn = f;
+        const bound = new Map<string, Expr>();
+        if (isCall(fn) && fn.head === "Recursive" && isVariable(fn.args[0]?.value)) {
+          bound.set(fn.args[0].value.variable, fn);
+          fn = fn.args[1]?.value ?? null;
+        }
+        // Not a function: the call stays as said, a residual.
+        if (!isCall(fn) || fn.head !== "Lambda" || !isCall(fn.args[0]?.value)) return call("Call", [{ value: f }, ...values.map((value) => ({ value }))]);
+        fn.args[0].value.args.forEach((p, i) => {
+          if (isVariable(p.value) && i < values.length) bound.set(p.value.variable, values[i]);
+          const rest = isCall(p.value) && p.value.head === "Rest" ? p.value.args[0]?.value : undefined;
+          if (rest !== undefined && isVariable(rest)) bound.set(rest.variable, call("List", values.slice(i).map((value) => ({ value }))));
+        });
+        return this.run(this.substituteValues(fn.args[1].value, bound), context, "Code", parent, depth + 1, within);
+      },
+      toHost: (value) => toHost(value, this.cells),
+      fromHost,
       parse,
       ambient: (key) => this.context.get(key),
       context,

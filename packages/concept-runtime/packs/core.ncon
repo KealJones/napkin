@@ -422,6 +422,9 @@ Concept(Bind(),
 
 Concept(Lambda(), IsA(Data()))
 
+// A function applied to values (code.ncon has how); what is not a function stays this call.
+Concept(Call(), IsA(CodePrimitive()))
+
 Concept(List(), IsA(Collection()))
 
 Concept(Rest(), IsA(Data()))

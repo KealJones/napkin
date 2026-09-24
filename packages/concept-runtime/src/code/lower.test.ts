@@ -34,9 +34,10 @@ test("a lowered body answers what its JavaScript answered", async () => {
   assert.equal(await run("Neg", "Neg($x)", neg, "Neg(Cats())"), "Neg(Cats())");
 });
 
-test("truthiness is JavaScript's: every object is true, False() included", async () => {
+test("truthiness is the IR's: every value is true but false, False(), nothing, 0, NaN and empty text", async () => {
   const body = lowered("T($x)", '(args) => args[0].value ? "yes" : "no"');
-  assert.equal(await run("T", "T($x)", body, "T(False())"), '"yes"');
+  assert.equal(await run("T", "T($x)", body, "T(Dog())"), '"yes"');
+  assert.equal(await run("T", "T($x)", body, "T(False())"), '"no"');
   assert.equal(await run("T", "T($x)", body, "T(0)"), '"no"');
   assert.equal(await run("T", "T($x)", body, 'T("")'), '"no"');
 });

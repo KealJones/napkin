@@ -23,87 +23,6 @@ Concept(List(),
         List($args, $bindings, $api),
         Object(head="List", args=Map($args, Lambda(List($a), Object(value=Member($a, "value")))))))))
 
-Concept(Call(),
-  IsA(CodePrimitive()),
-  Realization(Call($f, Rest($args)), context=Execution(),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $isCall,
-              Lambda(
-                List($e),
-                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind(
-              $truthy,
-              Lambda(
-                List($v),
-                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Bind(
-              $isTruth,
-              Lambda(
-                List($v),
-                Or(
-                  Equals(TypeOf($v), "boolean"),
-                  And(
-                    And(
-                      Call($isCall, $v),
-                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
-                    Not(Length(Member($v, "args"))))))),
-            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Bind(
-              $items,
-              Lambda(
-                List($v),
-                If(
-                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
-                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
-                  List()))),
-            Bind(
-              $list,
-              Lambda(
-                List($xs),
-                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Bind(
-              $apply,
-              Async(
-                Lambda(
-                  List($f, $values),
-                  Sequence(
-                    If(
-                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
-                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
-                      Undefined()),
-                    Bind(
-                      $params,
-                      Map(
-                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
-                        Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Bind(
-                      $bound,
-                      New(
-                        $Map,
-                        Call(
-                          Member($params, "map"),
-                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($f, "args"), 1), "value"),
-                            $bound)))))))),
-            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Return(
-              Await(
-                Call(
-                  $apply,
-                  Call($v, 0),
-                  Map(Call(Member($args, "slice"), 1), Lambda(List($a), Member($a, "value"))))))))))))
-
 // Logic. Not, And and Or are words a message says too ("don't", "apples and pears"),
 // so they only compute over truth values and otherwise stay as said. And and Or stop at
 // the first answer, so their arguments are not evaluated first.
@@ -776,336 +695,6 @@ Concept(Includes(),
                 Call(
                   Member(Call($items, Call($v, 0)), "some"),
                   Lambda(List($i), Equals(Call(Member($api, "format"), $i), $x)))))))))))
-
-// In order, as the interpreter does: two identical calls at once read as a cycle.
-Concept(Map(),
-  IsA(CodePrimitive()),
-  Realization(Map($xs, $f), context=Execution(),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $isCall,
-              Lambda(
-                List($e),
-                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind(
-              $truthy,
-              Lambda(
-                List($v),
-                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Bind(
-              $isTruth,
-              Lambda(
-                List($v),
-                Or(
-                  Equals(TypeOf($v), "boolean"),
-                  And(
-                    And(
-                      Call($isCall, $v),
-                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
-                    Not(Length(Member($v, "args"))))))),
-            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Bind(
-              $items,
-              Lambda(
-                List($v),
-                If(
-                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
-                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
-                  List()))),
-            Bind(
-              $list,
-              Lambda(
-                List($xs),
-                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Bind(
-              $apply,
-              Async(
-                Lambda(
-                  List($f, $values),
-                  Sequence(
-                    If(
-                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
-                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
-                      Undefined()),
-                    Bind(
-                      $params,
-                      Map(
-                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
-                        Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Bind(
-                      $bound,
-                      New(
-                        $Map,
-                        Call(
-                          Member($params, "map"),
-                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($f, "args"), 1), "value"),
-                            $bound)))))))),
-            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Bind($out, List()),
-            ForOf(
-              $x,
-              Call($items, Call($v, 0)),
-              Call(Member($out, "push"), Await(Call($apply, Call($v, 1), List($x))))),
-            Return(Call($list, $out))))))))
-
-Concept(FlatMap(),
-  IsA(CodePrimitive()),
-  Realization(FlatMap($xs, $f), context=Execution(),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $isCall,
-              Lambda(
-                List($e),
-                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind(
-              $truthy,
-              Lambda(
-                List($v),
-                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Bind(
-              $isTruth,
-              Lambda(
-                List($v),
-                Or(
-                  Equals(TypeOf($v), "boolean"),
-                  And(
-                    And(
-                      Call($isCall, $v),
-                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
-                    Not(Length(Member($v, "args"))))))),
-            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Bind(
-              $items,
-              Lambda(
-                List($v),
-                If(
-                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
-                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
-                  List()))),
-            Bind(
-              $list,
-              Lambda(
-                List($xs),
-                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Bind(
-              $apply,
-              Async(
-                Lambda(
-                  List($f, $values),
-                  Sequence(
-                    If(
-                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
-                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
-                      Undefined()),
-                    Bind(
-                      $params,
-                      Map(
-                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
-                        Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Bind(
-                      $bound,
-                      New(
-                        $Map,
-                        Call(
-                          Member($params, "map"),
-                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($f, "args"), 1), "value"),
-                            $bound)))))))),
-            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Bind($out, List()),
-            ForOf(
-              $x,
-              Call($items, Call($v, 0)),
-              Call(
-                Member($out, "push"),
-                Spread(Call($items, Await(Call($apply, Call($v, 1), List($x))))))),
-            Return(Call($list, $out))))))))
-
-Concept(Filter(),
-  IsA(CodePrimitive()),
-  Realization(Filter($xs, $f), context=Execution(),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $isCall,
-              Lambda(
-                List($e),
-                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind(
-              $truthy,
-              Lambda(
-                List($v),
-                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Bind(
-              $isTruth,
-              Lambda(
-                List($v),
-                Or(
-                  Equals(TypeOf($v), "boolean"),
-                  And(
-                    And(
-                      Call($isCall, $v),
-                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
-                    Not(Length(Member($v, "args"))))))),
-            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Bind(
-              $items,
-              Lambda(
-                List($v),
-                If(
-                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
-                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
-                  List()))),
-            Bind(
-              $list,
-              Lambda(
-                List($xs),
-                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Bind(
-              $apply,
-              Async(
-                Lambda(
-                  List($f, $values),
-                  Sequence(
-                    If(
-                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
-                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
-                      Undefined()),
-                    Bind(
-                      $params,
-                      Map(
-                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
-                        Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Bind(
-                      $bound,
-                      New(
-                        $Map,
-                        Call(
-                          Member($params, "map"),
-                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($f, "args"), 1), "value"),
-                            $bound)))))))),
-            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Bind($out, List()),
-            ForOf(
-              $x,
-              Call($items, Call($v, 0)),
-              If(
-                Call($truthy, Await(Call($apply, Call($v, 1), List($x)))),
-                Call(Member($out, "push"), $x),
-                Undefined())),
-            Return(Call($list, $out))))))))
-
-Concept(Reduce(),
-  IsA(CodePrimitive()),
-  Realization(Reduce($xs, $f, $initial), context=Execution(),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $isCall,
-              Lambda(
-                List($e),
-                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind(
-              $truthy,
-              Lambda(
-                List($v),
-                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Bind(
-              $isTruth,
-              Lambda(
-                List($v),
-                Or(
-                  Equals(TypeOf($v), "boolean"),
-                  And(
-                    And(
-                      Call($isCall, $v),
-                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
-                    Not(Length(Member($v, "args"))))))),
-            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Bind(
-              $items,
-              Lambda(
-                List($v),
-                If(
-                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
-                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
-                  List()))),
-            Bind(
-              $list,
-              Lambda(
-                List($xs),
-                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Bind(
-              $apply,
-              Async(
-                Lambda(
-                  List($f, $values),
-                  Sequence(
-                    If(
-                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
-                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
-                      Undefined()),
-                    Bind(
-                      $params,
-                      Map(
-                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
-                        Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Bind(
-                      $bound,
-                      New(
-                        $Map,
-                        Call(
-                          Member($params, "map"),
-                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($f, "args"), 1), "value"),
-                            $bound)))))))),
-            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Var($acc, Call($v, 2)),
-            ForOf(
-              $x,
-              Call($items, Call($v, 0)),
-              Assign($acc, Await(Call($apply, Call($v, 1), List($acc, $x))))),
-            Return($acc)))))))
 
 Concept(Unique(),
   IsA(CodePrimitive()),
@@ -2516,7 +2105,6 @@ Concept(LessThan())
 
 Concept(Compiled(), IsA(ContextFacet()))
 
-
 // A function value: stays as it is until called.
 Concept(Lambda(), IsA(Marker()))
 
@@ -2526,47 +2114,6 @@ Concept(Lambda(), IsA(Marker()))
 // === and + as JavaScript has them, comparisons that answer true and false, and Undefined()
 // wherever JavaScript would have undefined. The IR's own Equals and GreaterThan answer
 // True() and False(), which is right for an answer and wrong for a condition.
-
-// JavaScript's truthiness: false, null, undefined, 0, NaN and the empty string are false, and every object is true, False() included.
-Concept(Truthy(),
-  IsA(CodePrimitive()),
-  Realization(Truthy($x), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        Sequence(
-          Bind($v, Member(Index($args, 0), "value")),
-          If(
-            Or(
-              Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
-              Call(Member($Number, "isNaN"), $v)),
-            Return(false),
-            Undefined()),
-          Return(
-            Not(
-              And(
-                And(Equals(TypeOf($v), "object"), Equals(Member($v, "head"), "Undefined")),
-                Equals(Length(Member($v, "args")), 0)))))))))
-
-// !x.
-Concept(Falsy(),
-  IsA(CodePrimitive()),
-  Realization(Falsy($x), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        Sequence(
-          Bind($v, Member(Index($args, 0), "value")),
-          If(
-            Or(
-              Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
-              Call(Member($Number, "isNaN"), $v)),
-            Return(true),
-            Undefined()),
-          Return(
-            And(
-              And(Equals(TypeOf($v), "object"), Equals(Member($v, "head"), "Undefined")),
-              Equals(Length(Member($v, "args")), 0))))))))
 
 // a === b, answering true or false. Two Concepts are identical when they are the same expression.
 Concept(Identical(),
@@ -2714,42 +2261,6 @@ Concept(JsNegate(),
   IsA(CodePrimitive()),
   Realization(JsNegate($x), context=Execution(),
     body=Code(ir=Lambda(List($args), Negate(Member(Index($args, 0), "value"))))))
-
-// a < b, answering true or false.
-Concept(Below(),
-  IsA(CodePrimitive()),
-  Realization(Below($a, $b), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        LessThan(Member(Index($args, 0), "value"), Member(Index($args, 1), "value"))))))
-
-// a > b.
-Concept(Above(),
-  IsA(CodePrimitive()),
-  Realization(Above($a, $b), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        GreaterThan(Member(Index($args, 0), "value"), Member(Index($args, 1), "value"))))))
-
-// a <= b.
-Concept(NotAbove(),
-  IsA(CodePrimitive()),
-  Realization(NotAbove($a, $b), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        AtMost(Member(Index($args, 0), "value"), Member(Index($args, 1), "value"))))))
-
-// a >= b.
-Concept(NotBelow(),
-  IsA(CodePrimitive()),
-  Realization(NotBelow($a, $b), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args),
-        AtLeast(Member(Index($args, 0), "value"), Member(Index($args, 1), "value"))))))
 
 // typeof x, with Undefined() as undefined.
 Concept(TypeOf(),
@@ -2912,3 +2423,2524 @@ Concept(FormatExpression(),
       ir=Lambda(
         List($args, $bindings, $api),
         Call(Member($api, "format"), Member(Index($args, 0), "value"))))))
+
+// ------------------------------------------------------------------ *
+// Program operations (ir-spec Part 10.8).
+//
+// What bodies lowered from a program are composed of, named by what they mean. Each is this
+// host's implementation; a Rust host implements the same list.
+// ------------------------------------------------------------------
+
+// The arithmetic word, an operation too.
+Concept(SquareRoot(), IsA(CodePrimitive()))
+
+// The arithmetic word, an operation too.
+Concept(CubeRoot(), IsA(CodePrimitive()))
+
+// The arithmetic word, an operation too.
+Concept(Power(), IsA(CodePrimitive()))
+
+// Nothing there: null or Undefined().
+Concept(IsNothing(),
+  IsA(CodePrimitive()),
+  Realization(IsNothing($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Or(
+                Equals(Index($v, 0), null),
+                And(
+                  And(
+                    Equals(TypeOf(Index($v, 0)), "object"),
+                    Equals(Member(Index($v, 0), "head"), "Undefined")),
+                  Equals(Length(Member(Index($v, 0), "args")), 0))))))))))
+
+// Whether x counts as true: all but false, False(), null, Undefined(), 0, NaN and empty text.
+Concept(Truthy(),
+  IsA(CodePrimitive()),
+  Realization(Truthy($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($truthy, Index($v, 0)))))))))
+
+// Whether x counts as false.
+Concept(Falsy(),
+  IsA(CodePrimitive()),
+  Realization(Falsy($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Not(Call($truthy, Index($v, 0))))))))))
+
+// A function applied to arguments. What is not a function stays the call it is.
+Concept(Call(),
+  IsA(CodePrimitive()),
+  Realization(Call($f, Rest($args)), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($apply, Index($v, 0), Spread(Call(Member($v, "slice"), 1))))))))))
+
+// What the Lambda answers of each element, and its position.
+Concept(Map(),
+  IsA(CodePrimitive()),
+  Realization(Map($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind(
+              $seq,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    And(
+                      And(Equals(TypeOf($x), "object"), NotEquals($x, null)),
+                      Equals(Member($x, "head"), "List")),
+                    Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value")))),
+                    Undefined()),
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  Return(
+                    If(
+                      InstanceOf($h, $Set),
+                      Map(Concat($h), Lambda(List($y), Call(Member($api, "fromHost"), $y))),
+                      List()))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($seq, Index($v, 0))),
+            Bind($out, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              Call(Member($out, "push"), Await(Call($apply, Index($v, 1), Index($xs, $i), $i)))),
+            Return(Call($list, $out))))))))
+
+// What the Lambda answers of each element, Lists joined.
+Concept(FlatMap(),
+  IsA(CodePrimitive()),
+  Realization(FlatMap($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind(
+              $seq,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    And(
+                      And(Equals(TypeOf($x), "object"), NotEquals($x, null)),
+                      Equals(Member($x, "head"), "List")),
+                    Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value")))),
+                    Undefined()),
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  Return(
+                    If(
+                      InstanceOf($h, $Set),
+                      Map(Concat($h), Lambda(List($y), Call(Member($api, "fromHost"), $y))),
+                      List()))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($seq, Index($v, 0))),
+            Bind($out, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              Sequence(
+                Bind($r, Await(Call($apply, Index($v, 1), Index($xs, $i), $i))),
+                If(
+                  And(
+                    And(Equals(TypeOf($r), "object"), NotEquals($r, null)),
+                    Equals(Member($r, "head"), "List")),
+                  Call(
+                    Member($out, "push"),
+                    Spread(Map(Member($r, "args"), Lambda(List($a), Member($a, "value"))))),
+                  Call(Member($out, "push"), $r)))),
+            Return(Call($list, $out))))))))
+
+// The elements the Lambda holds of.
+Concept(Filter(),
+  IsA(CodePrimitive()),
+  Realization(Filter($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind(
+              $seq,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    And(
+                      And(Equals(TypeOf($x), "object"), NotEquals($x, null)),
+                      Equals(Member($x, "head"), "List")),
+                    Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value")))),
+                    Undefined()),
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  Return(
+                    If(
+                      InstanceOf($h, $Set),
+                      Map(Concat($h), Lambda(List($y), Call(Member($api, "fromHost"), $y))),
+                      List()))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($seq, Index($v, 0))),
+            Bind($out, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              If(
+                Call($truthy, Await(Call($apply, Index($v, 1), Index($xs, $i), $i))),
+                Call(Member($out, "push"), Index($xs, $i)),
+                Undefined())),
+            Return(Call($list, $out))))))))
+
+// The elements folded by the Lambda from the initial value.
+Concept(Reduce(),
+  IsA(CodePrimitive()),
+  Realization(Reduce($xs, $f, $initial), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind(
+              $seq,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    And(
+                      And(Equals(TypeOf($x), "object"), NotEquals($x, null)),
+                      Equals(Member($x, "head"), "List")),
+                    Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value")))),
+                    Undefined()),
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  Return(
+                    If(
+                      InstanceOf($h, $Set),
+                      Map(Concat($h), Lambda(List($y), Call(Member($api, "fromHost"), $y))),
+                      List()))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($seq, Index($v, 0))),
+            Var($acc, Index($v, 2)),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              Assign($acc, Await(Call($apply, Index($v, 1), $acc, Index($xs, $i), $i)))),
+            Return($acc)))))))
+
+// a + b: numbers add; with text on either side, the text of both joined.
+Concept(AddValues(),
+  IsA(CodePrimitive()),
+  Realization(AddValues($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Add(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))))))))
+
+// a - b. Instants subtract to the milliseconds between them.
+Concept(SubtractValues(),
+  IsA(CodePrimitive()),
+  Realization(SubtractValues($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Subtract(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))))))))
+
+// a * b.
+Concept(MultiplyValues(),
+  IsA(CodePrimitive()),
+  Realization(MultiplyValues($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Multiply(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))))))))
+
+// a / b.
+Concept(DivideValues(),
+  IsA(CodePrimitive()),
+  Realization(DivideValues($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Divide(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))))))))
+
+// What is left of a after dividing by b, with a's sign.
+Concept(RemainderOf(),
+  IsA(CodePrimitive()),
+  Realization(RemainderOf($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Modulo(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))))))))
+
+// -a.
+Concept(NegateValue(),
+  IsA(CodePrimitive()),
+  Realization(NegateValue($a), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Negate(Call($host, Index($v, 0)))))))))))
+
+// The whole number at or below x.
+Concept(RoundDown(),
+  IsA(CodePrimitive()),
+  Realization(RoundDown($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member($Math, "floor"), Call($host, Index($v, 0)))))))))))
+
+// The whole number at or above x.
+Concept(RoundUp(),
+  IsA(CodePrimitive()),
+  Realization(RoundUp($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member($Math, "ceil"), Call($host, Index($v, 0)))))))))))
+
+// The nearest whole number, halves rounding up.
+Concept(RoundNearest(),
+  IsA(CodePrimitive()),
+  Realization(RoundNearest($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member($Math, "round"), Call($host, Index($v, 0)))))))))))
+
+// x without its sign.
+Concept(AbsoluteValue(),
+  IsA(CodePrimitive()),
+  Realization(AbsoluteValue($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member($Math, "abs"), Call($host, Index($v, 0)))))))))))
+
+// The largest of a List of numbers; -Infinity for none.
+Concept(Largest(),
+  IsA(CodePrimitive()),
+  Realization(Largest($xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member($Math, "max"), Spread(Map(Call($items, Index($v, 0)), $host)))))))))))
+
+// The smallest of a List of numbers; Infinity for none.
+Concept(Smallest(),
+  IsA(CodePrimitive()),
+  Realization(Smallest($xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member($Math, "min"), Spread(Map(Call($items, Index($v, 0)), $host)))))))))))
+
+// The number that is not one.
+Concept(NotANumber(),
+  IsA(CodePrimitive()),
+  Realization(NotANumber(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(Bind($v, Map($args, Lambda(List($a), Member($a, "value")))), Return($NaN)))))))
+
+// The number above every other.
+Concept(Infinite(),
+  IsA(CodePrimitive()),
+  Realization(Infinite(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(Bind($v, Map($args, Lambda(List($a), Member($a, "value")))), Return($Infinity)))))))
+
+// Whether x is the number that is not one.
+Concept(IsNotANumber(),
+  IsA(CodePrimitive()),
+  Realization(IsNotANumber($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($Number, "isNaN"), Index($v, 0)))))))))
+
+// Whether x is a number, and neither infinite nor not one.
+Concept(IsFiniteNumber(),
+  IsA(CodePrimitive()),
+  Realization(IsFiniteNumber($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($Number, "isFinite"), Index($v, 0)))))))))
+
+// Whether x is a whole number.
+Concept(IsWholeNumber(),
+  IsA(CodePrimitive()),
+  Realization(IsWholeNumber($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($Number, "isInteger"), Index($v, 0)))))))))
+
+// x as a number: text read as one, true 1, nothing 0, what cannot be one NotANumber().
+Concept(ToNumber(),
+  IsA(CodePrimitive()),
+  Realization(ToNumber($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call($Number, Call($host, Index($v, 0)))))))))))
+
+// x as text. A Concept as it is written.
+Concept(ToText(),
+  IsA(CodePrimitive()),
+  Realization(ToText($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              If(
+                And(
+                  And(Equals(TypeOf(Index($v, 0)), "object"), NotEquals(Index($v, 0), null)),
+                  Not(
+                    Includes(
+                      List("List", "Record", "Undefined", "Instant", "Regex"),
+                      Member(Index($v, 0), "head")))),
+                Call(Member($api, "format"), Index($v, 0)),
+                Call($String, Call($host, Index($v, 0)))))))))))
+
+// x as JSON text.
+Concept(Json(),
+  IsA(CodePrimitive()),
+  Realization(Json($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($JSON, "stringify"), Call($host, Index($v, 0))))))))))
+
+// a < b, numbers or text or instants.
+Concept(Below(),
+  IsA(CodePrimitive()),
+  Realization(Below($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(LessThan(Call($host, Index($v, 0)), Call($host, Index($v, 1))))))))))
+
+// a > b.
+Concept(Above(),
+  IsA(CodePrimitive()),
+  Realization(Above($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(GreaterThan(Call($host, Index($v, 0)), Call($host, Index($v, 1))))))))))
+
+// a <= b.
+Concept(NotAbove(),
+  IsA(CodePrimitive()),
+  Realization(NotAbove($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(AtMost(Call($host, Index($v, 0)), Call($host, Index($v, 1))))))))))
+
+// a >= b.
+Concept(NotBelow(),
+  IsA(CodePrimitive()),
+  Realization(NotBelow($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(AtLeast(Call($host, Index($v, 0)), Call($host, Index($v, 1))))))))))
+
+// The text in lower case.
+Concept(Lowercase(),
+  IsA(CodePrimitive()),
+  Realization(Lowercase($t), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($String, Index($v, 0)), "toLowerCase")))))))))
+
+// The text in upper case.
+Concept(Uppercase(),
+  IsA(CodePrimitive()),
+  Realization(Uppercase($t), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($String, Index($v, 0)), "toUpperCase")))))))))
+
+// Whether the text begins with p.
+Concept(StartsWith(),
+  IsA(CodePrimitive()),
+  Realization(StartsWith($t, $p), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(Member(Call($String, Index($v, 0)), "startsWith"), Call($String, Index($v, 1))))))))))
+
+// Whether the text ends with p.
+Concept(EndsWith(),
+  IsA(CodePrimitive()),
+  Realization(EndsWith($t, $p), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(Member(Call($String, Index($v, 0)), "endsWith"), Call($String, Index($v, 1))))))))))
+
+// The text cut at each separator (text or Regex), as a List.
+Concept(Split(),
+  IsA(CodePrimitive()),
+  Realization(Split($t, $separator), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member(Call($String, Index($v, 0)), "split"), Call($host, Index($v, 1)))))))))))
+
+// The text filled on the left to the width.
+Concept(PadStart(),
+  IsA(CodePrimitive()),
+  Realization(PadStart($t, $width, $fill), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member(Call($String, Index($v, 0)), "padStart"),
+                Index($v, 1),
+                If(Equals(Index($v, 2), Undefined()), " ", Call($String, Index($v, 2)))))))))),
+  Realization(PadStart($t, $width), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($String, Index($v, 0)), "padStart"), Index($v, 1)))))))))
+
+// Negative, zero or positive as a sorts before, with or after b.
+Concept(CompareText(),
+  IsA(CodePrimitive()),
+  Realization(CompareText($a, $b), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member(Call($String, Index($v, 0)), "localeCompare"),
+                Call($String, Index($v, 1))))))))))
+
+// Whether the Regex matches somewhere in the text.
+Concept(MatchesPattern(),
+  IsA(CodePrimitive()),
+  Realization(MatchesPattern($pattern, $t), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "test"), Call($String, Index($v, 1))))))))))
+
+// The first match of the Regex, the whole then each group, or null.
+Concept(MatchOf(),
+  IsA(CodePrimitive()),
+  Realization(MatchOf($pattern, $t), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($m, Call(Member(Call($host, Index($v, 0)), "exec"), Call($String, Index($v, 1)))),
+            Return(
+              If(
+                Equals($m, null),
+                null,
+                Call($list, Map(Concat($m), Lambda(List($x), If(Equals($x, Undefined()), $U, $x))))))))))))
+
+// The text with the pattern (text or Regex) replaced, by text or by what a Lambda of the match answers.
+Concept(Replace(),
+  IsA(CodePrimitive()),
+  Realization(Replace($t, $pattern, $with), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($t, Call($String, Index($v, 0))),
+            Bind($p, Call($host, Index($v, 1))),
+            Bind($w, Index($v, 2)),
+            If(
+              And(
+                And(Equals(TypeOf($w), "object"), NotEquals($w, null)),
+                Or(Equals(Member($w, "head"), "Lambda"), Equals(Member($w, "head"), "Recursive"))),
+              Sequence(
+                Bind(
+                  $re,
+                  If(
+                    InstanceOf($p, $RegExp),
+                    New(
+                      $RegExp,
+                      Member($p, "source"),
+                      If(
+                        Includes(Member($p, "flags"), "g"),
+                        Member($p, "flags"),
+                        Member($p, "flags"))),
+                    null)),
+                Var($out, ""),
+                Var($at, 0),
+                Bind(
+                  $all,
+                  If(
+                    $re,
+                    If(
+                      Includes(Member($re, "flags"), "g"),
+                      Concat(Call(Member($t, "matchAll"), $re)),
+                      Filter(List(Call(Member($re, "exec"), $t)), $Boolean)),
+                    Filter(
+                      List(
+                        If(
+                          AtLeast(Call(Member($t, "indexOf"), $p), 0),
+                          Call(
+                            Member($Object, "assign"),
+                            List($p),
+                            Object(index=Call(Member($t, "indexOf"), $p))),
+                          null)),
+                      $Boolean))),
+                ForOf(
+                  $m,
+                  $all,
+                  Sequence(
+                    Assign(
+                      $out,
+                      Add(
+                        $out,
+                        Add(
+                          Call(Member($t, "slice"), $at, Member($m, "index")),
+                          Call(
+                            $String,
+                            Call(
+                              $host,
+                              Await(
+                                Call(
+                                  $apply,
+                                  $w,
+                                  Spread(
+                                    Map(
+                                      Concat($m),
+                                      Lambda(List($x), If(Equals($x, Undefined()), $U, $x))))))))))),
+                    Assign($at, Add(Member($m, "index"), Length(Index($m, 0)))))),
+                Return(Add($out, Call(Member($t, "slice"), $at)))),
+              Undefined()),
+            Return(Call(Member($t, "replace"), $p, Call($String, Call($host, $w))))))))))
+
+// Where the item first is in the List or text, or -1.
+Concept(IndexOf(),
+  IsA(CodePrimitive()),
+  Realization(IndexOf($x, $item), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($h, Call($host, Index($v, 0))),
+            Return(
+              Call(
+                Member($h, "indexOf"),
+                If(
+                  Equals(TypeOf($h), "string"),
+                  Call($String, Index($v, 1)),
+                  Call($host, Index($v, 1)))))))))))
+
+// The part from one position up to another; negative counts from the end.
+Concept(Slice(),
+  IsA(CodePrimitive()),
+  Realization(Slice($x, $from, $to), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Call($host, Index($v, 0)), "slice"),
+                  Call($host, Index($v, 1)),
+                  Call($host, Index($v, 2)))))))))),
+  Realization(Slice($x, $from), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member(Call($host, Index($v, 0)), "slice"), Call($host, Index($v, 1)))))))))))
+
+// The element at i, negative counting from the end, or Undefined().
+Concept(AtPosition(),
+  IsA(CodePrimitive()),
+  Realization(AtPosition($x, $i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($r, Call(Member(Call($host, Index($v, 0)), "at"), Index($v, 1))),
+            Return(If(Equals($r, Undefined()), $U, Call($back, $r)))))))))
+
+// The List's elements as text, the separator between them.
+Concept(Join(),
+  IsA(CodePrimitive()),
+  Realization(Join($xs, $separator), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member(
+                  Map(
+                    Call($items, Index($v, 0)),
+                    Lambda(
+                      List($x),
+                      If(
+                        Or(
+                          Equals($x, null),
+                          And(Equals(TypeOf($x), "object"), Equals(Member($x, "head"), "Undefined"))),
+                        "",
+                        If(
+                          And(
+                            Equals(TypeOf($x), "object"),
+                            Not(Includes(List("List", "Record", "Instant"), Member($x, "head")))),
+                          Call(Member($api, "format"), $x),
+                          Call($String, Call($host, $x)))))),
+                  "join"),
+                If(Equals(Index($v, 1), Undefined()), ",", Call($String, Index($v, 1)))))))))))
+
+// The List backwards.
+Concept(Reverse(),
+  IsA(CodePrimitive()),
+  Realization(Reverse($xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($list, Call(Member(Call($items, Index($v, 0)), "reverse"))))))))))
+
+// The first element the Lambda holds of, or Undefined().
+Concept(FirstSatisfying(),
+  IsA(CodePrimitive()),
+  Realization(FirstSatisfying($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              If(
+                Call($truthy, Await(Call($apply, Index($v, 1), Index($xs, $i), $i))),
+                Return(Index($xs, $i)),
+                Undefined())),
+            Return($U)))))))
+
+// Where the first element the Lambda holds of is, or -1.
+Concept(IndexSatisfying(),
+  IsA(CodePrimitive()),
+  Realization(IndexSatisfying($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              If(
+                Call($truthy, Await(Call($apply, Index($v, 1), Index($xs, $i), $i))),
+                Return($i),
+                Undefined())),
+            Return(Negate(1))))))))
+
+// Whether the Lambda holds of some element.
+Concept(AnySatisfies(),
+  IsA(CodePrimitive()),
+  Realization(AnySatisfies($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              If(
+                Call($truthy, Await(Call($apply, Index($v, 1), Index($xs, $i), $i))),
+                Return(true),
+                Undefined())),
+            Return(false)))))))
+
+// Whether the Lambda holds of every element.
+Concept(AllSatisfy(),
+  IsA(CodePrimitive()),
+  Realization(AllSatisfy($xs, $f), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($xs)),
+              PostIncrement($i),
+              If(
+                Not(Call($truthy, Await(Call($apply, Index($v, 1), Index($xs, $i), $i)))),
+                Return(false),
+                Undefined())),
+            Return(true)))))))
+
+// The List in the order the Lambda compares, stable.
+Concept(Sort(),
+  IsA(CodePrimitive()),
+  Realization(Sort($xs, $compare), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            Bind(
+              $cmp,
+              Async(
+                Lambda(
+                  List($a, $b),
+                  Call($Number, Call($host, Await(Call($apply, Index($v, 1), $a, $b))))))),
+            Bind(
+              $merge,
+              Async(
+                Lambda(
+                  List($s),
+                  Sequence(
+                    If(LessThan(Length($s), 2), Return($s), Undefined()),
+                    Bind($m, ShiftRight(Length($s), 1)),
+                    Bind($l, Await(Call($merge, Call(Member($s, "slice"), 0, $m)))),
+                    Bind($r, Await(Call($merge, Call(Member($s, "slice"), $m)))),
+                    Bind($o, List()),
+                    While(
+                      And(Length($l), Length($r)),
+                      Call(
+                        Member($o, "push"),
+                        If(
+                          AtMost(Await(Call($cmp, Index($l, 0), Index($r, 0))), 0),
+                          Call(Member($l, "shift")),
+                          Call(Member($r, "shift"))))),
+                    Return(Concat($o, $l, $r)))))),
+            Return(Call($list, Await(Call($merge, $xs))))))))),
+  Realization(Sort($xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member(Map(Call($items, Index($v, 0)), $host), "sort"))))))))))
+
+// A record's field names, as a List.
+Concept(Fields(),
+  IsA(CodePrimitive()),
+  Realization(Fields($r), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $list,
+                If(
+                  And(
+                    And(Equals(TypeOf(Index($v, 0)), "object"), NotEquals(Index($v, 0), null)),
+                    Equals(Member(Index($v, 0), "head"), "Record")),
+                  Map(Member(Index($v, 0), "args"), Lambda(List($a), Member($a, "name"))),
+                  Call(Member($Object, "keys"), Otherwise(Call($host, Index($v, 0)), Object())))))))))))
+
+// A record of named fields, each evaluated: an object in JavaScript, a struct in Rust.
+Concept(Record(),
+  IsA(CodePrimitive()),
+  Realization(Record(Rest($fields)), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Object(
+                head="Record",
+                args=Map(
+                  $args,
+                  Lambda(List($a), Object(name=Member($a, "name"), value=Member($a, "value"))))))))))))
+
+// The fields of each record in order, later ones winning.
+Concept(Merge(),
+  IsA(CodePrimitive()),
+  Realization(Merge($parts), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member($Object, "assign"),
+                  Object(),
+                  Spread(Map(Call($items, Index($v, 0)), $host)))))))))))
+
+// The call a head and its Argument records make.
+Concept(CallOf(),
+  IsA(CodePrimitive()),
+  Realization(CallOf($head, $arguments), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Object(
+                head=Call($String, Index($v, 0)),
+                args=Map(
+                  Call($items, Index($v, 1)),
+                  Lambda(
+                    List($a),
+                    Sequence(
+                      Bind($r, Call($host, $a)),
+                      Return(
+                        If(
+                          Equals(Member($r, "name"), Undefined()),
+                          Object(value=Call($back, Member($r, "value"))),
+                          Object(name=Member($r, "name"), value=Call($back, Member($r, "value"))))))))))))))))
+
+// Written text read as an expression.
+Concept(ParseExpression(),
+  IsA(CodePrimitive()),
+  Realization(ParseExpression($text), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($api, "parse"), Call($String, Index($v, 0))))))))))
+
+// The expression with each Pair's variable replaced by its value.
+Concept(Substitute(),
+  IsA(CodePrimitive()),
+  Realization(Substitute($e, $pairs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member($api, "substitute"),
+                Index($v, 0),
+                New(
+                  $Map,
+                  Map(
+                    Call($items, Index($v, 1)),
+                    Lambda(
+                      List($p),
+                      List(
+                        Member(Index(Member($p, "args"), 0), "value"),
+                        Member(Index(Member($p, "args"), 1), "value")))))))))))))
+
+// Now, as an Instant.
+Concept(CurrentInstant(),
+  IsA(CodePrimitive()),
+  Realization(CurrentInstant(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, New($Date)))))))))
+
+// An Instant from milliseconds, ISO text, or another Instant.
+Concept(InstantFrom(),
+  IsA(CodePrimitive()),
+  Realization(InstantFrom($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, New($Date, Call($host, Index($v, 0)))))))))))
+
+// The Instant at that local time. The month counts from 1.
+Concept(LocalInstant(),
+  IsA(CodePrimitive()),
+  Realization(LocalInstant($year, $month, $day, $hour, $minute, $second), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                New(
+                  $Date,
+                  Index($v, 0),
+                  Subtract(Index($v, 1), 1),
+                  Otherwise(Index($v, 2), 1),
+                  Otherwise(Index($v, 3), 0),
+                  Otherwise(Index($v, 4), 0),
+                  Otherwise(Index($v, 5), 0))))))))),
+  Realization(LocalInstant($year, $month, $day, $hour, $minute), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                New(
+                  $Date,
+                  Index($v, 0),
+                  Subtract(Index($v, 1), 1),
+                  Index($v, 2),
+                  Index($v, 3),
+                  Index($v, 4))))))))),
+  Realization(LocalInstant($year, $month, $day, $hour), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                New($Date, Index($v, 0), Subtract(Index($v, 1), 1), Index($v, 2), Index($v, 3))))))))),
+  Realization(LocalInstant($year, $month, $day), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, New($Date, Index($v, 0), Subtract(Index($v, 1), 1), Index($v, 2))))))))))
+
+// The milliseconds since 1970 at UTC midnight that day. The month counts from 1.
+Concept(UtcMilliseconds(),
+  IsA(CodePrimitive()),
+  Realization(UtcMilliseconds($year, $month, $day), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(Member($Date, "UTC"), Index($v, 0), Subtract(Index($v, 1), 1), Index($v, 2)))))))))
+
+// The local year of an Instant.
+Concept(YearOf(),
+  IsA(CodePrimitive()),
+  Realization(YearOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getFullYear")))))))))
+
+// The local month of an Instant, 1 to 12.
+Concept(MonthOf(),
+  IsA(CodePrimitive()),
+  Realization(MonthOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Add(Call(Member(Call($host, Index($v, 0)), "getMonth")), 1))))))))
+
+// The local day of the month of an Instant.
+Concept(DayOf(),
+  IsA(CodePrimitive()),
+  Realization(DayOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getDate")))))))))
+
+// The local weekday of an Instant, 0 for Sunday.
+Concept(WeekdayOf(),
+  IsA(CodePrimitive()),
+  Realization(WeekdayOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getDay")))))))))
+
+// The local hour of an Instant.
+Concept(HourOf(),
+  IsA(CodePrimitive()),
+  Realization(HourOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getHours")))))))))
+
+// The local minute of an Instant.
+Concept(MinuteOf(),
+  IsA(CodePrimitive()),
+  Realization(MinuteOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getMinutes")))))))))
+
+// The milliseconds since 1970 of an Instant.
+Concept(MillisecondsOf(),
+  IsA(CodePrimitive()),
+  Realization(MillisecondsOf($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "getTime")))))))))
+
+// An Instant as ISO 8601 text, in UTC.
+Concept(IsoText(),
+  IsA(CodePrimitive()),
+  Realization(IsoText($i), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "toISOString")))))))))
+
+// A set that can change, of the List's distinct elements.
+Concept(NewSet(),
+  IsA(CodePrimitive()),
+  Realization(NewSet($xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "MutableSet",
+                Call(
+                  Member(Member($api, "cells"), "allocate"),
+                  Call($list, Map(Concat(New($Set, Map(Call($items, Index($v, 0)), $host))), $back)))))))))),
+  Realization(NewSet(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "MutableSet",
+                Call(Member(Member($api, "cells"), "allocate"), Call($list, List()))))))))))
+
+// An empty map that can change, from keys to values.
+Concept(NewMap(),
+  IsA(CodePrimitive()),
+  Realization(NewMap(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "MutableMap",
+                Call(Member(Member($api, "cells"), "allocate"), Call($list, List()))))))))),
+  Realization(NewMap($pairs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "MutableMap",
+                Call(
+                  Member(Member($api, "cells"), "allocate"),
+                  Call(
+                    $back,
+                    New(
+                      $Map,
+                      Map(
+                        Call($items, Index($v, 0)),
+                        Lambda(
+                          List($p),
+                          Sequence(
+                            Bind($h, Call($host, $p)),
+                            Return(
+                              If(
+                                Call(Member($Array, "isArray"), $h),
+                                $h,
+                                List(
+                                  Call($host, Member(Index(Member($p, "args"), 0), "value")),
+                                  Call($host, Member(Index(Member($p, "args"), 1), "value")))))))))))))))))))
+
+// The set with x among its members.
+Concept(SetAdd(),
+  IsA(CodePrimitive()),
+  Realization(SetAdd($s, $x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind(
+              $cell,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(
+                      Or(NotEquals(TypeOf($x), "object"), Equals($x, null)),
+                      Not(Includes(List("MutableSet", "MutableMap"), Member($x, "head")))),
+                    Throw(New($Error, "Expected a MutableSet or MutableMap")),
+                    Undefined()),
+                  Return(Member(Index(Member($x, "args"), 0), "value"))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($s, Call($host, Index($v, 0))),
+            Call(Member($s, "add"), Call($host, Index($v, 1))),
+            Call(Member(Member($api, "cells"), "write"), Call($cell, Index($v, 0)), Call($back, $s)),
+            Return(Index($v, 0))))))))
+
+// Whether x is a member of the set, or a key of the map.
+Concept(SetHas(),
+  IsA(CodePrimitive()),
+  Realization(SetHas($s, $x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Call($host, Index($v, 0)), "has"), Call($host, Index($v, 1))))))))))
+
+// The value the map holds at k, or Undefined().
+Concept(MapGet(),
+  IsA(CodePrimitive()),
+  Realization(MapGet($m, $k), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($m, Call($host, Index($v, 0))),
+            Bind($k, Call($host, Index($v, 1))),
+            Return(If(Call(Member($m, "has"), $k), Call($back, Call(Member($m, "get"), $k)), $U))))))))
+
+// The map with k now holding x.
+Concept(MapSet(),
+  IsA(CodePrimitive()),
+  Realization(MapSet($m, $k, $x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind(
+              $cell,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(
+                      Or(NotEquals(TypeOf($x), "object"), Equals($x, null)),
+                      Not(Includes(List("MutableSet", "MutableMap"), Member($x, "head")))),
+                    Throw(New($Error, "Expected a MutableSet or MutableMap")),
+                    Undefined()),
+                  Return(Member(Index(Member($x, "args"), 0), "value"))))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($m, Call($host, Index($v, 0))),
+            Call(Member($m, "set"), Call($host, Index($v, 1)), Call($host, Index($v, 2))),
+            Call(Member(Member($api, "cells"), "write"), Call($cell, Index($v, 0)), Call($back, $m)),
+            Return(Index($v, 0))))))))
+
+// How many members a set, or entries a map, has.
+Concept(SizeOf(),
+  IsA(CodePrimitive()),
+  Realization(SizeOf($s), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Member(Call($host, Index($v, 0)), "size"))))))))
+
+// A map's values, or a set's members, as a List.
+Concept(ValuesOf(),
+  IsA(CodePrimitive()),
+  Realization(ValuesOf($m), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Concat(Call(Member(Call($host, Index($v, 0)), "values")))))))))))
+
+// Statements in order, the last one's value the answer.
+Concept(Steps(),
+  IsA(CodePrimitive()),
+  Realization(Steps(Rest($steps)), context=Execution(), evaluateArguments=false,
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Var($last, $U),
+            ForOf(
+              $a,
+              $args,
+              Assign($last, Await(Call(Member($api, "resolve"), Member($a, "value"))))),
+            Return($last)))))))
+
+// The Lambda once for each element, until a turn stops the loop or returns.
+Concept(LoopOver(),
+  IsA(CodePrimitive()),
+  Realization(LoopOver($xs, $turn), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            ForOf(
+              $x,
+              $xs,
+              Sequence(
+                Bind($r, Await(Call($apply, Index($v, 1), $x))),
+                If(
+                  And(Equals(TypeOf($r), "object"), NotEquals($r, null)),
+                  Sequence(
+                    If(Equals(Member($r, "head"), "LoopStop"), Break(), Undefined()),
+                    If(Equals(Member($r, "head"), "LoopReturn"), Return($r), Undefined())),
+                  Undefined()))),
+            Return($U)))))))
+
+// The turn Lambda while the test Lambda holds.
+Concept(LoopWhile(),
+  IsA(CodePrimitive()),
+  Realization(LoopWhile($test, $turn), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            For(
+              Var($n, 0),
+              Call($truthy, Await(Call($apply, Index($v, 0)))),
+              PostIncrement($n),
+              Sequence(
+                If(
+                  GreaterThan($n, 1000000),
+                  Throw(New($Error, "A loop ran a million turns")),
+                  Undefined()),
+                Bind($r, Await(Call($apply, Index($v, 1)))),
+                If(
+                  And(Equals(TypeOf($r), "object"), NotEquals($r, null)),
+                  Sequence(
+                    If(Equals(Member($r, "head"), "LoopStop"), Break(), Undefined()),
+                    If(Equals(Member($r, "head"), "LoopReturn"), Return($r), Undefined())),
+                  Undefined()))),
+            Return($U)))))))
+
+// The turn Lambda, then again while the test Lambda holds.
+Concept(LoopDoWhile(),
+  IsA(CodePrimitive()),
+  Realization(LoopDoWhile($turn, $test), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Var($n, 0),
+            DoWhile(
+              Sequence(
+                If(
+                  GreaterThan(PostIncrement($n), 1000000),
+                  Throw(New($Error, "A loop ran a million turns")),
+                  Undefined()),
+                Bind($r, Await(Call($apply, Index($v, 0)))),
+                If(
+                  And(Equals(TypeOf($r), "object"), NotEquals($r, null)),
+                  Sequence(
+                    If(Equals(Member($r, "head"), "LoopStop"), Break(), Undefined()),
+                    If(Equals(Member($r, "head"), "LoopReturn"), Return($r), Undefined())),
+                  Undefined())),
+              Call($truthy, Await(Call($apply, Index($v, 1))))),
+            Return($U)))))))
+
+// The turn Lambda while the test holds, the step after each turn.
+Concept(LoopFor(),
+  IsA(CodePrimitive()),
+  Realization(LoopFor($test, $turn, $step), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $truthy,
+              Lambda(
+                List($v),
+                Not(
+                  Or(
+                    Or(
+                      Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
+                      Call(Member($Number, "isNaN"), $v)),
+                    And(
+                      And(
+                        And(Equals(TypeOf($v), "object"), NotEquals($v, null)),
+                        Or(
+                          Equals(Member($v, "head"), "Undefined"),
+                          Equals(Member($v, "head"), "False"))),
+                      Equals(Length(Member($v, "args")), 0)))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            For(
+              Var($n, 0),
+              Call($truthy, Await(Call($apply, Index($v, 0)))),
+              Sequence(Await(Call($apply, Index($v, 2))), PostIncrement($n)),
+              Sequence(
+                If(
+                  GreaterThan($n, 1000000),
+                  Throw(New($Error, "A loop ran a million turns")),
+                  Undefined()),
+                Bind($r, Await(Call($apply, Index($v, 1)))),
+                If(
+                  And(Equals(TypeOf($r), "object"), NotEquals($r, null)),
+                  Sequence(
+                    If(Equals(Member($r, "head"), "LoopStop"), Break(), Undefined()),
+                    If(Equals(Member($r, "head"), "LoopReturn"), Return($r), Undefined())),
+                  Undefined()))),
+            Return($U)))))))
+
+// A loop's turn ending, the loop going on: continue.
+Concept(LoopNext(),
+  IsA(CodePrimitive()),
+  Realization(LoopNext(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($api, "call"), "LoopNext"))))))))
+
+// A loop's turn ending the loop: break.
+Concept(LoopStop(),
+  IsA(CodePrimitive()),
+  Realization(LoopStop(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($api, "call"), "LoopStop"))))))))
+
+// A loop's turn returning x from the function the loop is in.
+Concept(LoopReturn(),
+  IsA(CodePrimitive()),
+  Realization(LoopReturn($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member($api, "call"), "LoopReturn", Index($v, 0)))))))))
+
+// Whether a loop ended by returning.
+Concept(IsLoopReturn(),
+  IsA(CodePrimitive()),
+  Realization(IsLoopReturn($r), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              And(
+                And(Equals(TypeOf(Index($v, 0)), "object"), NotEquals(Index($v, 0), null)),
+                Equals(Member(Index($v, 0), "head"), "LoopReturn")))))))))
+
+// What a loop's return returned.
+Concept(LoopReturnValue(),
+  IsA(CodePrimitive()),
+  Realization(LoopReturnValue($r), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Member(Index(Member(Index($v, 0), "args"), 0), "value"))))))))
+
+// A function applied to a List of arguments.
+Concept(CallWith(),
+  IsA(CodePrimitive()),
+  Realization(CallWith($f, $xs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($apply, Index($v, 0), Spread(Call($items, Index($v, 1)))))))))))
+
+// Relations whose object is this identity: records of subject, claim, predicate and stamp.
+Concept(ClaimsWithObject(),
+  IsA(CodePrimitive()),
+  Realization(ClaimsWithObject($id), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member(Member($api, "store"), "asObject"), Call($String, Index($v, 0)))))))))))
+
+// Relations whose subject is this identity.
+Concept(ClaimsWithSubject(),
+  IsA(CodePrimitive()),
+  Realization(ClaimsWithSubject($id), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member(Member($api, "store"), "asSubject"), Call($String, Index($v, 0)))))))))))
+
+// What holds of an identity, with the options given (transitive, context).
+Concept(ClaimsOf(),
+  IsA(CodePrimitive()),
+  Realization(ClaimsOf($id, $options), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Member($api, "relations"), "of"),
+                  Call($String, Index($v, 0)),
+                  Call($host, Index($v, 1)))))))))),
+  Realization(ClaimsOf($id), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(Member(Member($api, "relations"), "of"), Call($String, Index($v, 0)))))))))))
+
+// An identity's unit, its relations and realizations, as a record; Undefined() if none.
+Concept(UnitOf(),
+  IsA(CodePrimitive()),
+  Realization(UnitOf($id), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($u, Call(Member(Member($api, "store"), "get"), Call($String, Index($v, 0)))),
+            Return(If(Equals($u, Undefined()), $U, Call($back, $u)))))))))
+
+// Whether the graph holds this identity.
+Concept(IsKnown(),
+  IsA(CodePrimitive()),
+  Realization(IsKnown($id), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Member($api, "store"), "has"), Call($String, Index($v, 0))))))))))
+
+// Every unit the graph holds.
+Concept(AllUnits(),
+  IsA(CodePrimitive()),
+  Realization(AllUnits(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member(Member($api, "store"), "all"))))))))))
+
+// A relation added to the graph, stamped; the stamp is the answer.
+Concept(Assert(),
+  IsA(CodePrimitive()),
+  Realization(Assert($id, $claim, $context, $cause), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Call($String, Index($v, 0)),
+                  Index($v, 1),
+                  If(
+                    Or(
+                      Equals(Index($v, 2), Undefined()),
+                      And(
+                        And(Equals(TypeOf(Index($v, 2)), "object"), NotEquals(Index($v, 2), null)),
+                        Equals(Member(Index($v, 2), "head"), "Undefined"))),
+                    Undefined(),
+                    Index($v, 2)),
+                  Call($host, Index($v, 3)))))))))),
+  Realization(Assert($id, $claim, $context), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Call($String, Index($v, 0)),
+                  Index($v, 1),
+                  If(
+                    And(
+                      And(Equals(TypeOf(Index($v, 2)), "object"), NotEquals(Index($v, 2), null)),
+                      Equals(Member(Index($v, 2), "head"), "Undefined")),
+                    Undefined(),
+                    Index($v, 2)))))))))),
+  Realization(Assert($id, $claim), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Call($String, Index($v, 0)),
+                  Index($v, 1))))))))))
+
+// Where the graph mentions a value: each relation that holds it.
+Concept(MentionsOf(),
+  IsA(CodePrimitive()),
+  Realization(MentionsOf($x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Call(Member(Member($api, "store"), "mentioning"), Index($v, 0))))))))))
+
+// A new identity, from a name or a kind.
+Concept(MintIdentity(),
+  IsA(CodePrimitive()),
+  Realization(MintIdentity($base), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call(Member(Member($api, "store"), "mint"), Call($String, Index($v, 0))))))))))
+
+// The stamp with this sequence number, or Undefined().
+Concept(StampOf(),
+  IsA(CodePrimitive()),
+  Realization(StampOf($seq), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($s, Call(Member(Member($api, "store"), "findStamp"), Index($v, 0))),
+            Return(If(Equals($s, Undefined()), $U, Call($back, $s)))))))))
+
+// The stamps recorded between two times.
+Concept(StampsBetween(),
+  IsA(CodePrimitive()),
+  Realization(StampsBetween($from, $to), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Member($api, "store"), "between"),
+                  Call($String, Index($v, 0)),
+                  Call($String, Index($v, 1)))))))))))
+
+// Remove the relations these stamps made; how many went.
+Concept(CollectStamps(),
+  IsA(CodePrimitive()),
+  Realization(CollectStamps($seqs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                Member(Member($api, "store"), "collect"),
+                New($Set, Map(Call($items, Index($v, 0)), $host))))))))))
+
+// A unit added to the graph as seed.
+Concept(SeedUnit(),
+  IsA(CodePrimitive()),
+  Realization(SeedUnit($unit), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Call(Member(Member($api, "store"), "seed"), Call($host, Index($v, 0))),
+            Return($U)))))))
+
+// A realization added to an identity.
+Concept(AddRealization(),
+  IsA(CodePrimitive()),
+  Realization(AddRealization($id, $realization), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Call(
+              Member(Member($api, "store"), "addRealization"),
+              Call($String, Index($v, 0)),
+              Call($host, Index($v, 1))),
+            Return($U)))))))
+
+// An ambient fact about this turn, or Undefined().
+Concept(Ambient(),
+  IsA(CodePrimitive()),
+  Realization(Ambient($key), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($a, Call(Member($api, "ambient"), Call($String, Index($v, 0)))),
+            Return(If(Equals($a, Undefined()), $U, $a))))))))
+
+// The stamp of what was said this turn, the cause of what it leads to.
+Concept(CurrentCause(),
+  IsA(CodePrimitive()),
+  Realization(CurrentCause(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($c, Member(Member($api, "trace"), "cause")),
+            Return(If(Equals($c, Undefined()), $U, $c))))))))
+
+// The context this was reached in.
+Concept(CurrentContext(),
+  IsA(CodePrimitive()),
+  Realization(CurrentContext(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Otherwise(Member($api, "context"), $U))))))))
+
+// The candidates, most active first.
+Concept(Rank(),
+  IsA(CodePrimitive()),
+  Realization(Rank($candidates, $sources), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member($api, "rank"),
+                  Map(Call($items, Index($v, 0)), $host),
+                  Map(Call($items, Index($v, 1)), $host))))))))))
+
+// Remove these turns from the trace, for explicit forgetting.
+Concept(ForgetTurns(),
+  IsA(CodePrimitive()),
+  Realization(ForgetTurns($seqs), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Call(Member($api, "forgetTurns"), Map(Call($items, Index($v, 0)), $host)),
+            Return($U)))))))
+
+// Every stored trace event, oldest first.
+Concept(Events(),
+  IsA(CodePrimitive()),
+  Realization(Events(), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Return(Call($back, Member($api, "events")))))))))
