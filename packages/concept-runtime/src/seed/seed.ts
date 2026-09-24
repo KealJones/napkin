@@ -1561,9 +1561,6 @@ export interface SeedReport {
 
 function applyUnits(store: ConceptStore, list: readonly ConceptUnit[], report: SeedReport): void {
   for (const unit of list) {
-export function seed(store: ConceptStore): SeedReport {
-  const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
-  for (const unit of [...units, ...judgmentEvidenceUnits()]) {
     const result = store.seed(unit);
     if (result.created) report.created += 1;
     else if (result.addedRelations || result.addedRealizations) report.updated += 1;
@@ -1578,6 +1575,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryIndividualUnits(), report); // memory-spec Part 18 step 3
   applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
+  applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;
 }
