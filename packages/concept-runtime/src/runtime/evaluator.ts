@@ -23,6 +23,8 @@ import {
 } from "../concept/expression.js";
 import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
+import { writeWith, writingRules } from "../code/write.js";
+import { languagePackStore } from "../code/import.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -345,10 +347,6 @@ export class Runtime {
     depth: number,
     within?: Ancestry,
   ): Promise<Expr> {
-    const source = codeSource(realization.body);
-    if (source === undefined) {
-      throw new Error("A Code body needs a source string");
-    }
     const language = codeLanguage(realization.body);
     if (!this.speaks.includes(language)) {
       // Not a failure of the Concept: the graph holds a correct implementation that this
@@ -361,6 +359,10 @@ export class Runtime {
         `This host runs ${this.speaks.join(", ")} and the body is ${language}`,
       );
     }
+    const source = this.sourceOf(realization.body);
+    if (source === undefined) {
+      throw new Error("A Code body needs a source string, or the IR of one");
+    }
     const api = this.api(context, parent, depth, within);
     // Built once per source, not once per call: every Code body went through new Function
     // on every evaluation.
@@ -370,6 +372,23 @@ export class Runtime {
       COMPILED_SOURCES.set(source, fn);
     }
     return await fn(args, bindings, api);
+  }
+
+  /**
+   * A Code body's JavaScript. `Code(ir=...)` holds the program as Concepts, the source of
+   * truth, and its JavaScript is written from them by the language pack's To rules
+   * (code/write.ts) once per body: a cache, as a compiled realization is (ir-spec 10.6).
+   */
+  private sourceOf(body: Expr): string | undefined {
+    const text = codeSource(body);
+    if (text !== undefined) return text;
+    const ir = isCall(body) ? body.args.find((a) => a.name === "ir")?.value : undefined;
+    if (ir === undefined || !isCall(ir)) return undefined;
+    const known = WRITTEN.get(ir);
+    if (known !== undefined) return known;
+    const written = writeProgram(this.store, ir);
+    WRITTEN.set(ir, written);
+    return written;
   }
 
   /** What a body reaches the host through, whether it is JavaScript or compiled IR. */
@@ -408,6 +427,16 @@ export class Runtime {
 interface Ancestry {
   readonly key: string;
   readonly up?: Ancestry;
+}
+
+const WRITTEN = new WeakMap<object, string>();
+
+/** A program held as Concepts, written as JavaScript by the store's rules or the built-in ones. */
+function writeProgram(store: ConceptStore, ir: Expr): string {
+  const own = writingRules(store, "JavaScript");
+  const written = writeWith(own.size ? own : writingRules(languagePackStore(), "JavaScript"), ir, "expression");
+  if (written.unwritable.length) throw new Error(`Cannot write this program as JavaScript: ${written.unwritable.join(", ")}`);
+  return written.text;
 }
 
 type CodeFunction = (a: readonly Argument[], b: Bindings, c: CodeApi) => Expr | Promise<Expr>;

@@ -15,19 +15,55 @@ Concept(Evidence(),
   IsA(Category()),
   Realization(Evidence($concept),
     body=Code(
-      source="""(args, bindings, api) => {
-          const target = args[0].value;
-          const head = target && typeof target === "object" && "head" in target ? target.head : String(target);
-          const matches = api.events.filter((e) => e.concept === head);
-          if (!matches.length) return api.call("NoEvidence", api.call(head));
-          const groups = [];
-          for (const e of matches) {
-            const found = groups.find((g) => g.context === e.useContext && g.outcome === e.outcome);
-            if (found) found.count += 1;
-            else groups.push({ context: e.useContext, outcome: e.outcome, count: 1 });
-          }
-          return api.call(
-            "List",
-            ...groups.map((g) => api.call("Tally", api.parse(g.context), api.call(g.outcome), g.count)),
-          );
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($target, Member(Index($args, 0), "value")),
+          Let(
+            $head,
+            If(
+              And(And($target, Equals(TypeOf($target), "object")), In("head", $target)),
+              Member($target, "head"),
+              Call($String, $target))),
+          Let(
+            $matches,
+            Filter(Member($api, "events"), Lambda(List($e), Equals(Member($e, "concept"), $head)))),
+          If(
+            Not(Length($matches)),
+            Return(Call(Member($api, "call"), "NoEvidence", Call(Member($api, "call"), $head))),
+            Undefined()),
+          Let($groups, List()),
+          ForOf(
+            $e,
+            $matches,
+            Sequence(
+              Let(
+                $found,
+                Call(
+                  Member($groups, "find"),
+                  Lambda(
+                    List($g),
+                    And(
+                      Equals(Member($g, "context"), Member($e, "useContext")),
+                      Equals(Member($g, "outcome"), Member($e, "outcome")))))),
+              If(
+                $found,
+                Assign(Member($found, "count"), Add(Member($found, "count"), 1)),
+                Call(
+                  Member($groups, "push"),
+                  Object(context=Member($e, "useContext"), outcome=Member($e, "outcome"), count=1))))),
+          Return(
+            Call(
+              Member($api, "call"),
+              "List",
+              Spread(
+                Map(
+                  $groups,
+                  Lambda(
+                    List($g),
+                    Call(
+                      Member($api, "call"),
+                      "Tally",
+                      Call(Member($api, "parse"), Member($g, "context")),
+                      Call(Member($api, "call"), Member($g, "outcome")),
+                      Member($g, "count"))))))))))))

@@ -69,147 +69,330 @@ Concept(SupersetOf(), Transitive(), Asymmetric())
 Concept(Concept(),
   Realization(Concept(identity=$identity, relations=$relations, realizations=$realizations), evaluateArguments=false, properties=List(Effectful()),
     body=Code(
-      source="""(args, bindings, api) => {
-          const get = (n) => { const a = args.find((x) => x.name === n); return a ? a.value : undefined; };
-          const identity = get("identity");
-          if (typeof identity !== "string" || !/^[A-Z]/.test(identity)) {
-            return api.call("InvalidDeclaration", identity === undefined ? api.call("Missing") : identity);
-          }
-          const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
-          // A Teacher told to give a few relations sometimes gives two hundred, listing
-          // whatever the word reminds it of -- Quantity once returned "Jerk Snap Crackle
-          // Pop". The prompt asks; this enforces. Past the cap it is free association,
-          // and every one of them becomes a topic the crawl then goes and studies.
-          const RELATION_CAP = 12;
-          api.store.seed({ identity, relations: [], realizations: [] });
-          // Deduplicate BEFORE capping. A Teacher that loses the thread repeats itself --
-          // "hi" came back with the same relation six times -- and counting the copies
-          // against the cap spends the budget on one claim and rejects the real ones.
-          const asked = [];
-          for (const r of items(get("relations"))) {
-            if (!asked.some((x) => api.format(x) === api.format(r))) asked.push(r);
-          }
-          const relations = asked.slice(0, RELATION_CAP);
-          // "Volcano IsA ElectronicGame": research turns up the game, the film and the band
-          // that share a name, and a small Teacher files them flat beside what the word
-          // means, however the prompt asks. When the word has another category, a work or
-          // a name it shares is a namesake, held in that sense only.
-          // Which categories are such works and names is graph data, on Namesake.
-          const sharesNames = (head) => api.store.asObject(head).some((t) => t.subject === "Namesake" && t.predicate === "Covers");
-          const NAMESAKE = { has: sharesNames };
-          const isA = (r) => r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head;
-          const hasOther = relations.some((r) => isA(r) && !NAMESAKE.has(r.args[0].value.head));
-          for (const r of relations) {
-            if (!r || !r.head) continue;
-            // In(claim, context) says the claim holds only in that sense of the word.
-            // Unwrapped here, because a context is where a relation holds and not part of
-            // what it says.
-            const contextual = r.head === "In" && r.args.length === 2;
-            const claim = contextual ? r.args[0].value : r;
-            const namesake = !contextual && hasOther && isA(r) && NAMESAKE.has(r.args[0].value.head);
-            // "IsA(Volcano())" held "in Volcano()" says nothing: a sense named after the very
-            // thing it claims, which a Teacher writes when it has run out of senses.
-            if (contextual && claim && claim.head === "IsA" && claim.args[0] && r.args[1].value &&
-              api.format(claim.args[0].value) === api.format(r.args[1].value)) continue;
-            const where = contextual ? r.args[1].value : namesake ? api.call("Namesake") : undefined;
-            // A relation naming the Concept it belongs to says nothing: the subject is
-            // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
-            // which is its own pattern filed as a fact, and it stuck in the graph.
-            if (!claim || !claim.head || claim.head === identity) continue;
-            api.store.addRelation(identity, claim, where, api.trace.cause);
-          }
-
-          // Realizations are behaviour, so they are saved too — a Concept taught with
-          // relations alone can be described but never computed.
-          let added = 0;
-          const rejected = [];
-          for (const decl of items(get("realizations"))) {
-            if (!decl || decl.head !== "Realization") continue;
-            const field = (n) => { const a = decl.args.find((x) => x.name === n); return a ? a.value : undefined; };
-            const pattern = field("pattern"), body = field("body"), context = field("context");
-            if (!pattern || !body) { rejected.push(api.call("Incomplete")); continue; }
-            // A taught body must compose Concepts that already exist. Never code, and
-            // never a name the graph has not heard of. A rejection is reported rather
-            // than dropped: the missing names are the next thing to learn.
-            if (body.head === "Code") { rejected.push(api.call("NotComposed", body)); continue; }
-            // A body that leads back to the Concept it defines is a realization that
-            // calls itself, directly or by a detour. A composition-only Teacher has no
-            // business writing recursion: asked to realize Choose it wrote Select, then
-            // realized Select as Choose, and the pair was inert in both directions.
-            const namesIn = (e, acc) => {
-              if (!e || !e.head) return acc;
-              acc.add(e.head);
-              for (const a of e.args) namesIn(a.value, acc);
-              return acc;
-            };
-            const reachesSelf = () => {
-              const seen = new Set();
-              const queue = [...namesIn(body, new Set())];
-              while (queue.length) {
-                const head = queue.shift();
-                if (head === identity) return true;
-                if (seen.has(head)) continue;
-                seen.add(head);
-                const unit = api.store.get(head);
-                if (!unit) continue;
-                for (const r of unit.realizations) {
-                  if (r.body && r.body.head === "Code") continue;
-                  for (const next of namesIn(r.body, new Set())) queue.push(next);
-                }
-              }
-              return false;
-            };
-            if (reachesSelf()) { rejected.push(api.call("SelfReferential", body)); continue; }
-            // A body must reduce to something that can actually run. Renaming Choose to
-            // Select, when Select realizes nothing either, buys a forwarding pointer to a
-            // dead end -- and the Teacher did exactly that, in both directions. Reported
-            // as NeedsFirst so the inert target becomes the next thing to learn.
-            const canAct = (head, seen) => {
-              if (seen.has(head)) return false;
-              seen.add(head);
-              const unit = api.store.get(head);
-              if (!unit) return false;
-              if (unit.realizations.length) return true;
-              for (const { claim: r } of unit.relations) {
-                if (r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head) {
-                  if (canAct(r.args[0].value.head, seen)) return true;
-                }
-              }
-              return false;
-            };
-            const inert = [...new Set([...namesIn(body, new Set())].filter((h) => !canAct(h, new Set())))];
-            if (inert.length) {
-              rejected.push(api.call("NeedsFirst", api.call("List", ...inert.map((h) => api.call(h)))));
-              continue;
-            }
-            const heads = [];
-            (function collect(e) {
-              if (!e || !e.head) return;
-              heads.push(e.head);
-              for (const a of e.args) collect(a.value);
-            })(body);
-            const missing = [...new Set(heads.filter((h) => !api.store.has(h)))];
-            if (missing.length) {
-              rejected.push(api.call("NeedsFirst", api.call("List", ...missing.map((h) => api.call(h)))));
-              continue;
-            }
-            api.store.addRealization(identity, {
-              pattern, body,
-              context: context === undefined ? undefined : context,
-              properties: [],
-              evaluateArguments: true,
-              evaluateResult: false,
-            });
-            added += 1;
-          }
-          if (asked.length > RELATION_CAP) {
-            rejected.push(api.call("TooMany", asked.length - RELATION_CAP));
-          }
-          if (rejected.length) {
-            return api.call("Saved", api.call(identity), added, api.call("Rejected", ...rejected));
-          }
-          return api.call("Saved", api.call(identity), added);
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $get,
+            Lambda(
+              List($n),
+              Sequence(
+                Let(
+                  $a,
+                  Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                Return(If($a, Member($a, "value"), Undefined()))))),
+          Let($identity, Call($get, "identity")),
+          If(
+            Or(
+              NotEquals(TypeOf($identity), "string"),
+              Not(Call(Member(Regex("^[A-Z]", ""), "test"), $identity))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "InvalidDeclaration",
+                If(Equals($identity, Undefined()), Call(Member($api, "call"), "Missing"), $identity))),
+            Undefined()),
+          Let(
+            $items,
+            Lambda(
+              List($x),
+              If(
+                And($x, Equals(Member($x, "head"), "List")),
+                Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))),
+                If($x, List($x), List())))),
+          Let($RELATION_CAP, 12),
+          Call(
+            Member(Member($api, "store"), "seed"),
+            Object(identity=$identity, relations=List(), realizations=List())),
+          Let($asked, List()),
+          ForOf(
+            $r,
+            Call($items, Call($get, "relations")),
+            If(
+              Not(
+                Call(
+                  Member($asked, "some"),
+                  Lambda(
+                    List($x),
+                    Equals(Call(Member($api, "format"), $x), Call(Member($api, "format"), $r))))),
+              Call(Member($asked, "push"), $r),
+              Undefined())),
+          Let($relations, Call(Member($asked, "slice"), 0, $RELATION_CAP)),
+          Let(
+            $sharesNames,
+            Lambda(
+              List($head),
+              Call(
+                Member(Call(Member(Member($api, "store"), "asObject"), $head), "some"),
+                Lambda(
+                  List($t),
+                  And(
+                    Equals(Member($t, "subject"), "Namesake"),
+                    Equals(Member($t, "predicate"), "Covers")))))),
+          Let($NAMESAKE, Object(has=$sharesNames)),
+          Let(
+            $isA,
+            Lambda(
+              List($r),
+              And(
+                And(
+                  And(And($r, Equals(Member($r, "head"), "IsA")), Index(Member($r, "args"), 0)),
+                  Member(Index(Member($r, "args"), 0), "value")),
+                Member(Member(Index(Member($r, "args"), 0), "value"), "head")))),
+          Let(
+            $hasOther,
+            Call(
+              Member($relations, "some"),
+              Lambda(
+                List($r),
+                And(
+                  Call($isA, $r),
+                  Not(
+                    Call(
+                      Member($NAMESAKE, "has"),
+                      Member(Member(Index(Member($r, "args"), 0), "value"), "head"))))))),
+          ForOf(
+            $r,
+            $relations,
+            Sequence(
+              If(Or(Not($r), Not(Member($r, "head"))), Continue(), Undefined()),
+              Let(
+                $contextual,
+                And(Equals(Member($r, "head"), "In"), Equals(Length(Member($r, "args")), 2))),
+              Let($claim, If($contextual, Member(Index(Member($r, "args"), 0), "value"), $r)),
+              Let(
+                $namesake,
+                And(
+                  And(And(Not($contextual), $hasOther), Call($isA, $r)),
+                  Call(
+                    Member($NAMESAKE, "has"),
+                    Member(Member(Index(Member($r, "args"), 0), "value"), "head")))),
+              If(
+                And(
+                  And(
+                    And(
+                      And(And($contextual, $claim), Equals(Member($claim, "head"), "IsA")),
+                      Index(Member($claim, "args"), 0)),
+                    Member(Index(Member($r, "args"), 1), "value")),
+                  Equals(
+                    Call(Member($api, "format"), Member(Index(Member($claim, "args"), 0), "value")),
+                    Call(Member($api, "format"), Member(Index(Member($r, "args"), 1), "value")))),
+                Continue(),
+                Undefined()),
+              Let(
+                $where,
+                If(
+                  $contextual,
+                  Member(Index(Member($r, "args"), 1), "value"),
+                  If($namesake, Call(Member($api, "call"), "Namesake"), Undefined()))),
+              If(
+                Or(
+                  Or(Not($claim), Not(Member($claim, "head"))),
+                  Equals(Member($claim, "head"), $identity)),
+                Continue(),
+                Undefined()),
+              Call(
+                Member(Member($api, "store"), "addRelation"),
+                $identity,
+                $claim,
+                $where,
+                Member(Member($api, "trace"), "cause")))),
+          Var($added, 0),
+          Let($rejected, List()),
+          ForOf(
+            $decl,
+            Call($items, Call($get, "realizations")),
+            Sequence(
+              If(
+                Or(Not($decl), NotEquals(Member($decl, "head"), "Realization")),
+                Continue(),
+                Undefined()),
+              Let(
+                $field,
+                Lambda(
+                  List($n),
+                  Sequence(
+                    Let(
+                      $a,
+                      Call(
+                        Member(Member($decl, "args"), "find"),
+                        Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                    Return(If($a, Member($a, "value"), Undefined()))))),
+              Let($pattern, Call($field, "pattern")),
+              Let($body, Call($field, "body")),
+              Let($context, Call($field, "context")),
+              If(
+                Or(Not($pattern), Not($body)),
+                Sequence(
+                  Call(Member($rejected, "push"), Call(Member($api, "call"), "Incomplete")),
+                  Continue()),
+                Undefined()),
+              If(
+                Equals(Member($body, "head"), "Code"),
+                Sequence(
+                  Call(Member($rejected, "push"), Call(Member($api, "call"), "NotComposed", $body)),
+                  Continue()),
+                Undefined()),
+              Let(
+                $namesIn,
+                Lambda(
+                  List($e, $acc),
+                  Sequence(
+                    If(Or(Not($e), Not(Member($e, "head"))), Return($acc), Undefined()),
+                    Call(Member($acc, "add"), Member($e, "head")),
+                    ForOf($a, Member($e, "args"), Call($namesIn, Member($a, "value"), $acc)),
+                    Return($acc)))),
+              Let(
+                $reachesSelf,
+                Lambda(
+                  List(),
+                  Sequence(
+                    Let($seen, New($Set)),
+                    Let($queue, Concat(Call($namesIn, $body, New($Set)))),
+                    While(
+                      Length($queue),
+                      Sequence(
+                        Let($head, Call(Member($queue, "shift"))),
+                        If(Equals($head, $identity), Return(true), Undefined()),
+                        If(Call(Member($seen, "has"), $head), Continue(), Undefined()),
+                        Call(Member($seen, "add"), $head),
+                        Let($unit, Call(Member(Member($api, "store"), "get"), $head)),
+                        If(Not($unit), Continue(), Undefined()),
+                        ForOf(
+                          $r,
+                          Member($unit, "realizations"),
+                          Sequence(
+                            If(
+                              And(
+                                Member($r, "body"),
+                                Equals(Member(Member($r, "body"), "head"), "Code")),
+                              Continue(),
+                              Undefined()),
+                            ForOf(
+                              $next,
+                              Call($namesIn, Member($r, "body"), New($Set)),
+                              Call(Member($queue, "push"), $next)))))),
+                    Return(false)))),
+              If(
+                Call($reachesSelf),
+                Sequence(
+                  Call(
+                    Member($rejected, "push"),
+                    Call(Member($api, "call"), "SelfReferential", $body)),
+                  Continue()),
+                Undefined()),
+              Let(
+                $canAct,
+                Lambda(
+                  List($head, $seen),
+                  Sequence(
+                    If(Call(Member($seen, "has"), $head), Return(false), Undefined()),
+                    Call(Member($seen, "add"), $head),
+                    Let($unit, Call(Member(Member($api, "store"), "get"), $head)),
+                    If(Not($unit), Return(false), Undefined()),
+                    If(Length(Member($unit, "realizations")), Return(true), Undefined()),
+                    ForOf(
+                      Object(claim=$r),
+                      Member($unit, "relations"),
+                      If(
+                        And(
+                          And(
+                            And(
+                              And($r, Equals(Member($r, "head"), "IsA")),
+                              Index(Member($r, "args"), 0)),
+                            Member(Index(Member($r, "args"), 0), "value")),
+                          Member(Member(Index(Member($r, "args"), 0), "value"), "head")),
+                        If(
+                          Call(
+                            $canAct,
+                            Member(Member(Index(Member($r, "args"), 0), "value"), "head"),
+                            $seen),
+                          Return(true),
+                          Undefined()),
+                        Undefined())),
+                    Return(false)))),
+              Let(
+                $inert,
+                Concat(
+                  New(
+                    $Set,
+                    Filter(
+                      Concat(Call($namesIn, $body, New($Set))),
+                      Lambda(List($h), Not(Call($canAct, $h, New($Set)))))))),
+              If(
+                Length($inert),
+                Sequence(
+                  Call(
+                    Member($rejected, "push"),
+                    Call(
+                      Member($api, "call"),
+                      "NeedsFirst",
+                      Call(
+                        Member($api, "call"),
+                        "List",
+                        Spread(Map($inert, Lambda(List($h), Call(Member($api, "call"), $h))))))),
+                  Continue()),
+                Undefined()),
+              Let($heads, List()),
+              Call(
+                Func(
+                  $collect,
+                  List($e),
+                  Sequence(
+                    If(Or(Not($e), Not(Member($e, "head"))), Return(), Undefined()),
+                    Call(Member($heads, "push"), Member($e, "head")),
+                    ForOf($a, Member($e, "args"), Call($collect, Member($a, "value"))))),
+                $body),
+              Let(
+                $missing,
+                Concat(
+                  New(
+                    $Set,
+                    Filter(
+                      $heads,
+                      Lambda(List($h), Not(Call(Member(Member($api, "store"), "has"), $h))))))),
+              If(
+                Length($missing),
+                Sequence(
+                  Call(
+                    Member($rejected, "push"),
+                    Call(
+                      Member($api, "call"),
+                      "NeedsFirst",
+                      Call(
+                        Member($api, "call"),
+                        "List",
+                        Spread(Map($missing, Lambda(List($h), Call(Member($api, "call"), $h))))))),
+                  Continue()),
+                Undefined()),
+              Call(
+                Member(Member($api, "store"), "addRealization"),
+                $identity,
+                Object(
+                  pattern=$pattern,
+                  body=$body,
+                  context=If(Equals($context, Undefined()), Undefined(), $context),
+                  properties=List(),
+                  evaluateArguments=true,
+                  evaluateResult=false)),
+              Assign($added, Add($added, 1)))),
+          If(
+            GreaterThan(Length($asked), $RELATION_CAP),
+            Call(
+              Member($rejected, "push"),
+              Call(Member($api, "call"), "TooMany", Subtract(Length($asked), $RELATION_CAP))),
+            Undefined()),
+          If(
+            Length($rejected),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Saved",
+                Call(Member($api, "call"), $identity),
+                $added,
+                Call(Member($api, "call"), "Rejected", Spread($rejected)))),
+            Undefined()),
+          Return(Call(Member($api, "call"), "Saved", Call(Member($api, "call"), $identity), $added)))))),
   Realization(Concept(identity=$identity, relations=$relations), evaluateArguments=false,
     body=Concept(identity=$identity, relations=$relations, realizations=List())),
   Realization(Concept(identity=$identity, realizations=$realizations), evaluateArguments=false,
@@ -222,14 +405,16 @@ Concept(Forwarding(), IsA(RealizationProperty()))
 Concept(Let(),
   Realization(Let($name, $value, $body), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-          const [nameArg, valueArg, bodyArg] = args;
-          const name = nameArg.value.variable;
-          const value = await api.evaluate(valueArg.value);
-          const bound = new Map([[name, value]]);
-          const substituted = api.substitute(bodyArg.value, bound);
-          return await api.evaluate(substituted);
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(List($nameArg, $valueArg, $bodyArg), $args),
+            Let($name, Member(Member($nameArg, "value"), "variable")),
+            Let($value, Await(Call(Member($api, "evaluate"), Member($valueArg, "value")))),
+            Let($bound, New($Map, List(List($name, $value)))),
+            Let($substituted, Call(Member($api, "substitute"), Member($bodyArg, "value"), $bound)),
+            Return(Await(Call(Member($api, "evaluate"), $substituted)))))))))
 
 Concept(Lambda(), IsA(Data()))
 
@@ -272,40 +457,85 @@ Concept(Ref(),
   IsA(Marker()),
   Realization(Ref($text, resolvedTo=$value), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
     body=Code(
-      source="""async (args, bindings, api) => {
-          const found = args.find((a) => a.name === "resolvedTo");
-          if (!found) return api.call("Ref", args[0].value);
-          const value = found.value;
-          // Memory stores what was said as text; read it back as Concepts.
-          // A stored answer is already wrapped; pointing at it means pointing at what it
-          // answered, not at the wrapper.
-          const unwrap = (x) => (x && x.head === "Answer" && x.args.length === 1 ? x.args[0].value : x);
-          if (typeof value !== "string") return unwrap(await api.evaluate(value));
-          try {
-            return unwrap(await api.evaluate(api.parse(value)));
-          } catch {
-            return value;
-          }
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $found,
+              Call(
+                Member($args, "find"),
+                Lambda(List($a), Equals(Member($a, "name"), "resolvedTo")))),
+            If(
+              Not($found),
+              Return(Call(Member($api, "call"), "Ref", Member(Index($args, 0), "value"))),
+              Undefined()),
+            Let($value, Member($found, "value")),
+            Let(
+              $unwrap,
+              Lambda(
+                List($x),
+                If(
+                  And(
+                    And($x, Equals(Member($x, "head"), "Answer")),
+                    Equals(Length(Member($x, "args")), 1)),
+                  Member(Index(Member($x, "args"), 0), "value"),
+                  $x))),
+            If(
+              NotEquals(TypeOf($value), "string"),
+              Return(Call($unwrap, Await(Call(Member($api, "evaluate"), $value)))),
+              Undefined()),
+            Try(
+              Return(
+                Call(
+                  $unwrap,
+                  Await(Call(Member($api, "evaluate"), Call(Member($api, "parse"), $value))))),
+              Catch($_, Return($value)))))))))
 
 Concept(Mood(),
   IsA(Marker()),
   Realization(Mood($kind, $line), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
     body=Code(
-      source="""async (args, bindings, api) => {
-        const ctx = api.context;
-        const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
-        const kind = args[0].value;
-        // A claim is data, not a call (reading-spec Part 5.2): under Declarative the line is
-        // handed to Believe, which decides whether it lasts, instead of being evaluated.
-        const line = kind && kind.head === "Declarative" ? api.call("Believe", args[1].value) : args[1].value;
-        // A line is heard in its conversation, and what that conversation is focused on is
-        // context for it (memory-spec Part 8.1), derived fresh for each line.
-        const conversation = api.ambient("conversation");
-        const focus = conversation ? await api.evaluate(api.call("Focus", api.call(conversation))) : undefined;
-        const focused = focus && focus.head === "List" ? focus.args.map((a) => a.value) : [];
-        return await api.evaluate(line, api.call("Context", ...facets, ...focused, kind));
-      }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($ctx, Member($api, "context")),
+            Let(
+              $facets,
+              If(
+                And($ctx, Equals(Member($ctx, "head"), "Context")),
+                Map(Member($ctx, "args"), Lambda(List($a), Member($a, "value"))),
+                List($ctx))),
+            Let($kind, Member(Index($args, 0), "value")),
+            Let(
+              $line,
+              If(
+                And($kind, Equals(Member($kind, "head"), "Declarative")),
+                Call(Member($api, "call"), "Believe", Member(Index($args, 1), "value")),
+                Member(Index($args, 1), "value"))),
+            Let($conversation, Call(Member($api, "ambient"), "conversation")),
+            Let(
+              $focus,
+              If(
+                $conversation,
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(Member($api, "call"), "Focus", Call(Member($api, "call"), $conversation)))),
+                Undefined())),
+            Let(
+              $focused,
+              If(
+                And($focus, Equals(Member($focus, "head"), "List")),
+                Map(Member($focus, "args"), Lambda(List($a), Member($a, "value"))),
+                List())),
+            Return(
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $line,
+                  Call(Member($api, "call"), "Context", Spread($facets), Spread($focused), $kind))))))))))
 
 Concept(Modifier(), IsA(Category()))
 
@@ -328,23 +558,33 @@ Concept(Text(),
   IsA(Source()),
   Realization(Text(Rest($parts)),
     body=Code(
-      source="""(args, bindings, api) => {
-          // An argument that did not reduce must not be formatted into the output. Doing
-          // so turns a residual into an ordinary string: the result LOOKS computed, the
-          // gap becomes undetectable, and the Mouth narrates source code as an answer.
-          // "write me a typescript function that adds two numbers" produced the string
-          // "[List(Can(), Do(Write(Function(Adds(Two(), Two())))))]" and was spoken as
-          // "It can write a function that adds two numbers."
-          if (args.some((a) => a.value && a.value.head)) {
-            return api.call("Text", ...args.map((a) => a.value));
-          }
-          return args.map((a) => {
-            const v = a.value;
-            if (typeof v === "string") return v;
-            if (v === null || v === undefined) return "";
-            return String(v);
-          }).join("");
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          If(
+            Call(
+              Member($args, "some"),
+              Lambda(List($a), And(Member($a, "value"), Member(Member($a, "value"), "head")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Text",
+                Spread(Map($args, Lambda(List($a), Member($a, "value")))))),
+            Undefined()),
+          Return(
+            Call(
+              Member(
+                Map(
+                  $args,
+                  Lambda(
+                    List($a),
+                    Sequence(
+                      Let($v, Member($a, "value")),
+                      If(Equals(TypeOf($v), "string"), Return($v), Undefined()),
+                      If(Or(Equals($v, null), Equals($v, Undefined())), Return(""), Undefined()),
+                      Return(Call($String, $v))))),
+                "join"),
+              "")))))))
 
 Concept(Data(), IsA(Category()))
 

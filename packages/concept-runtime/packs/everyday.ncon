@@ -13,192 +13,689 @@ Requires(Basic(), Self())
 Concept(Half(),
   Realization(Half($x), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Half", args[0].value) : x / 2;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Half", Member(Index($args, 0), "value")),
+              Divide($x, 2))))))),
   Realization(Half(Of($x)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Half", args[0].value) : x / 2;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Half", Member(Index($args, 0), "value")),
+              Divide($x, 2))))))))
 
 Concept(Double(),
   Realization(Double($x), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Double", args[0].value) : x * 2;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Double", Member(Index($args, 0), "value")),
+              Multiply($x, 2))))))),
   Realization(Double(Of($x)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Double", args[0].value) : x * 2;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Double", Member(Index($args, 0), "value")),
+              Multiply($x, 2))))))))
 
 Concept(Twice(),
   Realization(Twice($x), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Twice", args[0].value) : x * 2;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Twice", Member(Index($args, 0), "value")),
+              Multiply($x, 2))))))),
   Realization(Twice(Of($x)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Twice", args[0].value) : x * 2;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Twice", Member(Index($args, 0), "value")),
+              Multiply($x, 2))))))))
 
 Concept(Triple(),
   Realization(Triple($x), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Triple", args[0].value) : x * 3;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Triple", Member(Index($args, 0), "value")),
+              Multiply($x, 3))))))),
   Realization(Triple(Of($x)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const x = asNumber(args[0].value);
-          return Number.isNaN(x) ? api.call("Triple", args[0].value) : x * 3;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Return(
+            If(
+              Call(Member($Number, "isNaN"), $x),
+              Call(Member($api, "call"), "Triple", Member(Index($args, 0), "value")),
+              Multiply($x, 3))))))))
 
 Concept(Average(),
   Realization(Average($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Average", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Average", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))),
   Realization(Average(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Average", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Average", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))))
 
 Concept(Mean(),
   Realization(Mean($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Mean", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Mean", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))),
   Realization(Mean(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Mean", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Mean", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))))
 
 Concept(ArithmeticMean(),
   Realization(ArithmeticMean($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("ArithmeticMean", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "ArithmeticMean", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))),
   Realization(ArithmeticMean(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("ArithmeticMean", args[0].value);
-          return xs.reduce((a, b) => a + b, 0) / xs.length;
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "ArithmeticMean", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs))))))))
 
 Concept(Sum(),
   Realization(Sum($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Sum", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Sum", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))),
   Realization(Sum(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Sum", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Sum", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))))
 
 Concept(Total(),
   Realization(Total($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Total", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Total", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))),
   Realization(Total(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("Total", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "Total", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))))
 
 Concept(AddUp(),
   Realization(AddUp($xs), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("AddUp", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")),
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "AddUp", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))),
   Realization(AddUp(Of($xs)), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const asNumber = (v) => (typeof v === "number" ? v : v && v.head === "Number" ? asNumber(v.args[0].value) : v && v.head === "Of" ? asNumber(v.args[0].value) : NaN);
-          const list = args[0].value && args[0].value.head === "Of" ? args[0].value.args[0].value : args[0].value;
-          const xs = list && list.head === "List" ? list.args.map((a) => asNumber(a.value)) : [];
-          if (!xs.length || xs.some(Number.isNaN)) return api.call("AddUp", args[0].value);
-          return xs.reduce((a, b) => a + b, 0);
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $asNumber,
+            Lambda(
+              List($v),
+              If(
+                Equals(TypeOf($v), "number"),
+                $v,
+                If(
+                  And($v, Equals(Member($v, "head"), "Number")),
+                  Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                  If(
+                    And($v, Equals(Member($v, "head"), "Of")),
+                    Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
+                    $NaN))))),
+          Let(
+            $list,
+            If(
+              And(
+                Member(Index($args, 0), "value"),
+                Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
+              Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
+              Member(Index($args, 0), "value"))),
+          Let(
+            $xs,
+            If(
+              And($list, Equals(Member($list, "head"), "List")),
+              Map(Member($list, "args"), Lambda(List($a), Call($asNumber, Member($a, "value")))),
+              List())),
+          If(
+            Or(Not(Length($xs)), Call(Member($xs, "some"), Member($Number, "isNaN"))),
+            Return(Call(Member($api, "call"), "AddUp", Member(Index($args, 0), "value"))),
+            Undefined()),
+          Return(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)))))))
 
 // "take 10, double it": the number a chain of steps starts from.
 Concept(Take(),
   Realization(Take($x), context=Execution(),
     body=Code(
-      source="(args, bindings, api) => (typeof args[0].value === \"number\" ? args[0].value : api.call(\"Take\", args[0].value))")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        If(
+          Equals(TypeOf(Member(Index($args, 0), "value")), "number"),
+          Member(Index($args, 0), "value"),
+          Call(Member($api, "call"), "Take", Member(Index($args, 0), "value")))))))
 
 // "half of 90", "until christmas": the preposition is held in the pattern that reads it.
 // Left over on its own it is structure, not a word to learn.
@@ -212,124 +709,247 @@ Concept(Christmas(),
   IsA(Holiday()),
   Realization(Christmas(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 11, 25);
-          if (when < today) when = new Date(now.getFullYear() + 1, 11, 25);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 11, 25)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 25)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 Concept(ChristmasEve(),
   IsA(Holiday()),
   Realization(ChristmasEve(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 11, 24);
-          if (when < today) when = new Date(now.getFullYear() + 1, 11, 24);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 11, 24)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 24)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 Concept(NewYearsDay(),
   IsA(Holiday()),
   Realization(NewYearsDay(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 0, 1);
-          if (when < today) when = new Date(now.getFullYear() + 1, 0, 1);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 0, 1)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 0, 1)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 Concept(NewYearsEve(),
   IsA(Holiday()),
   Realization(NewYearsEve(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 11, 31);
-          if (when < today) when = new Date(now.getFullYear() + 1, 11, 31);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 11, 31)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 31)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 Concept(Halloween(),
   IsA(Holiday()),
   Realization(Halloween(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 9, 31);
-          if (when < today) when = new Date(now.getFullYear() + 1, 9, 31);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 9, 31)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 9, 31)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 Concept(ValentinesDay(),
   IsA(Holiday()),
   Realization(ValentinesDay(), context=Execution(),
     body=Code(
-      source="""(args, bindings, api) => {
-          const now = new Date();
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          let when = new Date(now.getFullYear(), 1, 14);
-          if (when < today) when = new Date(now.getFullYear() + 1, 1, 14);
-          const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-          return { head: "Date", args: [
-            { name: "year", value: when.getFullYear() },
-            { name: "month", value: when.getMonth() + 1 },
-            { name: "day", value: when.getDate() },
-            { name: "weekday", value: days[when.getDay()] },
-          ]};
-        }""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($now, New($Date)),
+          Let(
+            $today,
+            New(
+              $Date,
+              Call(Member($now, "getFullYear")),
+              Call(Member($now, "getMonth")),
+              Call(Member($now, "getDate")))),
+          Var($when, New($Date, Call(Member($now, "getFullYear")), 1, 14)),
+          If(
+            LessThan($when, $today),
+            Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 1, 14)),
+            Undefined()),
+          Let(
+            $days,
+            List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+          Return(
+            Object(
+              head="Date",
+              args=List(
+                Object(name="year", value=Call(Member($when, "getFullYear"))),
+                Object(name="month", value=Add(Call(Member($when, "getMonth")), 1)),
+                Object(name="day", value=Call(Member($when, "getDate"))),
+                Object(name="weekday", value=Index($days, Call(Member($when, "getDay"))))))))))))
 
 // "how many days until christmas": from today to the date, in whole days.
 Concept(HowMany(),
   Realization(HowMany(Days(), Until($when)), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-            const until = args[1].value.args[0].value;
-            const date = await api.evaluate(until);
-            const field = (n) => date && date.head === "Date" ? date.args.find((a) => a.name === n)?.value : undefined;
-            if (typeof field("year") !== "number") return api.call("HowMany", ...args.map((a) => a.value));
-            const now = new Date();
-            const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-            const then = Date.UTC(field("year"), field("month") - 1, field("day"));
-            return api.call("Answer", api.call("Days", Math.round((then - today) / 86400000)));
-          }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($until, Member(Index(Member(Member(Index($args, 1), "value"), "args"), 0), "value")),
+            Let($date, Await(Call(Member($api, "evaluate"), $until))),
+            Let(
+              $field,
+              Lambda(
+                List($n),
+                If(
+                  And($date, Equals(Member($date, "head"), "Date")),
+                  OptionalMember(
+                    Call(
+                      Member(Member($date, "args"), "find"),
+                      Lambda(List($a), Equals(Member($a, "name"), $n))),
+                    "value"),
+                  Undefined()))),
+            If(
+              NotEquals(TypeOf(Call($field, "year")), "number"),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "HowMany",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value")))))),
+              Undefined()),
+            Let($now, New($Date)),
+            Let(
+              $today,
+              Call(
+                Member($Date, "UTC"),
+                Call(Member($now, "getFullYear")),
+                Call(Member($now, "getMonth")),
+                Call(Member($now, "getDate")))),
+            Let(
+              $then,
+              Call(
+                Member($Date, "UTC"),
+                Call($field, "year"),
+                Subtract(Call($field, "month"), 1),
+                Call($field, "day"))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Answer",
+                Call(
+                  Member($api, "call"),
+                  "Days",
+                  Call(Member($Math, "round"), Divide(Subtract($then, $today), 86400000)))))))))))
 
 // "wanna play tic tac toe?", "can we play chess": wanting to do something together, said
 // to the one who would do it, is asking for it (Searle's indirect requests), the way
@@ -337,19 +957,69 @@ Concept(HowMany(),
 Concept(Want(),
   Realization(Want($x), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-            const x = args[0].value;
-            const doable = x && x.head && (api.store.get(x.head)?.realizations.length ?? 0) > 0 && x.args.length > 0;
-            if (!doable) return api.call("Want", x);
-            const ctx = api.context;
-            const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
-            return await api.evaluate(x, api.call("Context", ...facets.filter((f) => f && !["Checking", "Interrogative", "Declarative"].includes(f.head)), api.call("Imperative")));
-          }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($x, Member(Index($args, 0), "value")),
+            Let(
+              $doable,
+              And(
+                And(
+                  And($x, Member($x, "head")),
+                  GreaterThan(
+                    Otherwise(
+                      Length(
+                        OptionalMember(
+                          Call(Member(Member($api, "store"), "get"), Member($x, "head")),
+                          "realizations")),
+                      0),
+                    0)),
+                GreaterThan(Length(Member($x, "args")), 0))),
+            If(Not($doable), Return(Call(Member($api, "call"), "Want", $x)), Undefined()),
+            Let($ctx, Member($api, "context")),
+            Let(
+              $facets,
+              If(
+                And($ctx, Equals(Member($ctx, "head"), "Context")),
+                Map(Member($ctx, "args"), Lambda(List($a), Member($a, "value"))),
+                List($ctx))),
+            Return(
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $x,
+                  Call(
+                    Member($api, "call"),
+                    "Context",
+                    Spread(
+                      Filter(
+                        $facets,
+                        Lambda(
+                          List($f),
+                          And(
+                            $f,
+                            Not(
+                              Includes(
+                                List("Checking", "Interrogative", "Declarative"),
+                                Member($f, "head"))))))),
+                    Call(Member($api, "call"), "Imperative")))))))))))
 
 Concept(Can(),
   Realization(Can(We(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false,
     body=Code(
-      source="async (args, bindings, api) => await api.evaluate(args[1].value, api.call(\"Context\", api.call(\"Execution\"), api.call(\"Imperative\")))")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Await(
+            Call(
+              Member($api, "evaluate"),
+              Member(Index($args, 1), "value"),
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Imperative")))))))))
 
 // "define recursion", "explain recursion": asking what it is, in another form.
 Concept(Define(), SynonymOf(What()))
@@ -361,11 +1031,19 @@ Concept(Explain(), SynonymOf(What()))
 // Part 3.1), not something to believe.
 Concept(Was(),
   Realization(Was($said, Wrong()), context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Sorry\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Sorry")))))))
 
 Concept(Is(),
   Realization(Is($said, Wrong()), context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Sorry\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Sorry")))))))
 
 Concept(Sorry(), IsA(Data()))
 
@@ -381,7 +1059,11 @@ Concept(Yep(), IsA(Agreement()))
 Concept(Refusal(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Okay\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Okay")))))))
 
 Concept(No(), IsA(Refusal()))
 

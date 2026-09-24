@@ -130,3 +130,21 @@ test("without a language pack a Compile() body is interpreted, and answers the s
   assert.equal(compiled.out, "List(Robin())");
   assert.ok(interpreted.traced.includes("Filter") && !compiled.traced.includes("Filter"));
 });
+
+test("no pack holds JavaScript as text: every program is Concepts", async () => {
+  const { BUILT_IN_PACKS } = await import("./ncon.js");
+  const { isCall } = await import("../concept/expression.js");
+  const text: string[] = [];
+  let programs = 0;
+  for (const pack of loadPacks([BUILT_IN_PACKS])) {
+    for (const u of pack.units) {
+      for (const r of u.realizations) {
+        if (!isCall(r.body) || r.body.head !== "Code") continue;
+        if (r.body.args.some((a) => a.name === "source")) text.push(`${pack.name}: ${u.identity}`);
+        else programs += 1;
+      }
+    }
+  }
+  assert.deepEqual(text, []);
+  assert.ok(programs > 200);
+});

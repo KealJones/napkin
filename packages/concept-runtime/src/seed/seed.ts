@@ -9,12 +9,10 @@
  * Nothing in a pack is stubbed. A Concept that cannot yet be honestly realized is omitted,
  * so that it produces a residual the learning path can act on rather than a wrong answer.
  */
-import { call, format, isCall, type Expr } from "../concept/expression.js";
-import { codeSource, declares, realization, type ConceptUnit } from "../concept/unit.js";
+import { format, isCall, parse } from "../concept/expression.js";
+import { declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
-
-const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 
 /** A realization that only hands the call to another Concept, rather than doing anything. */
 const FORWARDING = "Forwarding";
@@ -34,8 +32,9 @@ function reachesRealBehaviour(store: ConceptStore, identity: string, seen = new 
   if (!unit) return false;
   for (const r of unit.realizations) {
     if (!declares(r, FORWARDING)) return true;
-    const source = codeSource(r.body) ?? "";
-    const to = /head: "([A-Za-z0-9_]+)"/.exec(source)?.[1];
+    const named = r.properties.find((p) => isCall(p) && p.head === FORWARDING);
+    const target = named && isCall(named) ? named.args[0]?.value : undefined;
+    const to = target !== undefined && isCall(target) ? target.head : undefined;
     if (to && reachesRealBehaviour(store, to, seen)) return true;
   }
   // Behaviour reached by inheritance is behaviour: What has no realization of its own and
@@ -63,8 +62,8 @@ export function forwardSynonym(store: ConceptStore, identity: string, target: st
       // The target is named in the property, so the evaluator can see where a forward
       // goes without reading its source.
       properties: [`${FORWARDING}(${target}())`],
-      body: code(`async (args, bindings, api) =>
-        await api.evaluate({ head: "${target}", args: args.map((a) => ({ value: a.value })) })`),
+      // The call handed on as it came, unevaluated, since the target decides what it evaluates.
+      body: parse(`${target}(Rest($args))`),
     }),
   );
   return true;

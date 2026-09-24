@@ -40,23 +40,62 @@ Concept(Reach(),
 Concept(Singular(),
   Realization(Singular($kind), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-  const kind = args[0].value;
-  if (kind === null || typeof kind !== "object" || !("head" in kind)) return api.call("Nothing");
-  const head = kind.head;
-  const known = (h) => api.store.has(h) || api.store.asObject(h).some((t) => t.predicate === "IsA");
-  if (known(head) && !/s$/.test(head)) return api.call(head);
-  for (const h of [head.replace(/ies$/, "y"), head.replace(/es$/, ""), head.replace(/s$/, "")]) if (h !== head && known(h)) return api.call(h);
-  return api.call(head);
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($kind, Member(Index($args, 0), "value")),
+            If(
+              Or(
+                Or(Equals($kind, null), NotEquals(TypeOf($kind), "object")),
+                Not(In("head", $kind))),
+              Return(Call(Member($api, "call"), "Nothing")),
+              Undefined()),
+            Let($head, Member($kind, "head")),
+            Let(
+              $known,
+              Lambda(
+                List($h),
+                Or(
+                  Call(Member(Member($api, "store"), "has"), $h),
+                  Call(
+                    Member(Call(Member(Member($api, "store"), "asObject"), $h), "some"),
+                    Lambda(List($t), Equals(Member($t, "predicate"), "IsA")))))),
+            If(
+              And(Call($known, $head), Not(Call(Member(Regex("s$", ""), "test"), $head))),
+              Return(Call(Member($api, "call"), $head)),
+              Undefined()),
+            ForOf(
+              $h,
+              List(
+                Call(Member($head, "replace"), Regex("ies$", ""), "y"),
+                Call(Member($head, "replace"), Regex("es$", ""), ""),
+                Call(Member($head, "replace"), Regex("s$", ""), "")),
+              If(
+                And(NotEquals($h, $head), Call($known, $h)),
+                Return(Call(Member($api, "call"), $h)),
+                Undefined())),
+            Return(Call(Member($api, "call"), $head))))))))
 
 // "any games", "some birds", asked about: the members of the kind.
 Concept(Any(),
   Realization(Any($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
     body=Code(
-      source="async (args, bindings, api) => await api.evaluate(api.call(\"Members\", args[0].value))")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Await(
+            Call(
+              Member($api, "evaluate"),
+              Call(Member($api, "call"), "Members", Member(Index($args, 0), "value")))))))))
 
 Concept(Some(),
   Realization(Some($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
     body=Code(
-      source="async (args, bindings, api) => await api.evaluate(api.call(\"Members\", args[0].value))")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Await(
+            Call(
+              Member($api, "evaluate"),
+              Call(Member($api, "call"), "Members", Member(Index($args, 0), "value")))))))))

@@ -15,355 +15,1020 @@ Requires(Core(), Code(), Basic())
 Concept(Quote(),
   IsA(Capability()),
   Realization(Quote($value), context=Execution(), evaluateArguments=false,
-    body=Code(source="(args) => args[0].value")))
+    body=Code(ir=Lambda(List($args), Member(Index($args, 0), "value")))))
 
 Concept(Build(),
   IsA(Capability()),
   Realization(Build($value), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-  const value = args[0].value;
-  if (!value || !value.head) return value;
-  const fields = [];
-  for (const a of value.args) fields.push({...a, value: await api.evaluate(a.value)});
-  return {head:value.head, args:fields};
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($value, Member(Index($args, 0), "value")),
+            If(Or(Not($value), Not(Member($value, "head"))), Return($value), Undefined()),
+            Let($fields, List()),
+            ForOf(
+              $a,
+              Member($value, "args"),
+              Call(
+                Member($fields, "push"),
+                Object(Spread($a), value=Await(Call(Member($api, "evaluate"), Member($a, "value")))))),
+            Return(Object(head=Member($value, "head"), args=$fields))))))))
 
 Concept(Slot(),
   IsA(Capability()),
   Realization(Slot($record, $key), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-  if (!v[0] || !v[0].head) return null;
-  const found = typeof v[1] === 'number' ? v[0].args[v[1]] : v[0].args.find(a => a.name === v[1]);
-  return found ? found.value : null;
-}""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(Or(Not(Index($v, 0)), Not(Member(Index($v, 0), "head"))), Return(null), Undefined()),
+          Let(
+            $found,
+            If(
+              Equals(TypeOf(Index($v, 1)), "number"),
+              Index(Member(Index($v, 0), "args"), Index($v, 1)),
+              Call(
+                Member(Member(Index($v, 0), "args"), "find"),
+                Lambda(List($a), Equals(Member($a, "name"), Index($v, 1)))))),
+          Return(If($found, Member($found, "value"), null)))))))
 
 Concept(With(),
   IsA(Capability()),
   Realization(With($record, $key, $value), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-  if (!v[0] || !v[0].head || typeof v[1] !== 'string') throw new Error('With needs a record and field name');
-  const fields = v[0].args.filter(a => a.name !== v[1]);
-  fields.push({name:v[1], value:v[2]});
-  return {head:v[0].head,args:fields};
-}""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Or(
+              Or(Not(Index($v, 0)), Not(Member(Index($v, 0), "head"))),
+              NotEquals(TypeOf(Index($v, 1)), "string")),
+            Throw(New($Error, "With needs a record and field name")),
+            Undefined()),
+          Let(
+            $fields,
+            Filter(
+              Member(Index($v, 0), "args"),
+              Lambda(List($a), NotEquals(Member($a, "name"), Index($v, 1))))),
+          Call(Member($fields, "push"), Object(name=Index($v, 1), value=Index($v, 2))),
+          Return(Object(head=Member(Index($v, 0), "head"), args=$fields)))))))
 
 Concept(FormatExpression(),
   IsA(Capability()),
   Realization(FormatExpression($value), context=Execution(),
-    body=Code(source="(args,bindings,api) => api.format(args[0].value)")))
+    body=Code(
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Call(Member($api, "format"), Member(Index($args, 0), "value"))))))
 
 Concept(TextContains(),
   IsA(Capability()),
   Realization(TextContains($text, $part), context=Execution(),
     body=Code(
-      source="(args) => String(args[0].value).toLowerCase().includes(String(args[1].value).toLowerCase())")))
+      ir=Lambda(
+        List($args),
+        Includes(
+          Call(Member(Call($String, Member(Index($args, 0), "value")), "toLowerCase")),
+          Call(Member(Call($String, Member(Index($args, 1), "value")), "toLowerCase")))))))
 
 Concept(CoordinateLabel(),
   IsA(Capability()),
   Realization(CoordinateLabel($square, $files, $firstRank), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-  const x=v[0]?.args?.[0]?.value,y=v[0]?.args?.[1]?.value;
-  return Number.isInteger(x)&&Number.isInteger(y)&&v[1][x] ? v[1][x]+String(y+v[2]) : '?';
-}""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Let($x, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 0), "value")),
+          Let($y, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 1), "value")),
+          Return(
+            If(
+              And(
+                And(Call(Member($Number, "isInteger"), $x), Call(Member($Number, "isInteger"), $y)),
+                Index(Index($v, 1), $x)),
+              Add(Index(Index($v, 1), $x), Call($String, Add($y, Index($v, 2)))),
+              "?")))))))
 
 Concept(ElementAt(),
   IsA(Capability()),
   Realization(ElementAt($items, $index), context=Execution(),
     body=Code(
-      source="(args) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; return list(args[0].value)[args[1].value] ?? null; }")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Return(
+            Otherwise(
+              Index(Call($list, Member(Index($args, 0), "value")), Member(Index($args, 1), "value")),
+              null)))))))
 
 Concept(Last(),
   IsA(Capability()),
   Realization(Last($items), context=Execution(),
     body=Code(
-      source="(args) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; return list(args[0].value).at(-1) ?? null; }")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Return(
+            Otherwise(
+              Call(Member(Call($list, Member(Index($args, 0), "value")), "at"), Negate(1)),
+              null)))))))
 
 Concept(DropLast(),
   IsA(Capability()),
   Realization(DropLast($items), context=Execution(),
     body=Code(
-      source="(args, bindings, api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; return api.call('List', ...list(args[0].value).slice(0,-1)); }")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Return(
+            Call(
+              Member($api, "call"),
+              "List",
+              Spread(
+                Call(Member(Call($list, Member(Index($args, 0), "value")), "slice"), 0, Negate(1))))))))))
 
 Concept(Range(),
   IsA(Capability()),
   Realization(Range($start, $end), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const v = args.map(a => a.value);
-  if(!Number.isInteger(v[0]) || !Number.isInteger(v[1]) || v[1]-v[0]>100000) throw new Error('Invalid range');
-  return api.call('List', ...Array.from({length:Math.max(0,v[1]-v[0])},(_,i)=>v[0]+i));
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Or(
+              Or(
+                Not(Call(Member($Number, "isInteger"), Index($v, 0))),
+                Not(Call(Member($Number, "isInteger"), Index($v, 1)))),
+              GreaterThan(Subtract(Index($v, 1), Index($v, 0)), 100000)),
+            Throw(New($Error, "Invalid range")),
+            Undefined()),
+          Return(
+            Call(
+              Member($api, "call"),
+              "List",
+              Spread(
+                Call(
+                  Member($Array, "from"),
+                  Object(length=Call(Member($Math, "max"), 0, Subtract(Index($v, 1), Index($v, 0)))),
+                  Lambda(List($_, $i), Add(Index($v, 0), $i)))))))))))
 
 Concept(Any(),
   IsA(Capability()),
   Realization(Any($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args,bindings,api) => {
-    const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const truth = x => x === true || (x && x.head === 'True');
-    const items = list(await api.evaluate(args[0].value));
-    const lambda = args[1].value;
-    if (!lambda || lambda.head !== 'Lambda' || !lambda.args[0]?.value?.args?.[0]?.value?.variable || lambda.args.length !== 2)
-      throw new Error('Expected Lambda(List(variable), body)');
-    const results = [];
-    for (const item of items) {
-      const output = await api.evaluate(api.substitute(lambda.args[1].value, new Map([[lambda.args[0].value.args[0].value.variable,item]])));
-      if ('Any' === 'Any' && truth(output)) return true;
-      if ('Any' === 'All' && !truth(output)) return false;
-      if ('Any' === 'Find' && truth(output)) return item;
-      if ('Any' === 'Map') results.push(output);
-      if ('Any' === 'FlatMap') results.push(...list(output));
-      if ('Any' === 'Filter' && truth(output)) results.push(item);
-    }
-    if ('Any' === 'Any') return false;
-    if ('Any' === 'All') return true;
-    if ('Any' === 'Find') return null;
-    return api.call('List', ...results);
-  }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $list,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                    Throw(New($Error, "Expected List")),
+                    Undefined()),
+                  Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+            Let(
+              $truth,
+              Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
+            Let(
+              $items,
+              Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
+            Let($lambda, Member(Index($args, 1), "value")),
+            If(
+              Or(
+                Or(
+                  Or(Not($lambda), NotEquals(Member($lambda, "head"), "Lambda")),
+                  Not(
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalIndex(
+                          OptionalMember(
+                            OptionalMember(Index(Member($lambda, "args"), 0), "value"),
+                            "args"),
+                          0),
+                        "value"),
+                      "variable"))),
+                NotEquals(Length(Member($lambda, "args")), 2)),
+              Throw(New($Error, "Expected Lambda(List(variable), body)")),
+              Undefined()),
+            Let($results, List()),
+            ForOf(
+              $item,
+              $items,
+              Sequence(
+                Let(
+                  $output,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "substitute"),
+                        Member(Index(Member($lambda, "args"), 1), "value"),
+                        New(
+                          $Map,
+                          List(
+                            List(
+                              Member(
+                                Member(
+                                  Index(
+                                    Member(
+                                      Member(Index(Member($lambda, "args"), 0), "value"),
+                                      "args"),
+                                    0),
+                                  "value"),
+                                "variable"),
+                              $item))))))),
+                If(And(Equals("Any", "Any"), Call($truth, $output)), Return(true), Undefined()),
+                If(
+                  And(Equals("Any", "All"), Not(Call($truth, $output))),
+                  Return(false),
+                  Undefined()),
+                If(And(Equals("Any", "Find"), Call($truth, $output)), Return($item), Undefined()),
+                If(Equals("Any", "Map"), Call(Member($results, "push"), $output), Undefined()),
+                If(
+                  Equals("Any", "FlatMap"),
+                  Call(Member($results, "push"), Spread(Call($list, $output))),
+                  Undefined()),
+                If(
+                  And(Equals("Any", "Filter"), Call($truth, $output)),
+                  Call(Member($results, "push"), $item),
+                  Undefined()))),
+            If(Equals("Any", "Any"), Return(false), Undefined()),
+            If(Equals("Any", "All"), Return(true), Undefined()),
+            If(Equals("Any", "Find"), Return(null), Undefined()),
+            Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(All(),
   IsA(Capability()),
   Realization(All($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args,bindings,api) => {
-    const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const truth = x => x === true || (x && x.head === 'True');
-    const items = list(await api.evaluate(args[0].value));
-    const lambda = args[1].value;
-    if (!lambda || lambda.head !== 'Lambda' || !lambda.args[0]?.value?.args?.[0]?.value?.variable || lambda.args.length !== 2)
-      throw new Error('Expected Lambda(List(variable), body)');
-    const results = [];
-    for (const item of items) {
-      const output = await api.evaluate(api.substitute(lambda.args[1].value, new Map([[lambda.args[0].value.args[0].value.variable,item]])));
-      if ('All' === 'Any' && truth(output)) return true;
-      if ('All' === 'All' && !truth(output)) return false;
-      if ('All' === 'Find' && truth(output)) return item;
-      if ('All' === 'Map') results.push(output);
-      if ('All' === 'FlatMap') results.push(...list(output));
-      if ('All' === 'Filter' && truth(output)) results.push(item);
-    }
-    if ('All' === 'Any') return false;
-    if ('All' === 'All') return true;
-    if ('All' === 'Find') return null;
-    return api.call('List', ...results);
-  }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $list,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                    Throw(New($Error, "Expected List")),
+                    Undefined()),
+                  Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+            Let(
+              $truth,
+              Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
+            Let(
+              $items,
+              Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
+            Let($lambda, Member(Index($args, 1), "value")),
+            If(
+              Or(
+                Or(
+                  Or(Not($lambda), NotEquals(Member($lambda, "head"), "Lambda")),
+                  Not(
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalIndex(
+                          OptionalMember(
+                            OptionalMember(Index(Member($lambda, "args"), 0), "value"),
+                            "args"),
+                          0),
+                        "value"),
+                      "variable"))),
+                NotEquals(Length(Member($lambda, "args")), 2)),
+              Throw(New($Error, "Expected Lambda(List(variable), body)")),
+              Undefined()),
+            Let($results, List()),
+            ForOf(
+              $item,
+              $items,
+              Sequence(
+                Let(
+                  $output,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "substitute"),
+                        Member(Index(Member($lambda, "args"), 1), "value"),
+                        New(
+                          $Map,
+                          List(
+                            List(
+                              Member(
+                                Member(
+                                  Index(
+                                    Member(
+                                      Member(Index(Member($lambda, "args"), 0), "value"),
+                                      "args"),
+                                    0),
+                                  "value"),
+                                "variable"),
+                              $item))))))),
+                If(And(Equals("All", "Any"), Call($truth, $output)), Return(true), Undefined()),
+                If(
+                  And(Equals("All", "All"), Not(Call($truth, $output))),
+                  Return(false),
+                  Undefined()),
+                If(And(Equals("All", "Find"), Call($truth, $output)), Return($item), Undefined()),
+                If(Equals("All", "Map"), Call(Member($results, "push"), $output), Undefined()),
+                If(
+                  Equals("All", "FlatMap"),
+                  Call(Member($results, "push"), Spread(Call($list, $output))),
+                  Undefined()),
+                If(
+                  And(Equals("All", "Filter"), Call($truth, $output)),
+                  Call(Member($results, "push"), $item),
+                  Undefined()))),
+            If(Equals("All", "Any"), Return(false), Undefined()),
+            If(Equals("All", "All"), Return(true), Undefined()),
+            If(Equals("All", "Find"), Return(null), Undefined()),
+            Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(Find(),
   IsA(Capability()),
   Realization(Find($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args,bindings,api) => {
-    const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const truth = x => x === true || (x && x.head === 'True');
-    const items = list(await api.evaluate(args[0].value));
-    const lambda = args[1].value;
-    if (!lambda || lambda.head !== 'Lambda' || !lambda.args[0]?.value?.args?.[0]?.value?.variable || lambda.args.length !== 2)
-      throw new Error('Expected Lambda(List(variable), body)');
-    const results = [];
-    for (const item of items) {
-      const output = await api.evaluate(api.substitute(lambda.args[1].value, new Map([[lambda.args[0].value.args[0].value.variable,item]])));
-      if ('Find' === 'Any' && truth(output)) return true;
-      if ('Find' === 'All' && !truth(output)) return false;
-      if ('Find' === 'Find' && truth(output)) return item;
-      if ('Find' === 'Map') results.push(output);
-      if ('Find' === 'FlatMap') results.push(...list(output));
-      if ('Find' === 'Filter' && truth(output)) results.push(item);
-    }
-    if ('Find' === 'Any') return false;
-    if ('Find' === 'All') return true;
-    if ('Find' === 'Find') return null;
-    return api.call('List', ...results);
-  }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $list,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                    Throw(New($Error, "Expected List")),
+                    Undefined()),
+                  Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+            Let(
+              $truth,
+              Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
+            Let(
+              $items,
+              Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
+            Let($lambda, Member(Index($args, 1), "value")),
+            If(
+              Or(
+                Or(
+                  Or(Not($lambda), NotEquals(Member($lambda, "head"), "Lambda")),
+                  Not(
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalIndex(
+                          OptionalMember(
+                            OptionalMember(Index(Member($lambda, "args"), 0), "value"),
+                            "args"),
+                          0),
+                        "value"),
+                      "variable"))),
+                NotEquals(Length(Member($lambda, "args")), 2)),
+              Throw(New($Error, "Expected Lambda(List(variable), body)")),
+              Undefined()),
+            Let($results, List()),
+            ForOf(
+              $item,
+              $items,
+              Sequence(
+                Let(
+                  $output,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "substitute"),
+                        Member(Index(Member($lambda, "args"), 1), "value"),
+                        New(
+                          $Map,
+                          List(
+                            List(
+                              Member(
+                                Member(
+                                  Index(
+                                    Member(
+                                      Member(Index(Member($lambda, "args"), 0), "value"),
+                                      "args"),
+                                    0),
+                                  "value"),
+                                "variable"),
+                              $item))))))),
+                If(And(Equals("Find", "Any"), Call($truth, $output)), Return(true), Undefined()),
+                If(
+                  And(Equals("Find", "All"), Not(Call($truth, $output))),
+                  Return(false),
+                  Undefined()),
+                If(And(Equals("Find", "Find"), Call($truth, $output)), Return($item), Undefined()),
+                If(Equals("Find", "Map"), Call(Member($results, "push"), $output), Undefined()),
+                If(
+                  Equals("Find", "FlatMap"),
+                  Call(Member($results, "push"), Spread(Call($list, $output))),
+                  Undefined()),
+                If(
+                  And(Equals("Find", "Filter"), Call($truth, $output)),
+                  Call(Member($results, "push"), $item),
+                  Undefined()))),
+            If(Equals("Find", "Any"), Return(false), Undefined()),
+            If(Equals("Find", "All"), Return(true), Undefined()),
+            If(Equals("Find", "Find"), Return(null), Undefined()),
+            Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(Apply(),
   IsA(Capability()),
   Realization(Apply($callable, $arguments), context=Execution(),
     body=Code(
-      source="""async (args,bindings,api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); };
-  const target = args[0].value;
-  if (!target || !target.head) throw new Error('Apply needs a Concept');
-  return await api.evaluate({head:target.head,args:[...target.args,...list(args[1].value).map(value=>({value}))]});
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $list,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                    Throw(New($Error, "Expected List")),
+                    Undefined()),
+                  Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+            Let($target, Member(Index($args, 0), "value")),
+            If(
+              Or(Not($target), Not(Member($target, "head"))),
+              Throw(New($Error, "Apply needs a Concept")),
+              Undefined()),
+            Return(
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Object(
+                    head=Member($target, "head"),
+                    args=Concat(
+                      Member($target, "args"),
+                      Map(
+                        Call($list, Member(Index($args, 1), "value")),
+                        Lambda(List($value), Object(value=$value))))))))))))))
 
 Concept(Same(),
   IsA(Capability()),
   Realization(Same($left, $right), context=Execution(),
     body=Code(
-      source="""(args) => {
-  const canonical = x => {
-    if (!x || !x.head) return JSON.stringify(x);
-    const fields = x.args.every(a=>a.name !== undefined) ? [...x.args].sort((a,b)=>a.name.localeCompare(b.name)) : x.args;
-    return x.head + '(' + fields.map(a=>(a.name||'')+':'+canonical(a.value)).join(',') + ')';
-  };
-  return canonical(args[0].value) === canonical(args[1].value);
-}""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let(
+            $canonical,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), Not(Member($x, "head"))),
+                  Return(Call(Member($JSON, "stringify"), $x)),
+                  Undefined()),
+                Let(
+                  $fields,
+                  If(
+                    Call(
+                      Member(Member($x, "args"), "every"),
+                      Lambda(List($a), NotEquals(Member($a, "name"), Undefined()))),
+                    Call(
+                      Member(Concat(Member($x, "args")), "sort"),
+                      Lambda(
+                        List($a, $b),
+                        Call(Member(Member($a, "name"), "localeCompare"), Member($b, "name")))),
+                    Member($x, "args"))),
+                Return(
+                  Add(
+                    Add(
+                      Add(Member($x, "head"), "("),
+                      Call(
+                        Member(
+                          Map(
+                            $fields,
+                            Lambda(
+                              List($a),
+                              Add(
+                                Add(Or(Member($a, "name"), ""), ":"),
+                                Call($canonical, Member($a, "value"))))),
+                          "join"),
+                        ",")),
+                    ")"))))),
+          Return(
+            Equals(
+              Call($canonical, Member(Index($args, 0), "value")),
+              Call($canonical, Member(Index($args, 1), "value")))))))))
 
 Concept(Abs(),
   IsA(Capability()),
   Realization(Abs($value), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-    if(v.some(x=>typeof x!=='number' || !Number.isFinite(x))) throw new Error('Expected finite numbers');
-    const result = Math.abs(v[0]);
-    if(typeof result==='number' && !Number.isFinite(result)) throw new Error('Nonfinite arithmetic result');
-    return result;
-  }""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Call(
+              Member($v, "some"),
+              Lambda(
+                List($x),
+                Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
+            Throw(New($Error, "Expected finite numbers")),
+            Undefined()),
+          Let($result, Call(Member($Math, "abs"), Index($v, 0))),
+          If(
+            And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
+            Throw(New($Error, "Nonfinite arithmetic result")),
+            Undefined()),
+          Return($result))))))
 
 Concept(Floor(),
   IsA(Capability()),
   Realization(Floor($value), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-    if(v.some(x=>typeof x!=='number' || !Number.isFinite(x))) throw new Error('Expected finite numbers');
-    const result = Math.floor(v[0]);
-    if(typeof result==='number' && !Number.isFinite(result)) throw new Error('Nonfinite arithmetic result');
-    return result;
-  }""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Call(
+              Member($v, "some"),
+              Lambda(
+                List($x),
+                Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
+            Throw(New($Error, "Expected finite numbers")),
+            Undefined()),
+          Let($result, Call(Member($Math, "floor"), Index($v, 0))),
+          If(
+            And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
+            Throw(New($Error, "Nonfinite arithmetic result")),
+            Undefined()),
+          Return($result))))))
 
 Concept(Minimum(),
   IsA(Capability()),
   Realization(Minimum($left, $right), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-    if(v.some(x=>typeof x!=='number' || !Number.isFinite(x))) throw new Error('Expected finite numbers');
-    const result = Math.min(...v);
-    if(typeof result==='number' && !Number.isFinite(result)) throw new Error('Nonfinite arithmetic result');
-    return result;
-  }""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Call(
+              Member($v, "some"),
+              Lambda(
+                List($x),
+                Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
+            Throw(New($Error, "Expected finite numbers")),
+            Undefined()),
+          Let($result, Call(Member($Math, "min"), Spread($v))),
+          If(
+            And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
+            Throw(New($Error, "Nonfinite arithmetic result")),
+            Undefined()),
+          Return($result))))))
 
 Concept(Maximum(),
   IsA(Capability()),
   Realization(Maximum($left, $right), context=Execution(),
     body=Code(
-      source="""(args) => { const v = args.map(a => a.value);
-    if(v.some(x=>typeof x!=='number' || !Number.isFinite(x))) throw new Error('Expected finite numbers');
-    const result = Math.max(...v);
-    if(typeof result==='number' && !Number.isFinite(result)) throw new Error('Nonfinite arithmetic result');
-    return result;
-  }""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Call(
+              Member($v, "some"),
+              Lambda(
+                List($x),
+                Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
+            Throw(New($Error, "Expected finite numbers")),
+            Undefined()),
+          Let($result, Call(Member($Math, "max"), Spread($v))),
+          If(
+            And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
+            Throw(New($Error, "Nonfinite arithmetic result")),
+            Undefined()),
+          Return($result))))))
 
 Concept(BestBy(),
   IsA(Capability()),
   Realization(BestBy($items, $score), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args,bindings,api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); };
-  const items=list(await api.evaluate(args[0].value)), lambda=args[1].value;
-  if(!lambda || lambda.head!=='Lambda') throw new Error('Expected scoring Lambda');
-  let best=null, score=-Infinity;
-  for(const item of items) {
-    const value=await api.evaluate(api.substitute(lambda.args[1].value,new Map([[lambda.args[0].value.args[0].value.variable,item]])));
-    if(typeof value!=='number' || !Number.isFinite(value)) throw new Error('Score must be finite');
-    if(value>score) { best=item;score=value; }
-  }
-  return best;
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $list,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                    Throw(New($Error, "Expected List")),
+                    Undefined()),
+                  Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+            Let(
+              $items,
+              Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
+            Let($lambda, Member(Index($args, 1), "value")),
+            If(
+              Or(Not($lambda), NotEquals(Member($lambda, "head"), "Lambda")),
+              Throw(New($Error, "Expected scoring Lambda")),
+              Undefined()),
+            Var($best, null),
+            Var($score, Negate($Infinity)),
+            ForOf(
+              $item,
+              $items,
+              Sequence(
+                Let(
+                  $value,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "substitute"),
+                        Member(Index(Member($lambda, "args"), 1), "value"),
+                        New(
+                          $Map,
+                          List(
+                            List(
+                              Member(
+                                Member(
+                                  Index(
+                                    Member(
+                                      Member(Index(Member($lambda, "args"), 0), "value"),
+                                      "args"),
+                                    0),
+                                  "value"),
+                                "variable"),
+                              $item))))))),
+                If(
+                  Or(
+                    NotEquals(TypeOf($value), "number"),
+                    Not(Call(Member($Number, "isFinite"), $value))),
+                  Throw(New($Error, "Score must be finite")),
+                  Undefined()),
+                If(
+                  GreaterThan($value, $score),
+                  Sequence(Assign($best, $item), Assign($score, $value)),
+                  Undefined()))),
+            Return($best)))))))
 
 Concept(CoordinateFromLabel(),
   IsA(Capability()),
   Realization(CoordinateFromLabel($text, $files, $firstRank), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const v = args.map(a => a.value);
-  if(typeof v[0]!=='string' || typeof v[1]!=='string') return null;
-  const m=/^([a-z])([0-9]+)$/i.exec(v[0]); if(!m) return null;
-  const file=v[1].indexOf(m[1].toLowerCase()), rank=Number(m[2])-v[2];
-  return file<0 || rank<0 ? null : api.call('Square',file,rank);
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(
+            Or(NotEquals(TypeOf(Index($v, 0)), "string"), NotEquals(TypeOf(Index($v, 1)), "string")),
+            Return(null),
+            Undefined()),
+          Let($m, Call(Member(Regex("^([a-z])([0-9]+)$", "i"), "exec"), Index($v, 0))),
+          If(Not($m), Return(null), Undefined()),
+          Let(
+            $file,
+            Call(Member(Index($v, 1), "indexOf"), Call(Member(Index($m, 1), "toLowerCase")))),
+          Let($rank, Subtract(Call($Number, Index($m, 2)), Index($v, 2))),
+          Return(
+            If(
+              Or(LessThan($file, 0), LessThan($rank, 0)),
+              null,
+              Call(Member($api, "call"), "Square", $file, $rank))))))))
 
 Concept(GridOffset(),
   IsA(Capability()),
   Realization(GridOffset($square, $dx, $dy, $width, $height), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const v = args.map(a => a.value);
-  const x=v[0]?.args?.[0]?.value+v[1], y=v[0]?.args?.[1]?.value+v[2];
-  return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<v[3]&&y<v[4] ? api.call(v[0].head,x,y) : null;
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Let(
+            $x,
+            Add(
+              OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 0), "value"),
+              Index($v, 1))),
+          Let(
+            $y,
+            Add(
+              OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 1), "value"),
+              Index($v, 2))),
+          Return(
+            If(
+              And(
+                And(
+                  And(
+                    And(
+                      And(
+                        Call(Member($Number, "isInteger"), $x),
+                        Call(Member($Number, "isInteger"), $y)),
+                      AtLeast($x, 0)),
+                    AtLeast($y, 0)),
+                  LessThan($x, Index($v, 3))),
+                LessThan($y, Index($v, 4))),
+              Call(Member($api, "call"), Member(Index($v, 0), "head"), $x, $y),
+              null)))))))
 
 Concept(Occupant(),
   IsA(Capability()),
   Realization(Occupant($board, $square), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const v = args.map(a => a.value);
-  if(v[1]===null) return null;
-  return list(v[0]).find(p=>api.format(p.args.find(a=>a.name==='square')?.value??null)===api.format(v[1]))??null;
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          If(Equals(Index($v, 1), null), Return(null), Undefined()),
+          Return(
+            Otherwise(
+              Call(
+                Member(Call($list, Index($v, 0)), "find"),
+                Lambda(
+                  List($p),
+                  Equals(
+                    Call(
+                      Member($api, "format"),
+                      Otherwise(
+                        OptionalMember(
+                          Call(
+                            Member(Member($p, "args"), "find"),
+                            Lambda(List($a), Equals(Member($a, "name"), "square"))),
+                          "value"),
+                        null)),
+                    Call(Member($api, "format"), Index($v, 1))))),
+              null)))))))
 
 Concept(GridRay(),
   IsA(Capability()),
   Realization(GridRay($board, $from, $delta, $steps, $width, $height, $includeBlocker), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const v = args.map(a => a.value);
-  const occupied=new Set(list(v[0]).map(p=>api.format(p.args.find(a=>a.name==='square')?.value??null)));
-  const out=[], dx=v[2].args[0].value,dy=v[2].args[1].value;
-  for(let i=1;i<=v[3];i++) {
-    const x=v[1].args[0].value+dx*i,y=v[1].args[1].value+dy*i;
-    if(x<0||y<0||x>=v[4]||y>=v[5]) break;
-    const sq=api.call(v[1].head,x,y), blocked=occupied.has(api.format(sq));
-    if(!blocked || v[6]===true) out.push(sq);
-    if(blocked) break;
-  }
-  return api.call('List',...out);
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Let(
+            $occupied,
+            New(
+              $Set,
+              Map(
+                Call($list, Index($v, 0)),
+                Lambda(
+                  List($p),
+                  Call(
+                    Member($api, "format"),
+                    Otherwise(
+                      OptionalMember(
+                        Call(
+                          Member(Member($p, "args"), "find"),
+                          Lambda(List($a), Equals(Member($a, "name"), "square"))),
+                        "value"),
+                      null)))))),
+          Let($out, List()),
+          Let($dx, Member(Index(Member(Index($v, 2), "args"), 0), "value")),
+          Let($dy, Member(Index(Member(Index($v, 2), "args"), 1), "value")),
+          For(
+            Var($i, 1),
+            AtMost($i, Index($v, 3)),
+            PostIncrement($i),
+            Sequence(
+              Let(
+                $x,
+                Add(Member(Index(Member(Index($v, 1), "args"), 0), "value"), Multiply($dx, $i))),
+              Let(
+                $y,
+                Add(Member(Index(Member(Index($v, 1), "args"), 1), "value"), Multiply($dy, $i))),
+              If(
+                Or(
+                  Or(Or(LessThan($x, 0), LessThan($y, 0)), AtLeast($x, Index($v, 4))),
+                  AtLeast($y, Index($v, 5))),
+                Break(),
+                Undefined()),
+              Let($sq, Call(Member($api, "call"), Member(Index($v, 1), "head"), $x, $y)),
+              Let($blocked, Call(Member($occupied, "has"), Call(Member($api, "format"), $sq))),
+              If(
+                Or(Not($blocked), Equals(Index($v, 6), true)),
+                Call(Member($out, "push"), $sq),
+                Undefined()),
+              If($blocked, Break(), Undefined()))),
+          Return(Call(Member($api, "call"), "List", Spread($out))))))))
 
 Concept(BoardChange(),
   IsA(Capability()),
   Realization(BoardChange($board, $removals, $additions), context=Execution(),
     body=Code(
-      source="""(args,bindings,api) => { const list = x => { if (!x || x.head !== 'List') throw new Error('Expected List'); return x.args.map(a => a.value); }; const v = args.map(a => a.value);
-  const removed=new Set(list(v[1]).map(api.format));
-  const kept=list(v[0]).filter(p=>!removed.has(api.format(p.args.find(a=>a.name==='square')?.value??null)));
-  return api.call('List',...kept,...list(v[2]));
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let(
+            $list,
+            Lambda(
+              List($x),
+              Sequence(
+                If(
+                  Or(Not($x), NotEquals(Member($x, "head"), "List")),
+                  Throw(New($Error, "Expected List")),
+                  Undefined()),
+                Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
+          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Let($removed, New($Set, Map(Call($list, Index($v, 1)), Member($api, "format")))),
+          Let(
+            $kept,
+            Filter(
+              Call($list, Index($v, 0)),
+              Lambda(
+                List($p),
+                Not(
+                  Call(
+                    Member($removed, "has"),
+                    Call(
+                      Member($api, "format"),
+                      Otherwise(
+                        OptionalMember(
+                          Call(
+                            Member(Member($p, "args"), "find"),
+                            Lambda(List($a), Equals(Member($a, "name"), "square"))),
+                          "value"),
+                        null))))))),
+          Return(
+            Call(Member($api, "call"), "List", Spread($kept), Spread(Call($list, Index($v, 2))))))))))
 
 Concept(AmbientValue(),
   IsA(Capability()),
   Realization(AmbientValue($key, $fallback), context=Execution(),
-    body=Code(source="(args,bindings,api) => api.ambient(args[0].value) ?? args[1].value")))
+    body=Code(
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Otherwise(
+          Call(Member($api, "ambient"), Member(Index($args, 0), "value")),
+          Member(Index($args, 1), "value"))))))
 
 Concept(IdentityKey(),
   IsA(Capability()),
   Realization(IdentityKey($prefix, $scope), context=Execution(),
     body=Code(
-      source="""(args) => {
-  if(!/^[A-Z][A-Za-z0-9_]*$/.test(args[0].value) || typeof args[1].value!=='string') throw new Error('Invalid identity');
-  return args[0].value+'_'+Buffer.from(args[1].value).toString('hex');
-}""")))
+      ir=Lambda(
+        List($args),
+        Sequence(
+          If(
+            Or(
+              Not(
+                Call(
+                  Member(Regex("^[A-Z][A-Za-z0-9_]*$", ""), "test"),
+                  Member(Index($args, 0), "value"))),
+              NotEquals(TypeOf(Member(Index($args, 1), "value")), "string")),
+            Throw(New($Error, "Invalid identity")),
+            Undefined()),
+          Return(
+            Add(
+              Add(Member(Index($args, 0), "value"), "_"),
+              Call(
+                Member(Call(Member($Buffer, "from"), Member(Index($args, 1), "value")), "toString"),
+                "hex"))))))))
 
 Concept(Recall(),
   IsA(Capability()),
   Realization(Recall($identity), context=Execution(), properties=List(Effectful()),
     body=Code(
-      source="""async (args,bindings,api) => {
-  return api.store.has(args[0].value) ? await api.evaluate(api.call(args[0].value)) : null;
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Return(
+            If(
+              Call(Member(Member($api, "store"), "has"), Member(Index($args, 0), "value")),
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), Member(Index($args, 0), "value")))),
+              null)))))))
 
 Concept(CreateRecord(),
   IsA(Capability()),
   Realization(CreateRecord($identity, $value), context=Execution(), properties=List(Effectful()),
     body=Code(
-      source="""(args,bindings,api) => {
-  const identity=args[0].value;
-  if(!/^[A-Z][A-Za-z0-9_]*$/.test(identity)) throw new Error('Invalid Concept identity');
-  if(api.store.has(identity)) return api.call('AlreadyExists',identity);
-  api.store.seed({identity,relations:[{claim:api.call('IsA',api.call('StoredRecord'))}],realizations:[{
-    pattern:api.call(identity),body:api.call('Quote',args[1].value),properties:[],evaluateArguments:false,evaluateResult:false
-  }]});
-  return api.call('Stored',args[1].value);
-}""")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Sequence(
+          Let($identity, Member(Index($args, 0), "value")),
+          If(
+            Not(Call(Member(Regex("^[A-Z][A-Za-z0-9_]*$", ""), "test"), $identity)),
+            Throw(New($Error, "Invalid Concept identity")),
+            Undefined()),
+          If(
+            Call(Member(Member($api, "store"), "has"), $identity),
+            Return(Call(Member($api, "call"), "AlreadyExists", $identity)),
+            Undefined()),
+          Call(
+            Member(Member($api, "store"), "seed"),
+            Object(
+              identity=$identity,
+              relations=List(
+                Object(
+                  claim=Call(Member($api, "call"), "IsA", Call(Member($api, "call"), "StoredRecord")))),
+              realizations=List(
+                Object(
+                  pattern=Call(Member($api, "call"), $identity),
+                  body=Call(Member($api, "call"), "Quote", Member(Index($args, 1), "value")),
+                  properties=List(),
+                  evaluateArguments=false,
+                  evaluateResult=false)))),
+          Return(Call(Member($api, "call"), "Stored", Member(Index($args, 1), "value"))))))))
 
 Concept(CompareAndSwap(),
   IsA(Capability()),
   Realization(CompareAndSwap($identity, $expected, $next), context=Execution(), properties=List(Effectful()),
     body=Code(
-      source="""async (args,bindings,api) => {
-  const identity=args[0].value, previous=api.store.get(identity);
-  if(!previous) return api.call('Conflict');
-  const current=await api.evaluate(api.call(identity));
-  if(previous!==api.store.get(identity) || api.format(current)!==api.format(args[1].value)) return api.call('Conflict');
-  api.store.addRealization(identity,{
-    pattern:api.call(identity),body:api.call('Quote',args[2].value),properties:[],evaluateArguments:false,evaluateResult:false
-  });
-  return api.call('Stored',args[2].value);
-}""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let($identity, Member(Index($args, 0), "value")),
+            Let($previous, Call(Member(Member($api, "store"), "get"), $identity)),
+            If(Not($previous), Return(Call(Member($api, "call"), "Conflict")), Undefined()),
+            Let(
+              $current,
+              Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), $identity)))),
+            If(
+              Or(
+                NotEquals($previous, Call(Member(Member($api, "store"), "get"), $identity)),
+                NotEquals(
+                  Call(Member($api, "format"), $current),
+                  Call(Member($api, "format"), Member(Index($args, 1), "value")))),
+              Return(Call(Member($api, "call"), "Conflict")),
+              Undefined()),
+            Call(
+              Member(Member($api, "store"), "addRealization"),
+              $identity,
+              Object(
+                pattern=Call(Member($api, "call"), $identity),
+                body=Call(Member($api, "call"), "Quote", Member(Index($args, 2), "value")),
+                properties=List(),
+                evaluateArguments=false,
+                evaluateResult=false)),
+            Return(Call(Member($api, "call"), "Stored", Member(Index($args, 2), "value")))))))))
 
 Concept(StoredRecord(), IsA(Data()))
 

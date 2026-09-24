@@ -54,17 +54,34 @@ Concept(Capability(), IsA(Category()))
 Concept(WhatCan(),
   Realization(WhatCan(You(), Do()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-            const can = api.store.asSubject("Self").filter((t) => t.predicate === "CanDo").map((t) => t.object);
-            return api.call("Answer", api.call("List", ...can));
-          }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $can,
+              Map(
+                Filter(
+                  Call(Member(Member($api, "store"), "asSubject"), "Self"),
+                  Lambda(List($t), Equals(Member($t, "predicate"), "CanDo"))),
+                Lambda(List($t), Member($t, "object")))),
+            Return(
+              Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "List", Spread($can))))))))))
 
 // "how are you", "how are you doing": asked to be polite, answered the same way.
 Concept(HowAre(),
   Realization(HowAre(You()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"DoingWell\"))")),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "DoingWell")))))),
   Realization(HowAre(You(), $doing), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"DoingWell\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "DoingWell")))))))
 
 Concept(DoingWell(), IsA(Data()))
 
@@ -72,7 +89,11 @@ Concept(DoingWell(), IsA(Data()))
 Concept(Approval(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"GladYouLikeIt\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "GladYouLikeIt")))))))
 
 Concept(Cool(), IsA(Approval()))
 
@@ -93,7 +114,11 @@ Concept(Perfect(), IsA(Approval()))
 Concept(Agreement(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"GotIt\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "GotIt")))))))
 
 Concept(Ok(), IsA(Agreement()))
 
@@ -112,7 +137,11 @@ Concept(Understood(), IsA(Agreement()))
 Concept(Laughter(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(source="async (args, bindings, api) => api.call(\"Answer\", api.call(\"Laughing\"))")))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Laughing")))))))
 
 Concept(Lol(), IsA(Laughter()))
 

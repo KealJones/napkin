@@ -18,31 +18,90 @@ Requires(Core())
 Concept(List(),
   Realization(List(Rest($xs)), context=Execution(),
     body=Code(
-      source="(args, bindings, api) => ({ head: \"List\", args: args.map((a) => ({ value: a.value })) })")))
+      ir=Lambda(
+        List($args, $bindings, $api),
+        Object(head="List", args=Map($args, Lambda(List($a), Object(value=Member($a, "value")))))))))
 
 Concept(Call(),
   IsA(CodePrimitive()),
   Realization(Call($f, Rest($args)), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return await apply(v(0), args.slice(1).map((a) => a.value));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Await(
+                Call(
+                  $apply,
+                  Call($v, 0),
+                  Map(Call(Member($args, "slice"), 1), Lambda(List($a), Member($a, "value"))))))))))))
 
 // Logic. Not, And and Or are words a message says too ("don't", "apples and pears"),
 // so they only compute over truth values and otherwise stay as said. And and Or stop at
@@ -51,412 +110,1410 @@ Concept(Equals(),
   IsA(CodePrimitive()),
   Realization(Equals($a, $b), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return bool(api.format(v(0)) === api.format(v(1)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Call(
+                $bool,
+                Equals(
+                  Call(Member($api, "format"), Call($v, 0)),
+                  Call(Member($api, "format"), Call($v, 1)))))))))))
 
 Concept(NotEquals(),
   IsA(CodePrimitive()),
   Realization(NotEquals($a, $b), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return bool(api.format(v(0)) !== api.format(v(1)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Call(
+                $bool,
+                NotEquals(
+                  Call(Member($api, "format"), Call($v, 0)),
+                  Call(Member($api, "format"), Call($v, 1)))))))))))
 
 Concept(Not(),
   IsA(CodePrimitive()),
   Realization(Not($x), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const x = v(0); if (!isTruth(x)) return api.call("Not", x); return truthy(x) ? api.call("False") : api.call("True");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($x, Call($v, 0)),
+            If(Not(Call($isTruth, $x)), Return(Call(Member($api, "call"), "Not", $x)), Undefined()),
+            Return(
+              If(
+                Call($truthy, $x),
+                Call(Member($api, "call"), "False"),
+                Call(Member($api, "call"), "True")))))))))
 
 Concept(And(),
   IsA(CodePrimitive()),
   Realization(And(Rest($xs)), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          for (const a of args) { const x = await api.evaluate(a.value); if (!isTruth(x)) return api.call("And", ...args.map((b) => b.value)); if (!truthy(x)) return api.call("False"); } return api.call("True");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            ForOf(
+              $a,
+              $args,
+              Sequence(
+                Let($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
+                If(
+                  Not(Call($isTruth, $x)),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "And",
+                      Spread(Map($args, Lambda(List($b), Member($b, "value")))))),
+                  Undefined()),
+                If(Not(Call($truthy, $x)), Return(Call(Member($api, "call"), "False")), Undefined()))),
+            Return(Call(Member($api, "call"), "True"))))))))
 
 Concept(Or(),
   IsA(CodePrimitive()),
   Realization(Or(Rest($xs)), context=Execution(), evaluateArguments=false,
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          for (const a of args) { const x = await api.evaluate(a.value); if (!isTruth(x)) return api.call("Or", ...args.map((b) => b.value)); if (truthy(x)) return api.call("True"); } return api.call("False");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            ForOf(
+              $a,
+              $args,
+              Sequence(
+                Let($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
+                If(
+                  Not(Call($isTruth, $x)),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Or",
+                      Spread(Map($args, Lambda(List($b), Member($b, "value")))))),
+                  Undefined()),
+                If(Call($truthy, $x), Return(Call(Member($api, "call"), "True")), Undefined()))),
+            Return(Call(Member($api, "call"), "False"))))))))
 
 // Lists, and text where JavaScript's own length and includes read text too.
 Concept(Length(),
   IsA(CodePrimitive()),
   Realization(Length($xs), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return typeof v(0) === "string" ? v(0).length : items(v(0)).length;
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              If(
+                Equals(TypeOf(Call($v, 0)), "string"),
+                Length(Call($v, 0)),
+                Length(Call($items, Call($v, 0)))))))))))
 
 Concept(Concat(),
   IsA(CodePrimitive()),
   Realization(Concat(Rest($lists)), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return list(args.flatMap((a) => items(a.value)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(Call($list, FlatMap($args, Lambda(List($a), Call($items, Member($a, "value"))))))))))))
 
 Concept(Includes(),
   IsA(CodePrimitive()),
   Realization(Includes($xs, $x), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          if (typeof v(0) === "string") return bool(typeof v(1) === "string" && v(0).includes(v(1))); const x = api.format(v(1)); return bool(items(v(0)).some((i) => api.format(i) === x));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            If(
+              Equals(TypeOf(Call($v, 0)), "string"),
+              Return(
+                Call(
+                  $bool,
+                  And(Equals(TypeOf(Call($v, 1)), "string"), Includes(Call($v, 0), Call($v, 1))))),
+              Undefined()),
+            Let($x, Call(Member($api, "format"), Call($v, 1))),
+            Return(
+              Call(
+                $bool,
+                Call(
+                  Member(Call($items, Call($v, 0)), "some"),
+                  Lambda(List($i), Equals(Call(Member($api, "format"), $i), $x)))))))))))
 
 // In order, as the interpreter does: two identical calls at once read as a cycle.
 Concept(Map(),
   IsA(CodePrimitive()),
   Realization(Map($xs, $f), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const out = []; for (const x of items(v(0))) out.push(await apply(v(1), [x])); return list(out);
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($out, List()),
+            ForOf(
+              $x,
+              Call($items, Call($v, 0)),
+              Call(Member($out, "push"), Await(Call($apply, Call($v, 1), List($x))))),
+            Return(Call($list, $out))))))))
 
 Concept(FlatMap(),
   IsA(CodePrimitive()),
   Realization(FlatMap($xs, $f), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const out = []; for (const x of items(v(0))) out.push(...items(await apply(v(1), [x]))); return list(out);
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($out, List()),
+            ForOf(
+              $x,
+              Call($items, Call($v, 0)),
+              Call(
+                Member($out, "push"),
+                Spread(Call($items, Await(Call($apply, Call($v, 1), List($x))))))),
+            Return(Call($list, $out))))))))
 
 Concept(Filter(),
   IsA(CodePrimitive()),
   Realization(Filter($xs, $f), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const out = []; for (const x of items(v(0))) if (truthy(await apply(v(1), [x]))) out.push(x); return list(out);
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($out, List()),
+            ForOf(
+              $x,
+              Call($items, Call($v, 0)),
+              If(
+                Call($truthy, Await(Call($apply, Call($v, 1), List($x)))),
+                Call(Member($out, "push"), $x),
+                Undefined())),
+            Return(Call($list, $out))))))))
 
 Concept(Reduce(),
   IsA(CodePrimitive()),
   Realization(Reduce($xs, $f, $initial), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          let acc = v(2); for (const x of items(v(0))) acc = await apply(v(1), [acc, x]); return acc;
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Var($acc, Call($v, 2)),
+            ForOf(
+              $x,
+              Call($items, Call($v, 0)),
+              Assign($acc, Await(Call($apply, Call($v, 1), List($acc, $x))))),
+            Return($acc)))))))
 
 Concept(Unique(),
   IsA(CodePrimitive()),
   Realization(Unique($xs), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const seen = new Set(); return list(items(v(0)).filter((x) => !seen.has(api.format(x)) && seen.add(api.format(x))));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($seen, New($Set)),
+            Return(
+              Call(
+                $list,
+                Filter(
+                  Call($items, Call($v, 0)),
+                  Lambda(
+                    List($x),
+                    And(
+                      Not(Call(Member($seen, "has"), Call(Member($api, "format"), $x))),
+                      Call(Member($seen, "add"), Call(Member($api, "format"), $x)))))))))))))
 
 Concept(Matches(),
   IsA(CodePrimitive()),
   Realization(Matches($text, $pattern), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return bool(typeof v(0) === "string" && new RegExp(v(1)).test(v(0)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Call(
+                $bool,
+                And(
+                  Equals(TypeOf(Call($v, 0)), "string"),
+                  Call(Member(New($RegExp, Call($v, 1)), "test"), Call($v, 0)))))))))))
 
 Concept(First(),
   IsA(CodePrimitive()),
   Realization(First($xs), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const xs = items(v(0)); return xs.length ? xs[0] : api.call("Undefined");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let($xs, Call($items, Call($v, 0))),
+            Return(If(Length($xs), Index($xs, 0), Call(Member($api, "call"), "Undefined")))))))))
 
 // Text.
 Concept(JoinText(),
   IsA(CodePrimitive()),
   Realization(JoinText(Rest($parts)), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return args.map((a) => (typeof a.value === "string" ? a.value : api.format(a.value))).join("");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Call(
+                Member(
+                  Map(
+                    $args,
+                    Lambda(
+                      List($a),
+                      If(
+                        Equals(TypeOf(Member($a, "value")), "string"),
+                        Member($a, "value"),
+                        Call(Member($api, "format"), Member($a, "value"))))),
+                  "join"),
+                ""))))))))
 
 Concept(IsCall(),
   IsA(CodePrimitive()),
   Realization(IsCall($x), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return bool(isCall(v(0)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(Call($bool, Call($isCall, Call($v, 0))))))))))
 
 // An expression held as a value, run. The arguments of a Concept that reads them
 // unevaluated arrive as expressions; this is how its body evaluates one.
@@ -464,275 +1521,968 @@ Concept(Evaluate(),
   IsA(CodePrimitive()),
   Realization(Evaluate($x), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return await api.evaluate(v(0));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(Await(Call(Member($api, "evaluate"), Call($v, 0))))))))))
 
 Concept(Known(),
   IsA(CodePrimitive()),
   Realization(Known($x), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return bool(api.store.has(isCall(v(0)) ? v(0).head : String(v(0))));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Call(
+                $bool,
+                Call(
+                  Member(Member($api, "store"), "has"),
+                  If(
+                    Call($isCall, Call($v, 0)),
+                    Member(Call($v, 0), "head"),
+                    Call($String, Call($v, 0))))))))))))
 
 // Whether a relation holds, with inheritance and transitivity: True, False or UnknownTruth.
 Concept(TruthOf(),
   IsA(CodePrimitive()),
   Realization(TruthOf($subject, $predicate, $object), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const s = isCall(v(0)) ? v(0).head : String(v(0));
-      return api.call({ true: "True", false: "False" }[api.relations.truth(s, String(v(1)), v(2))] ?? "UnknownTruth");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $s,
+              If(
+                Call($isCall, Call($v, 0)),
+                Member(Call($v, 0), "head"),
+                Call($String, Call($v, 0)))),
+            Return(
+              Call(
+                Member($api, "call"),
+                Otherwise(
+                  Index(
+                    Object(true="True", false="False"),
+                    Call(
+                      Member(Member($api, "relations"), "truth"),
+                      $s,
+                      Call($String, Call($v, 1)),
+                      Call($v, 2))),
+                  "UnknownTruth")))))))))
 
 // What a subject holds by a predicate, inherited and transitive; Holds is what it states.
 Concept(Closure(),
   IsA(CodePrimitive()),
   Realization(Closure($subject, $predicate), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const s = isCall(v(0)) ? v(0).head : String(v(0));
-      return list(api.relations.of(s).filter((t) => t.predicate === String(v(1)) && !t.context && t.object !== undefined).map((t) => t.object));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $s,
+              If(
+                Call($isCall, Call($v, 0)),
+                Member(Call($v, 0), "head"),
+                Call($String, Call($v, 0)))),
+            Return(
+              Call(
+                $list,
+                Map(
+                  Filter(
+                    Call(Member(Member($api, "relations"), "of"), $s),
+                    Lambda(
+                      List($t),
+                      And(
+                        And(
+                          Equals(Member($t, "predicate"), Call($String, Call($v, 1))),
+                          Not(Member($t, "context"))),
+                        NotEquals(Member($t, "object"), Undefined())))),
+                  Lambda(List($t), Member($t, "object")))))))))))
 
 // A nullary claim held, inherited: Small() for "the mouse is small".
 Concept(Claimed(),
   IsA(CodePrimitive()),
   Realization(Claimed($subject, $predicate), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const s = isCall(v(0)) ? v(0).head : String(v(0));
-      return bool(api.relations.of(s).some((t) => t.predicate === String(v(1)) && !t.context && t.object === undefined));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $s,
+              If(
+                Call($isCall, Call($v, 0)),
+                Member(Call($v, 0), "head"),
+                Call($String, Call($v, 0)))),
+            Return(
+              Call(
+                $bool,
+                Call(
+                  Member(Call(Member(Member($api, "relations"), "of"), $s), "some"),
+                  Lambda(
+                    List($t),
+                    And(
+                      And(
+                        Equals(Member($t, "predicate"), Call($String, Call($v, 1))),
+                        Not(Member($t, "context"))),
+                      Equals(Member($t, "object"), Undefined()))))))))))))
 
 // Expressions as data: what a call is made of.
 Concept(Head(),
   IsA(CodePrimitive()),
   Realization(Head($e), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return isCall(v(0)) ? v(0).head : api.call("Undefined");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              If(
+                Call($isCall, Call($v, 0)),
+                Member(Call($v, 0), "head"),
+                Call(Member($api, "call"), "Undefined")))))))))
 
 Concept(Arg(),
   IsA(CodePrimitive()),
   Realization(Arg($e, $i), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const a = isCall(v(0)) ? v(0).args.filter((x) => x.name === undefined)[v(1)] : undefined; return a ? a.value : api.call("Undefined");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $a,
+              If(
+                Call($isCall, Call($v, 0)),
+                Index(
+                  Filter(
+                    Member(Call($v, 0), "args"),
+                    Lambda(List($x), Equals(Member($x, "name"), Undefined()))),
+                  Call($v, 1)),
+                Undefined())),
+            Return(If($a, Member($a, "value"), Call(Member($api, "call"), "Undefined")))))))))
 
 Concept(ArgNamed(),
   IsA(CodePrimitive()),
   Realization(ArgNamed($e, $name), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const a = isCall(v(0)) ? v(0).args.find((x) => x.name === v(1)) : undefined; return a ? a.value : api.call("Undefined");
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $a,
+              If(
+                Call($isCall, Call($v, 0)),
+                Call(
+                  Member(Member(Call($v, 0), "args"), "find"),
+                  Lambda(List($x), Equals(Member($x, "name"), Call($v, 1)))),
+                Undefined())),
+            Return(If($a, Member($a, "value"), Call(Member($api, "call"), "Undefined")))))))))
 
 Concept(MakeCall(),
   IsA(CodePrimitive()),
   Realization(MakeCall($head, $args), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          return { head: String(v(0)), args: items(v(1)).map((value) => ({ value })) };
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Return(
+              Object(
+                head=Call($String, Call($v, 0)),
+                args=Map(Call($items, Call($v, 1)), Lambda(List($value), Object(value=$value)))))))))))
 
 // The store, read. What holds in any context and was not retracted.
 Concept(Subjects(),
   IsA(CodePrimitive()),
   Realization(Subjects($predicate, $object), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const o = isCall(v(1)) ? v(1).head : String(v(1));
-      return list(api.store.asObject(o).filter((t) => t.predicate === String(v(0)) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject)));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $o,
+              If(
+                Call($isCall, Call($v, 1)),
+                Member(Call($v, 1), "head"),
+                Call($String, Call($v, 1)))),
+            Return(
+              Call(
+                $list,
+                Map(
+                  Filter(
+                    Call(Member(Member($api, "store"), "asObject"), $o),
+                    Lambda(
+                      List($t),
+                      And(
+                        And(
+                          Equals(Member($t, "predicate"), Call($String, Call($v, 0))),
+                          Equals(Member($t, "context"), Undefined())),
+                        Not(
+                          Call(
+                            Member(Member($api, "store"), "retracted"),
+                            Member($t, "subject"),
+                            Member($t, "expr")))))),
+                  Lambda(List($t), Call(Member($api, "call"), Member($t, "subject"))))))))))))
 
 Concept(Holds(),
   IsA(CodePrimitive()),
   Realization(Holds($subject, $predicate), context=Execution(),
     body=Code(
-      source="""async (args, bindings, api) => {
-          
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const truthy = (v) => v === true || (isCall(v) && v.head === "True");
-  const isTruth = (v) => typeof v === "boolean" || (isCall(v) && (v.head === "True" || v.head === "False") && !v.args.length);
-  const bool = (b) => api.call(b ? "True" : "False");
-  const items = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const list = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  // Calling a Lambda: its parameters replaced by the values, then its body evaluated.
-  const apply = async (f, values) => {
-    if (!isCall(f) || f.head !== "Lambda") return api.call("Call", f, ...values);
-    const params = items(f.args[0]?.value).map((p) => p && p.variable);
-    const bound = new Map(params.map((p, i) => [p, values[i]]));
-    return await api.evaluate(api.substitute(f.args[1].value, bound));
-  };
-
-          const v = (i) => args[i]?.value;
-          const s = isCall(v(0)) ? v(0).head : String(v(0));
-      return list(api.relations.of(s, { transitive: false }).filter((t) => t.predicate === String(v(1)) && !t.context).map((t) => t.object));
-        }""")))
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Let(
+              $isCall,
+              Lambda(
+                List($e),
+                And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Let(
+              $truthy,
+              Lambda(
+                List($v),
+                Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
+            Let(
+              $isTruth,
+              Lambda(
+                List($v),
+                Or(
+                  Equals(TypeOf($v), "boolean"),
+                  And(
+                    And(
+                      Call($isCall, $v),
+                      Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
+                    Not(Length(Member($v, "args"))))))),
+            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Let(
+              $items,
+              Lambda(
+                List($v),
+                If(
+                  And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                  Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
+                  List()))),
+            Let(
+              $list,
+              Lambda(
+                List($xs),
+                Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
+            Let(
+              $apply,
+              Async(
+                Lambda(
+                  List($f, $values),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
+                      Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
+                      Undefined()),
+                    Let(
+                      $params,
+                      Map(
+                        Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
+                        Lambda(List($p), And($p, Member($p, "variable"))))),
+                    Let(
+                      $bound,
+                      New(
+                        $Map,
+                        Call(
+                          Member($params, "map"),
+                          Lambda(List($p, $i), List($p, Index($values, $i)))))),
+                    Return(
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "substitute"),
+                            Member(Index(Member($f, "args"), 1), "value"),
+                            $bound)))))))),
+            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Let(
+              $s,
+              If(
+                Call($isCall, Call($v, 0)),
+                Member(Call($v, 0), "head"),
+                Call($String, Call($v, 0)))),
+            Return(
+              Call(
+                $list,
+                Map(
+                  Filter(
+                    Call(Member(Member($api, "relations"), "of"), $s, Object(transitive=false)),
+                    Lambda(
+                      List($t),
+                      And(
+                        Equals(Member($t, "predicate"), Call($String, Call($v, 1))),
+                        Not(Member($t, "context"))))),
+                  Lambda(List($t), Member($t, "object")))))))))))
 
 Concept(If())
 

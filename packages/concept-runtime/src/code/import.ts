@@ -34,7 +34,8 @@ export interface ImportResult {
 }
 
 let packsOnly: ConceptStore | undefined;
-const languageStore = (): ConceptStore => {
+/** A store holding only the built-in language packs, for reading and writing without a graph. */
+export const languagePackStore = (): ConceptStore => {
   if (!packsOnly) {
     packsOnly = new ConceptStore();
     const wanted = new Set(["core", "code", "javascript", "typescript"]);
@@ -45,11 +46,11 @@ const languageStore = (): ConceptStore => {
 
 /** Concepts written as JavaScript by the packs' To rules: what reads back as the same Concepts. */
 export function writeJavaScript(expression: Expr, options: ImportOptions = {}): Writing {
-  return writeWith(writingRules(options.store ?? languageStore(), "JavaScript"), expression);
+  return writeWith(writingRules(options.store ?? languagePackStore(), "JavaScript"), expression);
 }
 
 /** One file of TypeScript as one `Module(...)` expression. */
 export function importTypeScript(source: string, fileName = "input.ts", options: ImportOptions = {}): ImportResult {
-  const rules = readingRules(options.store ?? languageStore(), "TypeScript");
+  const rules = readingRules(options.store ?? languagePackStore(), "TypeScript");
   return readWith(rules, source, fileName);
 }
