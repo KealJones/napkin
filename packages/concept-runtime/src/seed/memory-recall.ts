@@ -166,9 +166,15 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           }
 
           // "what does she do" asks what someone is: her work is what she was said to be.
-          if (who && verb.head === "Do" && "${tense}" === "present" && !positional(verb).length) {
-            const kinds = api.relations.of(who).filter((t) => t.predicate === "IsA" && !(t.object && t.object.head === "User")).map((t) => t.object);
-            if (kinds.length) return api.call("Answer", kinds.length === 1 ? kinds[0] : api.call("List", ...kinds));
+          // Without a kind, the role they hold is the answer ("your coworker"), and without
+          // either it is unknown: "do" in the present asks what they are, not what happened.
+          if (verb.head === "Do" && "${tense}" === "present" && !positional(verb).length) {
+            const held = who ? api.relations.of(who) : [];
+            const kinds = held.filter((t) => t.predicate === "IsA" && !(t.object && t.object.head === "User")).map((t) => t.object);
+            const roles = held.filter((t) => t.predicate.endsWith("Of") && t.object && t.object.head === user()).map((t) => t.expr);
+            const answer = kinds.length ? kinds : roles;
+            if (!answer.length) return api.call("Answer", api.call("Unknown"));
+            return api.call("Answer", answer.length === 1 ? answer[0] : api.call("List", ...answer));
           }
           const predicate = thirdPerson(verb.head);
           // Nobody believed anything about yet: only what was said can answer.
