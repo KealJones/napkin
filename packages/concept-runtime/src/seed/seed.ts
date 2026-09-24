@@ -17,6 +17,7 @@ import { memoryRecallUnits } from "./memory-recall.js";
 import { selfUnits } from "./self.js";
 import { everydayUnits } from "./everyday.js";
 import { memoryForgetUnits } from "./memory-forget.js";
+import { memoryProcessUnits } from "./memory-process.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 import { judgmentEvidenceUnits } from "./judgment-evidence.js";
@@ -694,7 +695,12 @@ add(concept("Mood", {
         // A claim is data, not a call (reading-spec Part 5.2): under Declarative the line is
         // handed to Believe, which decides whether it lasts, instead of being evaluated.
         const line = kind && kind.head === "Declarative" ? api.call("Believe", args[1].value) : args[1].value;
-        return await api.evaluate(line, api.call("Context", ...facets, kind));
+        // A line is heard in its conversation, and what that conversation is focused on is
+        // context for it (memory-spec Part 8.1), derived fresh for each line.
+        const conversation = api.ambient("conversation");
+        const focus = conversation ? await api.evaluate(api.call("Focus", api.call(conversation))) : undefined;
+        const focused = focus && focus.head === "List" ? focus.args.map((a) => a.value) : [];
+        return await api.evaluate(line, api.call("Context", ...facets, ...focused, kind));
       }`),
     }),
   ],
@@ -1699,6 +1705,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, selfUnits(), report);
   applyUnits(store, everydayUnits(), report);
   applyUnits(store, memoryForgetUnits(), report); // memory-spec Part 10.5
+  applyUnits(store, memoryProcessUnits(), report); // memory-spec Part 18 steps 5 and 6
   applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
   applyUnits(store, memoryActivationUnits(), report); // memory-spec Part 18 step 7
   report.synonymsDerived = deriveSynonymForwarding(store);

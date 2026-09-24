@@ -259,6 +259,11 @@ export interface TurnOptions extends HearOptions {
   research?: boolean;
   /** Off runs the loop on the graph alone, with no model asked to teach anything. */
   teacher?: boolean;
+  /**
+   * The conversation this message is said in, as ambient state, so what it is focused on
+   * can be derived for it (memory-spec Part 8.1). Absent, nothing is focused.
+   */
+  conversation?: string;
 }
 
 /**
@@ -358,6 +363,8 @@ export async function turn(
   } else runtime.context.delete("replace");
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
+  if (options.conversation === undefined) runtime.context.delete("conversation");
+  else runtime.context.set("conversation", options.conversation);
   // The rules read first and the model only what they cannot, here rather than in each
   // caller, so the CLI and the studio hear a message the same way.
   options = { backend: "hybrid", ...options };
