@@ -106,7 +106,8 @@ async function entities(ids: readonly string[], props: string, get: Fetch): Prom
 export function wikidataItem(store: ConceptStore, identity: string): string | undefined {
   for (const t of store.asSubject(identity)) {
     if (t.predicate !== "SameAs" || t.object === undefined || t.object === null || typeof t.object !== "object" || !("head" in t.object)) continue;
-    const q = t.object.head === "Wikidata" ? t.object.args[0]?.value : undefined;
+    // A retracted tie was the wrong item, and is not reused.
+    const q = t.object.head === "Wikidata" && !store.retracted(identity, t.expr) ? t.object.args[0]?.value : undefined;
     if (typeof q === "string") return q;
   }
   return undefined;
