@@ -30,6 +30,7 @@ import { dropTurns, realizationHash, type StoredTraceEvent } from "../store/trac
 import { facets, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
+import { activation } from "./activation.js";
 import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
 import { Trace, realizationExpr } from "./trace.js";
 
@@ -92,6 +93,12 @@ export interface CodeApi {
    * instead of host code that knows its name. Empty when no `tracePath` was given.
    */
   readonly events: readonly StoredTraceEvent[];
+  /**
+   * These candidates, most active first, with spread from `sources` (memory-spec Part
+   * 10.1, emergent-judgment-plan Part 3.3). How a realization ranks what it offers, the way
+   * step 3 of Part 8.2 ranks the focused individuals.
+   */
+  rank(candidates: readonly string[], sources?: readonly string[]): string[];
   /** Remove these turns from the persisted trace, for explicit forgetting. */
   forgetTurns(saidSeqs: readonly number[]): void;
 }
@@ -326,6 +333,8 @@ export class Runtime {
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),
       events: this.evidence?.all() ?? [],
+      rank: (candidates, sources = []) =>
+        activation(this.store, sources, { among: candidates, events: this.evidence?.all() ?? [] }).map((a) => a.identity),
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;
         dropTurns(this.tracePath, new Set(saidSeqs));

@@ -192,9 +192,9 @@ function machinery(): ConceptUnit[] {
             const addressed = open()
               .map((g) => ({ game: g, last: Math.max(0, ...(api.store.get(g)?.relations ?? []).flatMap((r) => r.stamps ?? []).filter(from).map((s) => s.seq)) }))
               .filter((x) => x.last > 0);
-            // Step 3 of Part 8.2 ranks by recency. Activation (Part 10.1) replaces this one line.
-            const rank = (xs) => xs.sort((a, b) => b.last - a.last);
-            return api.call("List", ...rank(addressed).map((x) => api.call("Focused", api.call(x.game))));
+            // Step 3 of Part 8.2 ranks by activation (Part 10.1): recency and frequency of use.
+            const order = api.rank(addressed.map((x) => x.game));
+            return api.call("List", ...order.map((game) => api.call("Focused", api.call(game))));
           }`),
         }),
       ],

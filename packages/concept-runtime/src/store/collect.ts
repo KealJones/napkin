@@ -26,6 +26,7 @@
 import { type Expr, c, format, isCall } from "../concept/expression.js";
 import type { Relation, Stamp } from "../concept/unit.js";
 import { ConceptStore, objectKey } from "./store.js";
+import { activation } from "../runtime/activation.js";
 
 export interface CollectOptions {
   /** How long is long. Default 30 days, the same default `forget.ts` uses. */
@@ -168,6 +169,8 @@ export function collect(store: ConceptStore, options: CollectOptions = {}): Coll
     if (!stampsLeft.length) continue; // nothing recorded is not "long dormant", it is unborn
     const last = Math.max(...stampsLeft.map((s) => Date.parse(s.recordedAt)));
     if (!isStale(new Date(last).toISOString(), now, dormantForMs)) continue;
+    // Old is not enough: an individual used often enough is still active (Part 10.1).
+    if (!activation(store, [], { among: [unit.identity], now })[0]?.dormant) continue;
     const hasOtherEnduring = unit.relations.some(
       (r) => isCall(r.claim) && !IDENTIFYING.has(r.claim.head) && isEnduring(store, r.claim.head) && remaining(r, doomed).length,
     );
