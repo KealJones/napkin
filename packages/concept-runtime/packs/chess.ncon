@@ -7,16 +7,6 @@
 
 Requires(Core(), Code(), Basic())
 
-// ================================================================
-// From src/seed/game-primitives.ts
-//
-// Reusable value operations. None of these primitives knows the rules of a game.
-
-Concept(Quote(),
-  IsA(Capability()),
-  Realization(Quote($value), context=Execution(), evaluateArguments=false,
-    body=Code(ir=Lambda(List($args), Member(Index($args, 0), "value")))))
-
 Concept(Build(),
   IsA(Capability()),
   Realization(Build($value), context=Execution(), evaluateArguments=false,
@@ -76,14 +66,6 @@ Concept(With(),
               Lambda(List($a), NotEquals(Member($a, "name"), Index($v, 1))))),
           Call(Member($fields, "push"), Object(name=Index($v, 1), value=Index($v, 2))),
           Return(Object(head=Member(Index($v, 0), "head"), args=$fields)))))))
-
-Concept(FormatExpression(),
-  IsA(Capability()),
-  Realization(FormatExpression($value), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
-        Call(Member($api, "format"), Member(Index($args, 0), "value"))))))
 
 Concept(TextContains(),
   IsA(Capability()),

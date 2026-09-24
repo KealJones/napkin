@@ -689,13 +689,7 @@ Concept(AddUp(),
 // "take 10, double it": the number a chain of steps starts from.
 Concept(Take(),
   Realization(Take($x), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
-        If(
-          Equals(TypeOf(Member(Index($args, 0), "value")), "number"),
-          Member(Index($args, 0), "value"),
-          Call(Member($api, "call"), "Take", Member(Index($args, 0), "value")))))))
+    body=If(Identical(TypeOf($x), "number"), $x, MakeCall("Take", List($x)))))
 
 // "half of 90", "until christmas": the preposition is held in the pattern that reads it.
 // Left over on its own it is structure, not a word to learn.
@@ -1007,19 +1001,9 @@ Concept(Want(),
 
 Concept(Can(),
   Realization(Can(We(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(
-            Call(
-              Member($api, "evaluate"),
-              Member(Index($args, 1), "value"),
-              Call(
-                Member($api, "call"),
-                "Context",
-                Call(Member($api, "call"), "Execution"),
-                Call(Member($api, "call"), "Imperative")))))))))
+    body=Evaluate(
+      Quote($x),
+      MakeCall("Context", List(MakeCall("Execution", List()), MakeCall("Imperative", List()))))))
 
 // "define recursion", "explain recursion": asking what it is, in another form.
 Concept(Define(), SynonymOf(What()))
@@ -1031,19 +1015,11 @@ Concept(Explain(), SynonymOf(What()))
 // Part 3.1), not something to believe.
 Concept(Was(),
   Realization(Was($said, Wrong()), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Sorry")))))))
+    body=MakeCall("Answer", List(MakeCall("Sorry", List())))))
 
 Concept(Is(),
   Realization(Is($said, Wrong()), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Sorry")))))))
+    body=MakeCall("Answer", List(MakeCall("Sorry", List())))))
 
 Concept(Sorry(), IsA(Data()))
 
@@ -1059,11 +1035,7 @@ Concept(Yep(), IsA(Agreement()))
 Concept(Refusal(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Okay")))))))
+    body=MakeCall("Answer", List(MakeCall("Okay", List())))))
 
 Concept(No(), IsA(Refusal()))
 

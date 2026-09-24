@@ -127,9 +127,12 @@ From(JsFunctionExpression(parameters=List(Rest($ps)), body=$b, asteriskToken=$st
 // A function expression that names itself can call itself by that name: it is a Func.
 From(JsFunctionExpression(name=JsIdentifier(text=$n), parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Func(Variable($n), List(Rest($ps)), JsBody($b)))))
 From(JsArrowFunction(parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods($m, Lambda(List(Rest($ps)), JsBody($b))))
-// A body that ends in an expression statement returns nothing, not that expression's
-// value: () => { f(); } is not () => f().
-From(JsBody(JsBlock(statements=List(Rest($ss), Bind($last, JsExpressionStatement())))), Sequence(Rest($ss), $last, Undefined()))
+// A block body that does not end in return or throw falls through to undefined, whatever
+// its last statement: () => { f(); } is not () => f(), and { if (c) f(); } is not c ? f() :
+// undefined. Said with Undefined(), a body's statements are never mistaken for its value.
+From(JsBody(JsBlock(statements=List(Rest($ss), Bind($last, JsReturnStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements=List(Rest($ss), Bind($last, JsThrowStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements=List(Rest($ss)))), Sequence(Rest($ss), Undefined()))
 From(JsBody($b), $b)
 From(JsStar(Undefined(), $f), $f)
 From(JsStar($_, $f), Generator($f))

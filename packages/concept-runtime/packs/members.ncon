@@ -80,22 +80,8 @@ Concept(Singular(),
 // "any games", "some birds", asked about: the members of the kind.
 Concept(Any(),
   Realization(Any($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(
-            Call(
-              Member($api, "evaluate"),
-              Call(Member($api, "call"), "Members", Member(Index($args, 0), "value")))))))))
+    body=Evaluate(MakeCall("Members", List(Quote($kind))))))
 
 Concept(Some(),
   Realization(Some($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(
-            Call(
-              Member($api, "evaluate"),
-              Call(Member($api, "call"), "Members", Member(Index($args, 0), "value")))))))))
+    body=Evaluate(MakeCall("Members", List(Quote($kind))))))

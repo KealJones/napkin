@@ -486,34 +486,36 @@ Concept(Try(),
       ir=Async(
         Lambda(
           List($args, $bindings, $api),
-          Try(
-            Return(Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value")))),
-            Catch(
-              $caught,
-              Sequence(
-                Let(
-                  $failure,
+          Sequence(
+            Try(
+              Return(Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value")))),
+              Catch(
+                $caught,
+                Sequence(
+                  Let(
+                    $failure,
+                    If(
+                      And($caught, Member($caught, "value")),
+                      Member($caught, "value"),
+                      Call(Member($api, "call"), "ExecutionFailed"))),
+                  Let($handler, Member(Index($args, 1), "value")),
                   If(
-                    And($caught, Member($caught, "value")),
-                    Member($caught, "value"),
-                    Call(Member($api, "call"), "ExecutionFailed"))),
-                Let($handler, Member(Index($args, 1), "value")),
-                If(
-                  And($handler, Equals(Member($handler, "head"), "Catch")),
-                  Sequence(
-                    Let(
-                      $name,
-                      Member(Member(Index(Member($handler, "args"), 0), "value"), "variable")),
-                    Return(
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
+                    And($handler, Equals(Member($handler, "head"), "Catch")),
+                    Sequence(
+                      Let(
+                        $name,
+                        Member(Member(Index(Member($handler, "args"), 0), "value"), "variable")),
+                      Return(
+                        Await(
                           Call(
-                            Member($api, "substitute"),
-                            Member(Index(Member($handler, "args"), 1), "value"),
-                            New($Map, List(List($name, $failure)))))))),
-                  Undefined()),
-                Return(Await(Call(Member($api, "evaluate"), $handler)))))))))))
+                            Member($api, "evaluate"),
+                            Call(
+                              Member($api, "substitute"),
+                              Member(Index(Member($handler, "args"), 1), "value"),
+                              New($Map, List(List($name, $failure)))))))),
+                    Undefined()),
+                  Return(Await(Call(Member($api, "evaluate"), $handler)))))),
+            Undefined()))))))
 
 Concept(Catch(), IsA(Data()))
 
@@ -568,38 +570,22 @@ Concept(UnknownTruth(), IsA(TruthValue()))
 Concept(MarkCorrection(),
   IsA(Marker()),
   Realization(MarkCorrection($old, $new), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$new))
 
 Concept(MarkMisspelling(),
   IsA(Marker()),
   Realization(MarkMisspelling($wrote, $meant), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$meant))
 
 Concept(MarkFuzzy(),
   IsA(Marker()),
   Realization(MarkFuzzy($words, $x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$x))
 
 Concept(MarkEmphasis(),
   IsA(Marker()),
   Realization(MarkEmphasis($words, $x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$x))
 
 // Aside and Ref have no execution realization at all, deliberately: both should stay
 // visible until something resolves them rather than quietly evaluating to anything.
@@ -610,32 +596,16 @@ Concept(Heading(), IsA(Marker()))
 Concept(Item(),
   IsA(Marker()),
   Realization(Item($n, $x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))),
+    body=$x),
   Realization(Item($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 Concept(Block(),
   IsA(Marker()),
   Realization(Block($language, $text), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))),
+    body=$text),
   Realization(Block($text), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$text))
 
 // The user asserting something, as opposed to asking.
 Concept(Fact(), IsA(Frame()))
@@ -647,11 +617,7 @@ Concept(Fact(), IsA(Frame()))
 Concept(Do(),
   IsA(Frame()),
   Realization(Do($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 // Delivery: "tell me X", "show me X", "help me X". Under execution the frame does what it
 // delivers, the way "can you X" does X; who it is delivered to is not part of the work. With
@@ -773,29 +739,17 @@ Concept(WorkOut(), SynonymOf(Tell()))
 Concept(Greeting(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Hello")))))))
+    body=MakeCall("Answer", List(MakeCall("Hello", List())))))
 
 Concept(Thanking(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "YoureWelcome")))))))
+    body=MakeCall("Answer", List(MakeCall("YoureWelcome", List())))))
 
 Concept(Farewell(),
   IsA(Category()),
   Realization($said, context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "Goodbye")))))))
+    body=MakeCall("Answer", List(MakeCall("Goodbye", List())))))
 
 Concept(Hi(), IsA(Greeting()))
 
@@ -843,56 +797,32 @@ Concept(Field(), IsA(Modifier()))
 Concept(Please(),
   IsA(Politeness()),
   Realization(Please($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 // "can you X" is a question about ability in form and a request in use (Searle). Read as
 // the request only when asked as a question, which the Interrogative facet says.
 Concept(Can(),
   IsA(Politeness()),
   Realization(Can(You(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$x))
 
 Concept(Could(),
   IsA(Politeness()),
   Realization(Could(You(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$x))
 
 Concept(Would(),
   IsA(Politeness()),
   Realization(Would(You(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))))
+    body=$x))
 
 // Tense words are kept as said and project to what they wrap when a value is wanted.
 Concept(Will(),
   IsA(Politeness()),
   Realization(Will(You(), $x), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 1), "value"))))))),
+    body=$x),
   Realization(Will($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 Concept(Should(), IsA(Politeness()))
 
@@ -1092,11 +1022,7 @@ Concept(MoodKind(), IsA(Category()))
 Concept(InlineCode(),
   IsA(Marker()),
   Realization(InlineCode($text), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$text))
 
 // Nothing in it names anything; it stays visible so the system can say it did not understand.
 Concept(Unclear(), IsA(Marker()))
@@ -1206,36 +1132,45 @@ Concept(WhichDoes(), SynonymOf(Which()))
 Concept(Whether(),
   IsA(Interrogative()),
   Realization(Whether($proposition), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Let($p, Member(Index($args, 0), "value")),
+    body=Let(
+      $p,
+      Quote($proposition),
+      Let(
+        $asking,
+        Let(
+          $t3,
+          Let(
+            $t2,
             Let(
-              $asking,
-              And(
-                And(
-                  And(
-                    And($p, Includes(List("Can", "Could", "Would", "Will"), Member($p, "head"))),
-                    Equals(Length(Member($p, "args")), 2)),
-                  Member(Index(Member($p, "args"), 0), "value")),
-                Equals(Member(Member(Index(Member($p, "args"), 0), "value"), "head"), "You"))),
+              $t1,
+              Let(
+                $t0,
+                $p,
+                If(Truthy($t0), Includes(List("Can", "Could", "Would", "Will"), Head($p)), $t0)),
+              If(Truthy($t1), Identical(Length(Arguments($p)), 2), $t1)),
+            If(Truthy($t2), FieldOf(Element(Arguments($p), 0), "value"), $t2)),
+          If(Truthy($t3), Identical(Head(FieldOf(Element(Arguments($p), 0), "value")), "You"), $t3)),
+        If(
+          Truthy($asking),
+          Evaluate(FieldOf(Element(Arguments($p), 1), "value")),
+          Let(
+            $v,
+            Evaluate($p),
             If(
-              $asking,
-              Return(
-                Await(Call(Member($api, "evaluate"), Member(Index(Member($p, "args"), 1), "value")))),
-              Undefined()),
-            Let($v, Await(Call(Member($api, "evaluate"), $p))),
-            If(
-              Or(Equals($v, true), And($v, Equals(Member($v, "head"), "True"))),
-              Return(Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "True"))),
-              Undefined()),
-            If(
-              Or(Equals($v, false), And($v, Equals(Member($v, "head"), "False"))),
-              Return(Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "False"))),
-              Undefined()),
-            Return(Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "UnknownTruth")))))))))
+              Truthy(
+                If(
+                  Identical($v, true),
+                  true,
+                  Let($t4, $v, If(Truthy($t4), Identical(Head($v), "True"), $t4)))),
+              MakeCall("Answer", List(MakeCall("True", List()))),
+              If(
+                Truthy(
+                  If(
+                    Identical($v, false),
+                    true,
+                    Let($t5, $v, If(Truthy($t5), Identical(Head($v), "False"), $t5)))),
+                MakeCall("Answer", List(MakeCall("False", List()))),
+                MakeCall("Answer", List(MakeCall("UnknownTruth", List())))))))))))
 
 // "is chess a sport", "are cats animals", "is 7 prime": a yes/no question in statement
 // order, verb first because the subject cannot always head (reading-spec P2). A question
@@ -1335,11 +1270,7 @@ Concept(Is(),
                                       Answer(False()),
                                       Answer(UnknownTruth()))))))))))))))))))),
   Realization(Is($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 Concept(Are(),
   Realization(Are($subject, $category), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Compile()),
@@ -1849,8 +1780,7 @@ Concept(Today(),
 // fuller one. Defaults need no feature; patterns already match on exact arity.
 Concept(Date(),
   Realization(Date(), context=Execution(), body=Date(Today())),
-  Realization(Date($when), context=Execution(),
-    body=Code(ir=Async(Lambda(List($args, $bindings, $api), Member(Index($args, 0), "value"))))))
+  Realization(Date($when), context=Execution(), body=$when))
 
 // Date arithmetic, so a deictic that is computable actually computes.
 //
@@ -2819,13 +2749,7 @@ Concept(Percent(),
 
 Concept(Negative(),
   Realization(Negative($x), context=Execution(),
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
-        If(
-          Equals(TypeOf(Member(Index($args, 0), "value")), "number"),
-          Negate(Member(Index($args, 0), "value")),
-          Call(Member($api, "call"), "Negative", Member(Index($args, 0), "value")))))))
+    body=If(Identical(TypeOf($x), "number"), JsNegate($x), MakeCall("Negative", List($x)))))
 
 // The words arithmetic is read aloud in, pointing at what does it.
 Concept(Times(), SynonymOf(Multiply()))
@@ -3338,19 +3262,11 @@ Concept(At(),
 
 Concept(Be(),
   Realization(Be($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 Concept(Was(),
   Realization(Was($x), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))))))
+    body=$x))
 
 // A day, asked of a date, is its weekday; asked of nothing, today's.
 Concept(Day(),

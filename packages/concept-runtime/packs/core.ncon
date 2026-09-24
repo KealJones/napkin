@@ -341,7 +341,8 @@ Concept(Concept(),
                   Sequence(
                     If(Or(Not($e), Not(Member($e, "head"))), Return(), Undefined()),
                     Call(Member($heads, "push"), Member($e, "head")),
-                    ForOf($a, Member($e, "args"), Call($collect, Member($a, "value"))))),
+                    ForOf($a, Member($e, "args"), Call($collect, Member($a, "value"))),
+                    Undefined())),
                 $body),
               Let(
                 $missing,
@@ -490,7 +491,8 @@ Concept(Ref(),
                 Call(
                   $unwrap,
                   Await(Call(Member($api, "evaluate"), Call(Member($api, "parse"), $value))))),
-              Catch($_, Return($value)))))))))
+              Catch($_, Return($value))),
+            Undefined()))))))
 
 Concept(Mood(),
   IsA(Marker()),
