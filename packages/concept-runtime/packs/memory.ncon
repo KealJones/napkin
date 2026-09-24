@@ -1009,15 +1009,39 @@ Concept(Believe(),
                                                                                                     ),
                                                                                                     If(
                                                                                                       Truthy($t55),
-                                                                                                      Call(
-                                                                                                        $isCall,
-                                                                                                        Element(
+                                                                                                      If(
+                                                                                                        Truthy(
                                                                                                           Call(
-                                                                                                            $positional,
-                                                                                                            Get($kind)
+                                                                                                            $isCall,
+                                                                                                            Element(
+                                                                                                              Call(
+                                                                                                                $positional,
+                                                                                                                Get(
+                                                                                                                  $kind
+                                                                                                                )
+                                                                                                              ),
+                                                                                                              0
+                                                                                                            )
+                                                                                                          )
+                                                                                                        ),
+                                                                                                        Identical(
+                                                                                                          Length(
+                                                                                                            Call(
+                                                                                                              $positional,
+                                                                                                              Element(
+                                                                                                                Call(
+                                                                                                                  $positional,
+                                                                                                                  Get(
+                                                                                                                    $kind
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                0
+                                                                                                              )
+                                                                                                            )
                                                                                                           ),
                                                                                                           0
-                                                                                                        )
+                                                                                                        ),
+                                                                                                        false
                                                                                                       ),
                                                                                                       $t55
                                                                                                     )
@@ -1075,45 +1099,13 @@ Concept(Believe(),
                                                                                                                 )
                                                                                                               )
                                                                                                             ),
-                                                                                                            2
+                                                                                                            1
                                                                                                           ),
-                                                                                                          AllSatisfy(
-                                                                                                            Arguments(
-                                                                                                              Get($kind)
-                                                                                                            ),
-                                                                                                            Lambda(
-                                                                                                              List(
-                                                                                                                $modifier
-                                                                                                              ),
-                                                                                                              If(
-                                                                                                                Truthy(
-                                                                                                                  Call(
-                                                                                                                    $isCall,
-                                                                                                                    FieldOf(
-                                                                                                                      $modifier,
-                                                                                                                      "value"
-                                                                                                                    )
-                                                                                                                  )
-                                                                                                                ),
-                                                                                                                Identical(
-                                                                                                                  Length(
-                                                                                                                    Arguments(
-                                                                                                                      FieldOf(
-                                                                                                                        $modifier,
-                                                                                                                        "value"
-                                                                                                                      )
-                                                                                                                    )
-                                                                                                                  ),
-                                                                                                                  0
-                                                                                                                ),
-                                                                                                                false
-                                                                                                              )
-                                                                                                            )
-                                                                                                          ),
+                                                                                                          true,
                                                                                                           false
                                                                                                         )
                                                                                                       ),
-                                                                                                      // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                      // "a senior software engineer", "a word you say when...": a kind said with its words is kept whole.
                                                                                                       MakeCall(
                                                                                                         "IsA",
                                                                                                         List(Get($kind))
@@ -3229,17 +3221,39 @@ Concept(Believe(),
                                                                                                                 Truthy(
                                                                                                                   $t113
                                                                                                                 ),
-                                                                                                                Call(
-                                                                                                                  $isCall,
-                                                                                                                  Element(
+                                                                                                                If(
+                                                                                                                  Truthy(
                                                                                                                     Call(
-                                                                                                                      $positional,
-                                                                                                                      Get(
-                                                                                                                        $kind2
+                                                                                                                      $isCall,
+                                                                                                                      Element(
+                                                                                                                        Call(
+                                                                                                                          $positional,
+                                                                                                                          Get(
+                                                                                                                            $kind2
+                                                                                                                          )
+                                                                                                                        ),
+                                                                                                                        0
+                                                                                                                      )
+                                                                                                                    )
+                                                                                                                  ),
+                                                                                                                  Identical(
+                                                                                                                    Length(
+                                                                                                                      Call(
+                                                                                                                        $positional,
+                                                                                                                        Element(
+                                                                                                                          Call(
+                                                                                                                            $positional,
+                                                                                                                            Get(
+                                                                                                                              $kind2
+                                                                                                                            )
+                                                                                                                          ),
+                                                                                                                          0
+                                                                                                                        )
                                                                                                                       )
                                                                                                                     ),
                                                                                                                     0
-                                                                                                                  )
+                                                                                                                  ),
+                                                                                                                  false
                                                                                                                 ),
                                                                                                                 $t113
                                                                                                               )
@@ -3312,47 +3326,13 @@ Concept(Believe(),
                                                                                                                           )
                                                                                                                         )
                                                                                                                       ),
-                                                                                                                      2
+                                                                                                                      1
                                                                                                                     ),
-                                                                                                                    AllSatisfy(
-                                                                                                                      Arguments(
-                                                                                                                        Get(
-                                                                                                                          $kind2
-                                                                                                                        )
-                                                                                                                      ),
-                                                                                                                      Lambda(
-                                                                                                                        List(
-                                                                                                                          $modifier
-                                                                                                                        ),
-                                                                                                                        If(
-                                                                                                                          Truthy(
-                                                                                                                            Call(
-                                                                                                                              $isCall,
-                                                                                                                              FieldOf(
-                                                                                                                                $modifier,
-                                                                                                                                "value"
-                                                                                                                              )
-                                                                                                                            )
-                                                                                                                          ),
-                                                                                                                          Identical(
-                                                                                                                            Length(
-                                                                                                                              Arguments(
-                                                                                                                                FieldOf(
-                                                                                                                                  $modifier,
-                                                                                                                                  "value"
-                                                                                                                                )
-                                                                                                                              )
-                                                                                                                            ),
-                                                                                                                            0
-                                                                                                                          ),
-                                                                                                                          false
-                                                                                                                        )
-                                                                                                                      )
-                                                                                                                    ),
+                                                                                                                    true,
                                                                                                                     false
                                                                                                                   )
                                                                                                                 ),
-                                                                                                                // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                                // "a senior software engineer", "a word you say when...": a kind said with its words is kept whole.
                                                                                                                 MakeCall(
                                                                                                                   "IsA",
                                                                                                                   List(
@@ -5412,17 +5392,39 @@ Concept(Believe(),
                                                                                                                 Truthy(
                                                                                                                   $t161
                                                                                                                 ),
-                                                                                                                Call(
-                                                                                                                  $isCall,
-                                                                                                                  Element(
+                                                                                                                If(
+                                                                                                                  Truthy(
                                                                                                                     Call(
-                                                                                                                      $positional,
-                                                                                                                      Get(
-                                                                                                                        $kind3
+                                                                                                                      $isCall,
+                                                                                                                      Element(
+                                                                                                                        Call(
+                                                                                                                          $positional,
+                                                                                                                          Get(
+                                                                                                                            $kind3
+                                                                                                                          )
+                                                                                                                        ),
+                                                                                                                        0
+                                                                                                                      )
+                                                                                                                    )
+                                                                                                                  ),
+                                                                                                                  Identical(
+                                                                                                                    Length(
+                                                                                                                      Call(
+                                                                                                                        $positional,
+                                                                                                                        Element(
+                                                                                                                          Call(
+                                                                                                                            $positional,
+                                                                                                                            Get(
+                                                                                                                              $kind3
+                                                                                                                            )
+                                                                                                                          ),
+                                                                                                                          0
+                                                                                                                        )
                                                                                                                       )
                                                                                                                     ),
                                                                                                                     0
-                                                                                                                  )
+                                                                                                                  ),
+                                                                                                                  false
                                                                                                                 ),
                                                                                                                 $t161
                                                                                                               )
@@ -5495,47 +5497,13 @@ Concept(Believe(),
                                                                                                                           )
                                                                                                                         )
                                                                                                                       ),
-                                                                                                                      2
+                                                                                                                      1
                                                                                                                     ),
-                                                                                                                    AllSatisfy(
-                                                                                                                      Arguments(
-                                                                                                                        Get(
-                                                                                                                          $kind3
-                                                                                                                        )
-                                                                                                                      ),
-                                                                                                                      Lambda(
-                                                                                                                        List(
-                                                                                                                          $modifier
-                                                                                                                        ),
-                                                                                                                        If(
-                                                                                                                          Truthy(
-                                                                                                                            Call(
-                                                                                                                              $isCall,
-                                                                                                                              FieldOf(
-                                                                                                                                $modifier,
-                                                                                                                                "value"
-                                                                                                                              )
-                                                                                                                            )
-                                                                                                                          ),
-                                                                                                                          Identical(
-                                                                                                                            Length(
-                                                                                                                              Arguments(
-                                                                                                                                FieldOf(
-                                                                                                                                  $modifier,
-                                                                                                                                  "value"
-                                                                                                                                )
-                                                                                                                              )
-                                                                                                                            ),
-                                                                                                                            0
-                                                                                                                          ),
-                                                                                                                          false
-                                                                                                                        )
-                                                                                                                      )
-                                                                                                                    ),
+                                                                                                                    true,
                                                                                                                     false
                                                                                                                   )
                                                                                                                 ),
-                                                                                                                // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                                // "a senior software engineer", "a word you say when...": a kind said with its words is kept whole.
                                                                                                                 MakeCall(
                                                                                                                   "IsA",
                                                                                                                   List(
@@ -6942,6 +6910,17 @@ Concept(Believe(),
         )
       )
     )
+  ),
+  // "woops or whoops is a word", "cats and dogs are pets": said of each, so believed of each.
+  Realization(Believe(Or($a, $b)),
+    evaluateArguments = false,
+    properties = List(Effectful()),
+    body = Sequence(Believe($a), Believe($b))
+  ),
+  Realization(Believe(And($a, $b)),
+    evaluateArguments = false,
+    properties = List(Effectful()),
+    body = Sequence(Believe($a), Believe($b))
   )
 )
 

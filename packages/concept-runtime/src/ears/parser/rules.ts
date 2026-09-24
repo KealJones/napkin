@@ -766,6 +766,10 @@ function inside(subject: Expr, predicate: Expr): Expr {
   const s = subject as { head: string; args: { name?: string; value: Expr }[] };
   if (WRAPPERS.has(s as object) && s.args.length === 1) return c(s.head, inside(s.args[0].value, predicate));
   if (s.head === "MarkMisspelling" && s.args.length === 2) return c(s.head, s.args[0].value, inside(s.args[1].value, predicate));
+  // "woops or whoops is a word", "apples and pears are fruit": said of each.
+  if ((s.head === "Or" || s.head === "And") && s.args.length === 2 && s.args.every((a) => a.name === undefined && isCall(a.value))) {
+    return c(s.head, ...s.args.map((a) => inside(a.value, predicate)));
+  }
   return c(s.head, ...s.args.map((a) => a.value), predicate);
 }
 
@@ -933,6 +937,17 @@ function resumes(r: Reader): boolean {
 
 /** Read one clause at the reader into `out`; "stop" when the message is finished. */
 function clauseAt(r: Reader, out: { e: Expr; kind?: Kind }[]): "stop" | undefined {
+  // "oops, i meant times 27", "no i meant 27": what follows replaces what was said last. It is
+  // read as if it began the message, so "and times 27" still works on an answer, and marked
+  // as the correction it is: MarkCorrection(Ref(""), what was meant).
+  if (r.word() === "i" && /^(meant|mean)$/.test(r.word(1)) && r.toks.length - r.i > 2) {
+    r.i += 2;
+    const meant: { e: Expr; kind?: Kind }[] = [];
+    const stop = clauseAt(r, meant);
+    const [first, ...more] = meant;
+    if (first) out.push({ ...first, e: c("MarkCorrection", c("Ref", ""), first.e) }, ...more);
+    return stop;
+  }
   // "no, not that one", "yes, do it": the answer is said on its own, then what follows.
   if (ANSWER.test(r.word()) && r.peek()!.comma && r.i + 1 < r.toks.length) {
     const answer = r.next();
@@ -990,6 +1005,21 @@ function clauseAt(r: Reader, out: { e: Expr; kind?: Kind }[]): "stop" | undefine
   // works on the last answer. What it works on is a reference nobody put into words,
   // `Ref("")`, which memory resolves the way it resolves "it". Asking for the value, so the
   // mood is a question whatever the punctuation.
+  // "and time 27" after an answer: "time" and only a number, opening the message, is "times"
+  // mistyped. Nothing else reads "time 27" as an order.
+  const timeAt = /^(and|now|then)$/.test(r.word()) ? 1 : 0;
+  if (!out.length && r.word(timeAt) === "time" && (r.is("Value", timeAt + 1) || NUMBER_WORD.test(r.word(timeAt + 1))) && (r.peek(timeAt + 2) === undefined || /^[?.!]$/.test(r.word(timeAt + 2)))) {
+    const at = r.i;
+    r.i += timeAt + 1;
+    try {
+      out.push({ e: c("MarkMisspelling", "time", c("Times", c("Ref", ""), nounPhrase(r))), kind: "Interrogative" });
+      if (r.done()) return "stop";
+      return;
+    } catch (error) {
+      if (!(error instanceof Unparsed)) throw error;
+      r.i = at;
+    }
+  }
   const lead = /^(and|now|then)$/.test(r.word()) && INFIX[r.word(1)] ? 1 : 0;
   if (INFIX[r.word(lead)] && (r.is("Value", lead + 1) || NUMBER_WORD.test(r.word(lead + 1)) || POINTING.has(r.word(lead + 1)))) {
     const at = r.i;
@@ -1089,7 +1119,7 @@ const FIXED: Record<string, Expr> = {
 };
 
 /** Words that are a whole utterance on their own: said, not asserted, asked or ordered. */
-const INTERJECTION = /^(thanks|thank|thx|ty|hi|hello|hey|sorry|ok|okay|cool|nice|sick|yes|yeah|yep|nope|no|wow|oops|great|awesome|agreed|sure)$/;
+const INTERJECTION = /^(thanks|thank|thx|ty|hi|hello|hey|sorry|ok|okay|cool|nice|sick|yes|yeah|yep|nope|no|wow|oops|woops|whoops|oopsie|great|awesome|agreed|sure)$/;
 
 function clause(r: Reader): { e: Expr; kind?: Kind } {
   const first = r.peek()!;

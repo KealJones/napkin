@@ -50,12 +50,40 @@ function referentValue(to: string): Expr {
   }
 }
 
+/** A correction's meant part, resolved by `f`; the rest as it is. */
+function unwrapCorrection(e: Expr, f: (meant: Expr) => Expr): Expr {
+  if (!isCall(e)) return e;
+  if (e.head === "MarkCorrection" && isCall(e.args[0]?.value) && e.args[0].value.head === "Ref" && e.args[1] !== undefined) {
+    return call("MarkCorrection", [e.args[0], { value: f(e.args[1].value) }]);
+  }
+  if (e.head === "Mood" || e.head === "Sequence") return call(e.head, e.args.map((a) => ({ ...a, value: unwrapCorrection(a.value, f) })));
+  return e;
+}
+
 export function resolveReferences(
   expression: Expr | undefined,
   history: readonly PriorTurn[],
+  correcting = true,
 ): { expression: Expr | undefined; resolved: { reference: string; to: string }[] } {
   const resolved: { reference: string; to: string }[] = [];
   if (expression === undefined) return { expression, resolved };
+
+  // "oops, i meant times 27": a correction takes the place of the last turn, so what it
+  // works on is the answer before that one.
+  const corrects = (e: Expr): boolean =>
+    isCall(e) && (e.head === "MarkCorrection" ? isCall(e.args[0]?.value) && e.args[0].value.head === "Ref" : ["Mood", "Sequence"].includes(e.head) && e.args.some((a) => corrects(a.value)));
+  if (correcting && corrects(expression) && history.length > 1) {
+    // What was meant, against the turns before the one it corrects; then the rest as usual.
+    // The meant part's references are resolved by then, and a resolved one is left alone.
+    let earlier: { reference: string; to: string }[] = [];
+    const meantFirst = unwrapCorrection(expression, (meant) => {
+      const inner = resolveReferences(meant, history.slice(0, -1));
+      earlier = inner.resolved;
+      return inner.expression!;
+    });
+    const rest = resolveReferences(meantFirst, history, false);
+    return { expression: rest.expression, resolved: [...earlier, ...rest.resolved] };
+  }
 
   const walk = (e: Expr): Expr => {
     if (!isCall(e)) return e;

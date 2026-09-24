@@ -182,3 +182,22 @@ test("a kind said with its words is believed whole, and a job asked for is a kin
 test("a question that asks more than its subject is not answered with the subject", async () => {
   assert.equal(await ask("when you say hello?"), "Unknown()");
 });
+
+test("\"I meant\" takes the place of the last turn, and a mistyped times is times", async () => {
+  const talk = conversation();
+  assert.equal(await talk("what is five + 2"), "Answer(7)");
+  assert.equal(await talk("add 5"), "12");
+  assert.equal(await talk("and time 27"), "324");
+  const again = conversation();
+  await again("what is 2 plus 2");
+  await again("times 3");
+  assert.equal(await again("no, i meant times 5"), "20");
+  // A second correction replaces the first, so it works on the answer before that: 12.
+  assert.equal(await again("woops i meant and TIMES 27?"), "324");
+});
+
+test("what is said of two things joined by or is believed of each, a described kind kept whole", async () => {
+  const talk = conversation();
+  assert.match(await talk("Woops or Whoops is a word you say when you do something wrong on accident"), /^Sequence\(Believed\(Woops\(\), List\(IsA\(Word\(.+\)\)\)\), Believed\(Whoops\(\), /);
+  assert.match(await talk("what is whoops"), /^Describes\(Whoops\(\), List\(IsA\(Word\(/);
+});
