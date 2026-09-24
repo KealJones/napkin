@@ -175,3 +175,9 @@ test("what do you know about me is what is held about the user", async () => {
   await say("my favorite color is green");
   assert.match((await say("what do you know about me")).rendered, /FavoriteColor\(Green\(\)\)/);
 });
+
+test("what does she do is what she was said to be", async () => {
+  const { say } = chat();
+  await say("my sister emmy is a nurse");
+  assert.equal((await say("what does she do")).rendered, "Answer(Nurse())");
+});

@@ -97,6 +97,11 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
             return said.length ? api.call("Answer", api.call("List", ...said)) : api.call("Answer", api.call("Unknown"));
           }
 
+          // "what does she do" asks what someone is: her work is what she was said to be.
+          if (verb.head === "Do" && "${tense}" === "present" && !positional(verb).length) {
+            const kinds = api.relations.of(who).filter((t) => t.predicate === "IsA" && !(t.object && t.object.head === "User")).map((t) => t.object);
+            if (kinds.length) return api.call("Answer", kinds.length === 1 ? kinds[0] : api.call("List", ...kinds));
+          }
           const predicate = thirdPerson(verb.head);
           const held = api.relations
             .of(who)
