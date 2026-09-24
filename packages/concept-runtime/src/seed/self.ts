@@ -36,6 +36,8 @@ const CAN_DO = [
   "RecallWhatYouSaid",
   "DescribeWhatIKnow",
   "LearnNewWords",
+  "PlayTicTacToe",
+  "ForgetWhatYouAsk",
 ];
 
 export function selfUnits(): ConceptUnit[] {
