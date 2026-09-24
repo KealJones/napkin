@@ -60,8 +60,10 @@ export class Relations {
   of(identity: string, options: { transitive?: boolean; context?: Expr } = {}): Triple[] {
     const out: Triple[] = [];
     const seen = new Set<string>();
-    const holds = (t: { context?: Expr }): boolean =>
-      options.context === undefined || matchContext(t.context, options.context, new Map()).ok;
+    // A retracted fact no longer holds, though its record stays (memory-spec Part 4.5).
+    const holds = (t: Triple): boolean =>
+      (options.context === undefined || matchContext(t.context, options.context, new Map()).ok) &&
+      !this.store.retracted(t.subject, t.expr);
     const add = (t: Triple) => {
       const key = `${t.subject}|${t.predicate}|${objectKey(t.object) ?? ""}`;
       if (seen.has(key)) return;

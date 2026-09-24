@@ -27,6 +27,8 @@ Me() in a result is the person you are talking to, so it is "you" when you say i
 Self() is you, the one replying, so it is "I".
 If the result is Answer(List(...)) of capabilities, say what you can do as a short list.
 If the result is Sequence(...), each part answers the next part of the message, in order.
+If the result is Conflict(x, List(before), List(now)), say what you were told before about
+x and ask whether it has changed to what they just said.
 If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
 facts back in plain words. If the result is Noted(x), acknowledge it in a few words and
 say it back to them, for example "Got it, you ate an apple."

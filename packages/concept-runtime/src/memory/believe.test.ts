@@ -264,3 +264,23 @@ test("an explicit date is when it happened, asked for by day or by month", async
   assert.match((await say("what did i eat on october 15")).rendered, /GrannySmith/);
   assert.doesNotMatch((await say("what did i eat in october 2024")).rendered, /Soup/);
 });
+
+test("a lasting fact that contradicts one held is asked about, and yes replaces it", async () => {
+  const { store, say } = chat();
+  await say("greg lives in denver");
+  const greg = store.asObject(format("Greg")).find((t) => t.predicate === "Named")!.subject;
+  assert.match((await say("greg lives in boston")).rendered, /^Conflict\(Greg\(\), List\(LivesIn\(Denver\(\)\)\), List\(LivesIn\(Boston\(\)\)\)/);
+  assert.ok(!holds(store, greg).includes("LivesIn(Boston())"), "nothing changed by asking");
+  await say("yes he moved");
+  assert.equal((await say("where does greg live")).rendered, "Answer(Boston())");
+  // Retracted, not deleted: the record of Denver stays, with its stamps.
+  assert.ok(holds(store, greg).includes("LivesIn(Denver())"));
+});
+
+test("an attribute's new value is asked about the same way", async () => {
+  const { say } = chat();
+  await say("my favorite color is blue");
+  assert.match((await say("my favorite color is red")).rendered, /^Conflict\(/);
+  await say("yes");
+  assert.equal((await say("what is my favorite color")).rendered, "Answer(Red())");
+});

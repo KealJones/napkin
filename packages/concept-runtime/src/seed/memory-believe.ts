@@ -39,6 +39,32 @@ const HELPERS = `
   // One relation whoever says it: "i like" and "greg likes" are both Likes, and "i live
   // in" is LivesIn. The third person is the form a relation is stored under.
   const thirdPerson = (head) => head.replace(/^([A-Z][a-z]*?)(s?)(?=[A-Z]|$)/, (m, w, s) => (s || /s$/.test(w) ? m : w + "s"));
+  // A lasting claim that contradicts what is held is not silently applied (memory-spec
+  // Part 5.4): the old one is found, and either the user is asked, or, once they said it
+  // changed, it is retracted and the new one kept. One value at a time is Functional().
+  const functional = (head) => (api.store.get(head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "Functional");
+  const clashes = (target, claim, single) =>
+    api.relations.of(target).filter((t) => t.predicate === claim.head && (single || functional(claim.head)) && api.format(t.expr) !== api.format(claim));
+  const retract = (target, old) => {
+    const unit = api.store.get(target);
+    const relation = unit && unit.relations.find((r) => api.format(r.claim) === api.format(old.expr));
+    for (const st of relation?.stamps ?? []) api.store.addRelation(target, api.call("Retracts", st.seq), undefined, api.trace.cause);
+  };
+  const settle = (target, claims, display, single) => {
+    const replacing = api.ambient("replace") === "1";
+    const old = claims.flatMap((k) => clashes(target, k, single));
+    if (!old.length) return undefined;
+    if (!replacing) {
+      return { head: "Conflict", args: [
+        { value: display },
+        { value: api.call("List", ...old.map((t) => t.expr)) },
+        { value: api.call("List", ...claims) },
+        { name: "said", value: String(api.ambient("message") ?? "") },
+      ] };
+    }
+    for (const t of old) retract(target, t);
+    return undefined;
+  };
   // The holder of a role: "my dad" is whoever holds DadOf(<the user>).
   const holderOf = (role, owner) =>
     api.store.asObject(owner).find((t) => t.predicate === role + "Of")?.subject;
@@ -58,6 +84,10 @@ export function memoryBelieveUnits(): ConceptUnit[] {
     ...["IsA", "Named", "Likes", "Loves", "Hates", "Prefers", "Owns", "LivesIn", "WorksAt", "SharesMemesWith"].map(
       (r) => concept(r, { relations: ["Enduring()"] }),
     ),
+    // One at a time: someone lives in one place, so a second is a change or a mistake.
+    ...["LivesIn", "WorksAt"].map((r) => concept(r, { relations: ["Functional()"] })),
+    concept("Retracts", { relations: ["Incidental()"] }),
+    concept("Conflict", { relations: ["IsA(Result())"] }),
 
     /**
      * `Believe(line)`: what a claim is about, and whether it lasts (Part 5.4).
@@ -171,8 +201,11 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               const ownerId = who(owner, true);
               if (!ownerId || holderOf(subject.head, ownerId)) return api.call("Noted", line);
               const attribute = api.call(subject.head, ...positional(claim));
-              api.store.addRelation(ownerId, attribute, undefined, cause);
               const possessive = Object.keys(OWNER).find((k) => OWNER[k] === owner);
+              // An attribute has one value: "my favorite color is red" after blue is a change.
+              const asked = settle(ownerId, [attribute], api.call(possessive, api.call(subject.head)), true);
+              if (asked) return asked;
+              api.store.addRelation(ownerId, attribute, undefined, cause);
               return api.call("Believed", api.call(possessive, api.call(subject.head)), api.call("List", attribute));
             }
             if (isCall(role) && OWNER[role.head] && positional(role).length === 1 && isCall(positional(role)[0])) {
@@ -243,6 +276,8 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               }
             }
             if (!target) return api.call("Noted", line);
+            const asked = settle(target, kept, display, false);
+            if (asked) return asked;
             for (const k of kept) api.store.addRelation(target, k, undefined, cause);
             return api.call("Believed", display, api.call("List", ...kept));
           }`),
@@ -301,8 +336,10 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               const ownerId = who(OWNER["${possessive}"], false);
               if (!isCall(thing)) return api.call("${possessive}", thing);
               if (!ownerId) return api.call("Unknown", api.call("${possessive}", thing));
+              // Through Relations, so a retracted value is no longer the answer.
+              const held = api.relations.of(ownerId, { transitive: false });
               if (thing.head === "Name") {
-                const name = api.store.asSubject(ownerId).find((t) => t.predicate === "Named");
+                const name = held.find((t) => t.predicate === "Named");
                 if (name && typeof name.object === "string") return name.object;
               }
               // "my favorite color" is My(Favorite(Color())), the attribute FavoriteColor.
@@ -313,7 +350,7 @@ export function memoryBelieveUnits(): ConceptUnit[] {
                 const rest = positional(part);
                 part = rest.length === 1 ? rest[0] : undefined;
               }
-              const attribute = api.store.asSubject(ownerId).find((t) => t.predicate === key);
+              const attribute = held.find((t) => t.predicate === key);
               if (attribute) {
                 const values = positional(attribute.expr);
                 return values.length === 1 ? values[0] : attribute.expr;

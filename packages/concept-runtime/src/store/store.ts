@@ -383,6 +383,24 @@ export class ConceptStore {
    * is deliberately not kept — knowledge is never removed this way.
    */
   /**
+   * Whether a relation no longer holds: every stamp it has is the target of a
+   * `Retracts(seq)` on the same unit (concept-spec Part 3.1, memory-spec Part 4.5). Both
+   * the assertion and the retraction keep their stamps, so when it held stays answerable,
+   * and asserting it again adds a stamp nothing has retracted.
+   */
+  retracted(identity: string, claim: Expr): boolean {
+    const unit = this.units.get(identity);
+    if (!unit) return false;
+    const relation = unit.relations.find((r) => r.claim === claim) ?? unit.relations.find((r) => equal(r.claim, claim));
+    if (!relation?.stamps?.length) return false;
+    const gone = new Set<number>();
+    for (const r of unit.relations) {
+      if (isCall(r.claim) && r.claim.head === "Retracts" && typeof r.claim.args[0]?.value === "number") gone.add(r.claim.args[0].value);
+    }
+    return gone.size > 0 && relation.stamps.every((st) => gone.has(st.seq));
+  }
+
+  /**
    * Point every stamp caused by one of `from` at `to` instead. Used when what caused them is
    * about to go but what they record stays: an isolated conversation's words are discarded,
    * the beliefs they caused are kept and attributed to `Isolated()` (memory-spec Part 12).

@@ -13,7 +13,7 @@ import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
-import { answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
+import { answerToConflict, answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 import { lineage, reachesBehaviour } from "./select.js";
@@ -350,6 +350,12 @@ export async function turn(
   const answering = answerToWhich(options.history?.[options.history.length - 1]?.result, message, parse);
   const chosen = new Map(answering ? [[answering.name, answering.chosen]] : []);
   if (answering) message = answering.said;
+  // "yes, she moved", answering "has that changed?": the words are read again, replacing.
+  const changed = answerToConflict(options.history?.[options.history.length - 1]?.result, message, parse);
+  if (changed) {
+    message = changed;
+    runtime.context.set("replace", "1");
+  } else runtime.context.delete("replace");
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
   // The rules read first and the model only what they cannot, here rather than in each

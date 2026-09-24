@@ -246,3 +246,19 @@ export function answerToWhich(
   const pick = byOrder >= 0 ? candidates[byOrder] : byWords.length === 1 ? byWords[0] : undefined;
   return pick ? { name: name.head, chosen: pick.id, said } : undefined;
 }
+
+/**
+ * The reply to a Conflict asked last turn: a yes means it changed, so the words are read
+ * again replacing what was held. Anything else leaves the old fact standing.
+ */
+export function answerToConflict(lastResult: string | undefined, message: string, parse: (s: string) => Expr): string | undefined {
+  if (!lastResult?.startsWith("Conflict(") && !lastResult?.includes("Conflict(")) return undefined;
+  if (!/^\s*(yes|yeah|yep|yup|correct|right|it (did|has)|(she|he|they) (did|has|have)|changed|it changed)\b/i.test(message)) return undefined;
+  try {
+    const asked = parse(lastResult);
+    const said = isCall(asked) ? asked.args.find((a) => a.name === "said")?.value : undefined;
+    return typeof said === "string" ? said : undefined;
+  } catch {
+    return undefined;
+  }
+}
