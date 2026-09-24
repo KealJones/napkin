@@ -26,10 +26,10 @@ import { claims, codeLanguage, codeSource, isCodeBody, type Realization } from "
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
-import { realizationHash, type StoredTraceEvent } from "../store/traces.js";
+import { dropTurns, realizationHash, type StoredTraceEvent } from "../store/traces.js";
 import { facets, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
-import { EvidenceStore, evidenceStoreFor } from "./evidence.js";
+import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
 import { Trace, realizationExpr } from "./trace.js";
 
@@ -92,6 +92,8 @@ export interface CodeApi {
    * instead of host code that knows its name. Empty when no `tracePath` was given.
    */
   readonly events: readonly StoredTraceEvent[];
+  /** Remove these turns from the persisted trace, for explicit forgetting. */
+  forgetTurns(saidSeqs: readonly number[]): void;
 }
 
 export class Runtime {
@@ -105,6 +107,7 @@ export class Runtime {
   readonly speaks: readonly string[];
   /** Undefined when no `tracePath` was given: recency alone decides tier 3 (pre-Phase 1). */
   private readonly evidence: EvidenceStore | undefined;
+  private readonly tracePath: string | undefined;
   private steps = 0;
   /** Ambient state a deictic realization reads instead of its arguments. */
   readonly context = new Map<string, string>();
@@ -126,6 +129,7 @@ export class Runtime {
     this.maximumDepth = options.maximumDepth ?? 64;
     this.maximumSteps = options.maximumSteps ?? 4000;
     this.speaks = options.speaks ?? ["JavaScript"];
+    this.tracePath = options.tracePath;
     this.evidence = options.tracePath === undefined ? undefined : evidenceStoreFor(options.tracePath);
   }
 
@@ -322,6 +326,11 @@ export class Runtime {
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),
       events: this.evidence?.all() ?? [],
+      forgetTurns: (saidSeqs) => {
+        if (this.tracePath === undefined || !saidSeqs.length) return;
+        dropTurns(this.tracePath, new Set(saidSeqs));
+        resetEvidenceCache(this.tracePath);
+      },
     };
     const fn = new Function("args", "bindings", "api", `return (${source})(args, bindings, api);`) as (
       a: readonly Argument[],

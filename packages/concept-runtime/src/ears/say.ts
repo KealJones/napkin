@@ -194,6 +194,12 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
     const said = phrase(what);
     return said ? `I don't know ${said} yet.` : "I don't know that yet.";
   }
+  if (answered !== undefined && isCall(answered) && answered.head === "Forgotten") {
+    const what = answered.args[0]?.value;
+    const count = answered.args[1]?.value;
+    const topic = what !== undefined && isCall(what) ? words(what.head) : "that";
+    return count === 0 ? `You haven't told me anything about ${topic}.` : `Done. I've forgotten what you told me about ${topic}.`;
+  }
   // "and plus 3?" works on an answer the message never states, and a model shown only the
   // message and 87 added the 3 again. A number from a follow-up is said as it is.
   const followUp = options.asked !== undefined && [...walk(options.asked)].some((n) => isCall(n) && n.head === "Ref");

@@ -16,6 +16,7 @@ import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
 import { selfUnits } from "./self.js";
 import { everydayUnits } from "./everyday.js";
+import { memoryForgetUnits } from "./memory-forget.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 import { judgmentEvidenceUnits } from "./judgment-evidence.js";
@@ -1668,6 +1669,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
   applyUnits(store, selfUnits(), report);
   applyUnits(store, everydayUnits(), report);
+  applyUnits(store, memoryForgetUnits(), report); // memory-spec Part 10.5
   applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;

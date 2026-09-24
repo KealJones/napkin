@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { c, format, parse } from "../concept/expression.js";
 import { concept } from "../concept/unit.js";
 import { Runtime } from "../runtime/evaluator.js";
-import { appendTrace, readTrace } from "../store/traces.js";
+import { appendTrace, dropTurns, readTrace } from "../store/traces.js";
 import { load, save } from "../store/persist.js";
 import { ConceptStore } from "../store/store.js";
 import { ConversationRepository } from "./conversations.js";
@@ -189,3 +189,17 @@ test("a follow-up with no left operand answers from the last answer", async () =
   assert.equal(await ask("and plus 3?"), "87");
   assert.equal(await ask("times that by 2"), "174");
 });
+
+test("forgetting a turn drops its events from the kept trace, and only its events", () =>
+  withTemp(async (dir) => {
+    const store = new ConceptStore();
+    const path = join(dir, "trace.jsonl");
+    for (const seq of [7, 8]) {
+      const runtime = new Runtime(store);
+      runtime.trace.said(seq);
+      await runtime.evaluate(c("Blorp"));
+      appendTrace(path, runtime.trace.all());
+    }
+    assert.equal(dropTurns(path, new Set([7])), 1);
+    assert.deepEqual(readTrace(path).map((e) => e.saidSeq), [8]);
+  }));

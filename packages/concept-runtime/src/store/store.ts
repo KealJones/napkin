@@ -315,6 +315,32 @@ export class ConceptStore {
     return this.byStamp.get(seq);
   }
 
+  /**
+   * Remove these stamps, and any relation left with none (memory-spec Part 10.3). The only
+   * way a record leaves the graph apart from `forgetConcept`, and used only when something
+   * asked for it to go: explicit forgetting (Part 10.5). Returns how many relations went.
+   */
+  collect(seqs: ReadonlySet<number>): number {
+    const touched = new Set<string>();
+    for (const seq of seqs) {
+      const entry = this.byStamp.get(seq);
+      if (entry) touched.add(entry.identity);
+    }
+    let removed = 0;
+    for (const identity of touched) {
+      const unit = this.units.get(identity)!;
+      const relations = unit.relations
+        .map((r) => ({ ...r, stamps: (r.stamps ?? []).filter((st) => !seqs.has(st.seq)) }))
+        .filter((r) => {
+          const keep = r.stamps.length > 0;
+          if (!keep) removed += 1;
+          return keep;
+        });
+      this.put({ ...unit, relations });
+    }
+    return removed;
+  }
+
   /** Every (unit, relation, stamp) with `recordedAt` in `[from, to]` — the time index. */
   between(from: string, to: string): StampEntry[] {
     const out: StampEntry[] = [];

@@ -133,3 +133,22 @@ test("a subject question finds who holds the relation, believed or said", async 
   assert.match((await say("who sent me a meme")).rendered, /^Answer\(Greg\(Sent\(Me\(\), Funny\(Meme\(\)\)\)/);
   assert.equal((await say("what is 2 plus 2")).rendered, "Answer(4)", "a computation is still computed");
 });
+
+test("forgetting what was said about something removes the words and every belief they caused", async () => {
+  const { store, say } = chat();
+  await say("my favorite color is blue");
+  await say("greg likes money");
+  await say("i spent too much money yesterday");
+  const user = store.asObject("User").find((t) => t.predicate === "IsA")!.subject;
+  const before = (store.get(user)?.relations ?? []).length;
+
+  assert.match((await say("forget what i said about money")).rendered, /^Answer\(Forgotten\(Money\(\), 2\)\)$/);
+  // Only the request itself still mentions money: it names the topic, not what was said.
+  const mentions = store.mentioning(c("Money")).filter((m) => format(m.relation.claim).startsWith("Said(Me()"));
+  assert.deepEqual(mentions.map((m) => format(m.relation.claim)).filter((t) => !t.includes("Forget(")), [], "the words are gone");
+  const greg = store.asObject(format("Greg")).find((t) => t.predicate === "Named")?.subject;
+  assert.ok(!greg || !holds(store, greg).includes("Likes(Money())"), "the belief sourced from them is gone");
+  // What was not about money stays.
+  assert.equal((await say("what is my favorite color")).rendered, "Answer(Blue())");
+  assert.equal((store.get(user)?.relations ?? []).length, before);
+});

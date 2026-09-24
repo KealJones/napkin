@@ -9,7 +9,7 @@
  * One JSON line per event, appended, never rewritten. Expressions are stored as text, the
  * same way the graph stores them.
  */
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import { format, type Expr } from "../concept/expression.js";
@@ -99,4 +99,19 @@ export function readTrace(path: string): StoredTraceEvent[] {
     }
   }
   return out;
+}
+
+/**
+ * Drop every event of these turns. The trace holds each turn's parse, so forgetting the
+ * words has to reach it too (memory-spec Part 10.5). The one rewrite of an append-only
+ * file, written beside it and renamed so an interruption cannot leave half a trace.
+ */
+export function dropTurns(path: string, saidSeqs: ReadonlySet<number>): number {
+  const events = readTrace(path);
+  const kept = events.filter((e) => e.saidSeq === null || !saidSeqs.has(e.saidSeq));
+  if (kept.length === events.length) return 0;
+  const temporary = `${path}.tmp`;
+  writeFileSync(temporary, kept.map((e) => JSON.stringify(e)).join("\n") + (kept.length ? "\n" : ""), "utf8");
+  renameSync(temporary, path);
+  return events.length - kept.length;
 }
