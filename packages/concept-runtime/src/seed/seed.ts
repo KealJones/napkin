@@ -291,8 +291,11 @@ add(
           // Every sense is reported, and a sense-scoped claim says which sense it is.
           // Dropping the ones that do not match would hide a true fact because the asker
           // did not name a context; stating them flat would say a music single is a
-          // stretch of time. Carrying the context does neither.
-          const described = triples.map((t) =>
+          // stretch of time. Carrying the context does neither. What holds anywhere comes
+          // first, so whoever says it leads with what the word means when nobody named a
+          // sense: chess is a board game before it is a surname.
+          const ordered = [...triples.filter((t) => !t.context), ...triples.filter((t) => t.context)];
+          const described = ordered.map((t) =>
             t.context ? api.call("In", t.expr, t.context) : t.expr,
           );
           return api.call("Describes", subject, api.call("List", ...described));
@@ -667,10 +670,18 @@ add(
   }),
 );
 
-for (const q of ["What", "Who", "When", "Where", "Why", "How", "HowMany", "HowMuch", "WhichOf"]) {
+for (const q of ["What", "Who", "When", "Where", "Why", "How", "Which", "HowMany", "HowMuch", "WhichOf"]) {
   add(concept(q, { relations: ["IsA(Interrogative())"] }));
 }
-add(concept("WhatIs", { relations: ["SynonymOf(What())"] }));
+// "who is", "where are", "what do": the Ears fuses a helper onto the question word
+// (reading-spec P4), and a present-tense one adds nothing the question word does not
+// already ask, so each is a plain synonym. A tensed one ("who did") is not: it realizes
+// through tense and inverse (reading-spec Part 5.3).
+for (const q of ["What", "Who", "When", "Where", "Why", "How", "Which"]) {
+  for (const helper of ["Is", "Are", "Do", "Does"]) {
+    add(concept(q + helper, { relations: [`SynonymOf(${q}())`] }));
+  }
+}
 
 // A yes/no question wants a truth value, not a subject, so it declares its own
 // realization locally, which beats the inherited one on distance.
@@ -702,6 +713,43 @@ add(
     ],
   }),
 );
+
+// "is chess a sport", "are cats animals", "is 7 prime": a yes/no question in statement
+// order, verb first because the subject cannot always head (reading-spec P2). A question
+// is a lookup, never a lesson: an unknown answer is said as unknown, so asking can never
+// teach Is a realization.
+for (const copula of ["Is", "Are"]) {
+  add(
+    concept(copula, {
+      realizations: [
+        realization({
+          pattern: `${copula}($subject, $category)`,
+          context: "Context(Execution(), Interrogative())",
+          evaluateArguments: false,
+          body: code(`async (args, bindings, api) => {
+            const answer = (v) => api.call("Answer", api.call(v));
+            const subject = args[0].value;
+            const category = args[1].value;
+            if (!category || !category.head) return answer("UnknownTruth");
+            // Plurals name the same kind: "cats" asks about Cat when only Cat is known.
+            const known = (head) =>
+              !api.store.has(head) && /[^s]s$/.test(head) && api.store.has(head.slice(0, -1)) ? head.slice(0, -1) : head;
+            const kind = known(category.head);
+            if (!subject || !subject.head) return answer("UnknownTruth");
+            const what = known(subject.head);
+            // A kind, or a property held: IsA reaches ancestors through inheritance, and a
+            // nullary claim like Small() is something the subject is.
+            const truth = api.relations.truth(what, "IsA", api.call(kind));
+            if (truth === "true") return answer("True");
+            if (api.relations.of(what).some((t) => t.predicate === kind && t.object === undefined)) return answer("True");
+            if (truth === "false") return answer("False");
+            return answer("UnknownTruth");
+          }`),
+        }),
+      ],
+    }),
+  );
+}
 
 /* ------------------------------------------------------------------ *
  * Frames and modifiers.

@@ -15,7 +15,13 @@ The result was produced by a Concept network, not by you. Say what it says. Do n
 facts, do not hedge, do not explain the notation, and do not mention Concepts.
 
 If the result is Answer(x), say x.
+If the result is Answer(True()), answer yes by stating what was asked as a fact.
+If the result is Answer(False()), answer no by stating the opposite as a fact.
+If the result is Answer(UnknownTruth()), say you do not know yet, naming what was asked.
 If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
+A fact written In(fact, Sense()) holds only in that sense. Lead with the facts that are not
+wrapped in In, and if there are any, give the other senses at most a short "it is also".
+Me() in a result is the person you are talking to, so it is "you" when you say it.
 
 Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
 
@@ -28,13 +34,19 @@ Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
 function unresolved(message: string, result: Expr, gaps: readonly Unrealized[]): string {
   // Not knowing a Concept and not knowing how to DO one are different admissions, and
   // saying "I do not know Choose" about a Concept it had just learned was the wrong one.
-  const absent = gaps.filter((g) => g.kind === "unknown").map((g) => g.identity);
-  const inert = gaps.filter((g) => g.kind !== "unknown").map((g) => g.identity);
+  const absent = gaps.filter((g) => g.kind === "unknown").map((g) => words(g.identity));
+  const inert = gaps.filter((g) => g.kind !== "unknown").map((g) => words(g.identity));
   const parts: string[] = [];
-  if (absent.length) parts.push(`I do not know ${absent.join(", ")}.`);
-  if (inert.length) parts.push(`I do not know how to ${inert.join(", ")}.`);
-  return ["I could not work that out.", ...parts].join(" ");
+  if (absent.length) parts.push(`I don't know what ${list(absent)} ${absent.length > 1 ? "are" : "is"} yet.`);
+  if (inert.length) parts.push(`I don't know how to ${list(inert)} yet.`);
+  return parts.length ? parts.join(" ") : "I could not work that out.";
 }
+
+/** A Concept's name as the words it came from: `GrannySmith` is "granny smith". */
+const words = (identity: string): string => identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+
+const list = (items: readonly string[]): string =>
+  items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} or ${items[items.length - 1]}`;
 
 /**
  * When the answer is. Read off the Concepts that were asked for, not off the English: a
