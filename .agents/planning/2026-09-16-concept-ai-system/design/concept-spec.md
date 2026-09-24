@@ -710,7 +710,7 @@ unevaluated expressions. This is not an optimisation; it is required for anythin
 chooses or defers:
 
 - `If(cond, then, otherwise)` must not evaluate both branches.
-- `Let($x, value, body)` must not evaluate `$x` before it is bound.
+- `Bind($x, value, body)` evaluates the value once and binds it as a value, never evaluated again.
 - `Try(body, catch)` must not evaluate the handler unless the body fails.
 - `Sequence(...)` must control its own order.
 

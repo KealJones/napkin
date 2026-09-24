@@ -533,7 +533,7 @@ Two measured reasons, both in Part 11:
   whole parse.
 
 A nested alternative was tested, where each binding contains the rest of the message in a
-`body=` argument. It is rejected: it failed *silently*, emitting a `Let` with three
+`body=` argument. It is rejected: it failed *silently*, emitting a `Let` (now `Bind`) with three
 separate `body=` arguments that parsed cleanly and meant nothing. Losing loudly is strictly
 better than losing silently, and the flat form only ever fails loudly.
 
@@ -725,7 +725,7 @@ Depth is whatever the source requires.
 
 These mean the same thing in code and in a parsed message, and are the same Concepts:
 
-`Sequence`, `Let`, `If`, `Not`, `And`, `Or`, `GreaterThan`, `LessThan`, `Equals`,
+`Sequence`, `Bind`, `If`, `Not`, `And`, `Or`, `GreaterThan`, `LessThan`, `Equals`,
 `Property`, `Lambda`.
 
 ### 10.2 Code-specific vocabulary
@@ -904,7 +904,7 @@ are Concepts in `packs/code.ncon`, each one small `Code(...)` body under `Execut
 
 | Group | Primitives |
 |---|---|
-| functions | `Lambda(List($a), body)`, `Call(f, args...)`, `Let($x, value, body)` |
+| functions | `Lambda(List($a), body)`, `Recursive($f, Lambda(...))`, `Call(f, args...)`, `Bind($x, value, body)` |
 | logic | `Equals`, `NotEquals`, `Not`, `And`, `Or`, `If` |
 | lists | `List(...)`, `Length`, `Concat`, `Includes`, `Unique`, `First`, `Map`, `FlatMap`, `Filter`, `Reduce` |
 | text | `Matches($text, $pattern)`, `JoinText(parts...)`; `Length` and `Includes` read text as JavaScript's do |
@@ -914,8 +914,12 @@ are Concepts in `packs/code.ncon`, each one small `Code(...)` body under `Execut
 
 Rules the primitives keep:
 
-- **Binding is substitution**, as `Let` already did. A `Lambda` called with values has its
-  parameters replaced by them, then its body is evaluated.
+- **Binding is of values.** `Bind($x, value, body)` evaluates the value once, and `$x` is
+  that value wherever it lands in the body, through `If`, `Sequence` and nested binding. It
+  is never evaluated again, even when it is a call with a realization of its own (a
+  `Move(...)`, an `Answer(...)`). A `Lambda` binds its arguments the same way. This is what
+  JavaScript's `const` and Rust's `let` mean. The IR does not call it `Let`, because the
+  two languages disagree on what `let` means. What changes is a cell (Part 10.5).
 - **Not, And and Or are also words a message says** ("don't", "apples and pears"). They
   compute only over truth values and otherwise stay as said.
 - **A `List` literal evaluates its elements**, as an array literal does.
@@ -933,7 +937,7 @@ way a cell caches a fold (concept-spec Part 13).
 What each primitive compiles to is graph data. It is a realization under
 `Context(JavaScript(), Compiled())` whose body is `Text(...)`, with `$name` where the code
 for an argument goes. It is read as a template and never run, so compiling runs nothing.
-`Lambda` and `Let` are compiled by the compiler itself, because they are scope rather than
+`Lambda` and `Bind` are compiled by the compiler itself, because they are scope rather than
 an operation. The `Compiled` facet keeps templates out of what the Concept "speaks"
 (Part 10.3): a template is not a JavaScript emission of the Concept.
 
@@ -971,25 +975,12 @@ the Concepts it still calls by selection, including nullary literals like `True(
 `Members` and the yes/no `Is` are written this way now (`packs/members.ncon`, `packs/basic.ncon`).
 Only word morphology (`Singular`, "games" names Game) stays JavaScript.
 
-#### Why the rest is not migrated mechanically yet
+#### Programs are lowered
 
-Importing the seed's 235 `Code(...)` bodies gives no body made only of what runs. Every one
-reads `Member` (`args[0].value`), 152 return early, 138 `await`, and nearly all call the
-host through `api.*`. These are bodies written against the runtime's API, not against
-data. A mechanical migration needs, in order:
-
-1. `Return` compiled as an early exit, and the same as nested `If` when interpreted.
-2. `Member` on expressions as data: `.head`, `.args`, `.value`, onto `Head`, `Arg` and
-   `ArgNamed`.
-3. `api.*` onto primitives by name: `api.call` to `MakeCall`, `api.evaluate` to
-   `Evaluate`, `api.store.asObject` to `Subjects`, `api.relations.of` to `Closure`.
-4. `Var`, `Assign` and `ForOf` onto cells (Part 10.5).
-
-Each of these is now a rule in `javascript.ncon` (Part 10.7) rather than code in an
-importer. Until they are written, a body moves to the IR by hand, the way Members and Is did.
-A body Napkin writes itself, from a snippet it conceptualized, should use only the
-primitives and never a raw `Code(...)`, so what it writes stays readable and cannot reach
-the host by other means.
+Bodies written against the host are lowered to the IR mechanically (Part 10.8). A body
+Napkin writes itself, from a snippet it conceptualized, should use only the operations and
+never a raw `Code(...)`, so what it writes stays readable and cannot reach the host by other
+means.
 
 ### 10.7 Language packs: a language both ways, as data
 
@@ -1021,7 +1012,7 @@ orders realizations), until nothing applies:
 - An output can say `Variable("x")`, `Named("k", v)` (a named argument, `Pair` when `k` is
   not a name), `Each(list, Lambda(List($x), out))` (spliced), `Erased()` (dropped) and
   `Parse(text)` (source held in a string).
-- A pattern can say `Bind($x, pattern)`, and `Rest` may come first, as in
+- A pattern can say `Capture($x, pattern)`, and `Rest` may come first, as in
   `List(Rest($init), $last)`.
 - A node no rule reads becomes `Unsupported(kind, source)` and is reported.
 
@@ -1052,6 +1043,90 @@ as `operatorToken` would make that one lookup.
 
 The Teacher's `--study --as` still teaches emission the older way, as realizations under
 `Context(<language>)` evaluated to text. It should teach To rules instead.
+
+### 10.8 Lowering: programs to the IR
+
+A realization whose body is a program read from JavaScript (`Code(ir=...)`) is lowered by
+`code/lower.ts` to a body composed of Concepts, and declares `Program()`. Any host runs a
+lowered body with its own implementation of the operations. The JavaScript host
+implements them in `packs/code.ncon`, and a Rust host would implement the same list.
+
+**Operations are named by meaning, not by JavaScript.** Every method, library function,
+constructor and host facility the lowering meets goes through one table onto an operation:
+
+| Program says | Lowered to |
+|---|---|
+| `a + b`, `a % b`, `-a`, `a ** b` | `AddValues`, `RemainderOf`, `NegateValue`, `RaiseToPower` |
+| `===`, `<`, `x == null` | `Identical`, `Below`, `IsNothing(x)` |
+| `if (x)`, `a && b`, `a ?? b` | `Truthy(x)`, and `Bind` with `If`, which answer an operand |
+| `xs.find(f)`, `.some`, `.every`, `.forEach` | `FirstSatisfying`, `AnySatisfies`, `AllSatisfy`, `LoopOver` |
+| `.padStart`, `.toLowerCase`, `.split`, `re.test(t)` | `PadStart`, `Lowercase`, `Split`, `MatchesPattern` |
+| `Math.floor`, `Number.isNaN`, `JSON.stringify` | `RoundDown`, `IsNotANumber`, `Json` |
+| `new Date(y, m, d)`, `d.getMonth()` | `LocalInstant(y, m + 1, d)`, `MonthOf(d) - 1` (the IR's month counts from 1) |
+| `new Set(xs)`, `s.add(x)`, `m.get(k)`, `.size` | `NewSet`, `SetAdd`, `MapGet`, `SizeOf` |
+| `for`, `while`, `continue`, `break`, `return` in a loop | `LoopOver`, `LoopWhile`, `LoopFor`, with `LoopNext()`, `LoopStop()`, `LoopReturn(v)` |
+| `api.call`, `api.evaluate`, `api.format` | `MakeCall`, `Evaluate`, `FormatExpression` |
+| `api.store.asObject`, `.addRelation`, `.mint`, `api.relations.of` | `ClaimsWithObject`, `Assert`, `MintIdentity`, `ClaimsOf` |
+
+Anything without an operation leaves the body a program, and the reason is named. Nothing
+lowers onto JavaScript's API by name. Operation names are checked against the packs and the
+real graph before they are added: `Multiplication` and `Magnitude` are words people say, so
+the operations are `MultiplyValues` and `AbsoluteValue`.
+
+**Values** are the IR's own. An array is a `List`, an object a `Record(k=v)`, `undefined` is
+`Undefined()`, a Date an `Instant(ms)`, a Set or Map a `MutableSet` or `MutableMap` whose
+members are held in a cell, and `e.args` a `List` of `Argument(name=..., value=...)`
+records. `runtime/host.ts` is where this host turns them into its own values and back.
+
+**Truth** is the IR's rule. Every value is true except `false`, `False()`, `null`,
+`Undefined()`, `0`, `NaN` and empty text. The code IR's own `Includes` answers `True()` or
+`False()`; where a program used the answer as a value, lowering reads it as a boolean.
+
+**Names.**
+- An argument read, `args[i].value` or `bindings.get("x")`, is the pattern's variable, quoted
+  where the realization reads its arguments unevaluated.
+- A variable the realization's context binds, as in `Focused($game)`, is bound too.
+- A local that reuses a name already taken is renamed, since substitution replaces a binder
+  beneath it too.
+- Function declarations are hoisted. So is a `const` function used by a function declared
+  above it: it moves to just before its first use, where everything it names is bound.
+- A function that calls itself is `Recursive($f, Lambda(...))`.
+
+**What changes is a cell.** A `let`, a reassigned parameter, an array changed with `push`,
+`sort` or `xs[i] = v` each holds a `Cell`. An array held in a cell is faithful only if
+nothing else holds the same array. So it must be made where it changes, as a literal or a
+copy, and not handed on before it last changes. A body that breaks this stays a program.
+
+**A program's operations are operations.** The calls written in a `Program()` body are
+marked as its code:
+- A `CodePrimitive` called from a program runs where `CodePrimitive` says it `OperatesIn`
+  (`Execution()`), whatever context the program was reached in. Other Concepts it calls see
+  the real context.
+- Its operations are neither traced nor counted in steps or depth, as a JavaScript body's
+  internals never were.
+- What the program merely holds is not marked: values bound into it, and calls it builds at
+  runtime. So `Evaluate` of something said still runs it as said, and "not" in a message
+  still does not compute.
+
+**An operation is not lowered.** A Concept that `IsA(CodePrimitive())` is the host's own
+implementation: code.ncon's operations, `If`, `Sequence`, `Try`, cells, and chess's
+helpers (`Slot`, `GridRay`, `Occupant`). Interpreted, chess's helpers made legal moves take
+5.8s instead of 0.36s, and they are reusable grid operations, not chess.
+
+**Checked.**
+- Of 152 program bodies that are not operations, 146 are lowered, across 120 Concepts.
+- Replaying 359 distinct recorded calls against the program and its lowered body, every
+  answer agrees. The one that differed now fails on both sides.
+- The suite passes and the Ears harness stays at 94%.
+- A test holds that no lowered body names a JavaScript-shaped primitive.
+
+**Limits.**
+- Six bodies stay programs. Web search reaches the network, and `Evidence`, `TicTacToe` and
+  `Consolidate` change an object or array another holder may share.
+- Interpreted, a lowered body is slower than its program. Compiling it (Part 10.6) needs a
+  template for each operation that takes a function.
+- Time is local, as the programs' was. A Regex's flags are JavaScript's, and are the IR's
+  for now.
 
 ---
 

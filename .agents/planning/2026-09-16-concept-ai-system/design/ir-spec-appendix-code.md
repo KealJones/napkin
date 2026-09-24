@@ -34,7 +34,7 @@ for the seven function declarations rather than repeating them.
 
 | Node | Meaning |
 |---|---|
-| `Var($x, v)` | mutable declaration (`let`), as opposed to `Let` for `const` |
+| `Var($x, v)` | mutable declaration (`let`), as opposed to `Bind` for `const` |
 | `Index(obj, i)` | computed member access, `obj[i]` |
 | `Pair(k, v)` | an `Object(...)` entry whose key is computed or not identifier-shaped; a known identifier key uses a named argument instead (`ir-spec.md` Part 3.3) |
 | `Add`, `Subtract` | JavaScript `+` and `-`, including string concatenation for `+`; `Subtract` is the same Concept arithmetic already runs |
@@ -74,9 +74,9 @@ export const runtimeEntrySource = async (args, api) => {
 ```
 Module(Sequence(
   Import(List($whatever), "some-fake-package"),
-  Export(Let($runtimeEntrySource, Async(Lambda(List($args, $api), Sequence(
-    Let($input, Index($args, 0)),
-    Let($useContext, Index($args, 1)),
+  Export(Bind($runtimeEntrySource, Async(Lambda(List($args, $api), Sequence(
+    Bind($input, Index($args, 0)),
+    Bind($useContext, Index($args, 1)),
     Var($steps, 0),
 
     <the seven function declarations below, in source order>
@@ -136,7 +136,7 @@ function raise(head, fields, message) {
 ```
 Func($raise, List($head, $fields, $message),
   Sequence(
-    Let($error, New($Error, $message)),
+    Bind($error, New($Error, $message)),
     Call($whatever),
     Assign(Member($error, "value"), Call($expression, $head, $fields)),
     Throw($error)))
@@ -182,7 +182,7 @@ function field(value, name) {
 Func($field, List($value, $name),
   Sequence(
     If(Not(Call($isApplication, $value)), Return(Undefined())),
-    Let($argument,
+    Bind($argument,
       Call(Member(Member(Member($value, "apply"), "args"), "find"),
         Lambda(List($item), Equals(Member($item, "name"), $name)))),
     Return(And($argument, Member($argument, "value")))))
@@ -215,7 +215,7 @@ Func($argumentsInPatternOrder, List($pattern, $actual),
       Return($actual)),
     Return(Call(Member(Member(Member($pattern, "apply"), "args"), "map"),
       Lambda(List($expected), Sequence(
-        Let($formalName,
+        Bind($formalName,
           Or(Member($expected, "name"),
              If(And(And(Member($expected, "value"),
                         Equals(TypeOf(Member($expected, "value")), "object")),
@@ -315,7 +315,7 @@ function select(unit, call, useContext) {
 ```
 Func($select, List($unit, $call, $useContext),
   Sequence(
-    Let($candidates, List()),
+    Bind($candidates, List()),
 
     ForOf($candidate, Member($unit, "realizations"), Sequence(
 
@@ -326,12 +326,12 @@ Func($select, List($unit, $call, $useContext),
                  Pair("realization", $candidate)),
           "A realization must use the generic Realization expression")),
 
-      Let($pattern,           Call($field, $candidate, "pattern")),
-      Let($body,              Call($field, $candidate, "body")),
-      Let($contextPattern,    Call($field, $candidate, "context")),
-      Let($evaluateArguments, Call($field, $candidate, "evaluateArguments")),
-      Let($evaluateResult,    Call($field, $candidate, "evaluateResult")),
-      Let($resultContext,     Call($field, $candidate, "resultContext")),
+      Bind($pattern,           Call($field, $candidate, "pattern")),
+      Bind($body,              Call($field, $candidate, "body")),
+      Bind($contextPattern,    Call($field, $candidate, "context")),
+      Bind($evaluateArguments, Call($field, $candidate, "evaluateArguments")),
+      Bind($evaluateResult,    Call($field, $candidate, "evaluateResult")),
+      Bind($resultContext,     Call($field, $candidate, "resultContext")),
 
       If(Or(Equals($pattern, Undefined()), Equals($body, Undefined())),
         Call($raise, "InvalidRealization",
@@ -353,7 +353,7 @@ Func($select, List($unit, $call, $useContext),
                  Pair("field", "evaluateResult")),
           "evaluateResult must be a boolean")),
 
-      Let($bindings, Object()),
+      Bind($bindings, Object()),
 
       If(Not(Call(Member($api, "match"), $pattern, $call, $bindings)),
         Continue()),
@@ -423,9 +423,9 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
         Object(Pair("name", Member($value, "variable"))),
         "Unbound variable")),
 
-    Let($head, Member(Member($value, "apply"), "head")),
+    Bind($head, Member(Member($value, "apply"), "head")),
 
-    Let($eventId, Call(Member($api, "startEvent"),
+    Bind($eventId, Call(Member($api, "startEvent"),
       Object(
         Pair("concept", $head),
         Pair("caller", $caller),
@@ -450,13 +450,13 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
             Object(Pair("kind", "steps"), Pair("limit", Member($api, "maximumSteps"))),
             "Maximum evaluation steps exceeded")),
 
-        Let($unit, Call(Member($api, "getConcept"), $head)),
+        Bind($unit, Call(Member($api, "getConcept"), $head)),
         If(Not($unit),
           Call($raise, "UnknownConcept",
             Object(Pair("identity", $head)),
             Add("No Concept unit exists for ", $head))),
 
-        Let($selected, Call($select, $unit, $value, $activeContext)),
+        Bind($selected, Call($select, $unit, $value, $activeContext)),
         If(Not($selected),
           Sequence(
             Call(Member($api, "finishEvent"), $eventId,
@@ -474,7 +474,7 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
             Await(Call(Member($Promise, "all"),
               Call(Member(Member(Member($value, "apply"), "args"), "map"),
                 Async(Lambda(List($argument), Sequence(
-                  Let($evaluated,
+                  Bind($evaluated,
                     Await(Call($evaluate,
                       Member($argument, "value"),
                       $head, $eventId, Add($depth, 1), $activeContext))),
@@ -483,7 +483,7 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
                     Object(Pair("name", Member($argument, "name")),
                            Pair("value", $evaluated))))))))))),
 
-          Let($evaluatedCall,
+          Bind($evaluatedCall,
             Object(Pair("apply", Object(Pair("head", $head),
                                         Pair("args", $bodyArguments))))),
 
@@ -507,9 +507,9 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
               Object(Pair("concept", $head), Pair("context", $activeContext)),
               "The selected context pattern no longer matches after argument evaluation")))),
 
-        Let($body, Call(Member($api, "substitute"), Member($selected, "body"), $bindings)),
+        Bind($body, Call(Member($api, "substitute"), Member($selected, "body"), $bindings)),
 
-        Let($resultContext,
+        Bind($resultContext,
           If(Equals(Member($selected, "resultContext"), Undefined()),
              $activeContext,
              Call(Member($api, "substitute"),
@@ -538,11 +538,11 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
         Return($result)),
 
       Catch($caught, Sequence(
-        Let($message,
+        Bind($message,
           If(InstanceOf($caught, $Error),
              Member($caught, "message"),
              Call($String, $caught))),
-        Let($failure,
+        Bind($failure,
           If(And($caught, Member($caught, "value")),
              Member($caught, "value"),
              Call($expression, "ExecutionFailed",
@@ -551,7 +551,7 @@ Async(Func($evaluate, List($value, $caller, $parentEventId, $depth, $activeConte
           Object(Pair("output", $failure),
                  Pair("outcome", "failure"),
                  Pair("error", $message))),
-        Let($propagated, New($Error, $message)),
+        Bind($propagated, New($Error, $message)),
         Assign(Member($propagated, "value"), $failure),
         Throw($propagated)))))))
 ```
@@ -603,7 +603,7 @@ steps += 1;
 ```
 
 ```
-Let($steps, Cell(0))
+Bind($steps, Cell(0))
 ```
 
 ```
@@ -628,7 +628,7 @@ candidates.sort((left, right) => right.specificity - left.specificity);
 ```
 
 ```
-Let($candidates, Cell(List()))
+Bind($candidates, Cell(List()))
 ```
 
 ```
@@ -652,7 +652,7 @@ if (selected.evaluateResult) { result = await evaluate(result, ...); }
 ```
 
 ```
-Let($result, Cell($computedBody))
+Bind($result, Cell($computedBody))
 ```
 
 (`$computedBody` stands for the `If` choosing between `runCode` and a recursive `evaluate`,
