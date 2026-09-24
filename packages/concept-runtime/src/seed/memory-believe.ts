@@ -152,7 +152,7 @@ export function memoryBelieveUnits(): ConceptUnit[] {
             // Turn the claim into what is kept.
             const kept = [];
             const role = claim.head === "Is" && positional(claim).length === 1 ? positional(claim)[0] : undefined;
-            if (owner && !appositive && subject.head === "Name" && claim.head === "Is" && role !== undefined) {
+            if (owner && !appositive && subject.head === "Name" && claim.head === "Is" && positional(claim).length === 1 && role !== undefined) {
               // "my name is keal": a name given as a value (reading-spec R18).
               const text = typeof role === "string" ? role : isCall(role) ? spoken(role.head) : String(role);
               const target = who(owner, true);
@@ -161,6 +161,9 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               api.store.addRelation(target, api.call("Named", name), undefined, cause);
               return api.call("Believed", api.call("Me"), api.call("List", api.call("Named", name)));
             }
+            // More than one thing after "is" is a reading that ran two claims together, not a
+            // value: kept as said rather than filed as an attribute.
+            if (owner && !appositive && claim.head === "Is" && positional(claim).length > 1 && subject.head === "Name") return api.call("Noted", line);
             if (owner && !appositive && claim.head === "Is" && positional(claim).length >= 1 && !(isCall(role) && OWNER[role.head])) {
               // "my favorite color is blue", "my birthday is june 5": an attribute of the
               // owner, FavoriteColor(Blue()), unless someone already holds the role, in

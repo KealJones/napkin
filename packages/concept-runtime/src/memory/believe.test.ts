@@ -181,3 +181,22 @@ test("what does she do is what she was said to be", async () => {
   await say("my sister emmy is a nurse");
   assert.equal((await say("what does she do")).rendered, "Answer(Nurse())");
 });
+
+test("two claims joined by and my are two claims, and a run-together reading is not a name", async () => {
+  const { store, say } = chat();
+  await say("my name is keal and my sister emmy is a nurse");
+  const user = store.asObject("User").find((t) => t.predicate === "IsA")!.subject;
+  assert.ok(holds(store, user).includes('Named("Keal")'), holds(store, user).join(" "));
+  assert.ok(!holds(store, user).some((r) => r.startsWith("Name(")), "no run-together Name attribute");
+  const emmy = store.asObject(format("Emmy")).find((t) => t.predicate === "Named")!.subject;
+  assert.ok(holds(store, emmy).includes(`SisterOf(${user}())`));
+});
+
+test("a second line keeps what its names resolved to", async () => {
+  const { store, say } = chat();
+  await say("emmy loves pizza");
+  await say("my name is keal and my sister emmy is a nurse");
+  const emmys = store.asObject(format("Emmy")).filter((t) => t.predicate === "Named").map((t) => t.subject);
+  assert.equal(emmys.length, 1, "the same Emmy, not a second one");
+  assert.ok(holds(store, emmys[0]).includes("IsA(Nurse())"));
+});

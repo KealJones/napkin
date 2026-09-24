@@ -361,7 +361,8 @@ add(
           const carry = (e, prev) => {
             if (!isCall(e)) return e;
             if (e.head === "Ref" && e.args.length === 1 && /^(it|that|this|)$/.test(String(e.args[0].value))) return prev;
-            return api.call(e.head, ...e.args.map((a) => carry(a.value, prev)));
+            // Rebuilt with each argument's name kept: resolvedTo= is not a positional value.
+            return { head: e.head, args: e.args.map((a) => ({ ...a, value: carry(a.value, prev) })) };
           };
           let last = null;
           const answers = [];

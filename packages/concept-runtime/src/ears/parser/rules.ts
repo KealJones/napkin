@@ -576,6 +576,9 @@ function clauseBoundary(r: Reader): boolean {
   const before = r.toks[r.i - 1];
   if (before?.comma && (r.is("Verb") || r.word() === "then" || AUX.has(r.word()) || WH.has(r.word()))) return true;
   if (r.word() === "and" && (PERSON[r.word(1)] || r.word(1) === "it") && (r.is("Verb", 2) || COPULA.has(r.word(2)))) return true;
+  // "my name is keal and my sister emmy is a nurse": an owner after "and", with a verb still
+  // to come, opens a second claim rather than a second thing named.
+  if (r.word() === "and" && POSSESSIVE[r.word(1)] && r.toks.slice(r.i + 2).some((t) => COPULA.has(t.word) || t.tags.has("Verb"))) return true;
   // "what day is it and what time is it": a question word after "and" asks a second question.
   if (r.word() === "and" && WH.has(r.word(1)) && r.i + 2 < r.toks.length) return true;
   // "and update the tests", "and tell me": an order joined on, recognised by what follows it.
