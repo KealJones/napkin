@@ -863,9 +863,12 @@ All ordinary. The evaluator knows none of them.
 
 Easiest first. Each step is usable on its own.
 
-Status, 2026-09-23: steps 1 to 4 are built, and step 8's explicit forgetting. Step 5 has
-only pronoun resolution to the most recently recorded individual, not `Focus` as facets.
-Steps 6 and 7, and consolidation and age collection in step 8, are not built.
+Status, 2026-09-23: steps 1 to 6 are built, and step 8's explicit forgetting. Steps 5 and 6
+are demonstrated with tic-tac-toe (`seed/memory-process.ts`); step 3 of Part 8.2 ranks by
+recency until `Activation` exists, and step 6 has no cell cache: the fold is replayed on
+every read, since a cache would be a second copy of what the moves say. The user's `Said`
+does not carry `resolvedTo` for a routed move; the committed effect and the reply's `Said`
+record it. Step 7, and consolidation and age collection in step 8, are not built.
 
 1. **Stamps.** `seq`, `recordedAt` and `source` on every relation; re-assertion appends a
    stamp; `Said` stores its content as an expression. *Done when* a turn's `Said` and every

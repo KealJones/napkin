@@ -100,7 +100,10 @@ test("the vocabulary keeps what matters when the graph outgrows the prompt", asy
   // Enough junk to push everything past the limit, all of it alphabetically early.
   for (let i = 0; i < 600; i += 1) store.seed(concept(`Aardvark${String(i).padStart(4, "0")}`));
 
-  const shown = vocabulary(store, 120, "what time is it").split("\n")[1]!;
+  // Room for what the seed realizes and a little more, so the seed can grow without this
+  // test turning into a count of it.
+  const realizing = store.all().filter((u) => u.realizations.length).length;
+  const shown = vocabulary(store, realizing + 10, "what time is it").split("\n")[1]!;
   // Alphabetical truncation lost the interrogatives and everything that computes.
   assert.match(shown, /\bWhat\(/, "an interrogative is required by the rules beside this list");
   assert.match(shown, /\bTime\(/, "naming a Concept that realizes is the difference from a residual");

@@ -350,6 +350,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       endpoint: endpoint.origin,
       learn: body.learn !== false,
       history,
+      conversation: conversationId,
       ...(body.backend === "model" || body.backend === "rules" || body.backend === "hybrid" ? { backend: body.backend } : {}),
     });
     const reader = { reader: result.heard.backend ?? "model", fallback: result.heard.fallback ?? null };
