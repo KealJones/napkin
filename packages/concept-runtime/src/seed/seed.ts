@@ -16,6 +16,7 @@ import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
+import { judgmentEvidenceUnits } from "./judgment-evidence.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1560,6 +1561,9 @@ export interface SeedReport {
 
 function applyUnits(store: ConceptStore, list: readonly ConceptUnit[], report: SeedReport): void {
   for (const unit of list) {
+export function seed(store: ConceptStore): SeedReport {
+  const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
+  for (const unit of [...units, ...judgmentEvidenceUnits()]) {
     const result = store.seed(unit);
     if (result.created) report.created += 1;
     else if (result.addedRelations || result.addedRealizations) report.updated += 1;

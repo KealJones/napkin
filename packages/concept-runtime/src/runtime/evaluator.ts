@@ -26,10 +26,12 @@ import { claims, codeLanguage, codeSource, isCodeBody, type Realization } from "
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
-import { suppressedProperties } from "./context.js";
+import { realizationHash, type StoredTraceEvent } from "../store/traces.js";
+import { facets, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
-import { bestCandidate, candidates, incomparable } from "./select.js";
-import { Trace } from "./trace.js";
+import { EvidenceStore, evidenceStoreFor } from "./evidence.js";
+import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
+import { Trace, realizationExpr } from "./trace.js";
 
 /**
  * Where a synonym forward points.
@@ -60,6 +62,12 @@ export interface RuntimeOptions {
    * silently does the wrong thing.
    */
   speaks?: readonly string[];
+  /**
+   * Where this process's trace lives. When given, tier 3 selection reads evidence from it
+   * instead of only recency (Phase 1), and the `Evidence(...)` Concept can query it through
+   * `api.events`. Absent means no persisted trace: recency alone, as before Phase 1.
+   */
+  tracePath?: string;
 }
 
 /** What a Code(...) body receives. Every realization reaches the host the same way. */
@@ -77,6 +85,13 @@ export interface CodeApi {
   readonly context: Expr | undefined;
   format(e: Expr): string;
   call(head: string, ...values: Expr[]): Call;
+  /**
+   * Every stored trace event for this process, oldest first, a general host facility
+   * reached uniformly by any realization that wants to read its own history (concept-spec
+   * Part 2.1), which is what makes `Evidence(...)` (Phase 0 item 3) an ordinary Concept
+   * instead of host code that knows its name. Empty when no `tracePath` was given.
+   */
+  readonly events: readonly StoredTraceEvent[];
 }
 
 export class Runtime {
@@ -88,6 +103,8 @@ export class Runtime {
   readonly maximumSteps: number;
   /** This host is a JavaScript one. A Rust host would say so and select its own bodies. */
   readonly speaks: readonly string[];
+  /** Undefined when no `tracePath` was given: recency alone decides tier 3 (pre-Phase 1). */
+  private readonly evidence: EvidenceStore | undefined;
   private steps = 0;
   /** Ambient state a deictic realization reads instead of its arguments. */
   readonly context = new Map<string, string>();
@@ -109,6 +126,7 @@ export class Runtime {
     this.maximumDepth = options.maximumDepth ?? 64;
     this.maximumSteps = options.maximumSteps ?? 4000;
     this.speaks = options.speaks ?? ["JavaScript"];
+    this.evidence = options.tracePath === undefined ? undefined : evidenceStoreFor(options.tracePath);
   }
 
   /** Where the current attempt starts in the trace. Earlier attempts are history. */
@@ -165,10 +183,18 @@ export class Runtime {
         claims({ relations: this.store.get(identity)?.relations ?? [] }),
       );
 
+      // Tier 3: evidence in this context, falling back to recency where there is none
+      // (Phase 1). `this.evidence` is undefined with no `tracePath`, so an unconfigured
+      // runtime behaves exactly as it did before evidence existed.
+      const preference = this.evidence
+        ? (candidate: Candidate): number | undefined =>
+            this.evidence!.score(realizationHash(realizationExpr(candidate.realization)), facets(context), this.store)
+        : undefined;
+
       // A body this host cannot run is not a candidate. Selecting one and then failing
       // would let a Rust body shadow the JavaScript body beside it and take a working
       // Concept down with it -- the graph holds both on purpose.
-      const found = candidates(this.store, target, context, suppressed).filter((candidate) => {
+      const found = candidates(this.store, target, context, suppressed, preference).filter((candidate) => {
         if (
           isCodeBody(candidate.realization.body) &&
           !this.speaks.includes(codeLanguage(candidate.realization.body))
@@ -184,6 +210,7 @@ export class Runtime {
           `${format(target)} matched ${found.length} equally specific realizations on different facets`,
         );
       }
+      this.trace.selection(id, found.length, tieBreakDecided(found));
       const chosen = found[0];
 
       // No Concept, or no applicable realization: the expression is its own value.
@@ -294,6 +321,7 @@ export class Runtime {
       context,
       format,
       call: (head, ...values) => call(head, values.map((value) => ({ value }))),
+      events: this.evidence?.all() ?? [],
     };
     const fn = new Function("args", "bindings", "api", `return (${source})(args, bindings, api);`) as (
       a: readonly Argument[],

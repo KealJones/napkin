@@ -15,6 +15,7 @@ import {
   c,
   ConceptStore,
   ConversationRepository,
+  evidenceStoreFor,
   format,
   load,
   parse,
@@ -323,7 +324,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
     if (!response.writableEnded) response.write("data: " + JSON.stringify(event) + "\n\n");
   };
 
-  const runtime = new Runtime(store);
+  const runtime = new Runtime(store, { tracePath });
   // Heard before it is read, so the trace and anything learned point at it.
   const heard = conversations.receive();
   runtime.trace.said(heard.seq);
@@ -376,6 +377,8 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
     if (conversationId.startsWith("Conversation_")) {
       save(store, graphPath);
       appendTrace(tracePath, events);
+      // Keep the process-cached evidence in step, rather than re-reading the file.
+      evidenceStoreFor(tracePath).append(events);
     }
 
     const traceId = `t${traces.length + 1}-${Date.now()}`;

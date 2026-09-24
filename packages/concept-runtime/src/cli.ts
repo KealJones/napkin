@@ -7,9 +7,11 @@
  *   napkin --seed
  *   napkin --ground [layers dir]
  */
+import { dirname, resolve } from "node:path";
 import { c, format, parse } from "./concept/expression.js";
 import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
+import { evidenceStoreFor } from "./runtime/evidence.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
 import { study } from "./learn/study.js";
@@ -19,6 +21,7 @@ import { seed } from "./seed/seed.js";
 import { DATA, groundAll } from "./seed/grounding/layer.js";
 import { load, save } from "./store/persist.js";
 import { ConceptStore } from "./store/store.js";
+import { appendTrace } from "./store/traces.js";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(name);
@@ -35,9 +38,18 @@ const store = new ConceptStore();
 // seeding last is what makes the current definition win.
 const loaded = flag("--fresh") ? 0 : load(store, graphPath);
 const report = seed(store);
-const runtime = new Runtime(store);
+// The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
+const tracePath = resolve(dirname(graphPath), "trace.jsonl");
+const runtime = new Runtime(store, { tracePath });
 const context = c("Execution");
 const persist = () => (flag("--fresh") ? 0 : save(store, graphPath));
+/** This run's events, appended once the turn is done, so evidence survives a restart. */
+const persistTrace = () => {
+  if (flag("--fresh")) return;
+  const events = runtime.trace.all();
+  appendTrace(tracePath, events);
+  evidenceStoreFor(tracePath).append(events);
+};
 
 if (flag("--seed")) {
   persist();
@@ -183,12 +195,24 @@ const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
 
+if (flag("--evidence")) {
+  const name = args[args.indexOf("--evidence") + 1];
+  if (!name) {
+    console.error("napkin --evidence <Concept>       counts by context, e.g. napkin --evidence Multiply");
+    process.exit(1);
+  }
+  const result = await runtime.evaluate(parse(`Evidence(${name}())`), context);
+  show(`evidence for ${name}`, format(result));
+  process.exit(0);
+}
+
 if (expr) {
   const parsed = parse(expr);
   const result = await runtime.evaluate(parsed, context);
   show("parsed", format(parsed));
   show("result", format(result));
   show("trace", runtime.trace.render());
+  persistTrace();
 } else if (message) {
   if (!(await modelAvailable())) {
     console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama, or use --expr.");
@@ -213,6 +237,7 @@ if (expr) {
     show("gaps — the learning queue", t.gaps.map((g) => `${g.kind}: ${g.expression}`).join("\n"));
   if (t.ambiguities.length) show("ambiguities", t.ambiguities.join("\n"));
   const grew = persist();
+  persistTrace();
   if (t.learned.length) show("graph", `${grew} Concepts saved to ${graphPath}`);
   show("trace", runtime.trace.render());
 } else {
@@ -230,6 +255,7 @@ if (expr) {
                                          learn its own vocabulary from its own specs
   napkin --import src/thing.ts          read TypeScript as Concept expressions
   napkin --agenda                       what it would work on next, unprompted
+  napkin --evidence Multiply            counts by context, from the persisted trace
   napkin --exist                        work on that agenda, bounded by --budget
   napkin --forget                       what would be forgotten (--commit to apply)
   napkin --seed                         seed a graph and report
