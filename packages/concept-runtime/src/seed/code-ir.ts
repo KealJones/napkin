@@ -47,11 +47,77 @@ const primitive = (identity: string, pattern: string, body: string, evaluateArgu
     ],
   });
 
+/**
+ * What a call compiles to (runtime/compile.ts): JavaScript with `$name` where the code its
+ * argument compiled to goes, stored as `Text(...)` under `Context(JavaScript(), Compiled())`.
+ * Read as a template, never run. A value appearing twice is bound once, so nothing is
+ * evaluated twice.
+ */
+const compiled = (identity: string, pattern: string, js: string): ConceptUnit => {
+  const parts: Expr[] = [];
+  const re = /\$([a-z][A-Za-z0-9]*)/g;
+  let at = 0;
+  for (let m = re.exec(js); m; m = re.exec(js)) {
+    if (m.index > at) parts.push(js.slice(at, m.index));
+    parts.push({ variable: m[1] });
+    at = m.index + m[0].length;
+  }
+  if (at < js.length) parts.push(js.slice(at));
+  return concept(identity, {
+    realizations: [
+      realization({
+        pattern,
+        context: "Context(JavaScript(), Compiled())",
+        body: call("Text", parts.map((value) => ({ value }))),
+      }),
+    ],
+  });
+};
+
+/** The compiled forms, one per primitive, and for the arithmetic and If that already run. */
+const TEMPLATES: ConceptUnit[] = [
+  compiled("Call", "Call($f, Rest($args))", "(await ($f)($args))"),
+  compiled("Equals", "Equals($a, $b)", "B(F($a) === F($b))"),
+  compiled("NotEquals", "NotEquals($a, $b)", "B(F($a) !== F($b))"),
+  compiled("Not", "Not($x)", "((x) => (T(x) || (isCall(x) && x.head === \"False\")) ? B(!T(x)) : E(\"Not\", x))($x)"),
+  compiled("And", "And($a, $b)", "B(T($a) && T($b))"),
+  compiled("Or", "Or($a, $b)", "B(T($a) || T($b))"),
+  compiled("Length", "Length($xs)", "I($xs).length"),
+  compiled("Concat", "Concat(Rest($lists))", "L([$lists].flatMap(I))"),
+  compiled("Includes", "Includes($xs, $x)", "((xs, x) => B(I(xs).some((i) => F(i) === F(x))))($xs, $x)"),
+  // In order, as the interpreter does: two identical calls at once read as a cycle.
+  compiled("Map", "Map($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I($xs), $f))"),
+  compiled("FlatMap", "FlatMap($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))"),
+  compiled("Filter", "Filter($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I($xs), $f))"),
+  compiled("Reduce", "Reduce($xs, $f, $initial)", "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))"),
+  compiled("Head", "Head($e)", "((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))($e)"),
+  compiled("Arg", "Arg($e, $i)", "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)"),
+  compiled("ArgNamed", "ArgNamed($e, $name)", "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)"),
+  compiled("MakeCall", "MakeCall($head, $args)", "((h, xs) => ({ head: String(h), args: I(xs).map((value) => ({ value })) }))($head, $args)"),
+  compiled("Subjects", "Subjects($predicate, $object)", "((p, o) => L(api.store.asObject(K(o)).filter((t) => t.predicate === String(p) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject))))($predicate, $object)"),
+  compiled("Holds", "Holds($subject, $predicate)", "((s, p) => L(api.relations.of(K(s), { transitive: false }).filter((t) => t.predicate === String(p) && !t.context).map((t) => t.object)))($subject, $predicate)"),
+  compiled("If", "If($condition, $then, $otherwise)", "(T($condition) ? $then : $otherwise)"),
+  compiled("Add", "Add($a, $b)", "(await N(\"Add\", $a, $b, (x, y) => x + y))"),
+  compiled("Subtract", "Subtract($a, $b)", "(await N(\"Subtract\", $a, $b, (x, y) => x - y))"),
+  compiled("Multiply", "Multiply($a, $b)", "(await N(\"Multiply\", $a, $b, (x, y) => x * y))"),
+  compiled("Divide", "Divide($a, $b)", "(await N(\"Divide\", $a, $b, (x, y) => (y === 0 ? api.call(\"Undefined\") : x / y)))"),
+  compiled("GreaterThan", "GreaterThan($a, $b)", "(await N(\"GreaterThan\", $a, $b, (x, y) => B(x > y)))"),
+  compiled("LessThan", "LessThan($a, $b)", "(await N(\"LessThan\", $a, $b, (x, y) => B(x < y)))"),
+];
+
 export function codeIrUnits(): ConceptUnit[] {
   return [
+    ...TEMPLATES,
+    concept("Compiled", { relations: ["IsA(ContextFacet())"] }),
+    concept("Compile", { relations: ["IsA(RealizationProperty())"] }),
     concept("CodePrimitive", { relations: ["IsA(Category())"] }),
     // A function value: stays as it is until called.
     concept("Lambda", { relations: ["IsA(Marker())"] }),
+    // A list literal is its elements' values, as an array literal is: List(Arg(e, 0)) is the
+    // argument, not the expression that would find it.
+    concept("List", {
+      realizations: [realization({ pattern: "List(Rest($xs))", context: "Execution()", body: code(`(args, bindings, api) => ({ head: "List", args: args.map((a) => ({ value: a.value })) })`) })],
+    }),
 
     primitive("Call", "Call($f, Rest($args))", `return await apply(v(0), args.slice(1).map((a) => a.value));`),
 

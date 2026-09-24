@@ -172,9 +172,9 @@ export function incomparable(found: Candidate[]): boolean {
 export { declares };
 
 /**
- * The facets a facet brings with it: what it is a SubclassOf. TypeScript is a kind of
- * JavaScript, so asking for TypeScript also reaches the JavaScript realizations, and one
- * set of templates serves both until one of them has types to add.
+ * The facets a facet brings with it: what it is a SupersetOf. Every JavaScript program is
+ * a TypeScript program, so asking for TypeScript also reaches the JavaScript templates, and
+ * one set serves both until TypeScript has types of its own to add.
  */
 export function facetAncestors(store: ConceptStore, head: string): string[] {
   const out: string[] = [];
@@ -183,7 +183,7 @@ export function facetAncestors(store: ConceptStore, head: string): string[] {
     const next: string[] = [];
     for (const h of frontier) {
       for (const { claim } of store.get(h)?.relations ?? []) {
-        if (!isCall(claim) || claim.head !== "SubclassOf") continue;
+        if (!isCall(claim) || claim.head !== "SupersetOf") continue;
         const parent = claim.args[0]?.value;
         if (parent !== undefined && isCall(parent) && !out.includes(parent.head)) {
           out.push(parent.head);

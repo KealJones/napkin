@@ -148,6 +148,8 @@ function speaks(runtime: Runtime, identity: string, facet: string): boolean {
   if (!unit) return false;
   return unit.realizations.some((r) => {
     if (r.context === undefined) return false;
+    // A compile template runs here; it is not a rendering of the Concept for someone to read.
+    if ([...walk(r.context)].some((node) => isCall(node) && node.head === "Compiled")) return false;
     for (const node of walk(r.context)) if (isCall(node) && node.head === facet) return true;
     return false;
   });
@@ -225,7 +227,7 @@ export async function study(
 
     // Expressing rather than learning: the gap is a Concept that works but is mute in
     // this context. One that the graph does not have at all is somebody else's job.
-    // A language is taught where its templates live: TypeScript is a SubclassOf
+    // A language is taught where its templates live: TypeScript is a SupersetOf
     // JavaScript, so it is expressed in JavaScript until it has types of its own to add.
     const language = options.as === undefined ? undefined : [options.as, ...facetAncestors(runtime.store, options.as)].pop()!;
     if (language !== undefined) {

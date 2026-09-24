@@ -22,7 +22,7 @@ import {
   parse,
 } from "../concept/expression.js";
 import { ANON, type Bindings, match, substitute } from "../concept/match.js";
-import { claims, codeLanguage, codeSource, isCodeBody, type Realization } from "../concept/unit.js";
+import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -31,6 +31,7 @@ import { facets, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { activation } from "./activation.js";
+import { compiledFor } from "./compile.js";
 import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
 import { Trace, realizationExpr } from "./trace.js";
 
@@ -298,8 +299,15 @@ export class Runtime {
           if (forwardsTo !== undefined) this.forwarding.pop();
         }
       } else {
-        const body = substitute(realization.body, bindings);
-        result = await this.run(body, bodyContext, target.head, id, depth + 1);
+        // A body written in the code IR and declared Compile() runs as one function; one
+        // that cannot be compiled is interpreted, as every composed body is.
+        const compiled = declares(realization, "Compile") ? compiledFor(this.store, realization) : undefined;
+        if (compiled) {
+          result = await compiled(bindings, this.api(bodyContext, id, depth));
+        } else {
+          const body = substitute(realization.body, bindings);
+          result = await this.run(body, bodyContext, target.head, id, depth + 1);
+        }
       }
 
       if (realization.evaluateResult) {
@@ -349,7 +357,20 @@ export class Runtime {
         `This host runs ${this.speaks.join(", ")} and the body is ${language}`,
       );
     }
-    const api: CodeApi = {
+    const api = this.api(context, parent, depth);
+    // Built once per source, not once per call: every Code body went through new Function
+    // on every evaluation.
+    let fn = COMPILED_SOURCES.get(source);
+    if (!fn) {
+      fn = new Function("args", "bindings", "api", `return (${source})(args, bindings, api);`) as CodeFunction;
+      COMPILED_SOURCES.set(source, fn);
+    }
+    return await fn(args, bindings, api);
+  }
+
+  /** What a body reaches the host through, whether it is JavaScript or compiled IR. */
+  private api(context: Expr | undefined, parent: string, depth: number): CodeApi {
+    return {
       store: this.store,
       cells: this.cells,
       relations: this.relations,
@@ -371,13 +392,10 @@ export class Runtime {
         resetEvidenceCache(this.tracePath);
       },
     };
-    const fn = new Function("args", "bindings", "api", `return (${source})(args, bindings, api);`) as (
-      a: readonly Argument[],
-      b: Bindings,
-      c: CodeApi,
-    ) => Expr | Promise<Expr>;
-    return await fn(args, bindings, api);
   }
 }
+
+type CodeFunction = (a: readonly Argument[], b: Bindings, c: CodeApi) => Expr | Promise<Expr>;
+const COMPILED_SOURCES = new Map<string, CodeFunction>();
 
 export { ConceptError };

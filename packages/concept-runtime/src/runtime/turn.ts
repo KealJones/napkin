@@ -332,7 +332,7 @@ function withoutFacets(runtime: Runtime, e: Expr): Expr {
 function lift(runtime: Runtime, expression: Expr, given: Expr): { expression: Expr; context: Expr } {
   const said = facetsNamed(runtime, expression);
   if (!said.length) return { expression, context: given };
-  // A facet brings what it is a kind of: "typescript" is JavaScript as well.
+  // A facet brings what it is a superset of: JavaScript is TypeScript as well.
   const named = [...said, ...said.flatMap((f) => (isCall(f) ? facetAncestors(runtime.store, f.head).map((h) => c(h)) : []))];
   const already = facets(given);
   const extra = named.filter((f) => !already.some((a) => equal(a, f)));

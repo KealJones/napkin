@@ -33,3 +33,33 @@ test("a realization written in the IR reads the graph", async () => {
 test("the words a message says are left alone when they are not logic", async () => {
   assert.equal(await run("Not(Tell(Me(), Time()))").then((r) => r.startsWith("Not(")), true);
 });
+
+test("a body declared Compile() compiles to one function and answers exactly as interpreted", async () => {
+  const { compileRealization } = await import("../runtime/compile.js");
+  const bodies = [
+    "Reduce(List(1, 2, 3, 4), Lambda(List($a, $b), Add($a, $b)), 0)",
+    "Map(List(1, 2, 3), Lambda(List($x), Multiply($x, 2)))",
+    "Filter(List(1, 5, 9), Lambda(List($x), GreaterThan($x, 3)))",
+    "If(And(Equals(1, 1), Not(False())), Concat(List(1), List(2, 3)), 0)",
+    'MakeCall(Head(Likes(Cats())), List(Arg(Likes(Cats()), 0)))',
+    "Let($n, Add(2, 3), Multiply($n, $n))",
+    'Length(Subjects("IsA", Bird()))',
+  ];
+  for (const [i, body] of bodies.entries()) {
+    const interpreted = `Interpreted${i}`;
+    const fast = `Fast${i}`;
+    store.seed(concept(interpreted, { realizations: [realization({ pattern: `${interpreted}()`, context: "Execution()", body: parse(body) })] }));
+    store.seed(concept(fast, { realizations: [realization({ pattern: `${fast}()`, context: "Execution()", properties: ["Compile()"], body: parse(body) })] }));
+    assert.ok(compileRealization(store, store.get(fast)!.realizations[0]), `compiles: ${body}`);
+    assert.equal(await run(`${fast}()`), await run(`${interpreted}()`), body);
+  }
+});
+
+test("a compiled body still reaches Concepts it has no template for, and is not traced step by step", async () => {
+  store.seed(concept("Twice", { realizations: [realization({ pattern: "Twice($x)", context: "Execution()", properties: ["Compile()"], body: parse("Map(List($x, $x), Lambda(List($y), Double($y)))") })] }));
+  const rt = new Runtime(store);
+  assert.equal(format(await rt.evaluate(parse("Twice(4)"), c("Execution"))), "List(8, 8)");
+  const heads = rt.trace.all().map((e) => e.concept);
+  assert.ok(heads.includes("Double"), "the Concept it calls is still evaluated as one");
+  assert.ok(!heads.includes("Map") && !heads.includes("Lambda"), "the compiled parts are not");
+});

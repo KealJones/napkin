@@ -86,7 +86,9 @@ add(concept("Teaching", { relations: ["IsA(ContextFacet())"] }));
 add(concept("Lexical", { relations: ["IsA(ContextFacet())"] }));
 add(concept("JavaScript", { relations: ["IsA(TargetLanguage())"] }));
 add(concept("Rust", { relations: ["IsA(TargetLanguage())"] }));
-add(concept("TypeScript", { relations: ["IsA(TargetLanguage())", "SubclassOf(JavaScript())"] }));
+// Every JavaScript program is a TypeScript program: what JavaScript emits is valid here.
+add(concept("TypeScript", { relations: ["IsA(TargetLanguage())", "SupersetOf(JavaScript())"] }));
+add(concept("SupersetOf", { relations: ["Transitive()", "Asymmetric()"] }));
 add(concept("Python", { relations: ["IsA(TargetLanguage())"] }));
 add(
   concept("Describe", {
