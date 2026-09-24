@@ -10,48 +10,62 @@ Requires(Basic())
 // instead of that logic living in host code. `api.events` is the general host facility
 // (Part 2.1) every realization reaches the same way; nothing here is special-cased by the
 // evaluator.
-
 Concept(Evidence(),
   IsA(Category()),
   Realization(Evidence($concept),
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
         Sequence(
           Bind($target, Member(Index($args, 0), "value")),
-          Bind(
-            $head,
+          Bind($head,
             If(
               And(And($target, Equals(TypeOf($target), "object")), In("head", $target)),
               Member($target, "head"),
-              Call($String, $target))),
-          Bind(
-            $matches,
-            Filter(Member($api, "events"), Lambda(List($e), Equals(Member($e, "concept"), $head)))),
+              Call($String, $target)
+            )
+          ),
+          Bind($matches, Filter(Member($api, "events"), Lambda(List($e), Equals(Member($e, "concept"), $head)))),
           If(
             Not(Length($matches)),
-            Return(Call(Member($api, "call"), "NoEvidence", Call(Member($api, "call"), $head))),
-            Undefined()),
+            Return(
+              Call(
+                Member($api, "call"),
+                "NoEvidence",
+                Call(Member($api, "call"), $head)
+              )
+            ),
+            Undefined()
+          ),
           Bind($groups, List()),
           ForOf(
             $e,
             $matches,
             Sequence(
-              Bind(
-                $found,
+              Bind($found,
                 Call(
                   Member($groups, "find"),
-                  Lambda(
-                    List($g),
+                  Lambda(List($g),
                     And(
                       Equals(Member($g, "context"), Member($e, "useContext")),
-                      Equals(Member($g, "outcome"), Member($e, "outcome")))))),
+                      Equals(Member($g, "outcome"), Member($e, "outcome"))
+                    )
+                  )
+                )
+              ),
               If(
                 $found,
                 Assign(Member($found, "count"), Add(Member($found, "count"), 1)),
                 Call(
                   Member($groups, "push"),
-                  Object(context=Member($e, "useContext"), outcome=Member($e, "outcome"), count=1))))),
+                  Object(
+                    context = Member($e, "useContext"),
+                    outcome = Member($e, "outcome"),
+                    count = 1
+                  )
+                )
+              )
+            )
+          ),
           Return(
             Call(
               Member($api, "call"),
@@ -59,11 +73,21 @@ Concept(Evidence(),
               Spread(
                 Map(
                   $groups,
-                  Lambda(
-                    List($g),
+                  Lambda(List($g),
                     Call(
                       Member($api, "call"),
                       "Tally",
                       Call(Member($api, "parse"), Member($g, "context")),
                       Call(Member($api, "call"), Member($g, "outcome")),
-                      Member($g, "count"))))))))))))
+                      Member($g, "count")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

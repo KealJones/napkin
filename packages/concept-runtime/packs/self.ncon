@@ -23,7 +23,8 @@ Concept(Self(),
   CanDo(DescribeWhatIKnow()),
   CanDo(LearnNewWords()),
   CanDo(PlayTicTacToe()),
-  CanDo(ForgetWhatYouAsk()))
+  CanDo(ForgetWhatYouAsk())
+)
 
 Concept(Assistant(), IsA(Category()))
 
@@ -52,30 +53,48 @@ Concept(Capability(), IsA(Category()))
 
 // "what can you do": what `Self` holds `CanDo`.
 Concept(WhatCan(),
-  Realization(WhatCan(You(), Do()), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
-    body=Bind(
-      $can,
+  Realization(WhatCan(You(), Do()),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = Bind($can,
       Map(
-        Filter(
-          ClaimsWithSubject("Self"),
-          Lambda(List($t), Identical(FieldOf($t, "predicate"), "CanDo"))),
-        Lambda(List($t2), FieldOf($t2, "object"))),
-      MakeCall("Answer", List(MakeCall("List", AsList($can)))))))
+        Filter(ClaimsWithSubject("Self"), Lambda(List($t), Identical(FieldOf($t, "predicate"), "CanDo"))),
+        Lambda(List($t2), FieldOf($t2, "object"))
+      ),
+      MakeCall("Answer", List(MakeCall("List", AsList($can))))
+    )
+  )
+)
 
 // "how are you", "how are you doing": asked to be polite, answered the same way.
 Concept(HowAre(),
-  Realization(HowAre(You()), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
-    body=MakeCall("Answer", List(MakeCall("DoingWell", List())))),
-  Realization(HowAre(You(), $doing), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
-    body=MakeCall("Answer", List(MakeCall("DoingWell", List())))))
+  Realization(HowAre(You()),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("DoingWell", List())))
+  ),
+  Realization(HowAre(You(), $doing),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("DoingWell", List())))
+  )
+)
 
 Concept(DoingWell(), IsA(Data()))
 
 // "cool", "ok", "lol": a reaction, answered briefly rather than looked up.
 Concept(Approval(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
-    body=MakeCall("Answer", List(MakeCall("GladYouLikeIt", List())))))
+  Realization($said,
+    context = Execution(),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("GladYouLikeIt", List())))
+  )
+)
 
 Concept(Cool(), IsA(Approval()))
 
@@ -95,8 +114,13 @@ Concept(Perfect(), IsA(Approval()))
 
 Concept(Agreement(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
-    body=MakeCall("Answer", List(MakeCall("GotIt", List())))))
+  Realization($said,
+    context = Execution(),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("GotIt", List())))
+  )
+)
 
 Concept(Ok(), IsA(Agreement()))
 
@@ -114,8 +138,13 @@ Concept(Understood(), IsA(Agreement()))
 
 Concept(Laughter(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
-    body=MakeCall("Answer", List(MakeCall("Laughing", List())))))
+  Realization($said,
+    context = Execution(),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("Laughing", List())))
+  )
+)
 
 Concept(Lol(), IsA(Laughter()))
 

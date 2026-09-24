@@ -2,7 +2,6 @@
 // it is read into Concepts and written back out (ir-spec Part 10.7).
 //
 // TypeScript is a SupersetOf JavaScript, so a TypeScript context uses these too.
-
 Requires(Core(), Code())
 
 Language(JavaScript())
@@ -10,7 +9,8 @@ Language(JavaScript())
 // The helpers every compiled body starts with, which the templates below call: T reads a
 // truth, B makes one, I and L read and make a List, F formats, K names, E calls a Concept
 // with values it already has, N does arithmetic on numbers and asks the Concept otherwise.
-Prelude("""
+Prelude(
+  """
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const T = (v) => v === true || (isCall(v) && v.head === "True");
   const B = (b) => api.call(b ? "True" : "False");
@@ -20,7 +20,8 @@ Prelude("""
   const K = (x) => (isCall(x) ? x.head : String(x));
   const E = (head, ...values) => api.apply(head, values);
   const N = async (head, a, b, op) => (typeof a === "number" && typeof b === "number" ? op(a, b) : await E(head, a, b));
-""")
+"""
+)
 
 // What a call compiles to (runtime/compile.ts): JavaScript with `$name` where the code its
 // argument compiled to goes, stored as `Text(...)` under `Context(JavaScript(), Compiled())`.
@@ -37,27 +38,69 @@ Compiled(And($a, $b), "B(T($a) && T($b))")
 Compiled(Or($a, $b), "B(T($a) || T($b))")
 Compiled(Length($xs), "((xs) => (typeof xs === \"string\" ? xs.length : I(xs).length))($xs)")
 Compiled(Concat(Rest($lists)), "L([$lists].flatMap(I))")
-Compiled(Includes($xs, $x), "((xs, x) => B(typeof xs === \"string\" ? typeof x === \"string\" && xs.includes(x) : I(xs).some((i) => F(i) === F(x))))($xs, $x)")
-Compiled(Map($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I($xs), $f))")
-Compiled(FlatMap($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))")
-Compiled(Filter($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I($xs), $f))")
-Compiled(Reduce($xs, $f, $initial), "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))")
-Compiled(Unique($xs), "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })($xs)")
+Compiled(
+  Includes($xs, $x),
+  "((xs, x) => B(typeof xs === \"string\" ? typeof x === \"string\" && xs.includes(x) : I(xs).some((i) => F(i) === F(x))))($xs, $x)"
+)
+Compiled(
+  Map($xs, $f),
+  "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I($xs), $f))"
+)
+Compiled(
+  FlatMap($xs, $f),
+  "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))"
+)
+Compiled(
+  Filter($xs, $f),
+  "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I($xs), $f))"
+)
+Compiled(
+  Reduce($xs, $f, $initial),
+  "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))"
+)
+Compiled(
+  Unique($xs),
+  "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })($xs)"
+)
 Compiled(Matches($text, $pattern), "((t, p) => B(typeof t === \"string\" && new RegExp(p).test(t)))($text, $pattern)")
 Compiled(First($xs), "((xs) => (xs.length ? xs[0] : api.call(\"Undefined\")))(I($xs))")
 Compiled(JoinText(Rest($parts)), "[$parts].map((p) => (typeof p === \"string\" ? p : F(p))).join(\"\")")
 Compiled(IsCall($x), "B(isCall($x))")
 Compiled(Evaluate($x), "(await api.evaluate($x))")
 Compiled(Known($x), "B(api.store.has(K($x)))")
-Compiled(TruthOf($subject, $predicate, $object), "((s, p, o) => api.call({ true: \"True\", false: \"False\" }[api.relations.truth(K(s), String(p), o)] ?? \"UnknownTruth\"))($subject, $predicate, $object)")
-Compiled(Closure($subject, $predicate), "((s, p) => L(api.relations.of(K(s)).filter((t) => t.predicate === String(p) && !t.context && t.object !== undefined).map((t) => t.object)))($subject, $predicate)")
-Compiled(Claimed($subject, $predicate), "((s, p) => B(api.relations.of(K(s)).some((t) => t.predicate === String(p) && !t.context && t.object === undefined)))($subject, $predicate)")
+Compiled(
+  TruthOf($subject, $predicate, $object),
+  "((s, p, o) => api.call({ true: \"True\", false: \"False\" }[api.relations.truth(K(s), String(p), o)] ?? \"UnknownTruth\"))($subject, $predicate, $object)"
+)
+Compiled(
+  Closure($subject, $predicate),
+  "((s, p) => L(api.relations.of(K(s)).filter((t) => t.predicate === String(p) && !t.context && t.object !== undefined).map((t) => t.object)))($subject, $predicate)"
+)
+Compiled(
+  Claimed($subject, $predicate),
+  "((s, p) => B(api.relations.of(K(s)).some((t) => t.predicate === String(p) && !t.context && t.object === undefined)))($subject, $predicate)"
+)
 Compiled(Head($e), "((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))($e)")
-Compiled(Arg($e, $i), "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)")
-Compiled(ArgNamed($e, $name), "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)")
-Compiled(MakeCall($head, $args), "((h, xs) => ({ head: String(h), args: I(xs).map((value) => ({ value })) }))($head, $args)")
-Compiled(Subjects($predicate, $object), "((p, o) => L(api.store.asObject(K(o)).filter((t) => t.predicate === String(p) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject))))($predicate, $object)")
-Compiled(Holds($subject, $predicate), "((s, p) => L(api.relations.of(K(s), { transitive: false }).filter((t) => t.predicate === String(p) && !t.context).map((t) => t.object)))($subject, $predicate)")
+Compiled(
+  Arg($e, $i),
+  "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)"
+)
+Compiled(
+  ArgNamed($e, $name),
+  "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)"
+)
+Compiled(
+  MakeCall($head, $args),
+  "((h, xs) => ({ head: String(h), args: I(xs).map((value) => ({ value })) }))($head, $args)"
+)
+Compiled(
+  Subjects($predicate, $object),
+  "((p, o) => L(api.store.asObject(K(o)).filter((t) => t.predicate === String(p) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject))))($predicate, $object)"
+)
+Compiled(
+  Holds($subject, $predicate),
+  "((s, p) => L(api.relations.of(K(s), { transitive: false }).filter((t) => t.predicate === String(p) && !t.context).map((t) => t.object)))($subject, $predicate)"
+)
 Compiled(If($condition, $then, $otherwise), "(T($condition) ? $then : $otherwise)")
 Compiled(Add($a, $b), "(await N(\"Add\", $a, $b, (x, y) => x + y))")
 Compiled(Subtract($a, $b), "(await N(\"Subtract\", $a, $b, (x, y) => x - y))")
@@ -74,65 +117,154 @@ Compiled(LessThan($a, $b), "(await N(\"LessThan\", $a, $b, (x, y) => B(x < y)))"
 
 // A file is a module, and a block is its statements: several are a Sequence, one is
 // itself, none is Undefined().
-From(JsSourceFile(statements=List(Rest($ss))), Module(Sequence(Rest($ss))))
-From(JsBlock(statements=List(Rest($ss))), Sequence(Rest($ss)))
+From(JsSourceFile(statements = List(Rest($ss))), Module(Sequence(Rest($ss))))
+From(JsBlock(statements = List(Rest($ss))), Sequence(Rest($ss)))
 From(Sequence($x), $x)
 From(Sequence(), Undefined())
 
 // Names. `undefined` is the Concept, every other name a variable.
-From(JsIdentifier(text="undefined"), Undefined())
-From(JsIdentifier(text=$n), Variable($n))
+From(JsIdentifier(text = "undefined"), Undefined())
+From(JsIdentifier(text = $n), Variable($n))
 From(JsThisKeyword(), This())
-From(JsMetaProperty(keywordToken=JsImportKeyword(), name=JsIdentifier(text="meta")), ImportMeta())
-From(JsMetaProperty(keywordToken=JsNewKeyword(), name=JsIdentifier(text="target")), NewTarget())
+From(JsMetaProperty(keywordToken = JsImportKeyword(), name = JsIdentifier(text = "meta")), ImportMeta())
+From(JsMetaProperty(keywordToken = JsNewKeyword(), name = JsIdentifier(text = "target")), NewTarget())
 From(JsSuperKeyword(), Super())
-From(JsParenthesizedExpression(expression=$e), $e)
+From(JsParenthesizedExpression(expression = $e), $e)
 
 // Declarations. `const` binds; `let` and `var` may be reassigned, and the IR keeps the
 // difference.
-From(JsVariableStatement(declarationList=$l, modifiers=$m), JsMods($m, $l))
+From(JsVariableStatement(declarationList = $l, modifiers = $m), JsMods($m, $l))
 // Several in one statement are statements of the block around them: `const a = 1, b = 2`
 // declares both where the block's other statements see them, so they are spliced into it
 // rather than nested, which would read as a block of their own.
-From(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds))), Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d))))
+From(
+  JsVariableDeclarationList(keyword = $k, declarations = List(Rest($ds))),
+  Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d)))
+)
 // A for loop's own declarations stay together, as its first part.
-From(JsForStatement(initializer=Capture($l, JsVariableDeclarationList()), condition=$c, incrementor=$n, statement=$s), JsForStatement(initializer=JsForInit($l), condition=$c, incrementor=$n, statement=$s))
-From(JsForInit(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds)))), Sequence(Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d)))))
-From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name=$n, initializer=$v)), Bind($n, $v))
-From(JsDeclare($_, JsVariableDeclaration(name=$n, initializer=$v)), Var($n, $v))
+From(
+  JsForStatement(
+    initializer = Capture($l, JsVariableDeclarationList()),
+    condition = $c,
+    incrementor = $n,
+    statement = $s
+  ),
+  JsForStatement(
+    initializer = JsForInit($l),
+    condition = $c,
+    incrementor = $n,
+    statement = $s
+  )
+)
+From(
+  JsForInit(JsVariableDeclarationList(keyword = $k, declarations = List(Rest($ds)))),
+  Sequence(Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d))))
+)
+From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name = $n, initializer = $v)), Bind($n, $v))
+From(JsDeclare($_, JsVariableDeclaration(name = $n, initializer = $v)), Var($n, $v))
 // A destructuring keeps its shape, so what it takes apart can still be read.
-From(JsObjectBindingPattern(elements=List(Rest($es))), Object(Rest($es)))
-From(JsBindingElement(dotDotDotToken=JsDotDotDotToken(), name=$n), Spread($n))
-From(JsBindingElement(propertyName=JsIdentifier(text=$k), name=$n, initializer=Undefined()), Named($k, $n))
-From(JsBindingElement(propertyName=JsIdentifier(text=$k), name=$n, initializer=$v), Named($k, Default($n, $v)))
-From(JsBindingElement(name=JsIdentifier(text=$k), initializer=Undefined()), Named($k, Variable($k)))
-From(JsBindingElement(name=JsIdentifier(text=$k), initializer=$v), Named($k, Default(Variable($k), $v)))
-From(JsArrayBindingPattern(elements=List(Rest($es))), List(Each(List(Rest($es)), Lambda(List($e), JsElement($e)))))
-From(JsElement(JsBindingElement(dotDotDotToken=JsDotDotDotToken(), name=$n)), Spread($n))
-From(JsElement(JsBindingElement(name=$n, initializer=Undefined())), $n)
-From(JsElement(JsBindingElement(name=$n, initializer=$v)), Default($n, $v))
+From(JsObjectBindingPattern(elements = List(Rest($es))), Object(Rest($es)))
+From(JsBindingElement(dotDotDotToken = JsDotDotDotToken(), name = $n), Spread($n))
+From(
+  JsBindingElement(
+    propertyName = JsIdentifier(text = $k),
+    name = $n,
+    initializer = Undefined()
+  ),
+  Named($k, $n)
+)
+From(
+  JsBindingElement(
+    propertyName = JsIdentifier(text = $k),
+    name = $n,
+    initializer = $v
+  ),
+  Named($k, Default($n, $v))
+)
+From(JsBindingElement(name = JsIdentifier(text = $k), initializer = Undefined()), Named($k, Variable($k)))
+From(JsBindingElement(name = JsIdentifier(text = $k), initializer = $v), Named($k, Default(Variable($k), $v)))
+From(JsArrayBindingPattern(elements = List(Rest($es))), List(Each(List(Rest($es)), Lambda(List($e), JsElement($e)))))
+From(JsElement(JsBindingElement(dotDotDotToken = JsDotDotDotToken(), name = $n)), Spread($n))
+From(JsElement(JsBindingElement(name = $n, initializer = Undefined())), $n)
+From(JsElement(JsBindingElement(name = $n, initializer = $v)), Default($n, $v))
 From(JsElement(JsOmittedExpression()), Hole())
 // A hole in an array, [, x]: nothing there, not undefined.
 From(JsOmittedExpression(), Hole())
 // A parameter's default and a rest parameter are part of what it is.
-From(JsParameter(name=$n, initializer=Undefined(), dotDotDotToken=Undefined()), $n)
-From(JsParameter(name=$n, initializer=$v, dotDotDotToken=Undefined()), Default($n, $v))
-From(JsParameter(name=$n, dotDotDotToken=JsDotDotDotToken()), Spread($n))
+From(
+  JsParameter(
+    name = $n,
+    initializer = Undefined(),
+    dotDotDotToken = Undefined()
+  ),
+  $n
+)
+From(
+  JsParameter(
+    name = $n,
+    initializer = $v,
+    dotDotDotToken = Undefined()
+  ),
+  Default($n, $v)
+)
+From(JsParameter(name = $n, dotDotDotToken = JsDotDotDotToken()), Spread($n))
 
 // Functions. A concise arrow body is the value, not a return statement; only a block can
 // return. Async and Generator wrap the function, not its parameter list.
-From(JsFunctionDeclaration(name=$n, parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Func($n, List(Rest($ps)), JsBody($b)))))
-From(JsFunctionDeclaration(name=Undefined(), parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Lambda(List(Rest($ps)), JsBody($b)))))
-From(JsFunctionExpression(parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Lambda(List(Rest($ps)), JsBody($b)))))
+From(
+  JsFunctionDeclaration(
+    name = $n,
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m
+  ),
+  JsMods($m, JsStar($star, Func($n, List(Rest($ps)), JsBody($b))))
+)
+From(
+  JsFunctionDeclaration(
+    name = Undefined(),
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m
+  ),
+  JsMods($m, JsStar($star, Lambda(List(Rest($ps)), JsBody($b))))
+)
+From(
+  JsFunctionExpression(
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m
+  ),
+  JsMods($m, JsStar($star, Lambda(List(Rest($ps)), JsBody($b))))
+)
 // A function expression that names itself can call itself by that name: it is a Func.
-From(JsFunctionExpression(name=JsIdentifier(text=$n), parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Func(Variable($n), List(Rest($ps)), JsBody($b)))))
-From(JsArrowFunction(parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods($m, Lambda(List(Rest($ps)), JsBody($b))))
+From(
+  JsFunctionExpression(
+    name = JsIdentifier(text = $n),
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m
+  ),
+  JsMods($m, JsStar($star, Func(Variable($n), List(Rest($ps)), JsBody($b))))
+)
+From(
+  JsArrowFunction(
+    parameters = List(Rest($ps)),
+    body = $b,
+    modifiers = $m
+  ),
+  JsMods($m, Lambda(List(Rest($ps)), JsBody($b)))
+)
 // A block body that does not end in return or throw falls through to undefined, whatever
 // its last statement: () => { f(); } is not () => f(), and { if (c) f(); } is not c ? f() :
 // undefined. Said with Undefined(), a body's statements are never mistaken for its value.
-From(JsBody(JsBlock(statements=List(Rest($ss), Capture($last, JsReturnStatement())))), Sequence(Rest($ss), $last))
-From(JsBody(JsBlock(statements=List(Rest($ss), Capture($last, JsThrowStatement())))), Sequence(Rest($ss), $last))
-From(JsBody(JsBlock(statements=List(Rest($ss)))), Sequence(Rest($ss), Undefined()))
+From(JsBody(JsBlock(statements = List(Rest($ss), Capture($last, JsReturnStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements = List(Rest($ss), Capture($last, JsThrowStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements = List(Rest($ss)))), Sequence(Rest($ss), Undefined()))
 From(JsBody($b), $b)
 From(JsStar(Undefined(), $f), $f)
 From(JsStar($_, $f), Generator($f))
@@ -155,189 +287,676 @@ From(JsWrap(JsOverrideKeyword(), $x), $x)
 From(JsWrap(JsDeclareKeyword(), $x), $x)
 
 // Classes keep their members, with modifiers wrapping what they modify.
-From(JsClassDeclaration(name=$n, heritageClauses=$h, members=List(Rest($ms)), modifiers=$m), JsMods($m, Class($n, JsHeritage($h), List(Rest($ms)))))
-From(JsHeritage(List(JsHeritageClause(token=JsExtendsKeyword(), types=List(JsExpressionWithTypeArguments(expression=$e), Rest($_))), Rest($_))), Extends($e))
+From(
+  JsClassDeclaration(
+    name = $n,
+    heritageClauses = $h,
+    members = List(Rest($ms)),
+    modifiers = $m
+  ),
+  JsMods($m, Class($n, JsHeritage($h), List(Rest($ms))))
+)
+From(
+  JsHeritage(
+    List(
+      JsHeritageClause(
+        token = JsExtendsKeyword(),
+        types = List(JsExpressionWithTypeArguments(expression = $e), Rest($_))
+      ),
+      Rest($_)
+    )
+  ),
+  Extends($e)
+)
 From(JsHeritage($_), Undefined())
 // A parameter property declares a field and assigns it: the parameter keeps its
 // modifiers, Readonly($source), which is both and reads as the source said it.
-From(JsConstructor(parameters=List(Rest($ps)), body=$b), Constructor(List(Rest($ps)), $b))
-From(JsParameter(modifiers=List($m, Rest($r)), name=$n), JsParameterMods(List($m, Rest($r)), $n))
+From(JsConstructor(parameters = List(Rest($ps)), body = $b), Constructor(List(Rest($ps)), $b))
+From(JsParameter(modifiers = List($m, Rest($r)), name = $n), JsParameterMods(List($m, Rest($r)), $n))
 From(JsParameterMods(List(), $x), $x)
 From(JsParameterMods(List(JsPublicKeyword(), Rest($r)), $x), Public(JsParameterMods(List(Rest($r)), $x)))
 From(JsParameterMods(List($m, Rest($r)), $x), JsWrap($m, JsParameterMods(List(Rest($r)), $x)))
-From(JsPropertyDeclaration(name=$n, initializer=$v, modifiers=$m), JsMods($m, Field(JsMemberName($n), $v)))
-From(JsMethodDeclaration(name=$n, parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Method(JsMemberName($n), List(Rest($ps)), JsBody($b)))))
-From(JsGetAccessor(name=$n, body=$b, modifiers=$m), JsMods($m, Getter(JsMemberName($n), JsBody($b))))
+From(
+  JsPropertyDeclaration(
+    name = $n,
+    initializer = $v,
+    modifiers = $m
+  ),
+  JsMods($m, Field(JsMemberName($n), $v))
+)
+From(
+  JsMethodDeclaration(
+    name = $n,
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m
+  ),
+  JsMods($m, JsStar($star, Method(JsMemberName($n), List(Rest($ps)), JsBody($b))))
+)
+From(JsGetAccessor(name = $n, body = $b, modifiers = $m), JsMods($m, Getter(JsMemberName($n), JsBody($b))))
 From(JsSemicolonClassElement(), Erased())
-From(JsSetAccessor(name=$n, parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods($m, Setter(JsMemberName($n), List(Rest($ps)), JsBody($b))))
-From(JsMemberName(JsIdentifier(text=$k)), $k)
-From(JsMemberName(JsPrivateIdentifier(text=$k)), $k)
+From(
+  JsSetAccessor(
+    name = $n,
+    parameters = List(Rest($ps)),
+    body = $b,
+    modifiers = $m
+  ),
+  JsMods($m, Setter(JsMemberName($n), List(Rest($ps)), JsBody($b)))
+)
+From(JsMemberName(JsIdentifier(text = $k)), $k)
+From(JsMemberName(JsPrivateIdentifier(text = $k)), $k)
 From(JsMemberName($k), $k)
 
 // Statements.
-From(JsExpressionStatement(expression=$e), $e)
+From(JsExpressionStatement(expression = $e), $e)
 // An empty statement (`;;`) is nothing.
 From(JsEmptyStatement(), Erased())
-From(JsReturnStatement(expression=Undefined()), Return())
-From(JsReturnStatement(expression=$e), Return($e))
-From(JsIfStatement(expression=$c, thenStatement=$t, elseStatement=$e), If($c, $t, $e))
-From(JsThrowStatement(expression=$e), Throw($e))
-From(JsTryStatement(tryBlock=$t, catchClause=$c, finallyBlock=Undefined()), Try($t, $c))
-From(JsTryStatement(tryBlock=$t, catchClause=$c, finallyBlock=$f), Finally(Try($t, $c), $f))
-From(JsCatchClause(variableDeclaration=Undefined(), block=$b), Catch(Variable("_"), $b))
-From(JsCatchClause(variableDeclaration=JsVariableDeclaration(name=$n), block=$b), Catch($n, $b))
-From(JsForOfStatement(initializer=JsVariableDeclarationList(declarations=List(JsVariableDeclaration(name=$n), Rest($_))), expression=$e, statement=$s), ForOf($n, $e, $s))
-From(JsForOfStatement(initializer=$i, expression=$e, statement=$s), ForOf($i, $e, $s))
-From(JsForStatement(initializer=$i, condition=Undefined(), incrementor=$n, statement=$s), For($i, true, $n, $s))
-From(JsForStatement(initializer=$i, condition=$c, incrementor=$n, statement=$s), For($i, $c, $n, $s))
-From(JsWhileStatement(expression=$c, statement=$s), While($c, $s))
-From(JsDoStatement(statement=$s, expression=$c), DoWhile($s, $c))
-From(JsSwitchStatement(expression=$e, caseBlock=JsCaseBlock(clauses=List(Rest($cs)))), Switch($e, List(Rest($cs))))
-From(JsCaseClause(expression=$v, statements=List(Rest($ss))), Case($v, Sequence(Rest($ss))))
-From(JsDefaultClause(statements=List(Rest($ss))), Default(Sequence(Rest($ss))))
+From(JsReturnStatement(expression = Undefined()), Return())
+From(JsReturnStatement(expression = $e), Return($e))
+From(
+  JsIfStatement(
+    expression = $c,
+    thenStatement = $t,
+    elseStatement = $e
+  ),
+  If($c, $t, $e)
+)
+From(JsThrowStatement(expression = $e), Throw($e))
+From(
+  JsTryStatement(
+    tryBlock = $t,
+    catchClause = $c,
+    finallyBlock = Undefined()
+  ),
+  Try($t, $c)
+)
+From(
+  JsTryStatement(
+    tryBlock = $t,
+    catchClause = $c,
+    finallyBlock = $f
+  ),
+  Finally(Try($t, $c), $f)
+)
+From(JsCatchClause(variableDeclaration = Undefined(), block = $b), Catch(Variable("_"), $b))
+From(JsCatchClause(variableDeclaration = JsVariableDeclaration(name = $n), block = $b), Catch($n, $b))
+From(
+  JsForOfStatement(
+    initializer = JsVariableDeclarationList(declarations = List(JsVariableDeclaration(name = $n), Rest($_))),
+    expression = $e,
+    statement = $s
+  ),
+  ForOf($n, $e, $s)
+)
+From(
+  JsForOfStatement(
+    initializer = $i,
+    expression = $e,
+    statement = $s
+  ),
+  ForOf($i, $e, $s)
+)
+From(
+  JsForStatement(
+    initializer = $i,
+    condition = Undefined(),
+    incrementor = $n,
+    statement = $s
+  ),
+  For($i, true, $n, $s)
+)
+From(
+  JsForStatement(
+    initializer = $i,
+    condition = $c,
+    incrementor = $n,
+    statement = $s
+  ),
+  For($i, $c, $n, $s)
+)
+From(JsWhileStatement(expression = $c, statement = $s), While($c, $s))
+From(JsDoStatement(statement = $s, expression = $c), DoWhile($s, $c))
+From(
+  JsSwitchStatement(expression = $e, caseBlock = JsCaseBlock(clauses = List(Rest($cs)))),
+  Switch($e, List(Rest($cs)))
+)
+From(JsCaseClause(expression = $v, statements = List(Rest($ss))), Case($v, Sequence(Rest($ss))))
+From(JsDefaultClause(statements = List(Rest($ss))), Default(Sequence(Rest($ss))))
 From(JsContinueStatement(), Continue())
 From(JsBreakStatement(), Break())
 
 // Modules.
-From(JsImportDeclaration(importClause=$c, moduleSpecifier=$from), Import(List(JsDefaultImport($c), JsImportedNames($c)), $from))
-From(JsDefaultImport(JsImportClause(name=JsIdentifier(text=$n))), Variable($n))
+From(
+  JsImportDeclaration(importClause = $c, moduleSpecifier = $from),
+  Import(List(JsDefaultImport($c), JsImportedNames($c)), $from)
+)
+From(JsDefaultImport(JsImportClause(name = JsIdentifier(text = $n))), Variable($n))
 From(JsDefaultImport($_), Erased())
-From(JsImportedNames(JsImportClause(namedBindings=JsNamedImports(elements=List(Rest($es))))), Each(List(Rest($es)), Lambda(List($e), JsImportName($e))))
-From(JsImportedNames(JsImportClause(namedBindings=JsNamespaceImport(name=$n))), $n)
+From(
+  JsImportedNames(JsImportClause(namedBindings = JsNamedImports(elements = List(Rest($es))))),
+  Each(List(Rest($es)), Lambda(List($e), JsImportName($e)))
+)
+From(JsImportedNames(JsImportClause(namedBindings = JsNamespaceImport(name = $n))), $n)
 From(JsImportedNames($_), Erased())
-From(JsImportName(JsImportSpecifier(name=$n)), $n)
+From(JsImportName(JsImportSpecifier(name = $n)), $n)
 // A re-export names things without binding them, so it is not an Export wrapping a declaration.
-From(JsExportDeclaration(exportClause=JsNamedExports(elements=List(Rest($es))), moduleSpecifier=Undefined()), ReExport(List(Rest($es))))
-From(JsExportDeclaration(exportClause=JsNamedExports(elements=List(Rest($es))), moduleSpecifier=$from), ReExport(List(Rest($es)), $from))
-From(JsExportDeclaration(moduleSpecifier=Undefined()), ReExport(All()))
-From(JsExportDeclaration(moduleSpecifier=$from), ReExport(All(), $from))
-From(JsExportSpecifier(propertyName=Undefined(), name=$n), $n)
-From(JsExportSpecifier(propertyName=$p, name=JsIdentifier(text=$k)), As($p, $k))
-From(JsExportAssignment(expression=$e), ExportDefault($e))
+From(
+  JsExportDeclaration(exportClause = JsNamedExports(elements = List(Rest($es))), moduleSpecifier = Undefined()),
+  ReExport(List(Rest($es)))
+)
+From(
+  JsExportDeclaration(exportClause = JsNamedExports(elements = List(Rest($es))), moduleSpecifier = $from),
+  ReExport(List(Rest($es)), $from)
+)
+From(JsExportDeclaration(moduleSpecifier = Undefined()), ReExport(All()))
+From(JsExportDeclaration(moduleSpecifier = $from), ReExport(All(), $from))
+From(JsExportSpecifier(propertyName = Undefined(), name = $n), $n)
+From(JsExportSpecifier(propertyName = $p, name = JsIdentifier(text = $k)), As($p, $k))
+From(JsExportAssignment(expression = $e), ExportDefault($e))
 
 // Reading and calling.
 // `.length` read is the Length primitive; written (`xs.length = 0`) it is a place, which
 // assignment keeps as Member.
 // a?.b stops at a missing a, which a.b does not: OptionalMember, OptionalIndex and
 // OptionalCall keep it.
-From(JsPropertyAccessExpression(expression=$o, questionDotToken=JsQuestionDotToken(), name=$n), OptionalMember($o, JsMemberName($n)))
-From(JsElementAccessExpression(expression=$o, questionDotToken=JsQuestionDotToken(), argumentExpression=$i), OptionalIndex($o, $i))
-From(JsCallExpression(expression=$f, questionDotToken=JsQuestionDotToken(), arguments=List(Rest($a))), OptionalCall($f, Rest($a)))
-From(JsPropertyAccessExpression(expression=$o, questionDotToken=Undefined(), name=JsIdentifier(text="length")), Length($o))
-From(JsPropertyAccessExpression(expression=$o, name=$n), Member($o, JsMemberName($n)))
-From(JsElementAccessExpression(expression=$o, argumentExpression=$i), Index($o, $i))
-From(JsPlace(JsPropertyAccessExpression(expression=$o, name=$n)), Member($o, JsMemberName($n)))
+From(
+  JsPropertyAccessExpression(
+    expression = $o,
+    questionDotToken = JsQuestionDotToken(),
+    name = $n
+  ),
+  OptionalMember($o, JsMemberName($n))
+)
+From(
+  JsElementAccessExpression(
+    expression = $o,
+    questionDotToken = JsQuestionDotToken(),
+    argumentExpression = $i
+  ),
+  OptionalIndex($o, $i)
+)
+From(
+  JsCallExpression(
+    expression = $f,
+    questionDotToken = JsQuestionDotToken(),
+    arguments = List(Rest($a))
+  ),
+  OptionalCall($f, Rest($a))
+)
+From(
+  JsPropertyAccessExpression(
+    expression = $o,
+    questionDotToken = Undefined(),
+    name = JsIdentifier(text = "length")
+  ),
+  Length($o)
+)
+From(JsPropertyAccessExpression(expression = $o, name = $n), Member($o, JsMemberName($n)))
+From(JsElementAccessExpression(expression = $o, argumentExpression = $i), Index($o, $i))
+From(JsPlace(JsPropertyAccessExpression(expression = $o, name = $n)), Member($o, JsMemberName($n)))
 From(JsPlace($x), $x)
 // Array methods that are code-IR primitives, so what reads runs and compiles: xs.map(f) is
 // Map($xs, f), not a method call nothing can run. A callback taking more than the primitive
 // passes (the index, the array) stays a method call.
-From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="map")), arguments=List($f)), Map($xs, $f))
-From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="filter")), arguments=List($f)), Filter($xs, $f))
-From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="flatMap")), arguments=List($f)), FlatMap($xs, $f))
-From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="reduce")), arguments=List($f, $init)), Reduce($xs, $f, $init))
-From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="includes")), arguments=List($x)), Includes($xs, $x))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="flatMap"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="reduce"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, $_, Rest($_)))), $init)), Call($m, $f, $init))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Capture($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Capture($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(
+  JsCallExpression(
+    expression = JsPropertyAccessExpression(
+      expression = $xs,
+      questionDotToken = Undefined(),
+      name = JsIdentifier(text = "map")
+    ),
+    arguments = List($f)
+  ),
+  Map($xs, $f)
+)
+From(
+  JsCallExpression(
+    expression = JsPropertyAccessExpression(
+      expression = $xs,
+      questionDotToken = Undefined(),
+      name = JsIdentifier(text = "filter")
+    ),
+    arguments = List($f)
+  ),
+  Filter($xs, $f)
+)
+From(
+  JsCallExpression(
+    expression = JsPropertyAccessExpression(
+      expression = $xs,
+      questionDotToken = Undefined(),
+      name = JsIdentifier(text = "flatMap")
+    ),
+    arguments = List($f)
+  ),
+  FlatMap($xs, $f)
+)
+From(
+  JsCallExpression(
+    expression = JsPropertyAccessExpression(
+      expression = $xs,
+      questionDotToken = Undefined(),
+      name = JsIdentifier(text = "reduce")
+    ),
+    arguments = List($f, $init)
+  ),
+  Reduce($xs, $f, $init)
+)
+From(
+  JsCallExpression(
+    expression = JsPropertyAccessExpression(
+      expression = $xs,
+      questionDotToken = Undefined(),
+      name = JsIdentifier(text = "includes")
+    ),
+    arguments = List($x)
+  ),
+  Includes($xs, $x)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "map"))),
+    arguments = List(Capture($f, JsArrowFunction(parameters = List($_, $_, Rest($_)))))
+  ),
+  Call($m, $f)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "filter"))),
+    arguments = List(Capture($f, JsArrowFunction(parameters = List($_, $_, Rest($_)))))
+  ),
+  Call($m, $f)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "flatMap"))),
+    arguments = List(Capture($f, JsArrowFunction(parameters = List($_, $_, Rest($_)))))
+  ),
+  Call($m, $f)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "reduce"))),
+    arguments = List(Capture($f, JsArrowFunction(parameters = List($_, $_, $_, Rest($_)))), $init)
+  ),
+  Call($m, $f, $init)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "map"))),
+    arguments = List(Capture($f, JsFunctionExpression(parameters = List($_, $_, Rest($_)))))
+  ),
+  Call($m, $f)
+)
+From(
+  JsCallExpression(
+    expression = Capture($m, JsPropertyAccessExpression(name = JsIdentifier(text = "filter"))),
+    arguments = List(Capture($f, JsFunctionExpression(parameters = List($_, $_, Rest($_)))))
+  ),
+  Call($m, $f)
+)
 // `code(...)` holds a function inside a string: the string is read as source too, and
 // appears as Embedded(...), so a large import cannot look complete while its behaviour
 // passes through as text.
-From(JsCallExpression(expression=JsIdentifier(text="code"), arguments=List($s)), Call(Variable("code"), Embedded(Parse($s))))
+From(
+  JsCallExpression(expression = JsIdentifier(text = "code"), arguments = List($s)),
+  Call(Variable("code"), Embedded(Parse($s)))
+)
 From(Embedded(Module($x)), Embedded($x))
 From(Embedded(NotSource($x)), $x)
-From(JsCallExpression(expression=JsImportKeyword(), arguments=List(Rest($a))), DynamicImport(Rest($a)))
-From(JsCallExpression(expression=$f, arguments=List(Rest($a))), Call($f, Rest($a)))
-From(JsNewExpression(expression=$c, arguments=List(Rest($a))), New($c, Rest($a)))
-From(JsNewExpression(expression=$c, arguments=Undefined()), New($c))
-From(JsAwaitExpression(expression=$e), Await($e))
-From(JsTypeOfExpression(expression=$e), TypeOf($e))
-From(JsVoidExpression(expression=$e), Void($e))
-From(JsSpreadElement(expression=$e), Spread($e))
-From(JsYieldExpression(asteriskToken=Undefined(), expression=$e), Yield($e))
-From(JsYieldExpression(expression=$e), YieldEach($e))
+From(JsCallExpression(expression = JsImportKeyword(), arguments = List(Rest($a))), DynamicImport(Rest($a)))
+From(JsCallExpression(expression = $f, arguments = List(Rest($a))), Call($f, Rest($a)))
+From(JsNewExpression(expression = $c, arguments = List(Rest($a))), New($c, Rest($a)))
+From(JsNewExpression(expression = $c, arguments = Undefined()), New($c))
+From(JsAwaitExpression(expression = $e), Await($e))
+From(JsTypeOfExpression(expression = $e), TypeOf($e))
+From(JsVoidExpression(expression = $e), Void($e))
+From(JsSpreadElement(expression = $e), Spread($e))
+From(JsYieldExpression(asteriskToken = Undefined(), expression = $e), Yield($e))
+From(JsYieldExpression(expression = $e), YieldEach($e))
 // A regular expression is its own little language; its source is kept rather than read.
-From(JsRegularExpressionLiteral(pattern=$p, flags=$f), Regex($p, $f))
-From(JsConditionalExpression(condition=$c, whenTrue=$t, whenFalse=$f), If($c, $t, $f))
+From(JsRegularExpressionLiteral(pattern = $p, flags = $f), Regex($p, $f))
+From(
+  JsConditionalExpression(
+    condition = $c,
+    whenTrue = $t,
+    whenFalse = $f
+  ),
+  If($c, $t, $f)
+)
 
 // A template is concatenation, which Add covers for text.
-From(JsTemplateExpression(head=$h, templateSpans=List(Rest($spans))), JsTemplate($h, List(Rest($spans))))
+From(JsTemplateExpression(head = $h, templateSpans = List(Rest($spans))), JsTemplate($h, List(Rest($spans))))
 From(JsTemplate($acc, List()), $acc)
-From(JsTemplate($acc, List(JsTemplateSpan(expression=$e, literal=$l), Rest($r))), JsTemplate(JsAddText(Add($acc, $e), $l), List(Rest($r))))
+From(
+  JsTemplate($acc, List(JsTemplateSpan(expression = $e, literal = $l), Rest($r))),
+  JsTemplate(JsAddText(Add($acc, $e), $l), List(Rest($r)))
+)
 From(JsAddText($x, ""), $x)
 From(JsAddText($x, $l), Add($x, $l))
 
 // Operators. Postfix yields the value BEFORE the change, which is why it is not an Assign.
-From(JsPostfixUnaryExpression(operator=JsPlusPlusToken(), operand=$x), PostIncrement($x))
-From(JsPostfixUnaryExpression(operator=JsMinusMinusToken(), operand=$x), PostDecrement($x))
-From(JsPrefixUnaryExpression(operator=JsPlusPlusToken(), operand=$x), PreIncrement($x))
-From(JsPrefixUnaryExpression(operator=JsMinusMinusToken(), operand=$x), PreDecrement($x))
-From(JsPrefixUnaryExpression(operator=JsTildeToken(), operand=$x), BitNot($x))
-From(JsPrefixUnaryExpression(operator=JsExclamationToken(), operand=$x), Not($x))
-From(JsPrefixUnaryExpression(operator=JsMinusToken(), operand=$x), Negate($x))
-From(JsPrefixUnaryExpression(operator=JsPlusToken(), operand=$x), $x)
-From(JsBinaryExpression(left=$l, operatorToken=JsEqualsToken(), right=$r), Assign(JsPlace($l), $r))
+From(JsPostfixUnaryExpression(operator = JsPlusPlusToken(), operand = $x), PostIncrement($x))
+From(JsPostfixUnaryExpression(operator = JsMinusMinusToken(), operand = $x), PostDecrement($x))
+From(JsPrefixUnaryExpression(operator = JsPlusPlusToken(), operand = $x), PreIncrement($x))
+From(JsPrefixUnaryExpression(operator = JsMinusMinusToken(), operand = $x), PreDecrement($x))
+From(JsPrefixUnaryExpression(operator = JsTildeToken(), operand = $x), BitNot($x))
+From(JsPrefixUnaryExpression(operator = JsExclamationToken(), operand = $x), Not($x))
+From(JsPrefixUnaryExpression(operator = JsMinusToken(), operand = $x), Negate($x))
+From(JsPrefixUnaryExpression(operator = JsPlusToken(), operand = $x), $x)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), $r)
+)
 // `x += 1` is `x = x + 1`: compound assignment carries no meaning the IR needs.
-From(JsBinaryExpression(left=$l, operatorToken=JsPlusEqualsToken(), right=$r), Assign(JsPlace($l), Add(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsMinusEqualsToken(), right=$r), Assign(JsPlace($l), Subtract(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskEqualsToken(), right=$r), Assign(JsPlace($l), Multiply(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsSlashEqualsToken(), right=$r), Assign(JsPlace($l), Divide(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsQuestionQuestionEqualsToken(), right=$r), Assign(JsPlace($l), Otherwise(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsBarBarEqualsToken(), right=$r), Assign(JsPlace($l), Or(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsAmpersandAmpersandEqualsToken(), right=$r), Assign(JsPlace($l), And(JsPlace($l), $r)))
-From(JsBinaryExpression(left=$l, operatorToken=JsEqualsEqualsEqualsToken(), right=$r), Equals($l, $r))
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsPlusEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Add(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsMinusEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Subtract(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAsteriskEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Multiply(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsSlashEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Divide(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsQuestionQuestionEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Otherwise(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsBarBarEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), Or(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAmpersandAmpersandEqualsToken(),
+    right = $r
+  ),
+  Assign(JsPlace($l), And(JsPlace($l), $r))
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsEqualsEqualsEqualsToken(),
+    right = $r
+  ),
+  Equals($l, $r)
+)
 // == is not ===: x == null also holds for undefined.
-From(JsBinaryExpression(left=$l, operatorToken=JsEqualsEqualsToken(), right=$r), LooseEquals($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsExclamationEqualsEqualsToken(), right=$r), NotEquals($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsExclamationEqualsToken(), right=$r), LooseNotEquals($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsPlusToken(), right=$r), Add($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsMinusToken(), right=$r), Subtract($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskToken(), right=$r), Multiply($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsSlashToken(), right=$r), Divide($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsPercentToken(), right=$r), Modulo($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanToken(), right=$r), GreaterThan($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsLessThanToken(), right=$r), LessThan($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanEqualsToken(), right=$r), AtLeast($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsLessThanEqualsToken(), right=$r), AtMost($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsAmpersandAmpersandToken(), right=$r), And($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsBarBarToken(), right=$r), Or($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsQuestionQuestionToken(), right=$r), Otherwise($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsInKeyword(), right=$r), In($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsInstanceOfKeyword(), right=$r), InstanceOf($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsAmpersandToken(), right=$r), BitAnd($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsBarToken(), right=$r), BitOr($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsCaretToken(), right=$r), BitXor($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsLessThanLessThanToken(), right=$r), ShiftLeft($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanGreaterThanToken(), right=$r), ShiftRight($l, $r))
-From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskAsteriskToken(), right=$r), Power($l, $r))
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsEqualsEqualsToken(),
+    right = $r
+  ),
+  LooseEquals($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsExclamationEqualsEqualsToken(),
+    right = $r
+  ),
+  NotEquals($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsExclamationEqualsToken(),
+    right = $r
+  ),
+  LooseNotEquals($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsPlusToken(),
+    right = $r
+  ),
+  Add($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsMinusToken(),
+    right = $r
+  ),
+  Subtract($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAsteriskToken(),
+    right = $r
+  ),
+  Multiply($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsSlashToken(),
+    right = $r
+  ),
+  Divide($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsPercentToken(),
+    right = $r
+  ),
+  Modulo($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsGreaterThanToken(),
+    right = $r
+  ),
+  GreaterThan($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsLessThanToken(),
+    right = $r
+  ),
+  LessThan($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsGreaterThanEqualsToken(),
+    right = $r
+  ),
+  AtLeast($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsLessThanEqualsToken(),
+    right = $r
+  ),
+  AtMost($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAmpersandAmpersandToken(),
+    right = $r
+  ),
+  And($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsBarBarToken(),
+    right = $r
+  ),
+  Or($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsQuestionQuestionToken(),
+    right = $r
+  ),
+  Otherwise($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsInKeyword(),
+    right = $r
+  ),
+  In($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsInstanceOfKeyword(),
+    right = $r
+  ),
+  InstanceOf($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAmpersandToken(),
+    right = $r
+  ),
+  BitAnd($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsBarToken(),
+    right = $r
+  ),
+  BitOr($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsCaretToken(),
+    right = $r
+  ),
+  BitXor($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsLessThanLessThanToken(),
+    right = $r
+  ),
+  ShiftLeft($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsGreaterThanGreaterThanToken(),
+    right = $r
+  ),
+  ShiftRight($l, $r)
+)
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsAsteriskAsteriskToken(),
+    right = $r
+  ),
+  Power($l, $r)
+)
 // `a, b` evaluates both and takes the second, which is what Sequence already means.
-From(JsBinaryExpression(left=$l, operatorToken=JsCommaToken(), right=$r), Sequence($l, $r))
+From(
+  JsBinaryExpression(
+    left = $l,
+    operatorToken = JsCommaToken(),
+    right = $r
+  ),
+  Sequence($l, $r)
+)
 
 // Collections. `[...a, x]` is the lists joined, Concat($a, List($x)), which runs; the
 // elements between spreads are gathered into one List.
-From(JsArrayLiteralExpression(elements=List(Rest($es))), JsArray(List(), List(), List(Rest($es)), False()))
-From(JsArray(List(Rest($d)), List(), List(JsSpreadElement(expression=$e), Rest($r)), $_), JsArray(List(Rest($d), $e), List(), List(Rest($r)), True()))
-From(JsArray(List(Rest($d)), List($x, Rest($xs)), List(JsSpreadElement(expression=$e), Rest($r)), $_), JsArray(List(Rest($d), List($x, Rest($xs)), $e), List(), List(Rest($r)), True()))
+From(JsArrayLiteralExpression(elements = List(Rest($es))), JsArray(List(), List(), List(Rest($es)), False()))
+From(
+  JsArray(
+    List(Rest($d)),
+    List(),
+    List(JsSpreadElement(expression = $e), Rest($r)),
+    $_
+  ),
+  JsArray(List(Rest($d), $e), List(), List(Rest($r)), True())
+)
+From(
+  JsArray(
+    List(Rest($d)),
+    List($x, Rest($xs)),
+    List(JsSpreadElement(expression = $e), Rest($r)),
+    $_
+  ),
+  JsArray(
+    List(Rest($d), List($x, Rest($xs)), $e),
+    List(),
+    List(Rest($r)),
+    True()
+  )
+)
 From(JsArray($d, List(Rest($xs)), List($x, Rest($r)), $s), JsArray($d, List(Rest($xs), $x), List(Rest($r)), $s))
 From(JsArray($_, List(Rest($xs)), List(), False()), List(Rest($xs)))
 From(JsArray(List(Rest($d)), List(), List(), True()), Concat(Rest($d)))
 From(JsArray(List(Rest($d)), List($x, Rest($xs)), List(), True()), Concat(Rest($d), List($x, Rest($xs))))
 // A known key is a named argument; anything computed keeps Pair (ir-spec Part 3.3).
-From(JsObjectLiteralExpression(properties=List(Rest($ps))), Object(Rest($ps)))
-From(JsShorthandPropertyAssignment(name=JsIdentifier(text=$k)), Named($k, Variable($k)))
-From(JsSpreadAssignment(expression=$e), Spread($e))
-From(JsPropertyAssignment(name=JsComputedPropertyName(expression=$k), initializer=$v), Pair($k, $v))
-From(JsPropertyAssignment(name=JsIdentifier(text=$k), initializer=$v), Named($k, $v))
-From(JsPropertyAssignment(name=$k, initializer=$v), Named($k, $v))
+From(JsObjectLiteralExpression(properties = List(Rest($ps))), Object(Rest($ps)))
+From(JsShorthandPropertyAssignment(name = JsIdentifier(text = $k)), Named($k, Variable($k)))
+From(JsSpreadAssignment(expression = $e), Spread($e))
+From(JsPropertyAssignment(name = JsComputedPropertyName(expression = $k), initializer = $v), Pair($k, $v))
+From(JsPropertyAssignment(name = JsIdentifier(text = $k), initializer = $v), Named($k, $v))
+From(JsPropertyAssignment(name = $k, initializer = $v), Named($k, $v))
 
 // ================================================================
 // Writing JavaScript (code/write.ts). In a template, $x is a part written as an
 // expression, @x as a statement, %x as the statements of a block (a Sequence's steps, or
 // one statement), and #x a name written as it is. Every compound expression
 // brings its own parentheses, so no rule needs to know another's precedence.
-
 To(Module($x), Statement(), "%x")
 // Statements inside statements are a block of their own.
 To(Sequence(Rest($ss)), Statement(), "{ %ss }")
@@ -353,11 +972,27 @@ To(Super(), "super")
 To(Bind($n, $v), Statement(), "const $n = $v")
 To(Var($n, $v), Statement(), "let $n = $v")
 To(Bind($n, $v, $body), "(($n) => $body)($v)")
-To(Func($n, List(Rest($ps)), $b), Statement(), "function $n($ps) { %b }")
+To(
+  Func($n, List(Rest($ps)), $b),
+  Statement(),
+  "function $n($ps) { %b }"
+)
 To(Func($n, List(Rest($ps)), $b), "(function $n($ps) { %b })")
-To(Async(Func($n, List(Rest($ps)), $b)), Statement(), "async function $n($ps) { %b }")
-To(Generator(Func($n, List(Rest($ps)), $b)), Statement(), "function* $n($ps) { %b }")
-To(Async(Generator(Func($n, List(Rest($ps)), $b))), Statement(), "async function* $n($ps) { %b }")
+To(
+  Async(Func($n, List(Rest($ps)), $b)),
+  Statement(),
+  "async function $n($ps) { %b }"
+)
+To(
+  Generator(Func($n, List(Rest($ps)), $b)),
+  Statement(),
+  "function* $n($ps) { %b }"
+)
+To(
+  Async(Generator(Func($n, List(Rest($ps)), $b))),
+  Statement(),
+  "async function* $n($ps) { %b }"
+)
 // A concise arrow where the body is an expression, a block where it is not. An arrow
 // takes parentheses only where it is called.
 To(Lambda(List(Rest($ps)), Sequence(Rest($ss))), "($ps) => { %ss }")
@@ -372,15 +1007,39 @@ To(Export($x), Statement(), "export @x")
 To(ExportDefault($x), Statement(), "export default $x")
 
 // Classes.
-To(Class($n, Undefined(), List(Rest($ms))), Statement(), "class $n { @ms }")
-To(Class($n, Extends($e), List(Rest($ms))), Statement(), "class $n extends $e { @ms }")
-To(Constructor(List(Rest($ps)), $b), Statement(), "constructor($ps) { %b }")
+To(
+  Class($n, Undefined(), List(Rest($ms))),
+  Statement(),
+  "class $n { @ms }"
+)
+To(
+  Class($n, Extends($e), List(Rest($ms))),
+  Statement(),
+  "class $n extends $e { @ms }"
+)
+To(
+  Constructor(List(Rest($ps)), $b),
+  Statement(),
+  "constructor($ps) { %b }"
+)
 To(Field($k, $v), Statement(), "#k = $v")
 To(Field($k), Statement(), "#k")
-To(Method($k, List(Rest($ps)), $b), Statement(), "#k($ps) { %b }")
-To(Generator(Method($k, List(Rest($ps)), $b)), Statement(), "*#k($ps) { %b }")
+To(
+  Method($k, List(Rest($ps)), $b),
+  Statement(),
+  "#k($ps) { %b }"
+)
+To(
+  Generator(Method($k, List(Rest($ps)), $b)),
+  Statement(),
+  "*#k($ps) { %b }"
+)
 To(Getter($k, $b), Statement(), "get #k() { %b }")
-To(Setter($k, List(Rest($ps)), $b), Statement(), "set #k($ps) { %b }")
+To(
+  Setter($k, List(Rest($ps)), $b),
+  Statement(),
+  "set #k($ps) { %b }"
+)
 To(Async($x), Statement(), "async @x")
 To(Readonly($x), Statement(), "readonly @x")
 To(Private($x), Statement(), "private @x")
@@ -396,33 +1055,86 @@ To(Return($x), Statement(), "return $x")
 To(Throw($x), Statement(), "throw $x")
 To(If($c, $t, $e), "($c ? $t : $e)")
 To(If($c, $t, Undefined()), Statement(), "if ($c) { %t }")
-To(If($c, $t, $e), Statement(), "if ($c) { %t } else { %e }")
+To(
+  If($c, $t, $e),
+  Statement(),
+  "if ($c) { %t } else { %e }"
+)
 To(Try($t, $c), Statement(), "try { %t } @c")
-To(Finally(Try($t, Undefined()), $f), Statement(), "try { %t } finally { %f }")
-To(Finally(Try($t, $c), $f), Statement(), "try { %t } @c finally { %f }")
+To(
+  Finally(Try($t, Undefined()), $f),
+  Statement(),
+  "try { %t } finally { %f }"
+)
+To(
+  Finally(Try($t, $c), $f),
+  Statement(),
+  "try { %t } @c finally { %f }"
+)
 To(Catch($n, $b), Statement(), "catch ($n) { %b }")
-To(ForOf($n, $e, $s), Statement(), "for (let $n of $e) { %s }")
-To(For($i, $c, $n, $s), Statement(), "for (@i; $c; $n) { %s }")
+To(
+  ForOf($n, $e, $s),
+  Statement(),
+  "for (let $n of $e) { %s }"
+)
+To(
+  For($i, $c, $n, $s),
+  Statement(),
+  "for (@i; $c; $n) { %s }"
+)
 // Several declarations in a loop's head are one declaration there: let i = 0, j = 1.
-To(For(Sequence(Rest($ds)), $c, $n, $s), Statement(), JsWriteFor(JsDeclarators(Each(List(Rest($ds)), Lambda(List($d), JsDeclarator($d)))), $c, $n, $s))
+To(
+  For(Sequence(Rest($ds)), $c, $n, $s),
+  Statement(),
+  JsWriteFor(
+    JsDeclarators(Each(List(Rest($ds)), Lambda(List($d), JsDeclarator($d)))),
+    $c,
+    $n,
+    $s
+  )
+)
 To(JsDeclarator(Var($n, $v)), "$n = $v")
 To(JsDeclarator(Bind($n, $v)), "$n = $v")
-To(JsWriteFor(JsDeclarators(Rest($xs)), $c, $n, $s), Statement(), "for (let $xs; $c; $n) { %s }")
+To(
+  JsWriteFor(JsDeclarators(Rest($xs)), $c, $n, $s),
+  Statement(),
+  "for (let $xs; $c; $n) { %s }"
+)
 To(Hole(), "")
 To(While($c, $s), Statement(), "while ($c) { %s }")
 To(DoWhile($s, $c), Statement(), "do { %s } while ($c)")
-To(Switch($e, List(Rest($cs))), Statement(), "switch ($e) { @cs }")
+To(
+  Switch($e, List(Rest($cs))),
+  Statement(),
+  "switch ($e) { @cs }"
+)
 To(Case($v, $b), Statement(), "case $v: %b")
 To(Default($b), Statement(), "default: %b")
 To(Continue(), Statement(), "continue")
 To(Break(), Statement(), "break")
 
 // Modules.
-To(Import(List(Rest($names)), $from), Statement(), "import { $names } from $from")
-To(ReExport(List(Rest($names))), Statement(), "export { $names }")
-To(ReExport(List(Rest($names)), $from), Statement(), "export { $names } from $from")
+To(
+  Import(List(Rest($names)), $from),
+  Statement(),
+  "import { $names } from $from"
+)
+To(
+  ReExport(List(Rest($names))),
+  Statement(),
+  "export { $names }"
+)
+To(
+  ReExport(List(Rest($names)), $from),
+  Statement(),
+  "export { $names } from $from"
+)
 To(ReExport(All()), Statement(), "export *")
-To(ReExport(All(), $from), Statement(), "export * from $from")
+To(
+  ReExport(All(), $from),
+  Statement(),
+  "export * from $from"
+)
 To(As($p, $k), "$p as #k")
 To(DynamicImport(Rest($a)), "import($a)")
 // Source held in a string, as code(`...`) holds it: written as source, then quoted.

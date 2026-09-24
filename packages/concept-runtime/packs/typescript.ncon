@@ -5,10 +5,12 @@
 // Types are erased. A type annotation is a claim about a value, not a step the program
 // takes, and nothing downstream can act on one yet (design/self-hosting.md Part 6). The
 // reader already leaves out a declaration's type; these erase what stands on its own.
-
 Requires(Core(), JavaScript())
 
-Concept(TypeScript(), IsA(TargetLanguage()), SupersetOf(JavaScript()))
+Concept(TypeScript(),
+  IsA(TargetLanguage()),
+  SupersetOf(JavaScript())
+)
 
 Language(TypeScript())
 
@@ -17,7 +19,7 @@ From(JsTypeAliasDeclaration(), Erased())
 From(JsModuleDeclaration(), Erased())
 From(JsIndexSignature(), Erased())
 From(JsPropertySignature(), Erased())
-From(JsAsExpression(expression=$e), $e)
-From(JsTypeAssertionExpression(expression=$e), $e)
-From(JsNonNullExpression(expression=$e), $e)
-From(JsSatisfiesExpression(expression=$e), $e)
+From(JsAsExpression(expression = $e), $e)
+From(JsTypeAssertionExpression(expression = $e), $e)
+From(JsNonNullExpression(expression = $e), $e)
+From(JsSatisfiesExpression(expression = $e), $e)

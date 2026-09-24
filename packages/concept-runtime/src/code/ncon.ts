@@ -17,6 +17,7 @@
  * Seeding a pack records it as the origin of what it adds, so reloading an edited pack
  * retires what it no longer has, and never touches what anyone else added.
  */
+import { formatNcon } from "./format.js";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -203,8 +204,6 @@ export function parsePack(text: string, name: string): Pack {
  * Writing a pack: the IR, laid out for a person to read and edit.
  * ------------------------------------------------------------------ */
 
-const WIDTH = 100;
-
 // Raw only where it reads better and round-trips: multiline, and no quote at the end to run
 // into the closing triple.
 const text = (s: string): string =>
@@ -216,41 +215,30 @@ const flat = (e: Expr): string => {
   return `${e.head}(${e.args.map((a) => (a.name === undefined ? flat(a.value) : `${a.name}=${flat(a.value)}`)).join(", ")})`;
 };
 
-/** One line when it fits and holds no multiline text; otherwise one argument per line. */
-export function pretty(e: Expr, indent = 0): string {
-  const one = flat(e);
-  if (!isCall(e) || (!one.includes("\n") && indent + one.length <= WIDTH) || !e.args.length) return one;
-  const pad = " ".repeat(indent + 2);
-  const arg = (a: Argument) => `${pad}${a.name === undefined ? "" : `${a.name}=`}${pretty(a.value, indent + 2)}`;
-  return `${e.head}(\n${e.args.map(arg).join(",\n")})`;
-}
+/** An expression as a pack writes it, laid out by the .ncon rules (code/format.ts). */
+export const pretty = (e: Expr): string => formatNcon(flat(e)).trimEnd();
 
-/** A realization's settings on its first line, its body after them when it does not fit. */
-function realizationText(r: Realization, indent: number): string {
-  const head: string[] = [flat(r.pattern)];
-  if (r.context !== undefined) head.push(`context=${flat(r.context)}`);
-  if (!r.evaluateArguments) head.push("evaluateArguments=false");
-  if (r.evaluateResult) head.push("evaluateResult=true");
-  if (r.resultContext !== undefined) head.push(`resultContext=${flat(r.resultContext)}`);
-  if (r.properties.length) head.push(`properties=List(${r.properties.map(flat).join(", ")})`);
-  const one = `Realization(${head.join(", ")}, body=${flat(r.body)})`;
-  if (!one.includes("\n") && indent + one.length <= WIDTH) return one;
-  return `Realization(${head.join(", ")},\n${" ".repeat(indent + 2)}body=${pretty(r.body, indent + 2)})`;
+/** A realization with its settings before its body. */
+function realizationText(r: Realization): string {
+  const parts: string[] = [flat(r.pattern)];
+  if (r.context !== undefined) parts.push(`context=${flat(r.context)}`);
+  if (!r.evaluateArguments) parts.push("evaluateArguments=false");
+  if (r.evaluateResult) parts.push("evaluateResult=true");
+  if (r.resultContext !== undefined) parts.push(`resultContext=${flat(r.resultContext)}`);
+  if (r.properties.length) parts.push(`properties=List(${r.properties.map(flat).join(", ")})`);
+  return `Realization(${parts.join(", ")}, body=${flat(r.body)})`;
 }
 
 const relationExpr = (r: Relation): Expr =>
   r.context === undefined ? r.claim : call("Relation", [{ value: r.claim }, { name: "context", value: r.context }]);
 
-/** A unit as a pack writes it: its name first, then a relation or realization per line. */
+/** A unit as a pack writes it: its name, then its relations and realizations. */
 export function unitText(u: ConceptUnit): string {
   const parts = [
     ...u.relations.map((r) => flat(relationExpr(r))),
-    ...u.realizations.filter((r) => !r.retired).map((r) => realizationText(r, 2)),
+    ...u.realizations.filter((r) => !r.retired).map(realizationText),
   ];
-  const one = `Concept(${u.identity}(), ${parts.join(", ")})`;
-  if (!parts.length) return `Concept(${u.identity}())`;
-  if (!one.includes("\n") && one.length <= WIDTH) return one;
-  return `Concept(${u.identity}(),\n${parts.map((p) => `  ${p}`).join(",\n")})`;
+  return formatNcon(`Concept(${[`${u.identity}()`, ...parts].join(", ")})`).trimEnd();
 }
 
 /** A pack's text: `Requires`, then each unit, with any comment it carries above it. */
@@ -269,7 +257,7 @@ export function formatPack(
     if (comment) out.push(comment.trimEnd());
     out.push(unitText(u), "");
   }
-  return out.join("\n");
+  return formatNcon(out.join("\n"));
 }
 
 /* ------------------------------------------------------------------ *
