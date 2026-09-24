@@ -83,3 +83,12 @@ test("a work sharing a word's name is learned as a namesake, not as what the wor
 test("known names read whole, even with a describing word in them", async () => {
   assert.match(await ask("how many days until new years day"), /^Answer\(Days\(\d+\)\)$/);
 });
+
+test("a namesake learned flat is left out of what is said when the word has another category", async () => {
+  const { parse, format } = await import("../concept/expression.js");
+  const { forSaying } = await import("./individuals.js");
+  const said = forSaying(store, parse("Describes(Volcano(), List(IsA(Landform()), IsA(ElectronicGame())))"));
+  assert.equal(format(said), "Describes(Volcano(), List(IsA(Landform())))");
+  // Known only as a name, the name is what it is.
+  assert.equal(format(forSaying(store, parse("Describes(Emmy(), List(IsA(GivenName())))"))), "Describes(Emmy(), List(IsA(GivenName())))");
+});

@@ -133,9 +133,9 @@ add(
           // that share a name, and a small Teacher files them flat beside what the word
           // means, however the prompt asks. When the word has another category, a work or
           // a name it shares is a namesake, held in that sense only.
-          const NAMESAKE = new Set(["ElectronicGame", "VideoGame", "Film", "Movie", "Album", "Song", "MusicSingle",
-            "Book", "Novel", "TelevisionSeries", "Band", "MusicalGroup", "Company", "Surname", "FamilyName",
-            "GivenName", "FirstName", "Musical", "Magazine", "AcademicJournal", "WrittenWork", "Painting"]);
+          // Which categories are such works and names is graph data, on Namesake.
+          const sharesNames = (head) => api.store.asObject(head).some((t) => t.subject === "Namesake" && t.predicate === "Covers");
+          const NAMESAKE = { has: sharesNames };
           const isA = (r) => r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head;
           const hasOther = relations.some((r) => isA(r) && !NAMESAKE.has(r.args[0].value.head));
           for (const r of relations) {
@@ -287,7 +287,16 @@ add(concept("Forwarding", { relations: ["IsA(RealizationProperty())"] }));
 /** A claim together with the context it holds in, for reporting rather than storing. */
 add(concept("In", { relations: ["IsA(Marker())"] }));
 /** The sense of a word that is something else sharing its name: a film, a game, a surname. */
-add(concept("Namesake", { relations: ["IsA(ContextFacet())"] }));
+// It covers the categories whose members take their names from ordinary words, so research
+// on a word keeps finding one: a game called Volcano, a band called Moment. Held here
+// rather than on each category, so seeding it does not make those words known and stop
+// them being learned.
+add(concept("Namesake", {
+  relations: ["IsA(ContextFacet())", ...["ElectronicGame", "VideoGame", "Film", "Movie", "Album", "Song", "MusicSingle",
+    "Book", "Novel", "TelevisionSeries", "Band", "MusicalGroup", "Company", "Surname", "FamilyName", "GivenName",
+    "FirstName", "Musical", "Magazine", "AcademicJournal", "WrittenWork", "Painting"].map((k) => `Covers(${k}())`)],
+}));
+add(concept("Covers", { relations: ["Incidental()"] }));
 add(concept("NotComposed"));
 add(concept("Incomplete"));
 add(concept("NotComposed"));

@@ -96,7 +96,14 @@ export function forSaying(store: ConceptStore, e: Expr): Expr {
   // "chess is a board game", not "also a musical and a surname".
   const listed = e.head === "Describes" ? e.args[1]?.value : undefined;
   if (listed !== undefined && isCall(listed) && listed.head === "List") {
-    const general = listed.args.filter((a) => !(isCall(a.value) && a.value.head === "In"));
+    // A namesake learned flat, before namesakes were told apart, is still a namesake:
+    // "IsA(ElectronicGame())" beside "IsA(Landform())" is the game called Volcano.
+    const namesake = (v: Expr): boolean => {
+      if (!isCall(v) || v.head !== "IsA") return false;
+      const kind = v.args[0]?.value;
+      return kind !== undefined && isCall(kind) && store.asObject(kind.head).some((t) => t.subject === "Namesake" && t.predicate === "Covers");
+    };
+    const general = listed.args.filter((a) => !(isCall(a.value) && a.value.head === "In") && !namesake(a.value));
     if (general.length && general.length < listed.args.length) {
       return forSaying(store, call("Describes", [e.args[0], { value: call("List", general) }]));
     }
