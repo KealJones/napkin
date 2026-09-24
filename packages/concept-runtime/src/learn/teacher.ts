@@ -42,6 +42,10 @@ RULES
    it is Symmetric(), Transitive(), Asymmetric(), and what its InverseOf(...) is. Each
    licenses inference over every future use, so a relation taught without them is inert in
    one direction.
+   InverseOf is the converse of a RELATION, read backwards: Killed and KilledBy, Parent
+   and Child. The network uses it to answer from the other end, so it is only for
+   relations. Two things that undo or oppose each other are not that: encode and decode
+   are InverseOperation(Decode()), blue and orange are OppositeOf(Orange()).
    Say too whether it is Enduring() (true until retracted: FriendOf, Likes, LivesIn) or
    Occurrent() (happened at a time: Ate, Visited, Sent). A state that lasts a while, like
    being sick today, is Occurrent(); a habit, like hanging out all the time, is Enduring().
@@ -168,6 +172,11 @@ export interface TeachRequest {
   readonly existing?: string;
   /** A context to express the Concept in, e.g. `TypeScript()`. Existing behaviour stands. */
   readonly inContext?: string;
+  /**
+   * The claim that led here, e.g. `Emoticon IsA(TextRepresentation())`: the sense to teach
+   * is the one that makes it true.
+   */
+  readonly reachedThrough?: string;
 }
 
 export interface TeachResult {
@@ -235,6 +244,11 @@ export async function teach(
         ? `${request.identity} exists, but nothing realizes this call:\n  ${request.unrealizedCall}`
         : `The network does not know: ${request.identity}`,
     request.existing ? `${request.identity} can already do:\n${request.existing}` : "",
+    request.reachedThrough
+      ? `${request.identity} came up because the network holds: ${request.reachedThrough}\n` +
+        `Teach the sense of ${request.identity} that makes that true, unqualified. Any other ` +
+        `sense goes under In(..., Sense()).`
+      : "",
     nearby(store, request.identity),
     request.evidence ? `EVIDENCE\n${request.evidence}` : "",
     teachingContext

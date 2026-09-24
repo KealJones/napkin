@@ -18,6 +18,7 @@
  */
 import { type Expr, isCall, walk } from "../concept/expression.js";
 import type { ConceptUnit } from "../concept/unit.js";
+import { activation } from "../runtime/activation.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -34,6 +35,7 @@ const STRUCTURAL = new Set([
   "True", "False", "Number", "String", "Boolean",
   // How a relation is said, not what it names. These leak in when a Teacher nests one.
   "InverseOf", "SynonymOf", "Symmetric", "Transitive", "Asymmetric", "Functional", "Enduring", "Occurrent",
+  "OppositeOf", "InverseOperation",
   "Irreflexive", "Disjoint", "Describes", "Relations",
 ]);
 
@@ -130,7 +132,11 @@ export interface StudyOptions extends ModelOptions {
 function understood(runtime: Runtime, identity: string): boolean {
   const unit = runtime.store.get(identity);
   if (!unit) return false;
-  return unit.relations.length > 0 || unit.realizations.length > 0;
+  // A retracted fact is no longer understanding, and a Retracts is a record, not a fact.
+  const holding = unit.relations.filter(
+    (r) => !(isCall(r.claim) && r.claim.head === "Retracts") && !runtime.store.retracted(identity, r.claim),
+  );
+  return holding.length > 0 || unit.realizations.length > 0;
 }
 
 /** Does anything this Concept can do already carry the facet? */
@@ -154,9 +160,32 @@ export async function study(
 
   const steps: StudyStep[] = [];
   const seen = new Set<string>();
-  const queue: { identity: string; depth: number }[] = topics
+  /**
+   * Each topic remembers how it was reached: studying Emoticon found TextRepresentation
+   * through `IsA(TextRepresentation())`, and asked about on its own the Teacher taught text
+   * vectorization. The sense that makes the claim true is the one to learn.
+   */
+  type Queued = { identity: string; depth: number; via?: { from: string; claim: string }; first?: true };
+  const queue: Queued[] = topics
     .map((t) => ({ identity: identityFor(t), depth: 0 }))
     .filter((t) => t.identity.length > 0);
+  const roots = queue.map((q) => q.identity);
+  /**
+   * The next topic is the one most relevant to what was asked, by activation spread from
+   * the topics (memory-spec Part 10.1, emergent-judgment-plan Part 3.3), not the oldest
+   * queued. Taken in order, emoji spent its budget on WebPage, Document and WebResource,
+   * one associative hop at a time. A prerequisite a refused body named still goes first.
+   */
+  const next = (): Queued => {
+    const first = queue.findIndex((q) => q.first);
+    if (first >= 0) return queue.splice(first, 1)[0];
+    if (queue.length > 1 && queue.some((q) => q.depth > 0)) {
+      const ranked = activation(runtime.store, roots, { among: queue.map((q) => q.identity) }).map((a) => a.identity);
+      const at = queue.findIndex((q) => q.identity === ranked[0]);
+      if (at >= 0) return queue.splice(at, 1)[0];
+    }
+    return queue.shift()!;
+  };
 
   let taught = 0;
   let visited = 0;
@@ -167,15 +196,28 @@ export async function study(
   };
 
   while (queue.length && taught < maxConcepts) {
-    const { identity, depth } = queue.shift()!;
+    const { identity, depth, via } = next();
     if (seen.has(identity) || STRUCTURAL.has(identity)) continue;
     seen.add(identity);
     visited += 1;
 
-    const push = (names: readonly string[], at: number): string[] => {
-      const added = names.filter((n) => !seen.has(n) && !STRUCTURAL.has(n));
-      if (at <= maxDepth) for (const n of added) queue.push({ identity: n, depth: at });
+    const push = (names: readonly string[], at: number, prerequisite = false): string[] => {
+      const added = names.filter((n) => !seen.has(n) && !STRUCTURAL.has(n) && !queue.some((q) => q.identity === n));
+      if (at <= maxDepth) for (const n of added) queue.push({ identity: n, depth: at, ...(prerequisite ? { first: true as const } : {}) });
       return added;
+    };
+    // What each claim names, remembered with the claim it was found in.
+    const follow = (unit: Pick<ConceptUnit, "relations"> | undefined, at: number): string[] => {
+      const found: string[] = [];
+      for (const claim of unit ? general(unit) : []) {
+        const names = push(frontierFrom([claim]), at);
+        for (const n of names) {
+          const q = queue.find((x) => x.identity === n);
+          if (q && !q.via) q.via = { from: identity, claim: format(claim) };
+        }
+        found.push(...names);
+      }
+      return found;
     };
 
     // Expressing rather than learning: the gap is a Concept that works but is mute in
@@ -249,7 +291,7 @@ export async function study(
     // Already understood: nothing to teach, but what it names is still worth following,
     // and it may be an island that a neighbour could give behaviour to.
     if (understood(runtime, identity)) {
-      const discovered = push(frontierFrom(general(runtime.store.get(identity)!)), depth + 1);
+      const discovered = follow(runtime.store.get(identity), depth + 1);
       const attached = fromGraph(runtime, identity);
       record({
         identity, depth,
@@ -280,7 +322,8 @@ export async function study(
     }
     if (!evidence && options.research !== false) {
       try {
-        evidence = evidenceText(await research(readable(identity)));
+        // Searched with the word it was reached from, so the results are about that sense.
+        evidence = evidenceText(await research(via ? `${readable(identity)} ${readable(via.from)}` : readable(identity)));
       } catch {
         // Best effort. An unreachable network makes the Teacher recall rather than stop.
       }
@@ -290,7 +333,13 @@ export async function study(
     try {
       taughtResult = await teach(
         runtime.store,
-        { identity, message: `Teach me about ${readable(identity)}.`, expression: `${identity}()`, evidence },
+        {
+          identity,
+          message: `Teach me about ${readable(identity)}.`,
+          expression: `${identity}()`,
+          evidence,
+          ...(via ? { reachedThrough: `${via.from} ${via.claim}` } : {}),
+        },
         options,
       );
     } catch (caught) {
@@ -335,10 +384,7 @@ export async function study(
 
     const unit = runtime.store.get(identity);
     const learned = (unit?.relations.length ?? 0) + (unit?.realizations.length ?? 0);
-    const discovered = [
-      ...push(needed, depth),
-      ...push(frontierFrom(unit ? general(unit) : []), depth + 1),
-    ];
+    const discovered = [...push(needed, depth, true), ...follow(unit, depth + 1)];
 
     if (learned > 0) {
       taught += 1;

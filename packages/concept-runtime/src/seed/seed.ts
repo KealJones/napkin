@@ -46,6 +46,10 @@ add(concept("IsA", { relations: ["Transitive()"] }));
  */
 add(concept("SynonymOf", { relations: ["Symmetric()"] }));
 add(concept("InverseOf", { relations: ["Symmetric()"] }));
+// InverseOf reads a relation backwards; these are the other two things "inverse" means,
+// kept apart so the backwards reading is never applied to a colour or an operation.
+add(concept("OppositeOf", { relations: ["Symmetric()"] }));
+add(concept("InverseOperation", { relations: ["Symmetric()"] }));
 add(concept("Disjoint", { relations: ["Symmetric()", "Irreflexive()"] }));
 // Classified, not bare. A Concept with no relations and no realizations is
 // indistinguishable from an orphan, and Exist would keep trying to "fix" it. Saying what
