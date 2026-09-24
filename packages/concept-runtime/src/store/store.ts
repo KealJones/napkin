@@ -103,6 +103,13 @@ export class ConceptStore {
   private nextSeq = 1;
   /** The next counter to try for a base, so `mint` need not rescan the graph every time. */
   private readonly mintCounters = new Map<string, number>();
+  /** Bumped on every write, so a cache derived from the graph knows it is stale in O(1). */
+  private writes = 0;
+
+  /** Changes whenever the graph does (activation's cache, memory-spec Part 10.1). */
+  get version(): number {
+    return this.writes;
+  }
 
   /** The `seq` the next stamp will get, so a snapshot can resume the count. */
   get sequence(): number {
@@ -262,6 +269,7 @@ export class ConceptStore {
   private put(unit: ConceptUnit): void {
     const previous = this.units.get(unit.identity);
     if (previous) this.unindex(previous);
+    this.writes += 1;
     this.units.set(unit.identity, { ...unit, updatedAt: new Date().toISOString() });
     this.index(unit);
   }
@@ -387,6 +395,7 @@ export class ConceptStore {
     if (!unit) return false;
     this.unindex(unit);
     this.units.delete(identity);
+    this.writes += 1;
     return true;
   }
 
