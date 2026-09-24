@@ -6,7 +6,7 @@
  * Keal / IsMarriedTo / Emmy, and the index makes it findable from either end. That is
  * what lets a symmetric relation be derived for Emmy without being stored twice.
  */
-import { type Expr, isCall, format, equal } from "../concept/expression.js";
+import { type Expr, isCall, format, equal, walk } from "../concept/expression.js";
 import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
 
 /** Same claim AND same context. Differing on either makes it a separate assertion. */
@@ -32,10 +32,71 @@ export function objectKey(e: Expr | undefined): string | undefined {
   return format(e);
 }
 
+/** A relation found through the mention index, with the unit that holds it. */
+export interface Mention {
+  readonly identity: string;
+  readonly relation: Relation;
+}
+
+/** A stamp found through the time index, with the unit and relation it belongs to. */
+export interface StampEntry {
+  readonly identity: string;
+  readonly relation: Relation;
+  readonly stamp: Stamp;
+}
+
+/**
+ * The key a sub-expression is found under in the mention index (memory-spec Part 9.1): a
+ * Concept head regardless of arity, so `GrannySmith` is findable whether it appears as
+ * `GrannySmith()` or with arguments, or a literal string or number, formatted the same way
+ * `objectKey` formats one. Booleans, `null` and variables are not mentions; a relation is a
+ * ground fact and a bare `true` or `false` names nothing to look up.
+ */
+export function mentionKey(e: Expr): string | undefined {
+  if (isCall(e)) return e.head;
+  if (typeof e === "string" || typeof e === "number") return format(e);
+  return undefined;
+}
+
+/** Every distinct mention key a relation's claim (and context, if any) contains. */
+function mentionsOf(r: Relation): Set<string> {
+  const keys = new Set<string>();
+  for (const sub of walk(r.claim)) {
+    const key = mentionKey(sub);
+    if (key !== undefined) keys.add(key);
+  }
+  if (r.context !== undefined) {
+    for (const sub of walk(r.context)) {
+      const key = mentionKey(sub);
+      if (key !== undefined) keys.add(key);
+    }
+  }
+  return keys;
+}
+
 export class ConceptStore {
   private readonly units = new Map<string, ConceptUnit>();
   private readonly bySubject = new Map<string, Triple[]>();
-  private readonly byObject = new Map<string, Triple[]>();
+  /**
+   * Bucketed by key, then by the contributing unit, so removing one unit's entries from a
+   * key that many units share — `IsA(Bird())`, say — is a single inner `Map.delete`, not a
+   * scan or filter of everything under that key. Reading a bucket (`asObject`, `mentioning`)
+   * flattens it, which costs what a single flat array always cost; only the write side
+   * changes. Without this, a key shared by many units makes every write to any one of them
+   * cost as much as the whole bucket, and re-asserting on the same unit over and over is
+   * quadratic in the size of the graph, not linear in that unit's own relations.
+   */
+  private readonly byObject = new Map<string, Map<string, Triple[]>>();
+  /** Every relation mentioning a Concept head or literal, at any depth (memory-spec Part 9.1). */
+  private readonly byMention = new Map<string, Map<string, Mention[]>>();
+  /** Every stamp, by `seq`, for O(1) lookup — the time index (memory-spec Part 9.1). */
+  private readonly byStamp = new Map<number, StampEntry>();
+  /**
+   * Which keys each unit last contributed to `byObject` and `byMention`, so `unindex` visits
+   * only the buckets a unit is actually in instead of every key in the map.
+   */
+  private readonly objectKeysOf = new Map<string, ReadonlySet<string>>();
+  private readonly mentionKeysOf = new Map<string, ReadonlySet<string>>();
   /** When each realization was last chosen. Forgetting needs this, and nothing else does. */
   private readonly lastSelected = new Map<string, number>();
   /** The next stamp's `seq`. Store-wide and never reused (memory-spec Part 4.2). */
@@ -206,44 +267,72 @@ export class ConceptStore {
   }
 
   private index(unit: ConceptUnit): void {
+    const objectKeys = new Set<string>();
+    const mentionKeys = new Set<string>();
     for (const r of unit.relations) {
       const expr = r.claim;
-      if (!isCall(expr)) continue;
-      const triple: Triple = {
-        subject: unit.identity,
-        predicate: expr.head,
-        object: expr.args[0]?.value,
-        expr,
-        ...(r.context === undefined ? {} : { context: r.context }),
-      };
-      push(this.bySubject, unit.identity, triple);
-      const key = objectKey(triple.object);
-      if (key !== undefined) push(this.byObject, key, triple);
+      if (isCall(expr)) {
+        const triple: Triple = {
+          subject: unit.identity,
+          predicate: expr.head,
+          object: expr.args[0]?.value,
+          expr,
+          ...(r.context === undefined ? {} : { context: r.context }),
+        };
+        push(this.bySubject, unit.identity, triple);
+        const key = objectKey(triple.object);
+        if (key !== undefined) {
+          pushBucketed(this.byObject, key, unit.identity, triple);
+          objectKeys.add(key);
+        }
+      }
+      const mention: Mention = { identity: unit.identity, relation: r };
+      for (const key of mentionsOf(r)) {
+        pushBucketed(this.byMention, key, unit.identity, mention);
+        mentionKeys.add(key);
+      }
+      for (const stamp of r.stamps ?? []) this.byStamp.set(stamp.seq, { identity: unit.identity, relation: r, stamp });
     }
+    this.objectKeysOf.set(unit.identity, objectKeys);
+    this.mentionKeysOf.set(unit.identity, mentionKeys);
   }
 
   private unindex(unit: ConceptUnit): void {
     this.bySubject.delete(unit.identity);
-    for (const [key, triples] of this.byObject) {
-      const kept = triples.filter((t) => t.subject !== unit.identity);
-      if (kept.length) this.byObject.set(key, kept);
-      else this.byObject.delete(key);
-    }
+    for (const key of this.objectKeysOf.get(unit.identity) ?? []) unbucket(this.byObject, key, unit.identity);
+    this.objectKeysOf.delete(unit.identity);
+    for (const key of this.mentionKeysOf.get(unit.identity) ?? []) unbucket(this.byMention, key, unit.identity);
+    this.mentionKeysOf.delete(unit.identity);
+    for (const r of unit.relations) for (const stamp of r.stamps ?? []) this.byStamp.delete(stamp.seq);
   }
 
   /**
    * The relation a stamp belongs to. A relation cannot be named but its stamps can, so
-   * this is how a `source` is followed back (memory-spec Part 4.4). A scan for now; the
-   * time index replaces it.
+   * this is how a `source` is followed back (memory-spec Part 4.4). O(1) through the time
+   * index (Part 9.1), no longer a scan of every unit.
    */
-  findStamp(seq: number): { identity: string; relation: Relation; stamp: Stamp } | undefined {
-    for (const unit of this.units.values()) {
-      for (const relation of unit.relations) {
-        const stamp = relation.stamps?.find((s) => s.seq === seq);
-        if (stamp) return { identity: unit.identity, relation, stamp };
-      }
+  findStamp(seq: number): StampEntry | undefined {
+    return this.byStamp.get(seq);
+  }
+
+  /** Every (unit, relation, stamp) with `recordedAt` in `[from, to]` — the time index. */
+  between(from: string, to: string): StampEntry[] {
+    const out: StampEntry[] = [];
+    for (const entry of this.byStamp.values()) {
+      if (entry.stamp.recordedAt >= from && entry.stamp.recordedAt <= to) out.push(entry);
     }
-    return undefined;
+    return out.sort((a, b) => a.stamp.seq - b.stamp.seq);
+  }
+
+  /**
+   * Every relation mentioning `value` anywhere in its claim or context, at any depth — the
+   * mention index (memory-spec Part 9.1). `value` is keyed the same way as a mention inside
+   * a claim (`mentionKey`): a Concept head, e.g. `GrannySmith()`, or a literal string or
+   * number.
+   */
+  mentioning(value: Expr): Mention[] {
+    const key = mentionKey(value);
+    return key === undefined ? [] : flatten(this.byMention.get(key));
   }
 
   /** Record that a realization was chosen, for the forgetting pass. */
@@ -296,7 +385,7 @@ export class ConceptStore {
 
   /** Triples with this Concept as object — the other direction (concept-spec Part 5.2). */
   asObject(identity: string): Triple[] {
-    return this.byObject.get(identity) ?? [];
+    return flatten(this.byObject.get(identity));
   }
 
   /** Every stored triple. */
@@ -309,6 +398,29 @@ function push<T>(map: Map<string, T[]>, key: string, value: T): void {
   const list = map.get(key);
   if (list) list.push(value);
   else map.set(key, [value]);
+}
+
+/** Add to the bucket for `key`, itself sub-bucketed by the identity that contributed it. */
+function pushBucketed<T>(map: Map<string, Map<string, T[]>>, key: string, identity: string, value: T): void {
+  let bucket = map.get(key);
+  if (!bucket) {
+    bucket = new Map();
+    map.set(key, bucket);
+  }
+  push(bucket, identity, value);
+}
+
+/** Drop one identity's contribution to `key`, in O(1) regardless of who else is in it. */
+function unbucket<T>(map: Map<string, Map<string, T[]>>, key: string, identity: string): void {
+  const bucket = map.get(key);
+  if (!bucket) return;
+  bucket.delete(identity);
+  if (bucket.size === 0) map.delete(key);
+}
+
+/** Every entry under a key, across every identity that contributed one. */
+function flatten<T>(bucket: Map<string, T[]> | undefined): T[] {
+  return bucket ? [...bucket.values()].flat() : [];
 }
 
 function sameRealization(a: Realization, b: Realization): boolean {

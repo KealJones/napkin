@@ -14,6 +14,7 @@ import type { ConceptStore } from "../store/store.js";
 import { memoryIndividualUnits } from "./memory-individuals.js";
 import { memoryBelieveUnits } from "./memory-believe.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
+import { memoryIndexUnits } from "./memory-indexes.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1546,6 +1547,7 @@ add(concept("Day", {
 
 // The relations the grounding layers write (seed/grounding/README.md).
 groundingVocabulary.forEach(add);
+memoryIndexUnits().forEach(add);
 
 export interface SeedReport {
   created: number;
