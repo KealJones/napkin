@@ -45,6 +45,11 @@ export interface TraceEvent {
   endedAt: string | null;
   durationMs: number | null;
   externalExchanges: ExternalExchange[];
+  /**
+   * The `seq` of the `Said` stamp of the turn this ran in, so the trace joins to memory
+   * without a second copy of the parse (memory-spec Part 13). Null outside a turn.
+   */
+  saidSeq: number | null;
 }
 
 export interface EvaluationTrace {
@@ -70,9 +75,20 @@ export class Trace {
   private next = 0;
   private readonly listeners = new Set<TraceListener>();
   private readonly startedAt = new Date().toISOString();
+  private saidSeq: number | null = null;
 
   constructor(traceId = `t${Date.now().toString(36)}`) {
     this.traceId = traceId;
+  }
+
+  /** Every event from here on belongs to the turn whose `Said` has this stamp. */
+  said(seq: number | null): void {
+    this.saidSeq = seq;
+  }
+
+  /** The `Said` stamp this turn answers, as the `source` for anything it asserts. */
+  get cause(): number | undefined {
+    return this.saidSeq ?? undefined;
   }
 
   /** Live observation, for the studio. */
@@ -114,6 +130,7 @@ export class Trace {
       endedAt: null,
       durationMs: null,
       externalExchanges: [],
+      saidSeq: this.saidSeq,
     };
     // Depth is not part of the event shape; it is recoverable from parentEventId, and
     // kept here only for the text renderer.

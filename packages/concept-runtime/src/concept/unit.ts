@@ -41,6 +41,25 @@ export interface Realization {
 export interface Relation {
   readonly claim: Expr;
   readonly context?: Expr;
+  /**
+   * One per assertion, in `seq` order (memory-spec Part 4). Structural, not semantic: the
+   * store writes them and no evaluator rule reads them. A relation built by hand has none
+   * until the store records it.
+   */
+  readonly stamps?: readonly Stamp[];
+}
+
+/**
+ * When the store took a relation in, and what caused it (memory-spec Part 4.2).
+ *
+ * `seq` is store-wide, strictly increasing and never reused, so a stamp can be pointed at
+ * even though a relation cannot be named. `source` is the `seq` of the stamp that caused
+ * this one: a belief points at the `Said` it came from.
+ */
+export interface Stamp {
+  readonly seq: number;
+  readonly recordedAt: string;
+  readonly source?: number;
 }
 
 export interface ConceptUnit {

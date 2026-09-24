@@ -1,13 +1,18 @@
 /**
  * Conversations are Concepts (concept-spec Part 14).
  *
- * Each holds the original message, the parse, and the result, so the record of a
- * conversation is the same kind of thing as everything else and is searchable and
- * traversable the same way. Memory is not "resend the transcript": it is lookup, and only
- * when a parse says a reference needs resolving.
+ * A conversation is an index over what was said, not a container of everything that
+ * happened (memory-spec Part 5.1). Every message is a `Said(speaker, content, text=)`
+ * relation on it: the speaker first, the parse as an expression so it can be found by
+ * what it names, and the verbatim words, since a parse can be wrong and the words are the
+ * only thing a later re-read can start from (Part 5.2). The reply is `Said(Self(), ...)`,
+ * sourced from the stamp of the message it answers.
+ *
+ * Memory is not "resend the transcript": it is lookup, and only when a parse says a
+ * reference needs resolving.
  */
-import { type Expr, c, call, format, isCall } from "../concept/expression.js";
-import { claims, concept } from "../concept/unit.js";
+import { type Expr, c, call, format, isCall, named } from "../concept/expression.js";
+import { claims, concept, type Stamp } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 
 export interface ConversationSummary {
@@ -51,41 +56,88 @@ export class ConversationRepository {
   }
 
   /**
-   * A turn is a relation on the conversation Concept, holding what was said, how it was
-   * parsed, and what came back.
+   * A message has arrived. Its stamp is taken now, before it is read, so everything reading
+   * it causes (the trace, anything learned) can point at it. Pass it to `record`.
    */
-  record(id: string, turn: { message: string; parsed?: string; result?: string; spoken?: string }): void {
-    if (!this.store.has(id)) this.store.seed(concept(id, { relations: [c("IsA", c("Conversation"))] }));
-    this.store.addRelation(
-      id,
-      call("HasTurn", [
-        { name: "at", value: new Date().toISOString() },
-        { name: "message", value: turn.message },
-        { name: "parsed", value: turn.parsed ?? "" },
-        { name: "result", value: turn.result ?? "" },
-        { name: "spoken", value: turn.spoken ?? "" },
-      ]),
-    );
+  receive(): Stamp {
+    return this.store.reserve();
   }
 
+  /**
+   * One exchange: what the user said, and what came back, sourced from it.
+   *
+   * `parsed` is the reading as an expression. With no reading the words stand in for it,
+   * so an unreadable message is still recorded as said.
+   */
+  record(
+    id: string,
+    turn: { message: string; parsed?: Expr; result?: Expr | string; spoken?: string; heard?: Stamp },
+  ): { said: Stamp; reply: Stamp } {
+    if (!this.store.has(id)) this.store.seed(concept(id, { relations: [c("IsA", c("Conversation"))] }));
+    const said = this.store.addRelation(id, saidBy("Me", turn.parsed ?? turn.message, turn.message), undefined, turn.heard);
+    const reply = this.store.addRelation(
+      id,
+      saidBy("Self", turn.result ?? "", turn.spoken ?? ""),
+      undefined,
+      said.seq,
+    );
+    return { said, reply };
+  }
+
+  /**
+   * The exchanges, in the order they happened.
+   *
+   * A relation said twice holds two stamps (memory-spec Part 4.3), so this reads
+   * (relation, stamp) pairs in `seq` order, not relations. A reply belongs to the message
+   * its stamp is sourced from.
+   */
   turns(id: string): Turn[] {
     const unit = this.store.get(id);
-    const out: Turn[] = [];
-    for (const { claim: relation } of unit?.relations ?? []) {
-      if (!isCall(relation) || relation.head !== "HasTurn") continue;
-      const field = (name: string): string => {
-        const found = relation.args.find((a) => a.name === name)?.value;
-        return typeof found === "string" ? found : "";
-      };
-      out.push({
-        at: field("at"),
-        message: field("message"),
-        parsed: field("parsed"),
-        result: field("result"),
-        spoken: field("spoken"),
-      });
+    const said: { seq: number; at: string; speaker: string; content: Expr; text: string; source?: number }[] = [];
+    const legacy: { seq: number; turn: Turn }[] = [];
+    for (const { claim, stamps = [] } of unit?.relations ?? []) {
+      if (!isCall(claim)) continue;
+      if (claim.head === "HasTurn") {
+        legacy.push({ seq: stamps[0]?.seq ?? 0, turn: hasTurn(claim) });
+        continue;
+      }
+      if (claim.head !== "Said") continue;
+      const speaker = claim.args[0]?.value;
+      const content = claim.args[1]?.value;
+      const text = named(claim, "text");
+      if (!isCall(speaker) || content === undefined) continue;
+      for (const stamp of stamps) {
+        said.push({
+          seq: stamp.seq,
+          at: stamp.recordedAt,
+          speaker: speaker.head,
+          content,
+          text: typeof text === "string" ? text : "",
+          ...(stamp.source === undefined ? {} : { source: stamp.source }),
+        });
+      }
     }
-    return out;
+    const replies = new Map(said.filter((s) => s.speaker === "Self" && s.source !== undefined).map((s) => [s.source!, s]));
+    const out = [
+      ...legacy,
+      ...said
+        .filter((s) => s.speaker !== "Self")
+        .map((s) => {
+          const reply = replies.get(s.seq);
+          return {
+            seq: s.seq,
+            turn: {
+              at: s.at,
+              message: s.text,
+              // Words standing in for a reading were never parsed.
+              parsed: typeof s.content === "string" ? "" : format(s.content),
+              result: reply === undefined ? "" : typeof reply.content === "string" ? reply.content : format(reply.content),
+              spoken: reply?.text ?? "",
+            },
+          };
+        }),
+    ];
+    return out.sort((a, b) => a.seq - b.seq).map((x) => x.turn);
   }
 
   listActive(): ConversationSummary[] {
@@ -138,6 +190,24 @@ export interface Turn {
   readonly parsed: string;
   readonly result: string;
 }
+
+const saidBy = (speaker: string, content: Expr, text: string): Expr =>
+  call("Said", [{ value: c(speaker) }, { value: content }, { name: "text", value: text }]);
+
+/** A turn written before `Said`, when one relation held the whole exchange as strings. */
+const hasTurn = (relation: Expr): Turn => {
+  const field = (name: string): string => {
+    const found = named(relation, name);
+    return typeof found === "string" ? found : "";
+  };
+  return {
+    at: field("at"),
+    message: field("message"),
+    parsed: field("parsed"),
+    result: field("result"),
+    spoken: field("spoken"),
+  };
+};
 
 const startedAt = (relations: readonly Expr[]): string | undefined => {
   for (const r of relations) {

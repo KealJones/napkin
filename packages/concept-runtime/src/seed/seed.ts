@@ -132,7 +132,7 @@ add(
             // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
             // which is its own pattern filed as a fact, and it stuck in the graph.
             if (!claim || !claim.head || claim.head === identity) continue;
-            api.store.addRelation(identity, claim, where);
+            api.store.addRelation(identity, claim, where, api.trace.cause);
           }
 
           // Realizations are behaviour, so they are saved too — a Concept taught with

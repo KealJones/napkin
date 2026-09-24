@@ -34,6 +34,8 @@ export interface Gap {
 
 export interface TurnResult {
   readonly heard: EarsResult;
+  /** The reading, as an expression, which is what memory records (memory-spec Part 5.2). */
+  readonly expression: Expr | undefined;
   readonly parsed: string | undefined;
   /** References the parser marked, and what memory resolved them to. */
   readonly resolved: { reference: string; to: string }[];
@@ -345,6 +347,7 @@ export async function turn(
   if (!heard.expression) {
     return {
       heard,
+      expression: undefined,
       parsed: undefined,
       resolved: [],
       result: undefined,
@@ -444,6 +447,7 @@ export async function turn(
 
   return {
     heard,
+    expression,
     parsed: format(expression),
     resolved,
     result,

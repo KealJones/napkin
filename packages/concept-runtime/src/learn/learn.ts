@@ -53,7 +53,7 @@ export function fromGraph(runtime: Runtime, identity: string): string | undefine
   // to lend. Forwarding to something that only forwards back is how Hi and Hello ended up
   // pointing at each other until the depth budget stopped them.
   if (!forwardSynonym(runtime.store, identity, realizable.identity)) return undefined;
-  runtime.store.addRelation(identity, c("SynonymOf", c(realizable.identity)));
+  runtime.store.addRelation(identity, c("SynonymOf", c(realizable.identity)), undefined, runtime.trace.cause);
   return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 

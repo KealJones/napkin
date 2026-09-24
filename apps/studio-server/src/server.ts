@@ -11,6 +11,7 @@ import { dirname, extname, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
+  appendTrace,
   c,
   ConceptStore,
   ConversationRepository,
@@ -47,6 +48,8 @@ import {
 } from "@napkin/concept-runtime";
 
 const graphPath = resolve(process.env.NAPKIN_GRAPH ?? resolve(homedir(), ".napkin/graph.json"));
+// The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
+const tracePath = resolve(dirname(graphPath), "trace.jsonl");
 const port = Number(process.env.NAPKIN_PORT ?? 4173);
 const clientBuildPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../studio-client/dist");
 
@@ -255,8 +258,13 @@ function saveEdited(identity: string, body: Record<string, unknown>) {
     (existing?.realizations ?? []).map((r) => `${format(r.pattern)}|${r.context ? format(r.context) : ""}|${format(r.body)}`),
   );
   if (Array.isArray(body.relations)) {
+    // The editor sends every relation back. Only a new one is an assertion; re-adding the
+    // rest would stamp them all as said again.
+    const held = new Set((existing?.relations ?? []).filter((r) => r.context === undefined).map((r) => format(r.claim)));
     for (const relation of body.relations) {
-      if (typeof relation === "string" && relation.trim()) store.addRelation(identity, parse(relation));
+      if (typeof relation !== "string" || !relation.trim()) continue;
+      const claim = parse(relation);
+      if (!held.has(format(claim))) store.addRelation(identity, claim);
     }
   }
   if (!store.has(identity)) store.seed(concept(identity));
@@ -316,6 +324,9 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
   };
 
   const runtime = new Runtime(store);
+  // Heard before it is read, so the trace and anything learned point at it.
+  const heard = conversations.receive();
+  runtime.trace.said(heard.seq);
   const events: TraceEvent[] = [];
   // Live observation: every step reaches the client as it happens.
   const unlisten = runtime.trace.listen((event) => {
@@ -357,11 +368,15 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
 
     conversations.record(conversationId, {
       message: body.text,
-      ...(result.parsed === undefined ? {} : { parsed: result.parsed }),
-      result: result.rendered,
+      ...(result.expression === undefined ? {} : { parsed: result.expression }),
+      result: result.result ?? result.rendered,
       spoken: result.spoken,
+      heard,
     });
-    if (conversationId.startsWith("Conversation_")) save(store, graphPath);
+    if (conversationId.startsWith("Conversation_")) {
+      save(store, graphPath);
+      appendTrace(tracePath, events);
+    }
 
     const traceId = `t${traces.length + 1}-${Date.now()}`;
     traces.unshift({

@@ -7,7 +7,7 @@
  * what lets a symmetric relation be derived for Emmy without being stored twice.
  */
 import { type Expr, isCall, format, equal } from "../concept/expression.js";
-import type { ConceptUnit, Realization, Relation } from "../concept/unit.js";
+import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
 
 /** Same claim AND same context. Differing on either makes it a separate assertion. */
 const sameRelation = (a: Relation, b: Relation): boolean =>
@@ -38,6 +38,44 @@ export class ConceptStore {
   private readonly byObject = new Map<string, Triple[]>();
   /** When each realization was last chosen. Forgetting needs this, and nothing else does. */
   private readonly lastSelected = new Map<string, number>();
+  /** The next stamp's `seq`. Store-wide and never reused (memory-spec Part 4.2). */
+  private nextSeq = 1;
+
+  /** The `seq` the next stamp will get, so a snapshot can resume the count. */
+  get sequence(): number {
+    return this.nextSeq;
+  }
+
+  /** Never count backwards past a saved sequence, even if its last stamps are gone. */
+  resume(sequence: number): void {
+    if (sequence > this.nextSeq) this.nextSeq = sequence;
+  }
+
+  /**
+   * A stamp taken now and attached later. A message is heard before it is read, and what
+   * reading it causes has to point at it, so its `seq` is fixed on arrival and lower than
+   * every effect's.
+   */
+  reserve(source?: number): Stamp {
+    return this.stamp(source);
+  }
+
+  private stamp(source?: number): Stamp {
+    const seq = this.nextSeq++;
+    const recordedAt = new Date().toISOString();
+    return source === undefined ? { seq, recordedAt } : { seq, recordedAt, source };
+  }
+
+  /**
+   * A relation keeps the stamps it arrived with, so a loaded graph keeps its history, and
+   * the count moves past them so no `seq` is handed out twice. One that has none is being
+   * recorded now.
+   */
+  private withStamps(r: Relation): Relation {
+    if (!r.stamps?.length) return { ...r, stamps: [this.stamp()] };
+    for (const s of r.stamps) if (s.seq >= this.nextSeq) this.nextSeq = s.seq + 1;
+    return r;
+  }
 
   get(identity: string): ConceptUnit | undefined {
     return this.units.get(identity);
@@ -63,14 +101,15 @@ export class ConceptStore {
   seed(unit: ConceptUnit): { created: boolean; addedRelations: number; addedRealizations: number } {
     const existing = this.units.get(unit.identity);
     if (!existing) {
-      this.put(unit);
+      this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r)) });
       return { created: true, addedRelations: unit.relations.length, addedRealizations: unit.realizations.length };
     }
+    // Seeding again is not asserting again, so a relation already held gains no stamp.
     const relations = [...existing.relations];
     let addedRelations = 0;
     for (const r of unit.relations) {
       if (!relations.some((x) => sameRelation(x, r))) {
-        relations.push(r);
+        relations.push(this.withStamps(r));
         addedRelations += 1;
       }
     }
@@ -100,8 +139,14 @@ export class ConceptStore {
    * The same claim in a different context is a different relation, not a duplicate. That
    * is the entire point: `IsA(Instant())` under `Time()` and `IsA(MusicSingle())` under
    * `Music()` must coexist, and so must one claim asserted both generally and contextually.
+   *
+   * Asserting a claim already held adds a stamp to it rather than a second copy
+   * (memory-spec Part 4.3): for a lasting fact that is reinforcement, for a happening that
+   * recurs it is one more occurrence. `source` is the `seq` of the stamp that caused this
+   * assertion, or a stamp already reserved for it. Returns the stamp, so the caller can
+   * source what it causes next.
    */
-  addRelation(identity: string, claim: Expr | Relation, context?: Expr): void {
+  addRelation(identity: string, claim: Expr | Relation, context?: Expr, cause?: number | Stamp): Stamp {
     const added: Relation =
       typeof claim === "object" && claim !== null && "claim" in claim
         ? claim
@@ -109,8 +154,14 @@ export class ConceptStore {
           ? { claim }
           : { claim, context };
     const existing = this.units.get(identity) ?? { identity, relations: [], realizations: [] };
-    if (existing.relations.some((x) => sameRelation(x, added))) return;
-    this.put({ ...existing, relations: [...existing.relations, added] });
+    const stamp = typeof cause === "object" ? cause : this.stamp(cause);
+    const at = existing.relations.findIndex((x) => sameRelation(x, added));
+    const relations =
+      at < 0
+        ? [...existing.relations, { ...added, stamps: [stamp] }]
+        : existing.relations.map((r, i) => (i === at ? { ...r, stamps: [...(r.stamps ?? []), stamp] } : r));
+    this.put({ ...existing, relations });
+    return stamp;
   }
 
   private put(unit: ConceptUnit): void {
@@ -144,6 +195,21 @@ export class ConceptStore {
       if (kept.length) this.byObject.set(key, kept);
       else this.byObject.delete(key);
     }
+  }
+
+  /**
+   * The relation a stamp belongs to. A relation cannot be named but its stamps can, so
+   * this is how a `source` is followed back (memory-spec Part 4.4). A scan for now; the
+   * time index replaces it.
+   */
+  findStamp(seq: number): { identity: string; relation: Relation; stamp: Stamp } | undefined {
+    for (const unit of this.units.values()) {
+      for (const relation of unit.relations) {
+        const stamp = relation.stamps?.find((s) => s.seq === seq);
+        if (stamp) return { identity: unit.identity, relation, stamp };
+      }
+    }
+    return undefined;
   }
 
   /** Record that a realization was chosen, for the forgetting pass. */
