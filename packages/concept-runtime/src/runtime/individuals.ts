@@ -12,7 +12,8 @@
  * over the parse that is about to become a `Said` (memory-spec Part 8.3), and what it found
  * is recorded in place, on the head itself, the same way a resolved `Ref` is.
  */
-import { type Expr, call, c, isCall } from "../concept/expression.js";
+import { type Expr, call, c, isCall, walk } from "../concept/expression.js";
+import { activation, type ActivationOptions } from "./activation.js";
 import type { ConceptStore } from "../store/store.js";
 import { objectKey } from "../store/store.js";
 
@@ -131,44 +132,32 @@ export function forSaying(store: ConceptStore, e: Expr): Expr {
 const PRONOUNS = new Set(["He", "She", "Him", "Her"]);
 
 /**
- * "what does he like": a third-person pronoun points at the individual talked about last,
- * found through the time index in what was said recently and recorded in place, once, the
- * way a name is (memory-spec Part 8.3). The user is never "he". With nobody recent it stays
- * as said.
+ * "what does he like": a third-person pronoun points at the most active individual
+ * (memory-spec Part 8.2 step 3), recorded in place, once, the way a name is (Part 8.3).
+ * Activation ranks the candidates: recency and frequency of use, plus spread from what the
+ * message itself names (`emergent-judgment-plan.md` Part 3.3). A dormant individual is no
+ * candidate at all (Part 10.2), though its name still finds it. The user is never "he". With
+ * nobody active it stays as said.
  */
-export function resolvePronouns(store: ConceptStore, expression: Expr, withinMs = 30 * 60_000): Expr {
-  const now = new Date();
-  const recent = store.between(new Date(now.getTime() - withinMs).toISOString(), now.toISOString()).reverse();
-  let latest: string | undefined;
-  const find = (e: Expr): void => {
-    if (latest || !isCall(e)) return;
-    const to = e.args.find((a) => a.name === "resolvedTo")?.value;
-    if (to !== undefined && isCall(to) && e.head !== "Ref") {
-      latest = to.head;
-      return;
-    }
-    for (const a of e.args) find(a.value);
-  };
-  // A minted individual something was just recorded about ("greg is my coworker" stamps
-  // Greg_1), or one a recent message named. Not the user, and not the system.
+export function resolvePronouns(store: ConceptStore, expression: Expr, options: ActivationOptions = {}): Expr {
+  // A minted individual, not the user, and not the system.
   const minted = (identity: string): boolean =>
     /_\d+$/.test(identity) &&
     !store.asSubject(identity).some((t) => t.predicate === "IsA" && t.object !== undefined && isCall(t.object) && t.object.head === "User");
-  for (const entry of recent) {
-    if (minted(entry.identity)) latest = entry.identity;
-    else if (isCall(entry.relation.claim) && entry.relation.claim.head === "Said") find(entry.relation.claim);
-    if (latest) break;
-  }
+  const among = store.all().map((u) => u.identity).filter(minted);
+  if (!among.length) return expression;
+  const named = [...walk(expression)].filter(isCall).map((e) => e.head).filter((h) => !PRONOUNS.has(h) && store.has(h));
+  const latest = activation(store, named, { ...options, among }).find((a) => !a.dormant)?.identity;
   if (!latest) return expression;
-  const walk = (e: Expr): Expr => {
+  const point = (e: Expr): Expr => {
     if (!isCall(e)) return e;
     const pointing =
       (PRONOUNS.has(e.head) && e.args.length === 0) ||
       (e.head === "Ref" && e.args.length === 1 && typeof e.args[0].value === "string" && /^(he|she|him|her)$/i.test(e.args[0].value));
     if (pointing) return call(e.head, [...e.args, { name: "resolvedTo", value: c(latest!) }]);
-    return call(e.head, e.args.map((a) => ({ ...a, value: walk(a.value) })));
+    return call(e.head, e.args.map((a) => ({ ...a, value: point(a.value) })));
   };
-  return walk(expression);
+  return point(expression);
 }
 
 const spokenName = (head: string): string => head.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();

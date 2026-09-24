@@ -11,6 +11,7 @@ import { dirname, resolve } from "node:path";
 import { c, format, parse } from "./concept/expression.js";
 import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
+import { activation } from "./runtime/activation.js";
 import { evidenceStoreFor } from "./runtime/evidence.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
@@ -206,6 +207,24 @@ if (flag("--evidence")) {
   process.exit(0);
 }
 
+// Activation from these sources, with the path that reached each (memory-spec Part 10.1,
+// emergent-judgment-plan.md Part 3.3), over the graph and the persisted trace.
+if (flag("--activate")) {
+  const skip = new Set(["--graph", "--limit"].map(value));
+  const sources = args.slice(args.indexOf("--activate") + 1).filter((a) => !a.startsWith("--") && !skip.has(a));
+  if (!sources.length) {
+    console.error("napkin --activate <Concept...>     ranked activation with paths, e.g. napkin --activate Jam Sell");
+    process.exit(1);
+  }
+  const ranked = activation(store, sources, { events: evidenceStoreFor(tracePath).all() });
+  const lines = ranked.slice(0, Number(value("--limit") ?? 20)).map((a) => {
+    const path = a.path.map((id, i) => (i === 0 ? id : `-${a.via[i - 1]}-> ${id}`)).join(" ");
+    return `${a.activation.toFixed(2).padStart(7)}  ${a.identity.padEnd(24)} ${path}${a.dormant ? "  (dormant)" : ""}`;
+  });
+  show(`activation from ${sources.join(" + ")}`, lines.join("\n") || "nothing reached");
+  process.exit(0);
+}
+
 if (expr) {
   const parsed = parse(expr);
   const result = await runtime.evaluate(parsed, context);
@@ -256,6 +275,7 @@ if (expr) {
   napkin --import src/thing.ts          read TypeScript as Concept expressions
   napkin --agenda                       what it would work on next, unprompted
   napkin --evidence Multiply            counts by context, from the persisted trace
+  napkin --activate Jam Sell            what lights up from these, ranked, with paths
   napkin --exist                        work on that agenda, bounded by --budget
   napkin --forget                       what would be forgotten (--commit to apply)
   napkin --seed                         seed a graph and report

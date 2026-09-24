@@ -20,6 +20,7 @@ import { memoryForgetUnits } from "./memory-forget.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 import { judgmentEvidenceUnits } from "./judgment-evidence.js";
+import { memoryActivationUnits } from "./memory-activation.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1699,6 +1700,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, everydayUnits(), report);
   applyUnits(store, memoryForgetUnits(), report); // memory-spec Part 10.5
   applyUnits(store, judgmentEvidenceUnits(), report); // emergent-judgment-plan Phase 0
+  applyUnits(store, memoryActivationUnits(), report); // memory-spec Part 18 step 7
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;
 }
