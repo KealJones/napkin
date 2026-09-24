@@ -105,12 +105,20 @@ test("cells hold state without breaking single assignment", async () => {
   assert.equal(await run("Let($c, Cell(1), Sequence(Set($c, Add(Get($c), 41)), Get($c)))"), "42");
 });
 
-test("budgets stop runaway evaluation", async () => {
+test("budgets stop runaway evaluation, and an exact cycle stops at once", async () => {
   const store = new ConceptStore();
   seed(store);
+  // A call needing itself, unchanged, is a cycle: it stays residual in one step.
   store.seed(concept("Loop", { realizations: [realization({ pattern: "Loop()", body: parse("Loop()") })] }));
+  // Two forwardings into each other, the shape a Teacher left in a real graph.
+  store.seed(concept("Want", { realizations: [realization({ pattern: "Want($x)", body: parse("Wish($x)") })] }));
+  store.seed(concept("Wish", { realizations: [realization({ pattern: "Wish($x)", body: parse("Want($x)") })] }));
   const rt = new Runtime(store, { maximumDepth: 20 });
-  await assert.rejects(() => rt.evaluate(parse("Loop()"), EXEC), /BudgetExceeded|budget/i);
+  assert.equal(format(await rt.evaluate(parse("Loop()"), EXEC)), "Loop()");
+  assert.match(format(await new Runtime(store, { maximumDepth: 20 }).evaluate(parse("Want(Pie())"), EXEC)), /^(Want|Wish)\(Pie\(\)\)$/);
+  // Recursion that grows is not a cycle, and the depth budget still stops it.
+  store.seed(concept("Grow", { realizations: [realization({ pattern: "Grow($x)", body: parse("Grow(Grow($x))") })] }));
+  await assert.rejects(() => new Runtime(store, { maximumDepth: 20 }).evaluate(parse("Grow(1)"), EXEC), /BudgetExceeded|budget/i);
 });
 
 /* ---------------- context ---------------- */

@@ -150,6 +150,7 @@ export class Runtime {
     this.steps = 0;
     this.ambiguities.length = 0;
     this.forwarding.length = 0;
+    this.active.clear();
     this.mark = this.trace.mark();
   }
 
@@ -157,7 +158,36 @@ export class Runtime {
     return this.run(expression, context, "Entry", undefined, 0);
   }
 
+  /**
+   * Calls being evaluated right now, each with its context. A call that, to be evaluated,
+   * needs the identical call in the identical context is a cycle, not a computation: a
+   * Teacher taught Wish to forward to Want where Want already forwarded to Wish, and every
+   * "want" ran to the depth budget. The inner one stays residual, which is the honest
+   * outcome, and the loop costs one step instead of sixty-four.
+   */
+  private readonly active = new Set<string>();
+
   private async run(
+    expression: Expr,
+    context: Expr | undefined,
+    caller: string,
+    parent: string | undefined,
+    depth: number,
+  ): Promise<Expr> {
+    if (expression === null || typeof expression !== "object" || isVariable(expression)) {
+      return this.step(expression, context, caller, parent, depth);
+    }
+    const key = `${format(expression)}@${context === undefined ? "" : format(context)}`;
+    if (this.active.has(key)) return expression;
+    this.active.add(key);
+    try {
+      return await this.step(expression, context, caller, parent, depth);
+    } finally {
+      this.active.delete(key);
+    }
+  }
+
+  private async step(
     expression: Expr,
     context: Expr | undefined,
     caller: string,
