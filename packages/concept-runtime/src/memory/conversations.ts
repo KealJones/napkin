@@ -164,6 +164,11 @@ export class ConversationRepository {
    */
   closeIsolated(id: string): boolean {
     if (!id.startsWith(ISOLATED) || !this.store.has(id)) return false;
+    // The words go; what they caused stays, honestly attributed to an isolated conversation
+    // rather than left pointing at stamps that no longer exist (memory-spec Part 12).
+    const said = new Set((this.store.get(id)?.relations ?? []).flatMap((r) => (r.stamps ?? []).map((st) => st.seq)));
+    const isolated = this.store.addRelation("Isolated", c("Closed"));
+    this.store.resource(said, isolated.seq);
     this.store.forgetConcept(id);
     return true;
   }

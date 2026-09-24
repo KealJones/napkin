@@ -382,6 +382,32 @@ export class ConceptStore {
    * Remove a Concept outright. Used only for an isolated conversation, whose transcript
    * is deliberately not kept — knowledge is never removed this way.
    */
+  /**
+   * Point every stamp caused by one of `from` at `to` instead. Used when what caused them is
+   * about to go but what they record stays: an isolated conversation's words are discarded,
+   * the beliefs they caused are kept and attributed to `Isolated()` (memory-spec Part 12).
+   */
+  resource(from: ReadonlySet<number>, to: number): number {
+    const touched = new Set<string>();
+    for (const entry of this.byStamp.values()) {
+      if (entry.stamp.source !== undefined && from.has(entry.stamp.source)) touched.add(entry.identity);
+    }
+    let moved = 0;
+    for (const identity of touched) {
+      const unit = this.units.get(identity)!;
+      const relations = unit.relations.map((r) => ({
+        ...r,
+        stamps: (r.stamps ?? []).map((st) => {
+          if (st.source === undefined || !from.has(st.source)) return st;
+          moved += 1;
+          return { ...st, source: to };
+        }),
+      }));
+      this.put({ ...unit, relations });
+    }
+    return moved;
+  }
+
   forgetConcept(identity: string): boolean {
     const unit = this.units.get(identity);
     if (!unit) return false;

@@ -200,3 +200,22 @@ test("a second line keeps what its names resolved to", async () => {
   assert.equal(emmys.length, 1, "the same Emmy, not a second one");
   assert.ok(holds(store, emmys[0]).includes("IsA(Nurse())"));
 });
+
+test("closing an isolated conversation drops its words and keeps what they taught, sourced from Isolated", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const conversations = new ConversationRepository(store);
+  const { id } = conversations.create(false);
+  const runtime = new Runtime(store);
+  const heard = conversations.receive();
+  runtime.trace.said(heard.seq);
+  const r = await turn(runtime, "greg likes cats", c("Execution"), { backend: "rules", learn: false, speak: false });
+  conversations.record(id, { message: "greg likes cats", ...(r.expression ? { parsed: r.expression } : {}), heard });
+  const greg = store.asObject(format("Greg")).find((t) => t.predicate === "Named")!.subject;
+
+  assert.ok(conversations.closeIsolated(id));
+  assert.ok(!store.has(id), "the words are gone");
+  const likes = store.get(greg)!.relations.find((x) => format(x.claim) === "Likes(Cats())")!;
+  const source = store.findStamp(likes.stamps![0].source!);
+  assert.equal(source?.identity, "Isolated", "learned in an isolated conversation");
+});
