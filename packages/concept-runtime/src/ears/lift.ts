@@ -366,6 +366,8 @@ const POINTS = /\b(it|its|this|that|these|those|him|her|them|they|he|she|one|one
  */
 function mendRef(text: string): Expr | null | undefined {
   const t = text.trim();
+  // Nothing said: an elided operand ("and plus 3"), which points at the last answer.
+  if (t === "") return undefined;
   if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
   if (/^(a|an|the)$/i.test(t)) return null;
   const indefinite = /^(a|an)\s+([a-z]+)$/i.exec(t);

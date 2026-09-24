@@ -170,3 +170,22 @@ test("a turn's Said, what it taught, and its trace form one source chain", () =>
     assert.ok(stored.length > 0);
     assert.ok(stored.every((e) => e.saidSeq === heard.seq));
   }));
+
+test("a follow-up with no left operand answers from the last answer", async () => {
+  const { seed } = await import("../seed/seed.js");
+  const { turn } = await import("../runtime/turn.js");
+  const store = new ConceptStore();
+  seed(store);
+  const conversations = new ConversationRepository(store);
+  const { id } = conversations.create();
+  const ask = async (text: string) => {
+    const runtime = new Runtime(store);
+    const history = conversations.turns(id).map((t) => ({ message: t.message, result: t.result, spoken: t.spoken }));
+    const r = await turn(runtime, text, c("Execution"), { backend: "rules", learn: false, speak: false, history });
+    conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered });
+    return r.rendered;
+  };
+  assert.equal(await ask("what is 12 times 7"), "Answer(84)");
+  assert.equal(await ask("and plus 3?"), "87");
+  assert.equal(await ask("times that by 2"), "174");
+});

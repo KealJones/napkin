@@ -13,7 +13,7 @@
  * owning words wrap; an amount is its unit around its number; a clock time is a reading.
  */
 import nlp from "compromise";
-import { type Expr, c, format } from "../../concept/expression.js";
+import { type Expr, c, format, isCall } from "../../concept/expression.js";
 import { correct, expandBare, isWord, unclear } from "./words.js";
 import { mathSpans } from "./math.js";
 import { namesOneThing } from "./names.js";
@@ -171,6 +171,10 @@ function nounPhrase(r: Reader, subject = false, stopAtVerb = false): Expr {
     return c("MarkFuzzy", h, nounPhrase(r, subject, stopAtVerb));
   }
   let first = simpleNounPhrase(r, subject, stopAtVerb);
+  // "that plus 3", "it times 2": an operator after a pointing word works on what it points at.
+  if (isCall(first) && first.head === "Ref" && INFIX[r.word()] && (r.is("Value", 1) || NUMBER_WORD.test(r.word(1)))) {
+    first = c(INFIX[r.next().word], first, nounPhrase(r));
+  }
   // "the weights, er the scores", "3, er, 4pm": the speaker takes back their own word.
   while (r.toks[r.i - 1]?.comma && /^(er|erm|um|uh|sorry)$/.test(r.word()) || (r.toks[r.i - 1]?.comma && r.word() === "i" && r.word(1) === "mean")) {
     if (r.next().word === "i") r.next();
@@ -919,6 +923,30 @@ function clauseAt(r: Reader, out: { e: Expr; kind?: Kind }[]): "stop" | undefine
     const next = clause(r);
     out.push({ e: c(joiner, next.e), ...(next.kind ? { kind: next.kind } : {}) });
     return;
+  }
+  // "and plus 3?", "now times 2", "times that by 2": an operator with nothing said before it
+  // works on the last answer. What it works on is a reference nobody put into words,
+  // `Ref("")`, which memory resolves the way it resolves "it". Asking for the value, so the
+  // mood is a question whatever the punctuation.
+  const lead = /^(and|now|then)$/.test(r.word()) && INFIX[r.word(1)] ? 1 : 0;
+  if (INFIX[r.word(lead)] && (r.is("Value", lead + 1) || NUMBER_WORD.test(r.word(lead + 1)) || POINTING.has(r.word(lead + 1)))) {
+    const at = r.i;
+    r.i += lead;
+    const op = INFIX[r.next().word];
+    try {
+      if (POINTING.has(r.word())) {
+        const target = nounPhrase(r);
+        if (r.word() === "by") r.next();
+        out.push({ e: c(op, target, nounPhrase(r)), kind: "Interrogative" });
+      } else {
+        out.push({ e: c(op, c("Ref", ""), nounPhrase(r)), kind: "Interrogative" });
+      }
+      if (r.done()) return "stop";
+      return;
+    } catch (error) {
+      if (!(error instanceof Unparsed)) throw error;
+      r.i = at;
+    }
   }
   // A phrase with no verb at all: "in 12 hour format?", a follow-up to what came before.
   if (PREP.has(r.word()) && r.word() !== "like") {

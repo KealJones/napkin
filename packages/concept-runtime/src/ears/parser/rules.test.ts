@@ -149,3 +149,11 @@ test("a phrasal verb is one verb, and an embedded question reads like a plain on
   assert.equal(read("what 17 times 3 is?"), "WhatIs(Times(17, 3))");
   assert.equal(lines("hi"), "Hi()", "a greeting alone is said, not filler");
 });
+
+test("an operator with nothing before it works on the last answer, and one after a pointing word on what it points at", () => {
+  assert.equal(lines("and plus 3?"), 'Mood(Interrogative(), Plus(Ref(""), 3))');
+  assert.equal(lines("and minus 1"), 'Mood(Interrogative(), Minus(Ref(""), 1))');
+  assert.equal(read("times that by 2"), 'Times(Ref("that"), 2)');
+  assert.equal(read("what is that plus 3"), 'WhatIs(Plus(Ref("that"), 3))');
+  assert.equal(read("5 plus 3"), "Plus(5, 3)", "two values are unchanged");
+});
