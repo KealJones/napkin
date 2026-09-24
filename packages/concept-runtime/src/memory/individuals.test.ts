@@ -122,8 +122,8 @@ test("two matches is surfaced as an ambiguity and nothing is guessed", () => {
   store.seed({ identity: "Greg_2", relations: [{ claim: parse('Named("Greg")') }], realizations: [] });
   const ambiguities: string[] = [];
   const { expression, resolved } = resolveNames(store, parse("Greg(Called())"), ambiguities);
-  // Left as said: the head is untouched, no resolvedTo added, nothing picked.
-  assert.equal(format(expression), "Greg(Called())");
+  // Nothing picked: no resolvedTo, only the candidates marked, so the turn asks which.
+  assert.equal(format(expression), "Greg(Called(), ambiguous=List(Greg_1(), Greg_2()))");
   assert.deepEqual(resolved, []);
   assert.equal(ambiguities.length, 1);
   assert.match(ambiguities[0], /Greg.*matched 2/);
