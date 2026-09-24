@@ -914,8 +914,6 @@ Concept(LessThan(),
 
 Concept(Compiled(), IsA(ContextFacet()))
 
-Concept(Compile(), IsA(RealizationProperty()))
-
 Concept(CodePrimitive(), IsA(Category()))
 
 // A function value: stays as it is until called.

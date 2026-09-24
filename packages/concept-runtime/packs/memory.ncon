@@ -69,11 +69,6 @@ Concept(Believed(), IsA(Result()))
 
 Concept(Noted(), IsA(Result()))
 
-// Declared the way Symmetric() is (memory-spec Part 5.3): a property of a relation.
-Concept(Enduring(), IsA(RelationProperty()))
-
-Concept(Occurrent(), IsA(RelationProperty()))
-
 // Lasting by nature. Anything not declared is occurrent: a lasting fact filed as a
 // happening stays findable in its Said, and a happening filed as lasting bloats its
 // subject with nothing ever noticing (Part 5.3).
@@ -97,8 +92,6 @@ Concept(LivesIn(), Enduring(), Functional())
 Concept(WorksAt(), Enduring(), Functional())
 
 Concept(SharesMemesWith(), Enduring())
-
-Concept(Retracts(), Incidental(), Occurrent())
 
 Concept(Conflict(), IsA(Result()))
 

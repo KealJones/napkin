@@ -1,0 +1,391 @@
+// The kernel: every Concept the host code names directly (the evaluator, selection, the
+// compiler, the store and the turn). Everything else is an ordinary pack and optional;
+// this one is what the host cannot run without. A test keeps it that way
+// (code/ncon.test.ts).
+//
+// A Concept can have more to it in other packs: this holds what it is, and memory.ncon or
+// code.ncon may add realizations of their own.
+
+// ------------------------------------------------------------------ *
+// Relation vocabulary. Pure data; the harness never reads these.
+// ------------------------------------------------------------------
+Concept(IsA(), Transitive())
+
+Concept(InverseOf(), Symmetric(), Incidental())
+
+Concept(Disjoint(), Symmetric(), Irreflexive())
+
+// Classified, not bare. A Concept with no relations and no realizations is
+// indistinguishable from an orphan, and Exist would keep trying to "fix" it. Saying what
+// kind of thing it is costs one relation and makes the graph self-describing.
+Concept(Category(), IsA(Category()))
+
+Concept(RelationProperty(), IsA(Category()))
+
+Concept(Symmetric(), IsA(RelationProperty()), Incidental())
+
+Concept(Asymmetric(), IsA(RelationProperty()))
+
+Concept(Transitive(), IsA(RelationProperty()), Incidental())
+
+Concept(Irreflexive(), IsA(RelationProperty()))
+
+Concept(Functional(), IsA(RelationProperty()))
+
+// ------------------------------------------------------------------ *
+// Realization properties, read generically through Suppresses.
+// ------------------------------------------------------------------
+Concept(RealizationProperty(), IsA(Category()))
+
+// ------------------------------------------------------------------ *
+// Context facets.
+// ------------------------------------------------------------------
+Concept(ContextFacet(), IsA(Category()))
+
+Concept(JavaScript(), IsA(TargetLanguage()))
+
+Concept(SupersetOf(), Transitive(), Asymmetric())
+
+// ------------------------------------------------------------------ *
+// The universal parent, and the relations fallback.
+//
+// Presenting a Concept's relations is what answers "what is chess" for anything with
+// relations but no composition. It is deliberately NOT a catch-all realization on
+// `$subject`: a catch-all under a Describe context would match every sub-expression, so
+// nothing would ever be residual and the expansion in concept-spec Part 4.0 would stop
+// working — describing a composed body would swallow the body instead of expanding it.
+//
+// So it is invoked explicitly, by name, on a subject that came back residual.
+// ------------------------------------------------------------------
+// `Concept()` with no arguments is the universal parent; `Concept(identity=..., ...)` is
+// the declaration form the runtime saves. They are distinguished by arity, which patterns
+// already do.
+// Lower-arity declarations, delegating to the full form -- the same idiom Date() uses.
+//
+// A Teacher that runs out of tokens mid-list leaves a declaration salvaged back to its
+// last complete argument, which is often `identity` and `relations` with `realizations`
+// lost off the end. Requiring all three made that a residual, so everything it HAD managed
+// to say was discarded over a field it never got to.
+Concept(Concept(),
+  Realization(Concept(identity=$identity, relations=$relations, realizations=$realizations), evaluateArguments=false, properties=List(Effectful()),
+    body=Code(
+      source="""(args, bindings, api) => {
+          const get = (n) => { const a = args.find((x) => x.name === n); return a ? a.value : undefined; };
+          const identity = get("identity");
+          if (typeof identity !== "string" || !/^[A-Z]/.test(identity)) {
+            return api.call("InvalidDeclaration", identity === undefined ? api.call("Missing") : identity);
+          }
+          const items = (x) => (x && x.head === "List" ? x.args.map((a) => a.value) : x ? [x] : []);
+          // A Teacher told to give a few relations sometimes gives two hundred, listing
+          // whatever the word reminds it of -- Quantity once returned "Jerk Snap Crackle
+          // Pop". The prompt asks; this enforces. Past the cap it is free association,
+          // and every one of them becomes a topic the crawl then goes and studies.
+          const RELATION_CAP = 12;
+          api.store.seed({ identity, relations: [], realizations: [] });
+          // Deduplicate BEFORE capping. A Teacher that loses the thread repeats itself --
+          // "hi" came back with the same relation six times -- and counting the copies
+          // against the cap spends the budget on one claim and rejects the real ones.
+          const asked = [];
+          for (const r of items(get("relations"))) {
+            if (!asked.some((x) => api.format(x) === api.format(r))) asked.push(r);
+          }
+          const relations = asked.slice(0, RELATION_CAP);
+          // "Volcano IsA ElectronicGame": research turns up the game, the film and the band
+          // that share a name, and a small Teacher files them flat beside what the word
+          // means, however the prompt asks. When the word has another category, a work or
+          // a name it shares is a namesake, held in that sense only.
+          // Which categories are such works and names is graph data, on Namesake.
+          const sharesNames = (head) => api.store.asObject(head).some((t) => t.subject === "Namesake" && t.predicate === "Covers");
+          const NAMESAKE = { has: sharesNames };
+          const isA = (r) => r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head;
+          const hasOther = relations.some((r) => isA(r) && !NAMESAKE.has(r.args[0].value.head));
+          for (const r of relations) {
+            if (!r || !r.head) continue;
+            // In(claim, context) says the claim holds only in that sense of the word.
+            // Unwrapped here, because a context is where a relation holds and not part of
+            // what it says.
+            const contextual = r.head === "In" && r.args.length === 2;
+            const claim = contextual ? r.args[0].value : r;
+            const namesake = !contextual && hasOther && isA(r) && NAMESAKE.has(r.args[0].value.head);
+            // "IsA(Volcano())" held "in Volcano()" says nothing: a sense named after the very
+            // thing it claims, which a Teacher writes when it has run out of senses.
+            if (contextual && claim && claim.head === "IsA" && claim.args[0] && r.args[1].value &&
+              api.format(claim.args[0].value) === api.format(r.args[1].value)) continue;
+            const where = contextual ? r.args[1].value : namesake ? api.call("Namesake") : undefined;
+            // A relation naming the Concept it belongs to says nothing: the subject is
+            // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
+            // which is its own pattern filed as a fact, and it stuck in the graph.
+            if (!claim || !claim.head || claim.head === identity) continue;
+            api.store.addRelation(identity, claim, where, api.trace.cause);
+          }
+
+          // Realizations are behaviour, so they are saved too — a Concept taught with
+          // relations alone can be described but never computed.
+          let added = 0;
+          const rejected = [];
+          for (const decl of items(get("realizations"))) {
+            if (!decl || decl.head !== "Realization") continue;
+            const field = (n) => { const a = decl.args.find((x) => x.name === n); return a ? a.value : undefined; };
+            const pattern = field("pattern"), body = field("body"), context = field("context");
+            if (!pattern || !body) { rejected.push(api.call("Incomplete")); continue; }
+            // A taught body must compose Concepts that already exist. Never code, and
+            // never a name the graph has not heard of. A rejection is reported rather
+            // than dropped: the missing names are the next thing to learn.
+            if (body.head === "Code") { rejected.push(api.call("NotComposed", body)); continue; }
+            // A body that leads back to the Concept it defines is a realization that
+            // calls itself, directly or by a detour. A composition-only Teacher has no
+            // business writing recursion: asked to realize Choose it wrote Select, then
+            // realized Select as Choose, and the pair was inert in both directions.
+            const namesIn = (e, acc) => {
+              if (!e || !e.head) return acc;
+              acc.add(e.head);
+              for (const a of e.args) namesIn(a.value, acc);
+              return acc;
+            };
+            const reachesSelf = () => {
+              const seen = new Set();
+              const queue = [...namesIn(body, new Set())];
+              while (queue.length) {
+                const head = queue.shift();
+                if (head === identity) return true;
+                if (seen.has(head)) continue;
+                seen.add(head);
+                const unit = api.store.get(head);
+                if (!unit) continue;
+                for (const r of unit.realizations) {
+                  if (r.body && r.body.head === "Code") continue;
+                  for (const next of namesIn(r.body, new Set())) queue.push(next);
+                }
+              }
+              return false;
+            };
+            if (reachesSelf()) { rejected.push(api.call("SelfReferential", body)); continue; }
+            // A body must reduce to something that can actually run. Renaming Choose to
+            // Select, when Select realizes nothing either, buys a forwarding pointer to a
+            // dead end -- and the Teacher did exactly that, in both directions. Reported
+            // as NeedsFirst so the inert target becomes the next thing to learn.
+            const canAct = (head, seen) => {
+              if (seen.has(head)) return false;
+              seen.add(head);
+              const unit = api.store.get(head);
+              if (!unit) return false;
+              if (unit.realizations.length) return true;
+              for (const { claim: r } of unit.relations) {
+                if (r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head) {
+                  if (canAct(r.args[0].value.head, seen)) return true;
+                }
+              }
+              return false;
+            };
+            const inert = [...new Set([...namesIn(body, new Set())].filter((h) => !canAct(h, new Set())))];
+            if (inert.length) {
+              rejected.push(api.call("NeedsFirst", api.call("List", ...inert.map((h) => api.call(h)))));
+              continue;
+            }
+            const heads = [];
+            (function collect(e) {
+              if (!e || !e.head) return;
+              heads.push(e.head);
+              for (const a of e.args) collect(a.value);
+            })(body);
+            const missing = [...new Set(heads.filter((h) => !api.store.has(h)))];
+            if (missing.length) {
+              rejected.push(api.call("NeedsFirst", api.call("List", ...missing.map((h) => api.call(h)))));
+              continue;
+            }
+            api.store.addRealization(identity, {
+              pattern, body,
+              context: context === undefined ? undefined : context,
+              properties: [],
+              evaluateArguments: true,
+              evaluateResult: false,
+            });
+            added += 1;
+          }
+          if (asked.length > RELATION_CAP) {
+            rejected.push(api.call("TooMany", asked.length - RELATION_CAP));
+          }
+          if (rejected.length) {
+            return api.call("Saved", api.call(identity), added, api.call("Rejected", ...rejected));
+          }
+          return api.call("Saved", api.call(identity), added);
+        }""")),
+  Realization(Concept(identity=$identity, relations=$relations), evaluateArguments=false,
+    body=Concept(identity=$identity, relations=$relations, realizations=List())),
+  Realization(Concept(identity=$identity, realizations=$realizations), evaluateArguments=false,
+    body=Concept(identity=$identity, relations=List(), realizations=$realizations)),
+  Realization(Concept(identity=$identity), evaluateArguments=false,
+    body=Concept(identity=$identity, relations=List(), realizations=List())))
+
+Concept(Forwarding(), IsA(RealizationProperty()))
+
+Concept(Let(),
+  Realization(Let($name, $value, $body), evaluateArguments=false,
+    body=Code(
+      source="""async (args, bindings, api) => {
+          const [nameArg, valueArg, bodyArg] = args;
+          const name = nameArg.value.variable;
+          const value = await api.evaluate(valueArg.value);
+          const bound = new Map([[name, value]]);
+          const substituted = api.substitute(bodyArg.value, bound);
+          return await api.evaluate(substituted);
+        }""")))
+
+Concept(Lambda(), IsA(Data()))
+
+Concept(List(), IsA(Collection()))
+
+Concept(Rest(), IsA(Data()))
+
+Concept(ForeignCode(), IsA(Failure()))
+
+Concept(True(), IsA(TruthValue()))
+
+Concept(False(), IsA(TruthValue()))
+
+// ------------------------------------------------------------------ *
+// Request vocabulary (seed-concepts Part 10).
+//
+// Specified there and never seeded, which left a request with no frame to land in. The
+// Ears reached for whatever word came first instead -- "can you write me a function"
+// became Can(Write(...)), and the loop then set about learning the auxiliary verb "can",
+// discovering among other things that it is a place in Turkey.
+//
+// A frame is not a computation. Do() says the user asked for something to happen rather
+// than asked a question, which is the distinction nothing could previously express.
+// ------------------------------------------------------------------
+
+// ------------------------------------------------------------------ *
+// Frames and modifiers.
+// ------------------------------------------------------------------
+Concept(Frame(), IsA(Category()))
+
+// Politeness. Marked rather than dropped, because the design does not normalise away what
+// was said -- but inert, so it never becomes the thing the system tries to do.
+Concept(Politeness(), IsA(Marker()))
+
+Concept(Marker(), IsA(Category()))
+
+// An unresolved Ref stays residual, deliberately: it should remain visible until
+// something resolves it. Once memory has, the resolved value is what computes.
+Concept(Ref(),
+  IsA(Marker()),
+  Realization(Ref($text, resolvedTo=$value), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
+    body=Code(
+      source="""async (args, bindings, api) => {
+          const found = args.find((a) => a.name === "resolvedTo");
+          if (!found) return api.call("Ref", args[0].value);
+          const value = found.value;
+          // Memory stores what was said as text; read it back as Concepts.
+          // A stored answer is already wrapped; pointing at it means pointing at what it
+          // answered, not at the wrapper.
+          const unwrap = (x) => (x && x.head === "Answer" && x.args.length === 1 ? x.args[0].value : x);
+          if (typeof value !== "string") return unwrap(await api.evaluate(value));
+          try {
+            return unwrap(await api.evaluate(api.parse(value)));
+          } catch {
+            return value;
+          }
+        }""")))
+
+Concept(Mood(),
+  IsA(Marker()),
+  Realization(Mood($kind, $line), context=Execution(), evaluateArguments=false, properties=List(Lossy()),
+    body=Code(
+      source="""async (args, bindings, api) => {
+        const ctx = api.context;
+        const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
+        const kind = args[0].value;
+        // A claim is data, not a call (reading-spec Part 5.2): under Declarative the line is
+        // handed to Believe, which decides whether it lasts, instead of being evaluated.
+        const line = kind && kind.head === "Declarative" ? api.call("Believe", args[1].value) : args[1].value;
+        // A line is heard in its conversation, and what that conversation is focused on is
+        // context for it (memory-spec Part 8.1), derived fresh for each line.
+        const conversation = api.ambient("conversation");
+        const focus = conversation ? await api.evaluate(api.call("Focus", api.call(conversation))) : undefined;
+        const focused = focus && focus.head === "List" ? focus.args.map((a) => a.value) : [];
+        return await api.evaluate(line, api.call("Context", ...facets, ...focused, kind));
+      }""")))
+
+Concept(Modifier(), IsA(Category()))
+
+Concept(Not(), IsA(Modifier()))
+
+Concept(Result(), IsA(Category()))
+
+Concept(Answer(), IsA(Result()))
+
+Concept(Describes(), IsA(Result()))
+
+// Text assembly, which is what emitting source is made of. Variadic through Rest, so a
+// taught realization can lay out a construct without the grammar needing a list syntax.
+//
+// Its arguments evaluate under the SAME context it was reached in, so a TypeScript
+// realization of If whose body is Text("if (", $c, ") {", $t, "}") emits TypeScript for
+// $c and $t too. Composition is what makes one realization per construct enough.
+Concept(Text(),
+  IsA(Data()),
+  IsA(Source()),
+  Realization(Text(Rest($parts)),
+    body=Code(
+      source="""(args, bindings, api) => {
+          // An argument that did not reduce must not be formatted into the output. Doing
+          // so turns a residual into an ordinary string: the result LOOKS computed, the
+          // gap becomes undetectable, and the Mouth narrates source code as an answer.
+          // "write me a typescript function that adds two numbers" produced the string
+          // "[List(Can(), Do(Write(Function(Adds(Two(), Two())))))]" and was spoken as
+          // "It can write a function that adds two numbers."
+          if (args.some((a) => a.value && a.value.head)) {
+            return api.call("Text", ...args.map((a) => a.value));
+          }
+          return args.map((a) => {
+            const v = a.value;
+            if (typeof v === "string") return v;
+            if (v === null || v === undefined) return "";
+            return String(v);
+          }).join("");
+        }""")))
+
+Concept(Data(), IsA(Category()))
+
+// ------------------------------------------------------------------ *
+// Primitives and collections.
+// ------------------------------------------------------------------
+Concept(Primitive(), IsA(Data()))
+
+Concept(Collection(), IsA(Data()))
+
+Concept(Deictic(), IsA(Category()))
+
+// Kind to kind: everything that is one is also the other, so it chains (research/wikidata.ts).
+Concept(SubclassOf(), IsA(Relation()), Transitive(), Enduring())
+
+Concept(Retracts(), Incidental(), Occurrent())
+
+Concept(Compile(), IsA(RealizationProperty()))
+
+Concept(Incidental(), IsA(RelationProperty()))
+
+Concept(TargetLanguage(), IsA(ContextFacet()))
+
+// ------------------------------------------------------------------ *
+// Failure and outcome. Pure data.
+// ------------------------------------------------------------------
+Concept(Failure(), IsA(Category()))
+
+Concept(TruthValue(), IsA(Category()))
+
+// ------------------------------------------------------------------ *
+// Research, as Concepts. Search results become Concepts with their source attached, so a
+// claim can be traced back to where it came from.
+// ------------------------------------------------------------------
+Concept(Source(), IsA(Category()))
+
+// Declared the way Symmetric() is (memory-spec Part 5.3): a property of a relation.
+Concept(Enduring(), IsA(RelationProperty()))
+
+Concept(Occurrent(), IsA(RelationProperty()))
+
+// What a relation Concept is a kind of: IsA(Relation()) on the predicates that relate things.
+Concept(Relation(), IsA(Category()))
+

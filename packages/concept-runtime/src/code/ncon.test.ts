@@ -93,3 +93,20 @@ test("a saved graph remembers which pack seeded what", async () => {
   assert.equal(bird.realizations[0].seededFrom, "birds");
   assert.equal(bird.relations[0].stamps![0].pack, "birds");
 });
+
+test("core holds every Concept the host names, and names nothing it does not hold", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fileURLToPath } = await import("node:url");
+  const { heads } = await import("../concept/expression.js");
+  const { BUILT_IN_PACKS } = await import("./ncon.js");
+  const src = fileURLToPath(new URL("../../src/", import.meta.url));
+  const packs = loadPacks([BUILT_IN_PACKS]);
+  const core = new Set(packs.find((p) => p.name === "core")!.units.map((u) => u.identity));
+  const anywhere = new Set(packs.flatMap((p) => p.units.map((u) => u.identity)));
+  // The kernel: the evaluator, selection, the compiler, the store and the turn.
+  const kernel = ["runtime/evaluator.ts", "runtime/select.ts", "runtime/compile.ts", "runtime/turn.ts", "store/store.ts", "store/relations.ts", "store/persist.ts", "concept/unit.ts", "concept/match.ts", "concept/expression.ts"];
+  const named = new Set(kernel.flatMap((f) => [...readFileSync(src + f, "utf8").matchAll(/"([A-Z][A-Za-z0-9]*)"/g)].map((m) => m[1])));
+  assert.deepEqual([...named].filter((h) => anywhere.has(h) && !core.has(h)), [], "a Concept the host names lives outside core");
+  const held = packs.find((p) => p.name === "core")!.units.flatMap((u) => u.relations.flatMap((r) => [...heads(r.claim)]));
+  assert.deepEqual([...new Set(held)].filter((h) => !core.has(h)), [], "core describes itself with Concepts it does not hold");
+});
