@@ -91,6 +91,16 @@ export function forSaying(store: ConceptStore, e: Expr): Expr {
   if (!isCall(e)) return e;
   // A line's mood is how it was said, not what it says.
   if (e.head === "Mood" && e.args.length === 2) return forSaying(store, e.args[1].value);
+  // A description keeps every sense, but when some facts hold in any context those are
+  // what the word means to someone who named no sense, and the rest is noise to say:
+  // "chess is a board game", not "also a musical and a surname".
+  const listed = e.head === "Describes" ? e.args[1]?.value : undefined;
+  if (listed !== undefined && isCall(listed) && listed.head === "List") {
+    const general = listed.args.filter((a) => !(isCall(a.value) && a.value.head === "In"));
+    if (general.length && general.length < listed.args.length) {
+      return forSaying(store, call("Describes", [e.args[0], { value: call("List", general) }]));
+    }
+  }
   // What a name resolved to is for memory, not for saying, and a name is already how the
   // thing it names is said.
   const args = e.args

@@ -12,7 +12,8 @@ import { generate, type ModelOptions } from "./ollama.js";
 const SYSTEM = `You put a computed result into one short sentence.
 
 The result was produced by a Concept network, not by you. Say what it says. Do not add
-facts, do not hedge, do not explain the notation, and do not mention Concepts.
+facts, do not hedge, do not explain the notation, and do not mention Concepts. Never
+compute anything yourself: the result is already the answer to the whole message.
 
 If the result is Answer(x), say x.
 If the result is Answer(True()), answer yes by stating what was asked as a fact.
@@ -21,8 +22,7 @@ If the result is Answer(UnknownTruth()), say "I don't know yet whether" and then
 If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
 Every fact in the list is about the thing: Describes(Greg(), List(CoworkerOf(Me()))) means
 Greg is your coworker.
-A fact written In(fact, Sense()) holds only in that sense. Lead with the facts that are not
-wrapped in In, and if there are any, give the other senses at most a short "it is also".
+A fact written In(fact, Sense()) holds only in that sense; say which sense it is.
 Me() in a result is the person you are talking to, so it is "you" when you say it.
 Self() is you, the one replying, so it is "I".
 If the result is Answer(List(...)) of capabilities, say what you can do as a short list.
@@ -177,8 +177,12 @@ export async function say(
   result: Expr,
   options: SayOptions = {},
 ): Promise<string> {
-  const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : undefined;
+  const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
   if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];
+  // "and plus 3?" works on an answer the message never states, and a model shown only the
+  // message and 87 added the 3 again. A number from a follow-up is said as it is.
+  const followUp = options.asked !== undefined && [...walk(options.asked)].some((n) => isCall(n) && n.head === "Ref");
+  if (typeof answered === "number" && followUp) return `That makes ${Number.isInteger(answered) ? answered : +answered.toFixed(6)}.`;
   const straightforward = direct(result, tense(options.asked));
   if (straightforward) return straightforward;
 
