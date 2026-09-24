@@ -12,6 +12,7 @@ import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
+import { resolveNames, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 import { lineage, reachesBehaviour } from "./select.js";
@@ -39,6 +40,8 @@ export interface TurnResult {
   readonly parsed: string | undefined;
   /** References the parser marked, and what memory resolved them to. */
   readonly resolved: { reference: string; to: string }[];
+  /** Proper-name heads resolved to the individual holding that `Named` (memory-spec Part 8.3). */
+  readonly resolvedNames: NameResolution[];
   readonly result: Expr | undefined;
   readonly rendered: string;
   /** The result as a sentence. The graph decides the answer; this only says it. */
@@ -350,6 +353,7 @@ export async function turn(
       expression: undefined,
       parsed: undefined,
       resolved: [],
+      resolvedNames: [],
       result: undefined,
       rendered: "(nothing parsed)",
       spoken: "I could not read that as Concepts.",
@@ -361,12 +365,21 @@ export async function turn(
     };
   }
 
-  // A Ref marks a reference the parser could not resolve. Resolving it is memory's job.
-  const read = (h: EarsResult): { expression: Expr; resolved: { reference: string; to: string }[] } => {
+  // A Ref marks a reference the parser could not resolve; a proper name is just a bare
+  // head. Both are memory's job to resolve, once, here, before the parse becomes a Said
+  // (memory-spec Part 8.3).
+  const read = (
+    h: EarsResult,
+  ): { expression: Expr; resolved: { reference: string; to: string }[]; resolvedNames: NameResolution[] } => {
     const { expression: maybe, resolved } = resolveReferences(h.expression, options.history ?? []);
-    return { expression: maybe ?? h.expression!, resolved };
+    const { expression: named, resolved: resolvedNames } = resolveNames(
+      runtime.store,
+      maybe ?? h.expression!,
+      runtime.ambiguities,
+    );
+    return { expression: named, resolved, resolvedNames };
   };
-  let { expression, resolved } = read(heard);
+  let { expression, resolved, resolvedNames } = read(heard);
   // Evaluate under what the message asked for, not only under what the caller assumed.
   // `expression` is what was said and is what gets reported; `running` is what evaluates,
   // with any context facet lifted out of it.
@@ -417,6 +430,7 @@ export async function turn(
       heard = again;
       expression = next.expression;
       resolved = next.resolved;
+      resolvedNames = next.resolvedNames;
       lifted = lift(runtime, expression, given);
       running = lifted.expression;
       context = lifted.context;
@@ -450,6 +464,7 @@ export async function turn(
     expression,
     parsed: format(expression),
     resolved,
+    resolvedNames,
     result,
     rendered,
     spoken,

@@ -40,6 +40,8 @@ export class ConceptStore {
   private readonly lastSelected = new Map<string, number>();
   /** The next stamp's `seq`. Store-wide and never reused (memory-spec Part 4.2). */
   private nextSeq = 1;
+  /** The next counter to try for a base, so `mint` need not rescan the graph every time. */
+  private readonly mintCounters = new Map<string, number>();
 
   /** The `seq` the next stamp will get, so a snapshot can resume the count. */
   get sequence(): number {
@@ -75,6 +77,38 @@ export class ConceptStore {
     if (!r.stamps?.length) return { ...r, stamps: [this.stamp()] };
     for (const s of r.stamps) if (s.seq >= this.nextSeq) this.nextSeq = s.seq + 1;
     return r;
+  }
+
+  /**
+   * A fresh identity, never colliding with anything the graph already holds
+   * (memory-spec Part 3.2, Part 13). `<base>_<n>`, readable and meaningless: nothing may
+   * parse it, so `n` only has to be free, not consecutive.
+   *
+   * The counter is not kept as separate persisted state. Every identity `mint` has ever
+   * handed out is already a unit in this graph, so the highest existing `<base>_<n>` IS the
+   * count a persisted counter would hold, and it can never drift out of step with what got
+   * saved. A restart recomputes it once, lazily, by scanning whatever loaded; after that the
+   * in-memory counter carries it, the same way `nextSeq` does for stamps.
+   */
+  mint(base: string): string {
+    let n = this.mintCounters.get(base);
+    if (n === undefined) {
+      n = 0;
+      const prefix = `${base}_`;
+      for (const identity of this.units.keys()) {
+        if (!identity.startsWith(prefix)) continue;
+        const rest = identity.slice(prefix.length);
+        if (/^\d+$/.test(rest)) n = Math.max(n, Number(rest));
+      }
+    }
+    let identity: string;
+    do {
+      n += 1;
+      identity = `${base}_${n}`;
+    } while (this.units.has(identity));
+    this.mintCounters.set(base, n);
+    this.put({ identity, relations: [], realizations: [] });
+    return identity;
   }
 
   get(identity: string): ConceptUnit | undefined {
