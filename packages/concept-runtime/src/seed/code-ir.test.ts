@@ -74,3 +74,21 @@ test("Members is written in the IR and compiled, and hands on values without eva
   const heads = rt.trace.all().map((e) => e.concept);
   assert.ok(!heads.includes("Robin") && !heads.includes("List"), "a member found is a value, not re-selected");
 });
+
+test("a value substituted into a body is not evaluated again", async () => {
+  const s = new ConceptStore();
+  seed(s);
+  // Deal() hands back the call Card() as its value; Card() has behaviour of its own, which
+  // must not run where a body mentions that value.
+  s.seed(concept("Deal", { realizations: [realization({ pattern: "Deal()", context: "Execution()", body: parse('Code(source="(args, bindings, api) => api.call(\\"Card\\")")') })] }));
+  s.seed(concept("Card", { realizations: [realization({ pattern: "Card()", context: "Execution()", body: parse('Code(source="() => { globalThis.__cards = (globalThis.__cards ?? 0) + 1; return 1; }")') })] }));
+  s.seed(concept("Pair", { realizations: [realization({ pattern: "Pair($x)", context: "Execution()", body: parse("List($x, $x)") })] }));
+  const g = globalThis as { __cards?: number };
+  g.__cards = 0;
+  const out = await new Runtime(s).evaluate(parse("Pair(Deal())"), c("Execution"));
+  assert.equal(format(out), "List(Card(), Card())");
+  assert.equal(g.__cards, 0, "the value Card() was not run where Pair's body mentions it");
+  g.__cards = 0;
+  await new Runtime(s).evaluate(parse("Let($v, Deal(), List($v, $v))"), c("Execution"));
+  assert.equal(g.__cards, 0, "nor where a Let's body does");
+});

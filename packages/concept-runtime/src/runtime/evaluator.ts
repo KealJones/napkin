@@ -167,6 +167,27 @@ export class Runtime {
   private readonly given = new WeakSet<Call>();
 
   /**
+   * Values substituted into a body, which are not expressions to evaluate again. An eager
+   * realization's bindings, a Let's value and a Lambda's arguments were evaluated already:
+   * substituted as they are, a value that happens to be a call with a realization (a
+   * Move(...), an Answer(...)) would run a second time where the body mentions it. A lazy
+   * realization's bindings are expressions, and are substituted to be evaluated.
+   */
+  private readonly inert = new WeakSet<object>();
+
+  /** A value, held so it is not evaluated again: a copy, so the expression it came from is not. */
+  private held(value: Expr): Expr {
+    if (!isCall(value)) return value;
+    const copy: Call = { head: value.head, args: value.args };
+    this.inert.add(copy);
+    return copy;
+  }
+
+  private substituteValues(body: Expr, bindings: Bindings): Expr {
+    return substitute(body, new Map([...bindings].map(([k, v]) => [k, this.held(v)])));
+  }
+
+  /**
    * A call that, to be evaluated, needs the identical call in the identical context is a
    * cycle, not a computation: a Teacher taught Wish to forward to Want where Want already
    * forwarded to Wish, and every "want" ran to the depth budget. The inner one stays
@@ -187,6 +208,7 @@ export class Runtime {
     if (expression === null || typeof expression !== "object" || isVariable(expression)) {
       return this.step(expression, context, caller, parent, depth, within);
     }
+    if (this.inert.has(expression)) return expression;
     const key = `${format(expression)}@${context === undefined ? "" : format(context)}`;
     for (let a = within; a; a = a.up) if (a.key === key) return expression;
     return this.step(expression, context, caller, parent, depth, { key, up: within });
@@ -310,7 +332,7 @@ export class Runtime {
         if (compiled) {
           result = await compiled(bindings, this.api(bodyContext, id, depth, within));
         } else {
-          const body = substitute(realization.body, bindings);
+          const body = realization.evaluateArguments ? this.substituteValues(realization.body, bindings) : substitute(realization.body, bindings);
           result = await this.run(body, bodyContext, target.head, id, depth + 1, within);
         }
       }
@@ -398,14 +420,16 @@ export class Runtime {
       cells: this.cells,
       relations: this.relations,
       trace: this.trace,
+      // Asked for explicitly, a held value is evaluated after all.
       evaluate: (expression, ctx) =>
-        this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
+        this.run(isCall(expression) && this.inert.has(expression) ? { head: expression.head, args: expression.args } : expression, ctx ?? context, "Code", parent, depth + 1, within),
       apply: (head, values) => {
         const target = call(head, values.map((value) => ({ value })));
         this.given.add(target);
         return this.run(target, context, "Code", parent, depth + 1, within);
       },
-      substitute,
+      // What a body substitutes are values it has (a Lambda's arguments, a Let's value).
+      substitute: (expression, bindings) => this.substituteValues(expression, bindings),
       parse,
       ambient: (key) => this.context.get(key),
       context,
