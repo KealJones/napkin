@@ -35,6 +35,7 @@ export * from "./code/import.js";
 export * from "./learn/reading.js";
 export * from "./runtime/turn.js";
 export * from "./runtime/references.js";
+export * from "./runtime/individuals.js";
 export * from "./runtime/exist.js";
 export * from "./memory/conversations.js";
 

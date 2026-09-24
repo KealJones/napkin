@@ -11,6 +11,7 @@
 import { type Expr, c, call, format, isCall, parse } from "../concept/expression.js";
 import { codeSource, concept, declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
+import { memoryIndividualUnits } from "./memory-individuals.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1492,15 +1493,20 @@ export interface SeedReport {
   synonymsDerived: number;
 }
 
-export function seed(store: ConceptStore): SeedReport {
-  const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
-  for (const unit of units) {
+function applyUnits(store: ConceptStore, list: readonly ConceptUnit[], report: SeedReport): void {
+  for (const unit of list) {
     const result = store.seed(unit);
     if (result.created) report.created += 1;
     else if (result.addedRelations || result.addedRealizations) report.updated += 1;
     report.relations += result.addedRelations;
     report.realizations += result.addedRealizations;
   }
+}
+
+export function seed(store: ConceptStore): SeedReport {
+  const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
+  applyUnits(store, units, report);
+  applyUnits(store, memoryIndividualUnits(), report); // memory-spec Part 18 step 3
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;
 }
