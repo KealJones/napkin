@@ -58,7 +58,10 @@ const HELPERS = `
       .filter((r) => isCall(r.claim) && r.claim.head === "Said" && isCall(positional(r.claim)[0]) && positional(r.claim)[0].head === "Me")
       .map((r) => ({ content: positional(r.claim)[1], seq: Math.max(...(r.stamps ?? []).map((s) => s.seq), 0) }))
       .sort((a, b) => b.seq - a.seq);
-  const asked = (content) => isCall(content) && content.head === "Mood" && isCall(positional(content)[0]) && positional(content)[0].head === "Interrogative";
+  // Only a claim tells anything: a question or a request said earlier is not something
+  // the user told.
+  const told = (content) =>
+    !(isCall(content) && content.head === "Mood") || (isCall(positional(content)[0]) && positional(content)[0].head === "Declarative");
   const walk = (e, visit) => {
     if (!isCall(e)) return;
     visit(e);
@@ -88,7 +91,7 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           const topic = positional(verb).find((v) => isCall(v) && v.head === "About");
           if (topic && ["Tell", "Say"].includes(verb.head)) {
             const of = positional(topic)[0];
-            const said = saidByUser(of).filter((s) => !asked(s.content)).map((s) => s.content);
+            const said = saidByUser(of).filter((s) => told(s.content)).map((s) => s.content);
             return said.length ? api.call("Answer", api.call("List", ...said)) : api.call("Answer", api.call("Unknown"));
           }
 
@@ -104,7 +107,7 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           const extra = positional(verb).map((v) => api.format(v));
           const found = [];
           for (const s of saidByUser(api.call(form))) {
-            if (asked(s.content)) continue;
+            if (!told(s.content)) continue;
             walk(s.content, (node) => {
               if (node.head !== subject.head) return;
               const clause = positional(node).find((v) => isCall(v) && v.head === form);
@@ -128,7 +131,8 @@ export function memoryRecallUnits(): ConceptUnit[] {
     ...["WhatDid", "WhoDid", "WhereDid"].map((h) => objectQuestion(h, "past")),
     /**
      * "tell me about greg", "what do you know about greg": what is held about it, the same
-     * description a "who is" question gets.
+     * description a "who is" question gets, and what was told about it that never became a
+     * belief.
      */
     concept("About", {
       realizations: [
@@ -136,7 +140,22 @@ export function memoryRecallUnits(): ConceptUnit[] {
           pattern: "About($thing)",
           context: "Execution()",
           evaluateArguments: false,
-          body: code(`async (args, bindings, api) => await api.evaluate(api.call("Relations", args[0].value), api.call("Describe"))`),
+          body: code(`async (args, bindings, api) => {
+            ${HELPERS}
+            const thing = args[0].value;
+            const described = await api.evaluate(api.call("Relations", thing), api.call("Describe"));
+            // What was said about it and never became a belief is still known: "greg sent
+            // me a meme" is part of what there is to tell about Greg.
+            const said = isCall(thing)
+              ? saidByUser(thing)
+                  .filter((s) => told(s.content))
+                  .map((s) => (isCall(s.content) && s.content.head === "Mood" ? positional(s.content)[1] : s.content))
+                  .filter((c) => c && isCall(c) && c.head !== "Believe")
+              : [];
+            if (!said.length) return described;
+            const held = isCall(described) && described.head === "Describes" ? positional(positional(described)[1]) : [];
+            return api.call("Describes", thing, api.call("List", ...held, api.call("Said", api.call("List", ...said))));
+          }`),
         }),
       ],
     }),

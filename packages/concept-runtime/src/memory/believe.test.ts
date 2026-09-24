@@ -82,3 +82,26 @@ test("asking about someone never mints them", async () => {
   await say("who is greg");
   assert.equal(store.size(), before);
 });
+
+test("an object question reads beliefs, and a past one reads what was said", async () => {
+  const { say } = chat();
+  await say("i like pizza");
+  assert.equal((await say("what do i like")).rendered, "Answer(Pizza())");
+  await say("greg works at google");
+  assert.equal((await say("where does greg work")).rendered, "Answer(Google())");
+  await say("i ate a sweet granny smith yesterday");
+  assert.equal((await say("what did i eat")).rendered, "Answer(Me(Ate(Sweet(GrannySmith()), Yesterday())))");
+  await say("i went to the store");
+  assert.equal((await say("where did i go")).rendered, "Answer(Me(Went(To(Store()))))");
+});
+
+test("what was told about someone is what was claimed, not what was asked", async () => {
+  const { say } = chat();
+  await say("greg is my coworker");
+  await say("who is greg");
+  await say("greg sent me a funny meme");
+  const told = (await say("what did i tell you about greg")).rendered;
+  assert.match(told, /Sent\(Me\(\), Funny\(Meme\(\)\)\)/);
+  assert.ok(!told.includes("Interrogative"), told);
+  assert.match((await say("tell me about greg")).rendered, /Said\(List\(/);
+});

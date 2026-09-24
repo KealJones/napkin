@@ -89,8 +89,13 @@ export function resolveNames(
  */
 export function forSaying(store: ConceptStore, e: Expr): Expr {
   if (!isCall(e)) return e;
-  // What a name resolved to is for memory, not for saying.
-  const args = e.args.filter((a) => a.name !== "resolvedTo").map((a) => ({ ...a, value: forSaying(store, a.value) }));
+  // A line's mood is how it was said, not what it says.
+  if (e.head === "Mood" && e.args.length === 2) return forSaying(store, e.args[1].value);
+  // What a name resolved to is for memory, not for saying, and a name is already how the
+  // thing it names is said.
+  const args = e.args
+    .filter((a) => a.name !== "resolvedTo" && !(isCall(a.value) && a.value.head === "Named"))
+    .map((a) => ({ ...a, value: forSaying(store, a.value) }));
   if (e.args.length === 0) {
     const unit = store.get(e.head);
     if (unit?.relations.some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && (r.claim.args[0].value as { head: string }).head === "User")) {

@@ -120,6 +120,14 @@ export function memoryBelieveUnits(): ConceptUnit[] {
             }
             if (!isCall(claim) || !isCall(subject)) return await evaluateAsSaid();
 
+            // "works at google" is one relation, WorksAt(Google()): a verb and the one
+            // preposition it takes are a phrasal relation, the form Enduring declares.
+            const PREPOSITIONS = ["At", "In", "For", "With", "On", "From", "To"];
+            const only = positional(claim);
+            if (only.length === 1 && isCall(only[0]) && PREPOSITIONS.includes(only[0].head) && positional(only[0]).length === 1) {
+              claim = api.call(claim.head + only[0].head, positional(only[0])[0]);
+            }
+
             // Turn the claim into what is kept.
             const kept = [];
             const role = claim.head === "Is" && positional(claim).length === 1 ? positional(claim)[0] : undefined;
