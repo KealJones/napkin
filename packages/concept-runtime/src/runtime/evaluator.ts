@@ -187,34 +187,73 @@ export class Runtime {
     return copy;
   }
 
-  private substituteValues(body: Expr, bindings: Bindings): Expr {
-    return substitute(body, new Map([...bindings].map(([k, v]) => [k, this.held(v)])));
+  /**
+   * Syntax written in a Program() body. A code primitive called there runs wherever the
+   * program was reached, as a JavaScript body's operations always did: a program's
+   * operations are operations. What the program merely holds is not marked, values bound
+   * into it and calls it builds at runtime, so "not" in a message still does not compute.
+   */
+  private readonly code = new WeakSet<object>();
+  private readonly programs = new WeakSet<object>();
+
+  private markProgram(body: Expr): void {
+    if (!isCall(body) || this.programs.has(body)) return;
+    this.programs.add(body);
+    const walk = (e: Expr): void => {
+      if (!isCall(e)) return;
+      this.code.add(e);
+      for (const a of e.args) walk(a.value);
+    };
+    walk(body);
+  }
+
+  /** Where a program's operations run: what CodePrimitive says it OperatesIn (core.ncon). */
+  private operating(): Expr | undefined {
+    const said = this.store.get("CodePrimitive")?.relations.find((r) => isCall(r.claim) && r.claim.head === "OperatesIn");
+    return said && isCall(said.claim) ? said.claim.args[0]?.value : undefined;
+  }
+
+  private primitiveHeads?: { version: number; heads: Set<string> };
+  private primitive(head: string): boolean {
+    const version = this.store.version;
+    let known = this.primitiveHeads;
+    if (known?.version !== version) {
+      known = this.primitiveHeads = { version, heads: new Set(this.store.asObject("CodePrimitive").map((r) => r.subject)) };
+    }
+    return known.heads.has(head);
   }
 
   /**
-   * Binding a value: the value is held, and a value already held in the body stays a leaf,
-   * never rebuilt into a new object that would be evaluated after all. Bind, JavaScript's
-   * `const` and Rust's `let` all mean this.
+   * A body with its variables replaced. Held, the bound values are values, never evaluated
+   * again however deep they land: Bind, JavaScript's `const` and Rust's `let` all mean
+   * this. A value already held in the body stays a leaf, and syntax that was a program's
+   * stays a program's when rebuilt.
    */
-  private bindStrictly(body: Expr, bindings: Bindings): Expr {
-    const held = new Map([...bindings].map(([k, v]) => [k, this.held(v)]));
+  private rebind(body: Expr, bindings: Bindings, hold: boolean): Expr {
+    const bound = hold ? new Map([...bindings].map(([k, v]) => [k, this.held(v)])) : bindings;
     const walk = (e: Expr): Expr => {
       // A variable bound to null is bound: `??` would leave it unbound.
-      if (isVariable(e)) return held.has(e.variable) ? (held.get(e.variable) as Expr) : e;
+      if (isVariable(e)) return bound.has(e.variable) ? (bound.get(e.variable) as Expr) : e;
       if (!isCall(e) || this.inert.has(e)) return e;
       const args: Argument[] = [];
       for (const a of e.args) {
-        // A Rest variable splices its List back into the argument list, as substitution does.
-        const rest = isCall(a.value) && a.value.head === "Rest" && isVariable(a.value.args[0]?.value) ? held.get(a.value.args[0].value.variable) : undefined;
+        // A Rest variable splices its List back into the argument list.
+        const rest = isCall(a.value) && a.value.head === "Rest" && isVariable(a.value.args[0]?.value) ? bound.get(a.value.args[0].value.variable) : undefined;
         if (rest !== undefined && isCall(rest) && rest.head === "List") {
           args.push(...rest.args);
           continue;
         }
         args.push(a.name === undefined ? { value: walk(a.value) } : { name: a.name, value: walk(a.value) });
       }
-      return call(e.head, args);
+      const out = call(e.head, args);
+      if (this.code.has(e)) this.code.add(out);
+      return out;
     };
     return walk(body);
+  }
+
+  private substituteValues(body: Expr, bindings: Bindings): Expr {
+    return this.rebind(body, bindings, true);
   }
 
   /**
@@ -263,7 +302,12 @@ export class Runtime {
     }
 
     const target = expression as Call;
-    const id = this.trace.start({
+    // A code primitive a program calls is one of the program's operations: it runs
+    // where CodePrimitive OperatesIn, wherever the program was reached, and is not a step of thought, so its
+    // work is neither counted nor traced, as a JavaScript body's never was. What it calls is.
+    const operation = this.code.has(target) && this.primitive(target.head);
+    const trace = operation ? QUIET : this.trace;
+    const id = operation ? parent ?? "" : trace.start({
       parentEventId: parent,
       concept: target.head,
       caller,
@@ -274,7 +318,7 @@ export class Runtime {
     });
 
     try {
-      this.steps += 1;
+      if (!operation) this.steps += 1;
       if (depth > this.maximumDepth) budget("depth", this.maximumDepth);
       if (this.steps > this.maximumSteps) budget("steps", this.maximumSteps);
 
@@ -293,7 +337,7 @@ export class Runtime {
       // A body this host cannot run is not a candidate. Selecting one and then failing
       // would let a Rust body shadow the JavaScript body beside it and take a working
       // Concept down with it -- the graph holds both on purpose.
-      const found = candidates(this.store, target, context, suppressed, preference).filter((candidate) => {
+      const found = candidates(this.store, target, operation ? this.operating() : context, suppressed, preference).filter((candidate) => {
         if (
           isCodeBody(candidate.realization.body) &&
           !this.speaks.includes(codeLanguage(candidate.realization.body))
@@ -309,16 +353,16 @@ export class Runtime {
           `${format(target)} matched ${found.length} equally specific realizations on different facets`,
         );
       }
-      this.trace.selection(id, found.length, tieBreakDecided(found));
+      trace.selection(id, found.length, tieBreakDecided(found));
       const chosen = found[0];
 
       // No Concept, or no applicable realization: the expression is its own value.
       if (!chosen) {
-        this.trace.finish(id, "residual", target);
+        trace.finish(id, "residual", target);
         return target;
       }
 
-      this.trace.select(id, chosen.realization);
+      trace.select(id, chosen.realization);
       this.store.recordSelection(chosen.owner, chosen.index);
       const { realization } = chosen;
       let bindings = chosen.bindings;
@@ -332,10 +376,10 @@ export class Runtime {
           }),
         );
         const evaluated = call(target.head, args);
-        this.trace.evaluated(id, args.map((a) => a.value));
+        trace.evaluated(id, args.map((a) => a.value));
         bindings = new Map();
         if (!match(realization.pattern, evaluated, bindings)) {
-          this.trace.finish(id, "residual", evaluated);
+          trace.finish(id, "residual", evaluated);
           return evaluated;
         }
       }
@@ -362,7 +406,8 @@ export class Runtime {
         if (compiled) {
           result = await compiled(bindings, this.api(bodyContext, id, depth, within));
         } else {
-          const body = realization.evaluateArguments ? this.substituteValues(realization.body, bindings) : substitute(realization.body, bindings);
+          if (declares(realization, "Program")) this.markProgram(realization.body);
+          const body = this.rebind(realization.body, bindings, realization.evaluateArguments);
           result = await this.run(body, bodyContext, target.head, id, depth + 1, within);
         }
       }
@@ -375,17 +420,17 @@ export class Runtime {
       // residual in substance even though one was selected, and treating it as success is
       // what let "I could not work that out" stand in for a missing realization.
       if (equal(result, call(target.head, args))) {
-        this.trace.finish(id, "residual", result);
+        trace.finish(id, "residual", result);
         return result;
       }
 
-      this.trace.finish(id, "success", result);
+      trace.finish(id, "success", result);
       return result;
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       const value =
         caught instanceof ConceptError ? caught.value : executionFailed(target.head, message);
-      this.trace.finish(id, "failure", value, message);
+      trace.finish(id, "failure", value, message);
       throw caught instanceof ConceptError ? caught : new ConceptError(value, message);
     }
   }
@@ -460,7 +505,7 @@ export class Runtime {
       },
       // What a body substitutes are values it has (a Lambda's arguments, a Bind's value).
       substitute: (expression, bindings) => this.substituteValues(expression, bindings),
-      bind: (expression, bindings) => this.bindStrictly(expression, bindings),
+      bind: (expression, bindings) => this.substituteValues(expression, bindings),
       resolve: (expression, ctx) => this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
       parse,
       ambient: (key) => this.context.get(key),
@@ -486,6 +531,15 @@ interface Ancestry {
 }
 
 const WRITTEN = new WeakMap<object, string>();
+
+/** The trace a program's operations write to: nowhere. */
+const QUIET = {
+  start: () => "",
+  select: () => undefined,
+  selection: () => undefined,
+  evaluated: () => undefined,
+  finish: () => undefined,
+} as unknown as Trace;
 
 /** A program held as Concepts, written as JavaScript by the store's rules or the built-in ones. */
 function writeProgram(store: ConceptStore, ir: Expr): string {

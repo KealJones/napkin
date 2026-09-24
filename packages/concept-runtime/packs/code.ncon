@@ -16,6 +16,7 @@ Requires(Core())
 // A list literal is its elements' values, as an array literal is: List(Arg(e, 0)) is the
 // argument, not the expression that would find it.
 Concept(List(),
+  IsA(CodePrimitive()),
   Realization(List(Rest($xs)), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -2494,7 +2495,12 @@ Concept(Holds(),
                         Not(Member($t, "context"))))),
                   Lambda(List($t), Member($t, "object")))))))))))
 
-Concept(If())
+// The IR's structure, the operations of any program that uses it.
+Concept(If(), IsA(CodePrimitive()))
+
+Concept(Sequence(), IsA(CodePrimitive()))
+
+Concept(Bind(), IsA(CodePrimitive()))
 
 Concept(Add())
 
@@ -2510,7 +2516,6 @@ Concept(LessThan())
 
 Concept(Compiled(), IsA(ContextFacet()))
 
-Concept(CodePrimitive(), IsA(Category()))
 
 // A function value: stays as it is until called.
 Concept(Lambda(), IsA(Marker()))

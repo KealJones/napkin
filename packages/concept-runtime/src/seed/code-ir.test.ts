@@ -105,3 +105,20 @@ test("a value substituted into a body is not evaluated again", async () => {
     assert.match(format(value), /Card\(\)/);
   }
 });
+
+test("a program's operations run wherever it is reached, and what it holds does not", async () => {
+  const s = new ConceptStore();
+  seed(s);
+  s.seed(concept("Twice", { realizations: [realization({ pattern: "Twice($x)", properties: ["Program()"], body: parse("Length(List($x, $x))") })] }));
+  s.seed(concept("Weigh", { realizations: [realization({ pattern: "Weigh($said)", properties: ["Program()"], evaluateArguments: false, body: parse("Evaluate(Quote($said))") })] }));
+  const conversation = c("Conversation");
+  const runtime = new Runtime(s);
+  assert.equal(await runtime.evaluate(parse("Twice(5)"), conversation), 2);
+  // Outside a program the same words are what was said, not operations.
+  assert.equal(format(await new Runtime(s).evaluate(parse("Length(List(5, 5))"), conversation)), "Length(List(5, 5))");
+  // A value the program holds is not its code: "not true" said to it stays said.
+  assert.equal(format(await new Runtime(s).evaluate(parse("Weigh(Not(True()))"), conversation)), "Not(True())");
+  // Its operations are not steps of thought.
+  const traced = runtime.trace.all().map((e) => e.concept);
+  assert.ok(traced.includes("Twice") && !traced.includes("Length") && !traced.includes("List"), traced.join(" "));
+});

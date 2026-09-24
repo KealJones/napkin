@@ -609,6 +609,16 @@ Concept(Retracts(), Incidental(), Occurrent())
 
 Concept(Compile(), IsA(RealizationProperty()))
 
+// A body written as a program (ir-spec Part 10.8): the code primitives it calls are its
+// operations, run wherever it was reached and not traced as steps of thought.
+Concept(Program(), IsA(RealizationProperty()))
+
+// What a program's operations are: the code IR's own primitives (code.ncon).
+Concept(CodePrimitive(), IsA(Category()), OperatesIn(Execution()))
+
+// The context a kind of operation runs in, wherever it is called from.
+Concept(OperatesIn(), IsA(Relation()))
+
 Concept(Incidental(), IsA(RelationProperty()))
 
 Concept(TargetLanguage(), IsA(ContextFacet()))
