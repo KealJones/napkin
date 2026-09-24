@@ -96,6 +96,10 @@ function mutations(e: Expr, out = new Set<string>()): Set<string> {
     // sort changes its array in place too, when it is a named local.
     if (isVariable(receiver) && typeof name === "string" && (MUTATING.has(name) || name === "sort")) out.add(receiver.variable);
   }
+  // xs[i] = v changes xs.
+  if (e.head === "Assign" && isHead(e.args[0]?.value, "Index", 2) && isVariable(e.args[0].value.args[0].value)) {
+    out.add(e.args[0].value.args[0].value.variable);
+  }
   for (const a of e.args) mutations(a.value, out);
   return out;
 }
@@ -116,6 +120,8 @@ function aliased(program: Expr): string | undefined {
       const [receiver, name] = vals(e.args[0].value as Call);
       if (isVariable(receiver) && typeof name === "string" && (MUTATING.has(name) || name === "sort")) changed.add(receiver.variable);
     }
+    const assigned = indexAssigned(e);
+    if (assigned) changed.add(assigned);
     if ((e.head === "Bind" || e.head === "Var") && isVariable(e.args[0]?.value)) {
       const n = e.args[0].value.variable;
       inits.set(n, [...(inits.get(n) ?? []), e.args[1]?.value ?? U]);
@@ -147,6 +153,8 @@ function aliased(program: Expr): string | undefined {
       const [receiver, name] = vals(e.args[0].value as Call);
       if (isVariable(receiver) && changed.has(receiver.variable) && typeof name === "string" && (MUTATING.has(name) || name === "sort")) lastChange.set(receiver.variable, n);
     }
+    const assigned = indexAssigned(e);
+    if (assigned && changed.has(assigned)) lastChange.set(assigned, n);
     e.args.forEach((a, i) => {
       const v = a.value;
       if (isVariable(v) && changed.has(v.variable)) {
@@ -163,6 +171,10 @@ function aliased(program: Expr): string | undefined {
   for (const [name, at] of firstHandOn) if ((lastChange.get(name) ?? 0) > at) return name;
   return undefined;
 }
+
+/** The array xs[i] = v changes, when it is a name. */
+const indexAssigned = (e: Call): string | undefined =>
+  e.head === "Assign" && isHead(e.args[0]?.value, "Index", 2) && isVariable(e.args[0].value.args[0].value) ? e.args[0].value.args[0].value.variable : undefined;
 
 const bindingNames = (b: Expr | undefined): string[] =>
   b === undefined ? [] : isVariable(b) ? [b.variable] : isCall(b) ? b.args.flatMap((a) => bindingNames(a.value)) : [];
@@ -197,7 +209,7 @@ export function lowerRealization(r: Realization): { body: Expr } | { why: string
     const alias = aliased(renamed);
     if (alias) return { why: `an array changed in place that others may hold: ${alias}` };
     const scope: Scope = {
-      argument, lazy: !r.evaluateArguments, names: new Map(), taken: new Set([...argument.values(), ...rests, ...allVariables(r.pattern)]),
+      argument, lazy: !r.evaluateArguments, names: new Map(), taken: new Set([...argument.values(), ...rests, ...allVariables(r.pattern), ...allVariables(r.context ?? null)]),
       pattern: isCall(r.pattern) ? r.pattern.args : [], mutable: mutations(renamed), cells: new Set(), inLoop: false,
     };
     const body = lowerBody(renamed, scope);
@@ -209,7 +221,8 @@ export function lowerRealization(r: Realization): { body: Expr } | { why: string
       else if (isCall(e)) for (const a of e.args) patternVariables(a.value, out);
       return out;
     };
-    const free = [...freeIn(body, patternVariables(r.pattern))];
+    // A context pattern binds too: Focused($game).
+    const free = [...freeIn(body, patternVariables(r.context ?? null, patternVariables(r.pattern)))];
     if (free.length) return { why: `names from the host: ${[...new Set(free)].join(", ")}` };
     return { body };
   } catch (error) {
@@ -321,8 +334,45 @@ const declaredFunction = (e: Expr): Call | undefined => {
   return isHead(inner, "Func", 3) && isVariable(inner.args[0].value) ? inner : undefined;
 };
 
+/** Every variable an expression mentions: what it may need bound. */
+const mentioned = (e: Expr, out = new Set<string>()): Set<string> => {
+  if (isVariable(e)) out.add(e.variable);
+  else if (isCall(e)) for (const a of e.args) mentioned(a.value, out);
+  return out;
+};
+
+/**
+ * const f = (...) => ... used by a function declared above it: JavaScript allows it, since
+ * the one above runs later. Nested binding does not, so f moves up to just before its
+ * first use, where everything it names is bound already. Answers the steps reordered.
+ */
+function hoistLateFunctions(input: Expr[]): Expr[] {
+  const steps = [...input];
+  const declares = (s: Expr): string[] => (isHead(s, "Bind", 2) || isHead(s, "Var", 2) ? bindingNames(s.args[0].value) : []);
+  for (let moved = true; moved; ) {
+    moved = false;
+    for (let j = 1; j < steps.length && !moved; j++) {
+      const s = steps[j];
+      if (!isHead(s, "Bind", 2) || !isVariable(s.args[0].value)) continue;
+      const value = isHead(s.args[1].value, "Async", 1) ? s.args[1].value.args[0].value : s.args[1].value;
+      if (!isHead(value, "Lambda")) continue;
+      const name = s.args[0].value.variable;
+      const i = steps.findIndex((t, k) => k < j && mentioned(t).has(name));
+      if (i < 0) continue;
+      const before = new Set(steps.slice(0, i).flatMap(declares));
+      const after = new Set(steps.slice(i).flatMap(declares));
+      const needs = [...mentioned(value)].filter((v) => v !== name && after.has(v) && !before.has(v));
+      if (needs.length) continue;
+      steps.splice(j, 1);
+      steps.splice(i, 0, s);
+      moved = true;
+    }
+  }
+  return steps;
+}
+
 function lowerBlock(input: Expr[], scope: Scope): Expr {
-  const steps = flatten(input);
+  const steps = hoistLateFunctions(flatten(input));
   if (!steps.length) return U;
   // Function declarations are bound before the block runs, so a call above one reaches it.
   const functions = steps.filter((s) => declaredFunction(s) !== undefined);
@@ -383,32 +433,42 @@ function bind(name: Expr, value: Expr | ((scope: Scope) => Expr), body: (scope: 
     return c("Bind", own, recursive ? c("Recursive", own, v) : v, body(inner));
   }
   if (typeof value === "function") value = value(scope);
-  // A destructuring: the value once, then each part read from it.
-  const parts: [string, Expr][] = [];
+  // A destructuring: the value once, then each part read from it. A part may have a
+  // default, used where the value has nothing, and a List's last part may take the rest.
+  const parts: { js: string; key: string | number; rest?: boolean; fallback?: Expr }[] = [];
+  const part = (item: Expr, key: string | number) => {
+    if (isHead(item, "Default", 2) && isVariable(item.args[0].value)) parts.push({ js: item.args[0].value.variable, key, fallback: item.args[1].value });
+    else if (isVariable(item)) parts.push({ js: item.variable, key });
+    else nope(`destructuring shape ${format(name)}`);
+  };
   if (isHead(name, "Object")) {
     for (const a of name.args) {
-      if (a.name === undefined || !isVariable(a.value)) return nope("destructuring shape");
-      parts.push([a.value.variable, a.name]);
+      if (a.name === undefined) return nope(`destructuring shape ${format(name)}`);
+      part(a.value, a.name);
     }
   } else if (isHead(name, "List")) {
-    vals(name).forEach((item, i) => {
+    vals(name).forEach((item, i, all) => {
       if (isHead(item, "Hole")) return;
-      if (!isVariable(item)) nope("destructuring shape");
-      parts.push([(item as { variable: string }).variable, i]);
+      if (isHead(item, "Spread", 1) && i === all.length - 1 && isVariable(item.args[0].value)) parts.push({ js: item.args[0].value.variable, key: i, rest: true });
+      else part(item, i);
     });
-  } else return nope("destructuring shape");
+  } else return nope(`destructuring shape ${format(name)}`);
   const t = fresh(scope);
   let inner = scope;
   const names: string[] = [];
-  for (const [js] of parts) {
+  for (const { js } of parts) {
     const [ir, next] = declare(inner, js);
     names.push(ir);
     inner = next;
   }
   let out = body(inner);
   for (let i = parts.length - 1; i >= 0; i--) {
-    const key = parts[i][1];
-    const read = typeof key === "number" ? c("Element", t, key) : c("FieldOf", t, key);
+    const { key, rest, fallback } = parts[i];
+    let read: Expr = rest ? c("Slice", t, key) : typeof key === "number" ? c("Element", t, key) : c("FieldOf", t, key);
+    if (fallback !== undefined) {
+      const r = fresh(inner);
+      read = c("Bind", r, read, c("If", c("Identical", r, U), lowerExpr(fallback, inner), r));
+    }
     out = c("Bind", { variable: names[i] }, inner.cells.has(names[i]) ? c("Cell", read) : read, out);
   }
   return c("Bind", t, value, out);
@@ -523,6 +583,14 @@ function lowerExpr(e: Expr, scope: Scope): Expr {
 
   if (is(e, "Assign", 2)) {
     const target = args[0];
+    // xs[i] = v on a local array: its cell holds the array with that element replaced.
+    if (isHead(target, "Index", 2) && isVariable(target.args[0].value)) {
+      const cell = scope.names.get(target.args[0].value.variable) ?? target.args[0].value.variable;
+      if (!scope.cells.has(cell)) return nope("assignment to an element of what is not a local");
+      const ref = { variable: cell };
+      const t = fresh(scope);
+      return c("Bind", t, x(args[1]), c("Steps", c("Set", ref, c("WithElement", c("Get", ref), x(target.args[1].value), t)), t));
+    }
     const name = isVariable(target) ? scope.names.get(target.variable) ?? target.variable : undefined;
     if (name === undefined || !scope.cells.has(name)) return nope(isVariable(target) ? `assignment to ${target.variable}` : "assignment to a field");
     return c("Set", { variable: name }, x(args[1]));

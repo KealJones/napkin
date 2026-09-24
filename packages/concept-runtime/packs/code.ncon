@@ -2290,6 +2290,8 @@ Concept(Get(), IsA(CodePrimitive()))
 
 Concept(Set(), IsA(CodePrimitive()))
 
+Concept(Try(), IsA(CodePrimitive()))
+
 // Nothing there: null or Undefined().
 Concept(IsNothing(),
   IsA(CodePrimitive()),
@@ -3386,6 +3388,45 @@ Concept(AsList(),
               Return(Call($back, Concat($h))),
               Undefined()),
             Throw(New($Error, "Nothing to spread"))))))))
+
+// The List with the element at i replaced by x, Undefined() filling any gap.
+Concept(WithElement(),
+  IsA(CodePrimitive()),
+  Realization(WithElement($xs, $i, $x), context=Execution(),
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Sequence(
+            Bind($U, Call(Member($api, "call"), "Undefined")),
+            Bind(
+              $items,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    And(
+                      And(Equals(TypeOf($x), "object"), NotEquals($x, null)),
+                      Equals(Member($x, "head"), "List")),
+                    Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value")))),
+                    Undefined()),
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(Not(Call(Member($Array, "isArray"), $h)), Not(InstanceOf($h, $Set))),
+                    Throw(New($Error, "Expected a List")),
+                    Undefined()),
+                  Return(Map(Concat($h), Lambda(List($v), Call(Member($api, "fromHost"), $v))))))),
+            Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
+            Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($xs, Call($items, Index($v, 0))),
+            Bind($out, Concat($xs)),
+            For(
+              Var($k, Length($xs)),
+              LessThan($k, Index($v, 1)),
+              PostIncrement($k),
+              Call(Member($out, "push"), $U)),
+            Assign(Index($out, Index($v, 1)), Index($v, 2)),
+            Return(Call($list, $out))))))))
 
 // The List backwards.
 Concept(Reverse(),

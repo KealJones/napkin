@@ -1801,78 +1801,118 @@ Concept(Time(),
                   value=AddValues(
                     AddValues(AddValues(AddValues($h, ":"), $mm), " "),
                     If(Below($h24, 12), "AM", "PM")))))))))),
-  Realization(Time($h, $b), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
-        Sequence(
-          Bind($vals, Map($args, Lambda(List($a), Member($a, "value")))),
-          Bind(
-            $period,
-            Call(
-              Member($vals, "find"),
-              Lambda(
-                List($v),
-                And($v, Or(Equals(Member($v, "head"), "Am"), Equals(Member($v, "head"), "Pm")))))),
-          Bind($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
+  Realization(Time($h, $b), context=Execution(), evaluateArguments=false, properties=List(Program()),
+    body=Bind(
+      $vals,
+      Map(
+        List(Argument(value=Quote($h)), Argument(value=Quote($b))),
+        Lambda(List($a), FieldOf($a, "value"))),
+      Bind(
+        $period,
+        FirstSatisfying(
+          $vals,
+          Lambda(
+            List($v),
+            Bind(
+              $t0,
+              $v,
+              If(Truthy($t0), If(Identical(Head($v), "Am"), true, Identical(Head($v), "Pm")), $t0)))),
+        Bind(
+          $nums,
+          Filter($vals, Lambda(List($v2), Identical(TypeOf($v2), "number"))),
           If(
-            Or(Not(Length($nums)), NotEquals(Add(Length($nums), If($period, 1, 0)), Length($vals))),
-            Return(Call(Member($api, "call"), "Time", Spread($vals))),
-            Undefined()),
-          Bind(List($h, Default($m, 0)), $nums),
-          Bind(
-            $h24,
-            If($period, Add(Modulo($h, 12), If(Equals(Member($period, "head"), "Pm"), 12, 0)), $h)),
-          Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
-          Return(
-            Object(
-              head="Time",
-              args=List(
-                Object(name="hour", value=$h24),
-                Object(name="minute", value=$m),
-                Object(
-                  name="spoken",
-                  value=Add(
-                    Add(
-                      Add(Add($h12, ":"), Call(Member(Call($String, $m), "padStart"), 2, "0")),
-                      " "),
-                    If(LessThan($h24, 12), "AM", "PM")))))))))),
-  Realization(Time($h, $b, $c), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Lambda(
-        List($args, $bindings, $api),
-        Sequence(
-          Bind($vals, Map($args, Lambda(List($a), Member($a, "value")))),
-          Bind(
-            $period,
-            Call(
-              Member($vals, "find"),
-              Lambda(
-                List($v),
-                And($v, Or(Equals(Member($v, "head"), "Am"), Equals(Member($v, "head"), "Pm")))))),
-          Bind($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
+            Truthy(
+              If(
+                Falsy(Length($nums)),
+                true,
+                NotIdentical(AddValues(Length($nums), If(Truthy($period), 1, 0)), Length($vals)))),
+            MakeCall("Time", AsList($vals)),
+            Bind(
+              $t1,
+              $nums,
+              Bind(
+                $h2,
+                Element($t1, 0),
+                Bind(
+                  $m,
+                  Bind($t2, Element($t1, 1), If(Identical($t2, Undefined()), 0, $t2)),
+                  Bind(
+                    $h24,
+                    If(
+                      Truthy($period),
+                      AddValues(RemainderOf($h2, 12), If(Identical(Head($period), "Pm"), 12, 0)),
+                      $h2),
+                    Bind(
+                      $h12,
+                      If(Identical(RemainderOf($h24, 12), 0), 12, RemainderOf($h24, 12)),
+                      CallOf(
+                        "Time",
+                        List(
+                          Record(name="hour", value=$h24),
+                          Record(name="minute", value=$m),
+                          Record(
+                            name="spoken",
+                            value=AddValues(
+                              AddValues(
+                                AddValues(AddValues($h12, ":"), PadStart(ToText($m), 2, "0")),
+                                " "),
+                              If(Below($h24, 12), "AM", "PM"))))))))))))))),
+  Realization(Time($h, $b, $c), context=Execution(), evaluateArguments=false, properties=List(Program()),
+    body=Bind(
+      $vals,
+      Map(
+        List(Argument(value=Quote($h)), Argument(value=Quote($b)), Argument(value=Quote($c))),
+        Lambda(List($a), FieldOf($a, "value"))),
+      Bind(
+        $period,
+        FirstSatisfying(
+          $vals,
+          Lambda(
+            List($v),
+            Bind(
+              $t0,
+              $v,
+              If(Truthy($t0), If(Identical(Head($v), "Am"), true, Identical(Head($v), "Pm")), $t0)))),
+        Bind(
+          $nums,
+          Filter($vals, Lambda(List($v2), Identical(TypeOf($v2), "number"))),
           If(
-            Or(Not(Length($nums)), NotEquals(Add(Length($nums), If($period, 1, 0)), Length($vals))),
-            Return(Call(Member($api, "call"), "Time", Spread($vals))),
-            Undefined()),
-          Bind(List($h, Default($m, 0)), $nums),
-          Bind(
-            $h24,
-            If($period, Add(Modulo($h, 12), If(Equals(Member($period, "head"), "Pm"), 12, 0)), $h)),
-          Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
-          Return(
-            Object(
-              head="Time",
-              args=List(
-                Object(name="hour", value=$h24),
-                Object(name="minute", value=$m),
-                Object(
-                  name="spoken",
-                  value=Add(
-                    Add(
-                      Add(Add($h12, ":"), Call(Member(Call($String, $m), "padStart"), 2, "0")),
-                      " "),
-                    If(LessThan($h24, 12), "AM", "PM")))))))))))
+            Truthy(
+              If(
+                Falsy(Length($nums)),
+                true,
+                NotIdentical(AddValues(Length($nums), If(Truthy($period), 1, 0)), Length($vals)))),
+            MakeCall("Time", AsList($vals)),
+            Bind(
+              $t1,
+              $nums,
+              Bind(
+                $h2,
+                Element($t1, 0),
+                Bind(
+                  $m,
+                  Bind($t2, Element($t1, 1), If(Identical($t2, Undefined()), 0, $t2)),
+                  Bind(
+                    $h24,
+                    If(
+                      Truthy($period),
+                      AddValues(RemainderOf($h2, 12), If(Identical(Head($period), "Pm"), 12, 0)),
+                      $h2),
+                    Bind(
+                      $h12,
+                      If(Identical(RemainderOf($h24, 12), 0), 12, RemainderOf($h24, 12)),
+                      CallOf(
+                        "Time",
+                        List(
+                          Record(name="hour", value=$h24),
+                          Record(name="minute", value=$m),
+                          Record(
+                            name="spoken",
+                            value=AddValues(
+                              AddValues(
+                                AddValues(AddValues($h12, ":"), PadStart(ToText($m), 2, "0")),
+                                " "),
+                              If(Below($h24, 12), "AM", "PM"))))))))))))))))
 
 Concept(Am(), IsA(Data()))
 
