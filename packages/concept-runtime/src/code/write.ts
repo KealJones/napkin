@@ -8,6 +8,7 @@
  *   @x   the part, written as a statement
  *   %x   the part, written as the statements of a block: a Sequence's steps, or one
  *   #x   the part, a name, written as it is
+ *   &x   the part written as source, then quoted as a string: source held in a string
  * A part bound by `Rest(...)` is written once per element, expressions joined by ", " (a
  * named argument as `name: value`) and statements by "; ".
  *
@@ -30,7 +31,7 @@ import { facetAncestors } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
 import { expandEach, matches } from "./rewrite.js";
 
-type Part = { text: string } | { hole: string; as: "expression" | "statement" | "block" | "name" };
+type Part = { text: string } | { hole: string; as: "expression" | "statement" | "block" | "name" | "source" };
 
 interface Rule {
   readonly pattern: Expr;
@@ -42,8 +43,8 @@ interface Rule {
   readonly rank: number;
 }
 
-const HOLE = /([$@%#])([a-z][A-Za-z0-9]*)/g;
-const KINDS = { $: "expression", "@": "statement", "%": "block", "#": "name" } as const;
+const HOLE = /([$@%#&])([a-z][A-Za-z0-9]*)/g;
+const KINDS = { $: "expression", "@": "statement", "%": "block", "#": "name", "&": "source" } as const;
 
 export function templatePieces(template: string): Part[] {
   const out: Part[] = [];
@@ -153,6 +154,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
       .map((p) => {
         if ("text" in p) return p.text;
         const items = values(rule, b, p.hole);
+        if (p.as === "source") return items.map((a) => JSON.stringify(write(a.value, "expression"))).join(", ");
         if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : write(a.value, "expression"))).join(", ");
         if (p.as === "statement") return items.map((a) => write(a.value, "statement")).join("; ");
         if (p.as === "block") {

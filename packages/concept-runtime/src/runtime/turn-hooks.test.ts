@@ -64,7 +64,8 @@ test("data wrappers never conceal unresolved comparisons or references", async (
     inputMode: "expression", learn: false,
   });
   assert.equal(holdsResidual(rt, result.result), true);
-  assert.match(result.spoken, /^I could not work that out\./);
+  // Said as not known, the way the Mouth says an uncomputed answer (memory-spec Part 9).
+  assert.match(result.spoken, /^I (could not work that out|don't know)/);
   assert.equal(requests.length, 0);
 });
 

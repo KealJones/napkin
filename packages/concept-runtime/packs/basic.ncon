@@ -40,8 +40,6 @@ Concept(Lossy(), IsA(RealizationProperty()))
 
 Concept(Pure(), IsA(RealizationProperty()))
 
-Concept(Execution(), IsA(ContextFacet()))
-
 Concept(Teaching(), IsA(ContextFacet()))
 
 Concept(Lexical(), IsA(ContextFacet()))

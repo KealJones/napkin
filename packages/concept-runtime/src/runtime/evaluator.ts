@@ -153,7 +153,6 @@ export class Runtime {
     this.steps = 0;
     this.ambiguities.length = 0;
     this.forwarding.length = 0;
-    this.active.clear();
     this.mark = this.trace.mark();
   }
 
@@ -161,36 +160,34 @@ export class Runtime {
     return this.run(expression, context, "Entry", undefined, 0);
   }
 
-  /**
-   * Calls being evaluated right now, each with its context. A call that, to be evaluated,
-   * needs the identical call in the identical context is a cycle, not a computation: a
-   * Teacher taught Wish to forward to Want where Want already forwarded to Wish, and every
-   * "want" ran to the depth budget. The inner one stays residual, which is the honest
-   * outcome, and the loop costs one step instead of sixty-four.
-   */
-  private readonly active = new Set<string>();
 
   /** Calls whose arguments are values already, made by compiled code: not evaluated again. */
   private readonly given = new WeakSet<Call>();
 
+  /**
+   * A call that, to be evaluated, needs the identical call in the identical context is a
+   * cycle, not a computation: a Teacher taught Wish to forward to Want where Want already
+   * forwarded to Wish, and every "want" ran to the depth budget. The inner one stays
+   * residual, which is the honest outcome, and the loop costs one step instead of sixty-four.
+   *
+   * What counts is the call's own ancestry, the calls it is being evaluated inside, not
+   * everything running at the moment: two arguments evaluated side by side that ask the
+   * same thing are not a cycle (chess asks both castling wings about the same board).
+   */
   private async run(
     expression: Expr,
     context: Expr | undefined,
     caller: string,
     parent: string | undefined,
     depth: number,
+    within?: Ancestry,
   ): Promise<Expr> {
     if (expression === null || typeof expression !== "object" || isVariable(expression)) {
-      return this.step(expression, context, caller, parent, depth);
+      return this.step(expression, context, caller, parent, depth, within);
     }
     const key = `${format(expression)}@${context === undefined ? "" : format(context)}`;
-    if (this.active.has(key)) return expression;
-    this.active.add(key);
-    try {
-      return await this.step(expression, context, caller, parent, depth);
-    } finally {
-      this.active.delete(key);
-    }
+    for (let a = within; a; a = a.up) if (a.key === key) return expression;
+    return this.step(expression, context, caller, parent, depth, { key, up: within });
   }
 
   private async step(
@@ -199,6 +196,7 @@ export class Runtime {
     caller: string,
     parent: string | undefined,
     depth: number,
+    within?: Ancestry,
   ): Promise<Expr> {
     if (expression === null || typeof expression !== "object") return expression;
     // `$_` is the anonymous unknown, not a binding anyone forgot to make. It means "this
@@ -275,7 +273,7 @@ export class Runtime {
       if (realization.evaluateArguments && !this.given.has(target)) {
         args = await Promise.all(
           target.args.map(async (a) => {
-            const value = await this.run(a.value, context, target.head, id, depth + 1);
+            const value = await this.run(a.value, context, target.head, id, depth + 1, within);
             return a.name === undefined ? { value } : { name: a.name, value };
           }),
         );
@@ -299,7 +297,7 @@ export class Runtime {
       let result: Expr;
       if (isCodeBody(realization.body)) {
         try {
-          result = await this.runCode(realization, bindings, args, bodyContext, id, depth);
+          result = await this.runCode(realization, bindings, args, bodyContext, id, depth, within);
         } finally {
           if (forwardsTo !== undefined) this.forwarding.pop();
         }
@@ -308,15 +306,15 @@ export class Runtime {
         // that cannot be compiled is interpreted, as every composed body is.
         const compiled = declares(realization, "Compile") ? compiledFor(this.store, realization) : undefined;
         if (compiled) {
-          result = await compiled(bindings, this.api(bodyContext, id, depth));
+          result = await compiled(bindings, this.api(bodyContext, id, depth, within));
         } else {
           const body = substitute(realization.body, bindings);
-          result = await this.run(body, bodyContext, target.head, id, depth + 1);
+          result = await this.run(body, bodyContext, target.head, id, depth + 1, within);
         }
       }
 
       if (realization.evaluateResult) {
-        result = await this.run(result, bodyContext, target.head, id, depth + 1);
+        result = await this.run(result, bodyContext, target.head, id, depth + 1, within);
       }
 
       // A realization that hands back the call it was given did nothing. That is a
@@ -345,6 +343,7 @@ export class Runtime {
     context: Expr | undefined,
     parent: string,
     depth: number,
+    within?: Ancestry,
   ): Promise<Expr> {
     const source = codeSource(realization.body);
     if (source === undefined) {
@@ -362,7 +361,7 @@ export class Runtime {
         `This host runs ${this.speaks.join(", ")} and the body is ${language}`,
       );
     }
-    const api = this.api(context, parent, depth);
+    const api = this.api(context, parent, depth, within);
     // Built once per source, not once per call: every Code body went through new Function
     // on every evaluation.
     let fn = COMPILED_SOURCES.get(source);
@@ -374,18 +373,18 @@ export class Runtime {
   }
 
   /** What a body reaches the host through, whether it is JavaScript or compiled IR. */
-  private api(context: Expr | undefined, parent: string, depth: number): CodeApi {
+  private api(context: Expr | undefined, parent: string, depth: number, within?: Ancestry): CodeApi {
     return {
       store: this.store,
       cells: this.cells,
       relations: this.relations,
       trace: this.trace,
       evaluate: (expression, ctx) =>
-        this.run(expression, ctx ?? context, "Code", parent, depth + 1),
+        this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
       apply: (head, values) => {
         const target = call(head, values.map((value) => ({ value })));
         this.given.add(target);
-        return this.run(target, context, "Code", parent, depth + 1);
+        return this.run(target, context, "Code", parent, depth + 1, within);
       },
       substitute,
       parse,
@@ -403,6 +402,12 @@ export class Runtime {
       },
     };
   }
+}
+
+/** The calls a call is being evaluated inside, innermost first. */
+interface Ancestry {
+  readonly key: string;
+  readonly up?: Ancestry;
 }
 
 type CodeFunction = (a: readonly Argument[], b: Bindings, c: CodeApi) => Expr | Promise<Expr>;

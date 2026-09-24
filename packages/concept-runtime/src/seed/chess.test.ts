@@ -13,13 +13,10 @@ import { isCodeBody } from "../concept/unit.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { ConceptStore } from "../store/store.js";
 import { seed } from "./seed.js";
-import { chessUnits } from "./chess.js";
-import { gamePrimitiveUnits } from "./game-primitives.js";
 
 function runtime() {
   const store = new ConceptStore();
   seed(store);
-  for (const unit of [...gamePrimitiveUnits, ...chessUnits]) store.seed(unit);
   return new Runtime(store, { maximumSteps: 1_000_000, maximumDepth: 256 });
 }
 const record = (head: string, fields: Record<string, Expr>) =>
@@ -30,7 +27,7 @@ const record = (head: string, fields: Record<string, Expr>) =>
 const square = (label: string) =>
   c("Square", label.charCodeAt(0) - 97, Number(label[1]) - 1);
 const move = (from: string, to: string, promotion: Expr = null) =>
-  record("Move", { from: square(from), to: square(to), promotion });
+  record("ChessMove", { from: square(from), to: square(to), promotion });
 const piece = (kind: string, side: string, at: string) =>
   record("Piece", { kind: c(kind), side: c(side), square: square(at) });
 const position = (
@@ -75,10 +72,11 @@ const contains = (list: Expr[], from: string, to: string) =>
   );
 
 test("all chess behavior is composed and the initial position has 20 legal moves", async () => {
-  assert.ok(
-    chessUnits.flatMap((u) => u.realizations).every((r) => !isCodeBody(r.body)),
-  );
   const rt = runtime();
+  // Chess itself is composed; only the reusable game primitives are code.
+  const chess = rt.store.all().filter((u) => u.identity.startsWith("Chess"));
+  assert.ok(chess.length > 20);
+  assert.ok(chess.flatMap((u) => u.realizations).every((r) => !isCodeBody(r.body)));
   const pos = await run(rt, c("ChessInitialPosition"));
   const legal = await moves(rt, pos);
   assert.equal(legal.length, 20);
@@ -94,7 +92,7 @@ test("all chess behavior is composed and the initial position has 20 legal moves
     0,
   );
   assert.equal(
-    format(await run(rt, parse('Move(Square("e2"),Square("e4"))'))),
+    format(await run(rt, parse('ChessMove(Square("e2"),Square("e4"))'))),
     format(move("e2", "e4")),
   );
 });
@@ -285,7 +283,8 @@ test("repetition ignores piece ordering and unusable en passant; claims and five
   const prior = position([...pieces].reverse(), "White", {
     enPassant: square("c6"),
   });
-  assert.equal(await run(rt, c("ChessSamePosition", pos, prior, rule)), true);
+  // The IR's And answers True(), where chess's own answered true.
+  assert.equal(format(await run(rt, c("ChessSamePosition", pos, prior, rule))), "True()");
   assert.equal(
     format(
       await run(rt, c("DrawClaimable", pos, c("List", prior, prior), rule)),
@@ -402,7 +401,7 @@ test("double pushes, black counters, and rook captures update position metadata"
   );
   assert.equal(await run(rt, parse('Square("a9")')), null);
   assert.equal(
-    format(await run(rt, parse('Move(Square("b7"),Square("b8"),Queen())'))),
+    format(await run(rt, parse('ChessMove(Square("b7"),Square("b8"),Queen())'))),
     format(move("b7", "b8", c("Queen"))),
   );
 });

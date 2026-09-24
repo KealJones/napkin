@@ -393,3 +393,5 @@ Concept(Relation(), IsA(Category()))
 // Context(<language>, Compiled()); without one, compiled bodies are interpreted instead.
 Concept(Prelude(), IsA(Category()))
 
+Concept(Execution(), IsA(ContextFacet()))
+

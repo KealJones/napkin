@@ -89,9 +89,14 @@ From(JsSuperKeyword(), Super())
 From(JsParenthesizedExpression(expression=$e), $e)
 
 // Declarations. `const` binds; `let` and `var` may be reassigned, and the IR keeps the
-// difference. Several in one statement are a Sequence.
+// difference.
 From(JsVariableStatement(declarationList=$l, modifiers=$m), JsMods($m, $l))
-From(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds))), Sequence(Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d)))))
+// Several in one statement are statements of the block around them: `const a = 1, b = 2`
+// declares both where the block's other statements see them, so they are spliced into it
+// rather than nested, which would read as a block of their own.
+From(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds))), Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d))))
+// A for loop's own declarations stay together, as its first part.
+From(JsForStatement(initializer=Bind($l, JsVariableDeclarationList()), condition=$c, incrementor=$n, statement=$s), JsForStatement(initializer=Sequence($l), condition=$c, incrementor=$n, statement=$s))
 From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name=$n, initializer=$v)), Let($n, $v))
 From(JsDeclare($_, JsVariableDeclaration(name=$n, initializer=$v)), Var($n, $v))
 // A destructuring keeps its shape, so what it takes apart can still be read.
@@ -391,6 +396,8 @@ To(ReExport(All()), Statement(), "export *")
 To(ReExport(All(), $from), Statement(), "export * from $from")
 To(As($p, $k), "$p as #k")
 To(DynamicImport(Rest($a)), "import($a)")
+// Source held in a string, as code(`...`) holds it: written as source, then quoted.
+To(Embedded($x), "&x")
 
 // Reading, calling and the primitives.
 To(Member($o, $k), "$o.#k")
