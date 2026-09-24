@@ -37,11 +37,18 @@ export interface StoredTraceEvent {
   startedAt: string;
   durationMs: number | null;
   exchanges: { url: string; method: string; status: number | null; error: string | null }[];
+  /** How many realizations matched, before any tie-break (emergent-judgment-plan.md Phase 0). */
+  candidateCount: number;
+  /** Whether a tie-break, not specificity, decided (concept-spec Part 9.4). Evidence and
+   * blame only ever read events where this is true. */
+  tieBroken: boolean;
 }
 
 export const realizationHash = (r: Expr): string => createHash("sha256").update(format(r)).digest("hex").slice(0, 16);
 
-const toStored = (e: TraceEvent): StoredTraceEvent => ({
+/** Shared with the evidence cache (`runtime/evidence.ts`), so a freshly written event is
+ * indexed the same way a reloaded one is. */
+export const toStored = (e: TraceEvent): StoredTraceEvent => ({
   id: e.id,
   traceId: e.traceId,
   saidSeq: e.saidSeq,
@@ -57,6 +64,8 @@ const toStored = (e: TraceEvent): StoredTraceEvent => ({
   error: e.error,
   startedAt: e.startedAt,
   durationMs: e.durationMs,
+  candidateCount: e.candidateCount,
+  tieBroken: e.tieBroken,
   exchanges: e.externalExchanges.map((x) => ({
     url: x.url,
     method: x.method,

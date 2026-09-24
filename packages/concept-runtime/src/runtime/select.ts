@@ -83,6 +83,13 @@ export function candidates(
   target: Call,
   context: Expr | undefined,
   suppressed: Set<string>,
+  /**
+   * Tier 3: evidence, standing in for the recency it replaces (Phase 1). Returns `undefined`
+   * when there is no evidence for a candidate, so it falls through to recency instead of
+   * being scored as a zero. When neither side of a comparison has evidence, recency alone
+   * decides, exactly as before evidence existed.
+   */
+  preference?: (candidate: Candidate) => number | undefined,
 ): Candidate[] {
   const found: Candidate[] = [];
   const chain = lineage(store, target.head);
@@ -110,13 +117,18 @@ export function candidates(
     });
   });
 
-  found.sort(
-    (a, b) =>
-      a.distance - b.distance ||
-      b.facetCount - a.facetCount ||
-      b.contextDepth - a.contextDepth ||
-      b.order - a.order, // newer shadows older with the same pattern and context
-  );
+  found.sort((a, b) => {
+    if (a.distance !== b.distance) return a.distance - b.distance;
+    if (a.facetCount !== b.facetCount) return b.facetCount - a.facetCount;
+    if (a.contextDepth !== b.contextDepth) return b.contextDepth - a.contextDepth;
+    const pa = preference?.(a);
+    const pb = preference?.(b);
+    if (pa !== undefined || pb !== undefined) {
+      const diff = (pb ?? 0) - (pa ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return b.order - a.order; // newer shadows older with the same pattern and context
+  });
   return found;
 }
 
@@ -132,6 +144,19 @@ export const bestCandidate = (
  * facets, are genuinely incomparable (concept-spec Part 9.3). No facet priority order is
  * imposed; the ambiguity is reported so it can be seen.
  */
+/**
+ * Did distance and specificity leave more than one candidate, so tier 3 (recency or
+ * evidence), not declared meaning, decided (concept-spec Part 9.4)? True for a genuine
+ * tie and for an incomparable match alike: both hand the decision to tier 3, and both are
+ * what blame and evidence must stay narrow to (Phase 0: "record ... whether tie-break
+ * decided").
+ */
+export function tieBreakDecided(found: Candidate[]): boolean {
+  if (found.length < 2) return false;
+  const [a, b] = found;
+  return a.distance === b.distance && a.facetCount === b.facetCount && a.contextDepth === b.contextDepth;
+}
+
 export function incomparable(found: Candidate[]): boolean {
   if (found.length < 2) return false;
   const [a, b] = found;

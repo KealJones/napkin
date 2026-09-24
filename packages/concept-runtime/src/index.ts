@@ -10,6 +10,8 @@ export * from "./store/traces.js";
 export * from "./runtime/context.js";
 export * from "./runtime/select.js";
 export * from "./runtime/trace.js";
+export * from "./runtime/evidence.js";
+export * from "./runtime/turn-signal.js";
 export * from "./runtime/errors.js";
 export * from "./runtime/evaluator.js";
 export * from "./seed/seed.js";

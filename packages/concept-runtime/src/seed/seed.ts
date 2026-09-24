@@ -11,6 +11,7 @@
 import { type Expr, c, call, format, isCall, parse } from "../concept/expression.js";
 import { codeSource, concept, declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
+import { judgmentEvidenceUnits } from "./judgment-evidence.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
 const meaning = (text: string): Expr => c("Text", text);
@@ -1494,7 +1495,7 @@ export interface SeedReport {
 
 export function seed(store: ConceptStore): SeedReport {
   const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
-  for (const unit of units) {
+  for (const unit of [...units, ...judgmentEvidenceUnits()]) {
     const result = store.seed(unit);
     if (result.created) report.created += 1;
     else if (result.addedRelations || result.addedRealizations) report.updated += 1;

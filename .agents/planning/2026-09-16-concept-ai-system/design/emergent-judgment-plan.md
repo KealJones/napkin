@@ -359,6 +359,33 @@ Smallest behaviour change, and it proves back-off works before anything depends 
 next time. Then ask in a context sharing one facet with the first, and watch back-off carry
 the preference over.
 
+**Design decision, settled:** tier 3 is computed as a structural property of past
+evaluations, the same way recency already was, rather than routed through a realization
+reached via the universal parent. The alternative would need a Concept named `Evidence` or
+`Score` to mean something specific to the evaluation loop, which is a seventh structural
+identity, the exact thing Part 2.1 and Part 17.1 forbid. Computing
+`(realizationHash, context, outcome) -> preference` in the host, generically, with no
+Concept name ever appearing in that code, keeps the loop at six identities while still
+giving every realization a `tracePath`-backed way to read its own history through
+`api.events` (an ordinary host facility, not a special case). The minimum-evidence
+threshold (`MIN_EVIDENCE` in `runtime/evidence.ts`) is one constant used at every facet-
+subset level, rather than a relation read off some Concept: nothing yet needs the threshold
+to vary by identity or by facet depth, and if that need appears, reading it from a relation
+is a small, local change to one file, not a redesign. Reading it from relations would have
+been the more extensible choice; the constant is the simpler one, and simple is right for a
+threshold nothing has asked to differ yet.
+
+One further decision this phase forced: concept-spec Part 9.4's signal table lists no
+positive counterpart to "the realization failed, or produced a residual", only breakage is
+scored, never success. Tier 3 follows that literally: a realization nobody ever pushed back
+on scores 0, indistinguishable from a realization with no evidence at all. That is
+deliberate, not an oversight, it keeps the mechanism a detector of bad choices rather than
+a store of value verdicts (Part 5 guardrail), and it means the weak, self-reported turn-
+level signal (a retry or an explicit rejection) has to carry real weight, since a
+technically-successful realization the user kept asking again about would otherwise never
+lose to its rival. Both a grounded failure and a weak follow-up subtract one point each, at
+equal weight, for that reason.
+
 ### Phase 2: Expectations and implication
 
 The most visible win.

@@ -50,6 +50,17 @@ export interface TraceEvent {
    * without a second copy of the parse (memory-spec Part 13). Null outside a turn.
    */
   saidSeq: number | null;
+  /**
+   * How many realizations matched before any tie-break (emergent-judgment-plan.md Phase 0,
+   * "record per selection: candidate count, and whether tie-break decided").
+   */
+  candidateCount: number;
+  /**
+   * Whether distance and specificity left more than one candidate, so something other than
+   * declared meaning decided (concept-spec Part 9.4). Blame, and evidence, only ever
+   * touch a selection where this is true; a uniquely specific selection made no choice.
+   */
+  tieBroken: boolean;
 }
 
 export interface EvaluationTrace {
@@ -60,8 +71,11 @@ export interface EvaluationTrace {
 
 export type TraceListener = (event: TraceEvent) => void;
 
-/** A realization, as an expression, so the trace holds it by value. */
-const realizationExpr = (r: Realization): Expr =>
+/**
+ * A realization, as an expression, so the trace holds it by value, and so a hash of it can
+ * be compared between a live candidate and a stored event (Phase 1 evidence lookup).
+ */
+export const realizationExpr = (r: Realization): Expr =>
   call("Realization", [
     { name: "pattern", value: r.pattern },
     ...(r.context === undefined ? [] : [{ name: "context", value: r.context }]),
@@ -131,6 +145,8 @@ export class Trace {
       durationMs: null,
       externalExchanges: [],
       saidSeq: this.saidSeq,
+      candidateCount: 0,
+      tieBroken: false,
     };
     // Depth is not part of the event shape; it is recoverable from parentEventId, and
     // kept here only for the text renderer.
@@ -147,6 +163,20 @@ export class Trace {
     const event = this.index.get(id);
     if (!event) return;
     event.selectedRealization = realizationExpr(r);
+    this.emit(event);
+  }
+
+  /**
+   * Recorded once candidates are found, whether or not one was chosen: `candidateCount`
+   * is how many realizations matched, and `tieBroken` is whether distance and specificity
+   * left more than one, so recency or evidence, not declared meaning, decided
+   * (concept-spec Part 9.4).
+   */
+  selection(id: string, candidateCount: number, tieBroken: boolean): void {
+    const event = this.index.get(id);
+    if (!event) return;
+    event.candidateCount = candidateCount;
+    event.tieBroken = tieBroken;
     this.emit(event);
   }
 
