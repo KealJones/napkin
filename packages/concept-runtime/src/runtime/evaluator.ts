@@ -79,6 +79,8 @@ export interface CodeApi {
   readonly relations: Relations;
   readonly trace: Trace;
   evaluate(expression: Expr, context?: Expr): Promise<Expr>;
+  /** A call to `head` with these values as its arguments, already evaluated, so not evaluated again. */
+  apply(head: string, values: Expr[]): Promise<Expr>;
   substitute(expression: Expr, bindings: Bindings): Expr;
   parse(source: string): Expr;
   /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
@@ -167,6 +169,9 @@ export class Runtime {
    * outcome, and the loop costs one step instead of sixty-four.
    */
   private readonly active = new Set<string>();
+
+  /** Calls whose arguments are values already, made by compiled code: not evaluated again. */
+  private readonly given = new WeakSet<Call>();
 
   private async run(
     expression: Expr,
@@ -267,7 +272,7 @@ export class Runtime {
       let bindings = chosen.bindings;
       let args: readonly Argument[] = target.args;
 
-      if (realization.evaluateArguments) {
+      if (realization.evaluateArguments && !this.given.has(target)) {
         args = await Promise.all(
           target.args.map(async (a) => {
             const value = await this.run(a.value, context, target.head, id, depth + 1);
@@ -377,6 +382,11 @@ export class Runtime {
       trace: this.trace,
       evaluate: (expression, ctx) =>
         this.run(expression, ctx ?? context, "Code", parent, depth + 1),
+      apply: (head, values) => {
+        const target = call(head, values.map((value) => ({ value })));
+        this.given.add(target);
+        return this.run(target, context, "Code", parent, depth + 1);
+      },
       substitute,
       parse,
       ambient: (key) => this.context.get(key),

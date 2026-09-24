@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { c, format, parse } from "../concept/expression.js";
-import { concept, realization } from "../concept/unit.js";
+import { concept, declares, realization } from "../concept/unit.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { ConceptStore } from "../store/store.js";
 import { seed } from "./seed.js";
@@ -44,6 +44,8 @@ test("a body declared Compile() compiles to one function and answers exactly as 
     'MakeCall(Head(Likes(Cats())), List(Arg(Likes(Cats()), 0)))',
     "Let($n, Add(2, 3), Multiply($n, $n))",
     'Length(Subjects("IsA", Bird()))',
+    "Unique(List(1, 2, 1, Cats(), Cats()))",
+    'Filter(List("User_1", "Game"), Lambda(List($x), Matches($x, "_[0-9]+$")))',
   ];
   for (const [i, body] of bodies.entries()) {
     const interpreted = `Interpreted${i}`;
@@ -62,4 +64,13 @@ test("a compiled body still reaches Concepts it has no template for, and is not 
   const heads = rt.trace.all().map((e) => e.concept);
   assert.ok(heads.includes("Double"), "the Concept it calls is still evaluated as one");
   assert.ok(!heads.includes("Map") && !heads.includes("Lambda"), "the compiled parts are not");
+});
+
+test("Members is written in the IR and compiled, and hands on values without evaluating them again", async () => {
+  const members = store.get("Members")!.realizations.find((r) => !r.retired)!;
+  assert.ok(declares(members, "Compile"));
+  const rt = new Runtime(store);
+  assert.equal(format(await rt.evaluate(parse("Members(Birds())"), c("Execution"))), "List(Robin(), Songbird(), Wren())");
+  const heads = rt.trace.all().map((e) => e.concept);
+  assert.ok(!heads.includes("Robin") && !heads.includes("List"), "a member found is a value, not re-selected");
 });

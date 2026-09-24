@@ -27,7 +27,7 @@ const PRELUDE = `
   const L = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
   const F = (x) => api.format(x);
   const K = (x) => (isCall(x) ? x.head : F(x));
-  const E = (head, ...values) => api.evaluate({ head, args: values.map((value) => ({ value })) });
+  const E = (head, ...values) => api.apply(head, values);
   const N = async (head, a, b, op) => (typeof a === "number" && typeof b === "number" ? op(a, b) : await E(head, a, b));
 `;
 
@@ -86,6 +86,12 @@ function compileExpr(store: ConceptStore, e: Expr, scope: Set<string>): string {
   // A Lambda handed to a Concept that is not compiled would arrive as a JavaScript
   // function it cannot read: that body is left to the interpreter instead.
   if (e.args.some((a) => isCall(a.value) && a.value.head === "Lambda")) throw new NotCompilable(`lambda passed to ${e.head}`);
+  // A Concept that reads its arguments unevaluated would get them evaluated: only a
+  // variable or a literal, whose value is itself, can be handed to it.
+  const lazy = (store.get(e.head)?.realizations ?? []).some((r) => !r.retired && !r.evaluateArguments);
+  if (lazy && e.args.some((a) => isCall(a.value) && a.value.args.length > 0)) throw new NotCompilable(`${e.head} reads its arguments unevaluated`);
+  // Its arguments are values already: evaluated here, they are not evaluated again there.
+  if (!named) return `(await api.apply(${JSON.stringify(e.head)}, [${codes.join(", ")}]))`;
   const args = e.args.map((a, i) => (a.name === undefined ? `{ value: ${codes[i]} }` : `{ name: ${JSON.stringify(a.name)}, value: ${codes[i]} }`));
   return `(await api.evaluate({ head: ${JSON.stringify(e.head)}, args: [${args.join(", ")}] }))`;
 }

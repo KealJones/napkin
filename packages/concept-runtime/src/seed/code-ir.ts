@@ -76,6 +76,7 @@ const compiled = (identity: string, pattern: string, js: string): ConceptUnit =>
 
 /** The compiled forms, one per primitive, and for the arithmetic and If that already run. */
 const TEMPLATES: ConceptUnit[] = [
+  compiled("List", "List(Rest($xs))", "L([$xs])"),
   compiled("Call", "Call($f, Rest($args))", "(await ($f)($args))"),
   compiled("Equals", "Equals($a, $b)", "B(F($a) === F($b))"),
   compiled("NotEquals", "NotEquals($a, $b)", "B(F($a) !== F($b))"),
@@ -90,6 +91,8 @@ const TEMPLATES: ConceptUnit[] = [
   compiled("FlatMap", "FlatMap($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))"),
   compiled("Filter", "Filter($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I($xs), $f))"),
   compiled("Reduce", "Reduce($xs, $f, $initial)", "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))"),
+  compiled("Unique", "Unique($xs)", "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })($xs)"),
+  compiled("Matches", "Matches($text, $pattern)", "((t, p) => B(typeof t === \"string\" && new RegExp(p).test(t)))($text, $pattern)"),
   compiled("Head", "Head($e)", "((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))($e)"),
   compiled("Arg", "Arg($e, $i)", "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)"),
   compiled("ArgNamed", "ArgNamed($e, $name)", "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)"),
@@ -138,6 +141,11 @@ export function codeIrUnits(): ConceptUnit[] {
     primitive("FlatMap", "FlatMap($xs, $f)", `const out = []; for (const x of items(v(0))) out.push(...items(await apply(v(1), [x]))); return list(out);`),
     primitive("Filter", "Filter($xs, $f)", `const out = []; for (const x of items(v(0))) if (truthy(await apply(v(1), [x]))) out.push(x); return list(out);`),
     primitive("Reduce", "Reduce($xs, $f, $initial)", `let acc = v(2); for (const x of items(v(0))) acc = await apply(v(1), [acc, x]); return acc;`),
+
+    primitive("Unique", "Unique($xs)", `const seen = new Set(); return list(items(v(0)).filter((x) => !seen.has(api.format(x)) && seen.add(api.format(x))));`),
+
+    // Text.
+    primitive("Matches", "Matches($text, $pattern)", `return bool(typeof v(0) === "string" && new RegExp(v(1)).test(v(0)));`),
 
     // Expressions as data: what a call is made of.
     primitive("Head", "Head($e)", `return isCall(v(0)) ? v(0).head : api.call("Undefined");`),
