@@ -83,9 +83,9 @@ const TEMPLATES: ConceptUnit[] = [
   compiled("Not", "Not($x)", "((x) => (T(x) || (isCall(x) && x.head === \"False\")) ? B(!T(x)) : E(\"Not\", x))($x)"),
   compiled("And", "And($a, $b)", "B(T($a) && T($b))"),
   compiled("Or", "Or($a, $b)", "B(T($a) || T($b))"),
-  compiled("Length", "Length($xs)", "I($xs).length"),
+  compiled("Length", "Length($xs)", "((xs) => (typeof xs === \"string\" ? xs.length : I(xs).length))($xs)"),
   compiled("Concat", "Concat(Rest($lists))", "L([$lists].flatMap(I))"),
-  compiled("Includes", "Includes($xs, $x)", "((xs, x) => B(I(xs).some((i) => F(i) === F(x))))($xs, $x)"),
+  compiled("Includes", "Includes($xs, $x)", "((xs, x) => B(typeof xs === \"string\" ? typeof x === \"string\" && xs.includes(x) : I(xs).some((i) => F(i) === F(x))))($xs, $x)"),
   // In order, as the interpreter does: two identical calls at once read as a cycle.
   compiled("Map", "Map($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I($xs), $f))"),
   compiled("FlatMap", "FlatMap($xs, $f)", "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))"),
@@ -93,6 +93,14 @@ const TEMPLATES: ConceptUnit[] = [
   compiled("Reduce", "Reduce($xs, $f, $initial)", "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))"),
   compiled("Unique", "Unique($xs)", "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })($xs)"),
   compiled("Matches", "Matches($text, $pattern)", "((t, p) => B(typeof t === \"string\" && new RegExp(p).test(t)))($text, $pattern)"),
+  compiled("First", "First($xs)", "((xs) => (xs.length ? xs[0] : api.call(\"Undefined\")))(I($xs))"),
+  compiled("JoinText", "JoinText(Rest($parts))", "[$parts].map((p) => (typeof p === \"string\" ? p : F(p))).join(\"\")"),
+  compiled("IsCall", "IsCall($x)", "B(isCall($x))"),
+  compiled("Evaluate", "Evaluate($x)", "(await api.evaluate($x))"),
+  compiled("Known", "Known($x)", "B(api.store.has(K($x)))"),
+  compiled("TruthOf", "TruthOf($subject, $predicate, $object)", "((s, p, o) => api.call({ true: \"True\", false: \"False\" }[api.relations.truth(K(s), String(p), o)] ?? \"UnknownTruth\"))($subject, $predicate, $object)"),
+  compiled("Closure", "Closure($subject, $predicate)", "((s, p) => L(api.relations.of(K(s)).filter((t) => t.predicate === String(p) && !t.context && t.object !== undefined).map((t) => t.object)))($subject, $predicate)"),
+  compiled("Claimed", "Claimed($subject, $predicate)", "((s, p) => B(api.relations.of(K(s)).some((t) => t.predicate === String(p) && !t.context && t.object === undefined)))($subject, $predicate)"),
   compiled("Head", "Head($e)", "((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))($e)"),
   compiled("Arg", "Arg($e, $i)", "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)"),
   compiled("ArgNamed", "ArgNamed($e, $name)", "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)"),
@@ -133,10 +141,10 @@ export function codeIrUnits(): ConceptUnit[] {
     primitive("And", "And(Rest($xs))", `for (const a of args) { const x = await api.evaluate(a.value); if (!isTruth(x)) return api.call("And", ...args.map((b) => b.value)); if (!truthy(x)) return api.call("False"); } return api.call("True");`, false),
     primitive("Or", "Or(Rest($xs))", `for (const a of args) { const x = await api.evaluate(a.value); if (!isTruth(x)) return api.call("Or", ...args.map((b) => b.value)); if (truthy(x)) return api.call("True"); } return api.call("False");`, false),
 
-    // Lists.
-    primitive("Length", "Length($xs)", `return items(v(0)).length;`),
+    // Lists, and text where JavaScript's own length and includes read text too.
+    primitive("Length", "Length($xs)", `return typeof v(0) === "string" ? v(0).length : items(v(0)).length;`),
     primitive("Concat", "Concat(Rest($lists))", `return list(args.flatMap((a) => items(a.value)));`),
-    primitive("Includes", "Includes($xs, $x)", `const x = api.format(v(1)); return bool(items(v(0)).some((i) => api.format(i) === x));`),
+    primitive("Includes", "Includes($xs, $x)", `if (typeof v(0) === "string") return bool(typeof v(1) === "string" && v(0).includes(v(1))); const x = api.format(v(1)); return bool(items(v(0)).some((i) => api.format(i) === x));`),
     primitive("Map", "Map($xs, $f)", `const out = []; for (const x of items(v(0))) out.push(await apply(v(1), [x])); return list(out);`),
     primitive("FlatMap", "FlatMap($xs, $f)", `const out = []; for (const x of items(v(0))) out.push(...items(await apply(v(1), [x]))); return list(out);`),
     primitive("Filter", "Filter($xs, $f)", `const out = []; for (const x of items(v(0))) if (truthy(await apply(v(1), [x]))) out.push(x); return list(out);`),
@@ -144,7 +152,10 @@ export function codeIrUnits(): ConceptUnit[] {
 
     primitive("Unique", "Unique($xs)", `const seen = new Set(); return list(items(v(0)).filter((x) => !seen.has(api.format(x)) && seen.add(api.format(x))));`),
 
+    primitive("First", "First($xs)", `const xs = items(v(0)); return xs.length ? xs[0] : api.call("Undefined");`),
+
     // Text.
+    primitive("JoinText", "JoinText(Rest($parts))", `return args.map((a) => (typeof a.value === "string" ? a.value : api.format(a.value))).join("");`),
     primitive("Matches", "Matches($text, $pattern)", `return bool(typeof v(0) === "string" && new RegExp(v(1)).test(v(0)));`),
 
     // Expressions as data: what a call is made of.
@@ -153,12 +164,39 @@ export function codeIrUnits(): ConceptUnit[] {
     primitive("ArgNamed", "ArgNamed($e, $name)", `const a = isCall(v(0)) ? v(0).args.find((x) => x.name === v(1)) : undefined; return a ? a.value : api.call("Undefined");`),
     primitive("MakeCall", "MakeCall($head, $args)", `return { head: String(v(0)), args: items(v(1)).map((value) => ({ value })) };`),
 
+    primitive("IsCall", "IsCall($x)", `return bool(isCall(v(0)));`),
+    // An expression held as a value, run. The arguments of a Concept that reads them
+    // unevaluated arrive as expressions; this is how its body evaluates one.
+    primitive("Evaluate", "Evaluate($x)", `return await api.evaluate(v(0));`),
+
     // The store, read. What holds in any context and was not retracted.
     primitive(
       "Subjects",
       "Subjects($predicate, $object)",
-      `const o = isCall(v(1)) ? v(1).head : api.format(v(1));
+      `const o = isCall(v(1)) ? v(1).head : String(v(1));
       return list(api.store.asObject(o).filter((t) => t.predicate === String(v(0)) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject)));`,
+    ),
+    primitive("Known", "Known($x)", `return bool(api.store.has(isCall(v(0)) ? v(0).head : String(v(0))));`),
+    // Whether a relation holds, with inheritance and transitivity: True, False or UnknownTruth.
+    primitive(
+      "TruthOf",
+      "TruthOf($subject, $predicate, $object)",
+      `const s = isCall(v(0)) ? v(0).head : String(v(0));
+      return api.call({ true: "True", false: "False" }[api.relations.truth(s, String(v(1)), v(2))] ?? "UnknownTruth");`,
+    ),
+    // What a subject holds by a predicate, inherited and transitive; Holds is what it states.
+    primitive(
+      "Closure",
+      "Closure($subject, $predicate)",
+      `const s = isCall(v(0)) ? v(0).head : String(v(0));
+      return list(api.relations.of(s).filter((t) => t.predicate === String(v(1)) && !t.context && t.object !== undefined).map((t) => t.object));`,
+    ),
+    // A nullary claim held, inherited: Small() for "the mouse is small".
+    primitive(
+      "Claimed",
+      "Claimed($subject, $predicate)",
+      `const s = isCall(v(0)) ? v(0).head : String(v(0));
+      return bool(api.relations.of(s).some((t) => t.predicate === String(v(1)) && !t.context && t.object === undefined));`,
     ),
     primitive(
       "Holds",

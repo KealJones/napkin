@@ -26,7 +26,7 @@ const PRELUDE = `
   const I = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
   const L = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
   const F = (x) => api.format(x);
-  const K = (x) => (isCall(x) ? x.head : F(x));
+  const K = (x) => (isCall(x) ? x.head : String(x));
   const E = (head, ...values) => api.apply(head, values);
   const N = async (head, a, b, op) => (typeof a === "number" && typeof b === "number" ? op(a, b) : await E(head, a, b));
 `;

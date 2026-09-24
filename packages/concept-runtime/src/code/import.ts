@@ -31,7 +31,7 @@ const BINARY: Partial<Record<ts.SyntaxKind, string>> = {
   [ts.SyntaxKind.ExclamationEqualsEqualsToken]: "NotEquals",
   [ts.SyntaxKind.ExclamationEqualsToken]: "NotEquals",
   [ts.SyntaxKind.PlusToken]: "Add",
-  [ts.SyntaxKind.MinusToken]: "Sub",
+  [ts.SyntaxKind.MinusToken]: "Subtract",
   [ts.SyntaxKind.AsteriskToken]: "Multiply",
   [ts.SyntaxKind.SlashToken]: "Divide",
   [ts.SyntaxKind.PercentToken]: "Modulo",
@@ -55,9 +55,24 @@ const BINARY: Partial<Record<ts.SyntaxKind, string>> = {
 /** `x += 1` is `x = x + 1`. Compound assignment carries no meaning the IR needs. */
 const COMPOUND: Partial<Record<ts.SyntaxKind, string>> = {
   [ts.SyntaxKind.PlusEqualsToken]: "Add",
-  [ts.SyntaxKind.MinusEqualsToken]: "Sub",
+  [ts.SyntaxKind.MinusEqualsToken]: "Subtract",
   [ts.SyntaxKind.AsteriskEqualsToken]: "Multiply",
   [ts.SyntaxKind.SlashEqualsToken]: "Divide",
+};
+
+/**
+ * Array methods that are code-IR primitives (seed/code-ir.ts), with the callback's
+ * parameter count each passes. `xs.map(f)` imports as `Map($xs, f)`, which runs and
+ * compiles, rather than `Call(Member($xs, "map"), f)`, which has nothing to run it. A
+ * callback taking more (the index, the array) stays a method call: the primitive does not
+ * pass them.
+ */
+const METHODS: Record<string, { head: string; args: number; params: number }> = {
+  map: { head: "Map", args: 1, params: 1 },
+  filter: { head: "Filter", args: 1, params: 1 },
+  flatMap: { head: "FlatMap", args: 1, params: 1 },
+  reduce: { head: "Reduce", args: 2, params: 2 },
+  includes: { head: "Includes", args: 1, params: 0 },
 };
 
 export interface ImportOptions {
@@ -338,6 +353,27 @@ class Importer {
     return this.unknown(node);
   }
 
+  private member(node: ts.PropertyAccessExpression): Expr {
+    return c("Member", this.expression(node.expression), this.name(node.name));
+  }
+
+  /** What is assigned to: a property stays Member, even `length`. */
+  private place(node: ts.Expression): Expr {
+    return ts.isPropertyAccessExpression(node) ? this.member(node) : this.expression(node);
+  }
+
+  /** `xs.map(x => ...)` as `Map($xs, Lambda(...))`, when the call fits the primitive. */
+  private primitiveMethod(node: ts.CallExpression): Expr | undefined {
+    if (!ts.isPropertyAccessExpression(node.expression)) return undefined;
+    const method = METHODS[this.name(node.expression.name)];
+    if (!method || node.arguments.length !== method.args || node.arguments.some(ts.isSpreadElement)) return undefined;
+    const callback = node.arguments[0]!;
+    if (method.params > 0 && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
+      if (callback.parameters.length > method.params) return undefined;
+    }
+    return call(method.head, [node.expression.expression, ...node.arguments].map((a) => ({ value: this.expression(a) })));
+  }
+
   expression(node: ts.Expression): Expr {
     // Type syntax carries nothing the IR keeps, so it is stepped through.
     if (ts.isParenthesizedExpression(node)) return this.expression(node.expression);
@@ -368,7 +404,10 @@ class Importer {
     }
 
     if (ts.isPropertyAccessExpression(node)) {
-      return c("Member", this.expression(node.expression), this.name(node.name));
+      // `.length` read is the Length primitive; written (`xs.length = 0`) it is a place,
+      // which assignment keeps as Member.
+      if (this.name(node.name) === "length") return c("Length", this.expression(node.expression));
+      return this.member(node);
     }
     if (ts.isElementAccessExpression(node)) {
       return c("Index", this.expression(node.expression), this.expression(node.argumentExpression));
@@ -378,6 +417,8 @@ class Importer {
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         return call("DynamicImport", node.arguments.map((a) => ({ value: this.expression(a) })));
       }
+      const primitive = this.primitiveMethod(node);
+      if (primitive) return primitive;
       const callee = ts.isIdentifier(node.expression) ? this.name(node.expression) : undefined;
       const wantsSource = callee !== undefined && this.embedded.includes(callee);
       return call("Call", [
@@ -444,11 +485,11 @@ class Importer {
     if (ts.isBinaryExpression(node)) {
       const kind = node.operatorToken.kind;
       if (kind === ts.SyntaxKind.EqualsToken) {
-        return c("Assign", this.expression(node.left), this.expression(node.right));
+        return c("Assign", this.place(node.left), this.expression(node.right));
       }
       const compound = COMPOUND[kind];
       if (compound) {
-        const target = this.expression(node.left);
+        const target = this.place(node.left);
         return c("Assign", target, c(compound, target, this.expression(node.right)));
       }
       const head = BINARY[kind];
@@ -461,6 +502,23 @@ class Importer {
     }
 
     if (ts.isArrayLiteralExpression(node)) {
+      // `[...a, x]` is the lists joined: Concat($a, List($x)), which runs.
+      if (node.elements.some(ts.isSpreadElement)) {
+        const parts: Expr[] = [];
+        let run: Expr[] = [];
+        const flush = () => {
+          if (run.length) parts.push(call("List", run.map((value) => ({ value }))));
+          run = [];
+        };
+        for (const e of node.elements) {
+          if (ts.isSpreadElement(e)) {
+            flush();
+            parts.push(this.expression(e.expression));
+          } else run.push(this.expression(e));
+        }
+        flush();
+        return call("Concat", parts.map((value) => ({ value })));
+      }
       return call("List", node.elements.map((e) => ({ value: this.expression(e) })));
     }
 

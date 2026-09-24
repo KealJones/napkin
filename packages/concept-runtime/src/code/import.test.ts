@@ -112,3 +112,35 @@ test("the seed imports with no opaque source left in it", async () => {
   }
   assert.equal(opaque, 0);
 });
+
+test("array methods the IR runs import as its primitives, so the result runs and compiles", () => {
+  assert.equal(ir("xs.map((x) => x * 2);"), "Map($xs, Lambda(List($x), Multiply($x, 2)))");
+  assert.equal(ir("xs.filter((x) => x > 1);"), "Filter($xs, Lambda(List($x), GreaterThan($x, 1)))");
+  assert.equal(ir("xs.reduce((a, b) => a + b, 0);"), "Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0)");
+  assert.equal(ir("xs.includes(y);"), "Includes($xs, $y)");
+  assert.equal(ir("xs.length;"), "Length($xs)");
+  assert.equal(ir("[...a, x, ...b];"), "Concat($a, List($x), $b)");
+  assert.equal(ir("a - b;"), "Subtract($a, $b)");
+  // A callback that reads the index, or a written length, stays what the source said.
+  assert.equal(ir("xs.map((x, i) => i);"), 'Call(Member($xs, "map"), Lambda(List($x, $i), $i))');
+  assert.equal(ir("xs.length = 0;"), 'Assign(Member($xs, "length"), 0)');
+});
+
+test("an imported function body runs as the code IR, interpreted and compiled alike", async () => {
+  const { ConceptStore } = await import("../store/store.js");
+  const { seed } = await import("../seed/seed.js");
+  const { Runtime } = await import("../runtime/evaluator.js");
+  const { concept, realization } = await import("../concept/unit.js");
+  const { c } = await import("../concept/expression.js");
+  const store = new ConceptStore();
+  seed(store);
+  const module = importTypeScript("[...xs, 10].filter((x) => x > 2).map((x) => x * x).reduce((a, b) => a + b, 0);").expression;
+  assert.ok(isCall(module));
+  const body = module.args[0]!.value;
+  for (const [name, properties] of [["SquaresI", []], ["SquaresC", ["Compile()"]]] as const) {
+    store.seed(concept(name, { realizations: [realization({ pattern: `${name}($xs)`, context: "Execution()", properties: [...properties], body })] }));
+  }
+  const run = async (e: string) => format(await new Runtime(store).evaluate((await import("../concept/expression.js")).parse(e), c("Execution")));
+  assert.equal(await run("SquaresI(List(1, 2, 3, 4))"), "125");
+  assert.equal(await run("SquaresC(List(1, 2, 3, 4))"), "125");
+});

@@ -37,12 +37,17 @@ for the seven function declarations rather than repeating them.
 | `Var($x, v)` | mutable declaration (`let`), as opposed to `Let` for `const` |
 | `Index(obj, i)` | computed member access, `obj[i]` |
 | `Pair(k, v)` | an `Object(...)` entry whose key is computed or not identifier-shaped; a known identifier key uses a named argument instead (`ir-spec.md` Part 3.3) |
-| `Add`, `Sub` | JavaScript `+` and `-`, including string concatenation for `+` |
+| `Add`, `Subtract` | JavaScript `+` and `-`, including string concatenation for `+`; `Subtract` is the same Concept arithmetic already runs |
 | `Or`, `NotEquals` | `||` and `!==` |
 | `Async(f)` | marks a function async; wraps the `Func` or `Lambda`, not its parameter list |
 
 `If` appears in both statement and expression position; the IR does not need a separate
 ternary node.
+
+The fragments below were translated before the runnable primitives (`ir-spec.md` Part
+10.6). The importer now writes `xs.map(f)` as `Map($xs, f)`, `xs.length` as `Length($xs)`
+and `[...a, x]` as `Concat($a, List($x))` where the source fits the primitive; the
+`Call(Member(...))` form below is what it still writes for everything else.
 
 Object literals below are written with `Pair` throughout, because these fragments were
 translated before the named-argument form in `ir-spec.md` Part 3.3 was settled. Every key
@@ -374,7 +379,7 @@ Func($select, List($unit, $call, $useContext),
 
     Call(Member($candidates, "sort"),
       Lambda(List($left, $right),
-        Sub(Member($right, "specificity"), Member($left, "specificity")))),
+        Subtract(Member($right, "specificity"), Member($left, "specificity")))),
 
     Return(Index($candidates, 0))))
 ```
@@ -636,7 +641,7 @@ fragment above; it is abbreviated here only to keep the contrast with `push` rea
 ```
 Set($candidates, SortBy(Get($candidates),
   Lambda(List($left, $right),
-    Sub(Member($right, "specificity"), Member($left, "specificity")))))
+    Subtract(Member($right, "specificity"), Member($left, "specificity")))))
 ```
 
 And a reassigned local in `evaluate`:

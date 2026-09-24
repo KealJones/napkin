@@ -753,6 +753,13 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 `If` is used for both statement and expression position. The IR does not need a separate
 ternary, because an `If` that yields a value is the same idea.
 
+Where the source fits one, the importer writes a runnable primitive (Part 10.6) instead of
+a method call: `xs.map(f)` is `Map($xs, f)`, `xs.filter(f)` is `Filter`, `xs.flatMap(f)` is
+`FlatMap`, `xs.reduce(f, init)` is `Reduce($xs, f, init)`, `xs.includes(x)` is
+`Includes($xs, $x)`, a read of `xs.length` is `Length($xs)`, `[...a, x]` is
+`Concat($a, List($x))`, and `-` is `Subtract`. A callback that takes the index, or a
+`length` that is written to, stays `Call(Member(...))` and `Member`, as the source said.
+
 ### 10.3 Target language is a context facet, not a node
 
 Code IR nodes carry realizations per target language, selected by usage context:
@@ -888,6 +895,99 @@ realizations, where JavaScript is already the implementation language.
 The runtime needs to manage *its own* state as Concepts. It does not need to model the V8
 heap. So the residual gap is narrow: not "translated code cannot execute", but "translated
 code that mutates foreign objects cannot execute".
+
+### 10.6 Running code: primitives, compiling, and the cache
+
+The code IR runs. A realization's body can be written in Concepts instead of as a
+JavaScript string, and the graph can read, compare and one day learn it. The primitives
+are Concepts in `seed/code-ir.ts`, each one small `Code(...)` body under `Execution()`:
+
+| Group | Primitives |
+|---|---|
+| functions | `Lambda(List($a), body)`, `Call(f, args...)`, `Let($x, value, body)` |
+| logic | `Equals`, `NotEquals`, `Not`, `And`, `Or`, `If` |
+| lists | `List(...)`, `Length`, `Concat`, `Includes`, `Unique`, `First`, `Map`, `FlatMap`, `Filter`, `Reduce` |
+| text | `Matches($text, $pattern)`, `JoinText(parts...)`; `Length` and `Includes` read text as JavaScript's do |
+| expressions as data | `Head`, `Arg`, `ArgNamed`, `MakeCall`, `IsCall`, `Evaluate` |
+| the graph | `Subjects($predicate, $object)`, `Holds($subject, $predicate)` (stated), `Closure($subject, $predicate)` (inherited and transitive), `TruthOf($s, $p, $o)` (True, False or UnknownTruth), `Claimed($s, $p)` (a nullary claim held), `Known($x)` |
+| arithmetic | `Add`, `Subtract`, `Multiply`, `Divide`, `GreaterThan`, `LessThan`, as before |
+
+Rules the primitives keep:
+
+- **Binding is substitution**, as `Let` already did. A `Lambda` called with values has its
+  parameters replaced by them, then its body is evaluated.
+- **Not, And and Or are also words a message says** ("don't", "apples and pears"). They
+  compute only over truth values and otherwise stay as said.
+- **A `List` literal evaluates its elements**, as an array literal does.
+- **An absent argument is `Undefined()`**, which is a call. Test for it with
+  `Equals($x, Undefined())`, not `IsCall($x)`.
+
+#### Compiled, with the IR as the source of truth
+
+Interpreted, IR runs one Concept at a time through selection, about 10µs a step. A
+realization that declares `Compile()` runs as one JavaScript function instead, built by
+`runtime/compile.ts`. The IR stays the source of truth and the function is a cache. It is
+built once per realization and store, and rebuilt from the IR whenever it is missing, the
+way a cell caches a fold (concept-spec Part 13).
+
+What each primitive compiles to is graph data. It is a realization under
+`Context(JavaScript(), Compiled())` whose body is `Text(...)`, with `$name` where the code
+for an argument goes. It is read as a template and never run, so compiling runs nothing.
+`Lambda` and `Let` are compiled by the compiler itself, because they are scope rather than
+an operation. The `Compiled` facet keeps templates out of what the Concept "speaks"
+(Part 10.3): a template is not a JavaScript emission of the Concept.
+
+Three rules decide what compiled code does:
+
+- **A call with no template stays a Concept.** The compiled code reaches it through
+  `api.apply`, so its selection, learning and evidence are what they always were, and it
+  is traced as one step. The primitives it replaced are not traced.
+- **Values are passed on as values.** A compiled call hands the callee arguments it has
+  already computed, and the runtime does not evaluate them again. Before this, every
+  member Members found was selected once more at each level, which could turn a
+  forwarding synonym into what it forwards to.
+- **A lazy Concept is not handed computed arguments.** A call to a Concept whose
+  realization reads its arguments unevaluated (`evaluateArguments: false`) compiles only
+  when its arguments are variables or literals. Otherwise the body is interpreted.
+
+A body that cannot compile (a `Lambda` handed to a Concept with no template, a lazy call
+as above, an unbound variable) is interpreted. That is never an error.
+
+Compiled loops run in order, not concurrently: two identical calls at once in the same
+context read as a cycle to the evaluator's guard.
+
+#### Measured on the real graph
+
+| Body | JavaScript | Interpreted IR | Compiled IR |
+|---|---|---|---|
+| sum of 1000 numbers (`Reduce`) | 0.015 ms | 9.2 ms | 0.5 ms |
+| `Members(Symbol())` | 0.017 ms | | 0.10 ms |
+| `Is(Emoji(), Symbol())` | 0.035 ms | | 0.14 ms |
+| `Is(Emoji(), Emoticon())` | 0.090 ms | | 0.22 ms |
+
+Compiled IR is 3x to 6x hand JavaScript and far under what a turn costs. What remains is
+the Concepts it still calls by selection, including nullary literals like `True()`.
+
+`Members` and the yes/no `Is` are written this way now (`seed/members.ts`, `seed/seed.ts`).
+Only word morphology (`Singular`, "games" names Game) stays JavaScript.
+
+#### Why the rest is not migrated mechanically yet
+
+Importing the seed's 235 `Code(...)` bodies gives no body made only of what runs. Every one
+reads `Member` (`args[0].value`), 152 return early, 138 `await`, and nearly all call the
+host through `api.*`. These are bodies written against the runtime's API, not against
+data. A mechanical migration needs, in order:
+
+1. `Return` compiled as an early exit, and the same as nested `If` when interpreted.
+2. `Member` on expressions as data: `.head`, `.args`, `.value`, onto `Head`, `Arg` and
+   `ArgNamed`.
+3. `api.*` onto primitives by name: `api.call` to `MakeCall`, `api.evaluate` to
+   `Evaluate`, `api.store.asObject` to `Subjects`, `api.relations.of` to `Closure`.
+4. `Var`, `Assign` and `ForOf` onto cells (Part 10.5).
+
+Until then a body moves to the IR by hand, the way Members and Is did. A body Napkin writes
+itself, from a snippet it conceptualized, should use only the primitives and never a raw
+`Code(...)`, so what it writes stays readable and cannot reach the host by other means.
 
 ---
 

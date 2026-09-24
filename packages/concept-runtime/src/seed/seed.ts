@@ -842,6 +842,39 @@ add(
 // order, verb first because the subject cannot always head (reading-spec P2). A question
 // is a lookup, never a lesson: an unknown answer is said as unknown, so asking can never
 // teach Is a realization.
+/**
+ * Written in the code IR, in order: a comparison ("is 100 more than 99") is computed; a
+ * role held for someone ("is he my coworker") is CoworkerOf(<the user>); a subject never
+ * heard of is evaluated, leaving the gap where learning finds it, so asking never teaches
+ * Is; then IsA with inheritance, the SubclassOf chain from the subject or from any kind it
+ * is an instance of ("is a volcano a mountain", K2 is a volcano so a mountain), DistinctFrom
+ * for no ("an emoji is not an emoticon"), and a nullary claim like Small() held.
+ */
+const IS = `If(Not(IsCall($category)), Answer(UnknownTruth()),
+  Let($comparison,
+    If(Matches(Head($category), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"), "GreaterThan",
+      If(Matches(Head($category), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"), "LessThan", "")),
+  Let($compared,
+    If(And(Not(Equals($comparison, "")), Equals(Arg($category, 1), Undefined())),
+      Evaluate(MakeCall($comparison, List(Evaluate($subject), Evaluate(Arg($category, 0))))), Nothing()),
+  If(Or(Equals($compared, True()), Equals($compared, False())), Answer($compared),
+  If(Not(IsCall($subject)), Answer(UnknownTruth()),
+  Let($resolved, ArgNamed($subject, "resolvedTo"),
+  Let($what, If(Not(Equals($resolved, Undefined())), MakeCall(Head($resolved), List()), Singular($subject)),
+  If(And(Or(Equals(Head($category), "My"), Equals(Head($category), "Your")), IsCall(Arg($category, 0))),
+    Let($owner, If(Equals(Head($category), "My"), First(Subjects("IsA", "User")), MakeCall("Self", List())),
+      If(Includes(Closure($what, JoinText(Head(Arg($category, 0)), "Of")), $owner), Answer(True()), Answer(UnknownTruth()))),
+  Let($learned, If(Or(Known($what), Not(Equals($resolved, Undefined()))), Nothing(), Evaluate($what)),
+  Let($kind, Singular($category),
+  Let($truth, TruthOf($what, "IsA", $kind),
+  If(Equals($truth, True()), Answer(True()),
+  If(Equals(TruthOf($what, "SubclassOf", $kind), True()), Answer(True()),
+  If(GreaterThan(Length(Filter(Closure($what, "IsA"), Lambda(List($k), Equals(TruthOf($k, "SubclassOf", $kind), True())))), 0), Answer(True()),
+  If(Includes(Holds($what, "DistinctFrom"), $kind), Answer(False()),
+  If(Claimed($what, Head($kind)), Answer(True()),
+  If(Equals($truth, False()), Answer(False()),
+  Answer(UnknownTruth()))))))))))))))))))`;
+
 for (const copula of ["Is", "Are"]) {
   add(
     concept(copula, {
@@ -850,53 +883,8 @@ for (const copula of ["Is", "Are"]) {
           pattern: `${copula}($subject, $category)`,
           context: "Context(Execution(), Interrogative())",
           evaluateArguments: false,
-          body: code(`async (args, bindings, api) => {
-            const answer = (v) => api.call("Answer", api.call(v));
-            const subject = args[0].value;
-            const category = args[1].value;
-            if (!category || !category.head) return answer("UnknownTruth");
-            // Plurals name the same kind: "cats" asks about Cat when only Cat is known.
-            const known = (head) =>
-              !api.store.has(head) && /[^s]s$/.test(head) && api.store.has(head.slice(0, -1)) ? head.slice(0, -1) : head;
-            const kind = known(category.head);
-            // "is 100 more than 99": a comparison, decided by computing it.
-            const comparison = /^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$/.test(category.head) ? "GreaterThan"
-              : /^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$/.test(category.head) ? "LessThan" : undefined;
-            if (comparison && category.args.length === 1) {
-              const v = await api.evaluate(api.call(comparison, await api.evaluate(subject), await api.evaluate(category.args[0].value)));
-              if (v && (v.head === "True" || v.head === "False")) return answer(v.head);
-            }
-            if (!subject || !subject.head) return answer("UnknownTruth");
-            const resolved = subject.args.find((a) => a.name === "resolvedTo")?.value;
-            const what = resolved && resolved.head ? resolved.head : known(subject.head);
-            // "is he my coworker": a role held for someone, CoworkerOf(<the user>).
-            const owners = { My: "User", Your: "Self" };
-            const role = category.args[0]?.value;
-            if (owners[category.head] && role && role.head) {
-              const owner = category.head === "My" ? api.store.asObject("User").find((t) => t.predicate === "IsA")?.subject : "Self";
-              const holds = owner && api.relations.of(what).some((t) => t.predicate === role.head + "Of" && t.object && t.object.head === owner);
-              return answer(holds ? "True" : "UnknownTruth");
-            }
-            // Never heard of: evaluating it leaves the gap where learning can find it, so
-            // "is a tomato a fruit" learns Tomato and asks again, without teaching Is.
-            if (!api.store.has(what) && !resolved) await api.evaluate(api.call(what));
-            // A kind, or a property held: IsA reaches ancestors through inheritance, and a
-            // nullary claim like Small() is something the subject is.
-            const truth = api.relations.truth(what, "IsA", api.call(kind));
-            if (truth === "true") return answer("True");
-            // A kind of a kind ("is a volcano a mountain"), and an instance of any kind that is
-            // a kind of it (K2 is a volcano, so a mountain): one IsA step, then the SubclassOf
-            // chain, which is transitive.
-            if (api.relations.truth(what, "SubclassOf", api.call(kind)) === "true") return answer("True");
-            const classes = api.relations.of(what).filter((t) => t.predicate === "IsA" && t.object && t.object.head).map((t) => t.object.head);
-            if (classes.some((k) => api.relations.truth(k, "SubclassOf", api.call(kind)) === "true")) return answer("True");
-            // "different from" (DistinctFrom, symmetric) says they are not the same thing, so
-            // one is not a kind of the other: an emoji is not an emoticon.
-            if (api.relations.of(what, { transitive: false }).some((t) => t.predicate === "DistinctFrom" && t.object && t.object.head === kind)) return answer("False");
-            if (api.relations.of(what).some((t) => t.predicate === kind && t.object === undefined)) return answer("True");
-            if (truth === "false") return answer("False");
-            return answer("UnknownTruth");
-          }`),
+          properties: ["Compile()"],
+          body: parse(IS),
         }),
       ],
     }),
