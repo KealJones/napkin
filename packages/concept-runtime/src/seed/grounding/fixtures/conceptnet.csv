@@ -1,0 +1,10 @@
+/a/[/r/UsedFor/,/c/en/knife/,/c/en/cut/]	/r/UsedFor	/c/en/knife	/c/en/cut	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 2.0}
+/a/[/r/UsedFor/,/c/en/knife/n/,/c/en/cut_bread/]	/r/UsedFor	/c/en/knife/n	/c/en/cut_bread	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 1.0}
+/a/[/r/UsedFor/,/c/en/money/,/c/en/buy/]	/r/UsedFor	/c/en/money	/c/en/buy	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 3.4}
+/a/[/r/UsedFor/,/c/en/money/n/,/c/en/buy/v/]	/r/UsedFor	/c/en/money/n	/c/en/buy/v	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 1.0}
+/a/[/r/CapableOf/,/c/en/dog/,/c/en/bark/]	/r/CapableOf	/c/en/dog	/c/en/bark	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 4.0}
+/a/[/r/Causes/,/c/en/hot/,/c/en/sweat/]	/r/Causes	/c/en/hot	/c/en/sweat	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 1.0}
+/a/[/r/RelatedTo/,/c/en/dog/,/c/en/cat/]	/r/RelatedTo	/c/en/dog	/c/en/cat	{"dataset": "/d/verbosity", "license": "cc:by-sa/4.0", "weight": 1.2}
+/a/[/r/Synonym/,/c/en/dog/n/,/c/en/hound/]	/r/Synonym	/c/en/dog/n	/c/en/hound	{"dataset": "/d/wiktionary/en", "license": "cc:by-sa/4.0", "weight": 1.0}
+/a/[/r/UsedFor/,/c/fr/couteau/,/c/fr/couper/]	/r/UsedFor	/c/fr/couteau	/c/fr/couper	{"dataset": "/d/conceptnet/4/fr", "license": "cc:by-sa/4.0", "weight": 1.0}
+/a/[/r/UsedFor/,/c/en/spoon/,/c/en/eat/]	/r/UsedFor	/c/en/spoon	/c/en/eat	{"dataset": "/d/conceptnet/4/en", "license": "cc:by-sa/4.0", "weight": 2.0}

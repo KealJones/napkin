@@ -3,3 +3,4 @@ dist/
 .napkin/
 **/dist/
 .DS_Store
+packages/concept-runtime/data/

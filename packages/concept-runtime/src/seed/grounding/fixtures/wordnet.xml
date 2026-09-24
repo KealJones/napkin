@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE LexicalResource SYSTEM "http://globalwordnet.github.io/schemas/WN-LMF-1.3.dtd">
+<LexicalResource xmlns:dc="https://globalwordnet.github.io/schemas/dc/">
+  <Lexicon id="oewn" label="Open English WordNet" language="en" email="english-wordnet@googlegroups.com" license="https://creativecommons.org/licenses/by/4.0" version="2024" url="https://github.com/globalwordnet/english-wordnet">
+    <LexicalEntry id="oewn-car-n">
+      <Lemma writtenForm="car" partOfSpeech="n"/>
+      <Sense id="oewn-car__1.06.00.." synset="oewn-02961779-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-cold-a">
+      <Lemma writtenForm="cold" partOfSpeech="a"/>
+      <Sense id="oewn-cold__3.00.01.." synset="oewn-01253304-a">
+        <SenseRelation relType="antonym" target="oewn-hot__3.00.01.."/>
+      </Sense>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-day-n">
+      <Lemma writtenForm="day" partOfSpeech="n"/>
+      <Sense id="oewn-day__1.28.00.." synset="oewn-15180528-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-dog-n">
+      <Lemma writtenForm="dog" partOfSpeech="n">
+        <Pronunciation>dɒɡ</Pronunciation>
+      </Lemma>
+      <Sense id="oewn-dog__1.05.00.." synset="oewn-02086723-n"/>
+      <Sense id="oewn-dog__1.18.01.." synset="oewn-10133978-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-dog-v">
+      <Lemma writtenForm="dog" partOfSpeech="v"/>
+      <Sense id="oewn-dog__2.38.00.." synset="oewn-02006834-v"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-domestic_dog-n">
+      <Lemma writtenForm="domestic dog" partOfSpeech="n"/>
+      <Sense id="oewn-domestic_dog__1.05.00.." synset="oewn-02086723-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-canine-n">
+      <Lemma writtenForm="canine" partOfSpeech="n"/>
+      <Sense id="oewn-canine__1.05.00.." synset="oewn-02085998-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-chase-v">
+      <Lemma writtenForm="chase" partOfSpeech="v"/>
+      <Sense id="oewn-chase__2.38.00.." synset="oewn-02006834-v"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-follow-v">
+      <Lemma writtenForm="follow" partOfSpeech="v"/>
+      <Sense id="oewn-follow__2.38.00.." synset="oewn-02004009-v"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-frump-n">
+      <Lemma writtenForm="frump" partOfSpeech="n"/>
+      <Sense id="oewn-frump__1.18.00.." synset="oewn-10133978-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-unpleasant_woman-n">
+      <Lemma writtenForm="unpleasant woman" partOfSpeech="n"/>
+      <Sense id="oewn-unpleasant_woman__1.18.00.." synset="oewn-10787470-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-hot-a">
+      <Lemma writtenForm="hot" partOfSpeech="a"/>
+      <Sense id="oewn-hot__3.00.01.." synset="oewn-01251128-a">
+        <SenseRelation relType="antonym" target="oewn-cold__3.00.01.."/>
+      </Sense>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-knife-n">
+      <Lemma writtenForm="knife" partOfSpeech="n"/>
+      <Sense id="oewn-knife__1.06.00.." synset="oewn-03623556-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-edge_tool-n">
+      <Lemma writtenForm="edge tool" partOfSpeech="n"/>
+      <Sense id="oewn-edge_tool__1.06.00.." synset="oewn-03265032-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-money-n">
+      <Lemma writtenForm="money" partOfSpeech="n"/>
+      <Sense id="oewn-money__1.21.00.." synset="oewn-13405440-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-medium_of_exchange-n">
+      <Lemma writtenForm="medium of exchange" partOfSpeech="n"/>
+      <Sense id="oewn-medium_of_exchange__1.21.00.." synset="oewn-13405157-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-motor_vehicle-n">
+      <Lemma writtenForm="motor vehicle" partOfSpeech="n"/>
+      <Sense id="oewn-motor_vehicle__1.06.00.." synset="oewn-03796522-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-time_period-n">
+      <Lemma writtenForm="time period" partOfSpeech="n"/>
+      <Sense id="oewn-time_period__1.28.00.." synset="oewn-15137676-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-wheel-n">
+      <Lemma writtenForm="wheel" partOfSpeech="n"/>
+      <Sense id="oewn-wheel__1.06.00.." synset="oewn-04581596-n"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-simple_machine-n">
+      <Lemma writtenForm="simple machine" partOfSpeech="n"/>
+      <Sense id="oewn-simple_machine__1.06.00.." synset="oewn-04210590-n"/>
+    </LexicalEntry>
+    <Synset id="oewn-01251128-a" ili="i8792" members="oewn-hot-a" partOfSpeech="a" lexfile="adj.all">
+      <Definition>used of physical heat; having a high or higher than desirable temperature</Definition>
+    </Synset>
+    <Synset id="oewn-01253304-a" ili="i8802" members="oewn-cold-a" partOfSpeech="a" lexfile="adj.all">
+      <Definition>having a low or inadequate temperature</Definition>
+    </Synset>
+    <Synset id="oewn-02004009-v" ili="i31797" members="oewn-follow-v" partOfSpeech="v" lexfile="verb.motion">
+      <Definition>to travel behind, go after, come after</Definition>
+    </Synset>
+    <Synset id="oewn-02006834-v" ili="i31827" members="oewn-chase-v oewn-dog-v" partOfSpeech="v" lexfile="verb.motion">
+      <Definition>go after with the intent to catch</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-02004009-v"/>
+    </Synset>
+    <Synset id="oewn-02085998-n" ili="i46358" members="oewn-canine-n" partOfSpeech="n" lexfile="noun.animal">
+      <Definition>any of various fissiped mammals with nonretractile claws</Definition>
+    </Synset>
+    <Synset id="oewn-02086723-n" ili="i46360" members="oewn-dog-n oewn-domestic_dog-n" partOfSpeech="n" lexfile="noun.animal">
+      <Definition>a member of the genus Canis that has been domesticated by man since prehistoric times</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-02085998-n"/>
+    </Synset>
+    <Synset id="oewn-02961779-n" ili="i51496" members="oewn-car-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>a motor vehicle with four wheels</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-03796522-n"/>
+      <SynsetRelation relType="mero_part" target="oewn-04581596-n"/>
+    </Synset>
+    <Synset id="oewn-03265032-n" ili="i52937" members="oewn-edge_tool-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>any cutting tool with a sharp cutting edge</Definition>
+    </Synset>
+    <Synset id="oewn-03623556-n" ili="i54718" members="oewn-knife-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>edge tool used as a cutting instrument</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-03265032-n"/>
+    </Synset>
+    <Synset id="oewn-03796522-n" ili="i55633" members="oewn-motor_vehicle-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>a self-propelled wheeled vehicle that does not run on rails</Definition>
+    </Synset>
+    <Synset id="oewn-04210590-n" ili="i57640" members="oewn-simple_machine-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>any of several mechanical devices for applying force</Definition>
+    </Synset>
+    <Synset id="oewn-04581596-n" ili="i59441" members="oewn-wheel-n" partOfSpeech="n" lexfile="noun.artifact">
+      <Definition>a simple machine consisting of a circular frame with spokes</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-04210590-n"/>
+      <SynsetRelation relType="holo_part" target="oewn-02961779-n"/>
+    </Synset>
+    <Synset id="oewn-10133978-n" ili="i89954" members="oewn-frump-n oewn-dog-n" partOfSpeech="n" lexfile="noun.person">
+      <Definition>a dull unattractive unpleasant girl or woman</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-10787470-n"/>
+    </Synset>
+    <Synset id="oewn-10787470-n" ili="i93000" members="oewn-unpleasant_woman-n" partOfSpeech="n" lexfile="noun.person">
+      <Definition>a woman who is unpleasant</Definition>
+    </Synset>
+    <Synset id="oewn-13405157-n" ili="i106002" members="oewn-medium_of_exchange-n" partOfSpeech="n" lexfile="noun.possession">
+      <Definition>anything that is generally accepted as a standard of value</Definition>
+    </Synset>
+    <Synset id="oewn-13405440-n" ili="in" members="oewn-money-n" partOfSpeech="n" lexfile="noun.possession">
+      <Definition>the most common medium of exchange</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-13405157-n"/>
+    </Synset>
+    <Synset id="oewn-15137676-n" ili="i117400" members="oewn-time_period-n" partOfSpeech="n" lexfile="noun.time">
+      <Definition>an amount of time</Definition>
+    </Synset>
+    <Synset id="oewn-15180528-n" ili="i117776" members="oewn-day-n" partOfSpeech="n" lexfile="noun.time">
+      <Definition>time for Earth to make a complete rotation on its axis</Definition>
+      <SynsetRelation relType="hypernym" target="oewn-15137676-n"/>
+    </Synset>
+  </Lexicon>
+</LexicalResource>

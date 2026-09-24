@@ -5,6 +5,7 @@
  *   napkin "What is 5 times three?"
  *   napkin --expr 'What(Multiply(5, Number("three")))'
  *   napkin --seed
+ *   napkin --ground [layers dir]
  */
 import { c, format, parse } from "./concept/expression.js";
 import { modelAvailable } from "./ears/ollama.js";
@@ -15,6 +16,7 @@ import { study } from "./learn/study.js";
 import { curriculum, EVERYDAY, TRACKS } from "./learn/curriculum.js";
 import { forget } from "./store/forget.js";
 import { seed } from "./seed/seed.js";
+import { DATA, groundAll } from "./seed/grounding/layer.js";
 import { load, save } from "./store/persist.js";
 import { ConceptStore } from "./store/store.js";
 
@@ -44,6 +46,19 @@ if (flag("--seed")) {
       `${report.synonymsDerived} synonym forwardings derived; ` +
       `${loaded} loaded from disk; graph holds ${store.size()}\n${graphPath}`,
   );
+  process.exit(0);
+}
+
+// Grounding is a request, not a seed step: the layers are thousands of Concepts under
+// licenses the user chose to take on (seed/grounding/README.md). Once grounded they persist
+// in the graph like anything else.
+if (flag("--ground")) {
+  const given = value("--ground");
+  for (const r of groundAll(store, given && !given.startsWith("--") ? given : `${DATA}/layers`)) {
+    console.log(`${r.source}: ${r.added} relations from #${r.importSeq}, ${r.withheld.length} IsA withheld`);
+    for (const w of r.withheld) console.log(`  withheld ${w.identity} ${w.claim} (${w.realizations} realizations)`);
+  }
+  persist();
   process.exit(0);
 }
 
