@@ -42,10 +42,29 @@ type Fetch = (url: string) => Promise<unknown>;
 
 const API = "https://www.wikidata.org/w/api.php?";
 
+/**
+ * Politely: one call at a time with a gap between, a User-Agent that says who is asking
+ * (Wikimedia's policy), and a 429 answered by waiting as long as it says, then trying again.
+ */
+let last = 0;
 const defaultFetch: Fetch = async (url) => {
-  const response = await fetch(url, { headers: { "user-agent": "napkin/0.1 (concept graph)" }, signal: AbortSignal.timeout(10_000) });
-  if (!response.ok) throw new Error(`Wikidata ${response.status}`);
-  return response.json();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const wait = last + 250 - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    last = Date.now();
+    const response = await fetch(url, {
+      headers: { "user-agent": "Napkin/0.1 (https://github.com/KealJones/napkin; concept graph grounding)" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status === 429) {
+      const after = Number(response.headers.get("retry-after") ?? "") || 2 ** attempt;
+      await new Promise((r) => setTimeout(r, Math.min(after, 30) * 1000));
+      continue;
+    }
+    if (!response.ok) throw new Error(`Wikidata ${response.status}`);
+    return response.json();
+  }
+  throw new Error("Wikidata 429: still rate limited after retrying");
 };
 
 interface Snak {
@@ -66,8 +85,12 @@ async function findItem(word: string, get: Fetch): Promise<string | undefined> {
     API + new URLSearchParams({ action: "wbsearchentities", search: word, language: "en", limit: "7", format: "json" }),
   )) as { search?: { id: string; label?: string; match?: { type?: string; text?: string } }[] };
   const want = word.toLowerCase();
-  return (body.search ?? []).find(
-    (hit) => hit.label?.toLowerCase() === want || (hit.match?.type === "alias" && hit.match.text?.toLowerCase() === want),
+  const hits = body.search ?? [];
+  // A common noun's label is lowercase on Wikidata; the capitalised one is a name. "smiley"
+  // first found Smiley the surname, where the face is labelled in lowercase.
+  return (
+    hits.find((hit) => hit.label === want) ??
+    hits.find((hit) => hit.label?.toLowerCase() === want || (hit.match?.type === "alias" && hit.match.text?.toLowerCase() === want))
   )?.id;
 }
 
@@ -138,7 +161,11 @@ export async function groundInWikidata(
     const label = labelled[target]?.labels?.en?.value;
     if (!label) continue;
     const name = nameOf(label);
-    if (!name || name === identity) continue;
+    // A name has to be a Concept name: "3" is not one.
+    if (!name || name === identity || !/^[A-Z]/.test(name)) continue;
+    // A Concept that realizes something already means something here: Wikidata's
+    // "concept" is not the universal parent, however the label reads.
+    if (!wikidataItem(store, name) && (store.get(name)?.realizations.length ?? 0) > 0) continue;
     // The target is tied to its item too, unless that name already means another item.
     const known = wikidataItem(store, name);
     if (!known) sameAs(name, target);

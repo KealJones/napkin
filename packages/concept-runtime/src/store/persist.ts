@@ -99,9 +99,24 @@ const toStored = (u: ConceptUnit): StoredUnit => ({
   updatedAt: u.updatedAt,
 });
 
+/**
+ * One relation that does not parse is skipped and reported, not a graph that will not load:
+ * `DistinctFrom(3())`, written by an import before names were checked, made every Concept
+ * unreachable. The rest of the unit still loads.
+ */
+const unreadable: string[] = [];
+const readable = (identity: string) => (r: StoredRelation): Relation[] => {
+  try {
+    return [loadRelation(r)];
+  } catch {
+    unreadable.push(`${identity}: ${typeof r === "string" ? r : r.claim}`);
+    return [];
+  }
+};
+
 const fromStored = (s: StoredUnit): ConceptUnit => ({
   identity: s.identity,
-  relations: s.relations.map(loadRelation),
+  relations: s.relations.flatMap(readable(s.identity)),
   realizations: s.realizations.map(
     (r): Realization => ({
       pattern: parse(r.pattern),
@@ -150,6 +165,9 @@ export function load(store: ConceptStore, path: string): number {
     loaded += 1;
   }
   if (snapshot.sequence !== undefined) store.resume(snapshot.sequence);
+  if (unreadable.length) {
+    console.warn(`Skipped ${unreadable.length} unreadable relation(s) in ${path}:\n  ${unreadable.splice(0).join("\n  ")}`);
+  }
   return loaded;
 }
 

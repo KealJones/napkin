@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { c, format, parse } from "../concept/expression.js";
@@ -72,3 +72,11 @@ test("a missing graph file is not an error", () => {
   const store = new ConceptStore();
   assert.equal(load(store, "/nonexistent/graph.json"), 0);
 });
+
+test("a relation that does not parse is skipped, and the rest of the graph loads", () =>
+  withTemp((path) => {
+    writeFileSync(path, JSON.stringify({ version: 1, savedAt: "x", units: [{ identity: "Face", relations: ["DistinctFrom(3())", "IsA(Emoticon())"], realizations: [] }] }));
+    const store = new ConceptStore();
+    assert.equal(load(store, path), 1);
+    assert.deepEqual(store.get("Face")!.relations.map((r) => format(r.claim)), ["IsA(Emoticon())"]);
+  }));
