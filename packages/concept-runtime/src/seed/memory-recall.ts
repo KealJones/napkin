@@ -56,8 +56,39 @@ const HELPERS = `
       .mentioning(mention)
       .map((m) => m.relation)
       .filter((r) => isCall(r.claim) && r.claim.head === "Said" && isCall(positional(r.claim)[0]) && positional(r.claim)[0].head === "Me")
-      .map((r) => ({ content: positional(r.claim)[1], seq: Math.max(...(r.stamps ?? []).map((s) => s.seq), 0) }))
+      .flatMap((r) => (r.stamps ?? []).map((st) => ({ content: positional(r.claim)[1], seq: st.seq, at: st.recordedAt })))
       .sort((a, b) => b.seq - a.seq);
+  // Two times (memory-spec Part 4.1): a relative time is kept as said, and anchored on read
+  // to the recorded time of the stamp it was said under. No time word means it happened
+  // when it was said.
+  const DAY = 86400000;
+  const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const offset = (e) => {
+    let found;
+    walk(e, (n) => {
+      if (found !== undefined) return;
+      if (n.head === "Today" && !n.args.length) found = 0;
+      else if (n.head === "Yesterday" && !n.args.length) found = -1;
+      else if (n.head === "Tomorrow" && !n.args.length) found = 1;
+      else if (n.head === "Ago" && isCall(n.args[0]?.value) && n.args[0].value.head === "Days" && typeof n.args[0].value.args[0]?.value === "number") found = -n.args[0].value.args[0].value;
+    });
+    return found;
+  };
+  const RELATIVE = ["Today", "Yesterday", "Tomorrow", "Ago"];
+  const eventDay = (e, at) => midnight(new Date(at)) + (offset(e) ?? 0) * DAY;
+  // Said back the way it is true now: pancakes said "today" yesterday were eaten yesterday.
+  const anchored = (e, day) => {
+    if (!isCall(e)) return e;
+    if (RELATIVE.includes(e.head)) {
+      const diff = Math.round((day - midnight(new Date())) / DAY);
+      if (diff === 0) return api.call("Today");
+      if (diff === -1) return api.call("Yesterday");
+      if (diff === 1) return api.call("Tomorrow");
+      const d = new Date(day);
+      return api.call("On", { head: "Date", args: [{ name: "year", value: d.getFullYear() }, { name: "month", value: d.getMonth() + 1 }, { name: "day", value: d.getDate() }] });
+    }
+    return { head: e.head, args: e.args.map((a) => ({ ...a, value: anchored(a.value, day) })) };
+  };
   // Only a claim tells anything: a question or a request said earlier is not something
   // the user told.
   const told = (content) =>
@@ -85,7 +116,7 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           ${HELPERS}
           const [subject, verb] = [args[0].value, args[1].value];
           const who = about(subject);
-          if (!who || !isCall(verb)) return api.call("Answer", api.call("Unknown"));
+          if (!isCall(subject) || !isCall(verb)) return api.call("Answer", api.call("Unknown"));
 
           const topic = positional(verb).find((v) => isCall(v) && v.head === "About");
           // "what do you know about me": what is held about it.
@@ -98,12 +129,13 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           }
 
           // "what does she do" asks what someone is: her work is what she was said to be.
-          if (verb.head === "Do" && "${tense}" === "present" && !positional(verb).length) {
+          if (who && verb.head === "Do" && "${tense}" === "present" && !positional(verb).length) {
             const kinds = api.relations.of(who).filter((t) => t.predicate === "IsA" && !(t.object && t.object.head === "User")).map((t) => t.object);
             if (kinds.length) return api.call("Answer", kinds.length === 1 ? kinds[0] : api.call("List", ...kinds));
           }
           const predicate = thirdPerson(verb.head);
-          const held = api.relations
+          // Nobody believed anything about yet: only what was said can answer.
+          const held = !who ? [] : api.relations
             .of(who)
             .filter((t) => t.predicate === predicate || t.predicate.startsWith(predicate))
             .map((t) => (positional(t.expr).length === 1 ? positional(t.expr)[0] : t.expr));
@@ -113,7 +145,11 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           // asks for any happening, so any clause the subject heads will do.
           const any = verb.head === "Do";
           const form = "${tense}" === "past" ? past(verb.head) : predicate;
-          const extra = positional(verb).map((v) => api.format(v));
+          // A time word in the question is a day to match, anchored to now; the rest must
+          // appear in what was said.
+          const when = offset(verb);
+          const target = when === undefined ? undefined : midnight(new Date()) + when * DAY;
+          const extra = positional(verb).filter((v) => offset(v) === undefined).map((v) => api.format(v));
           const found = [];
           for (const s of saidByUser(api.call(any ? subject.head : form))) {
             if (!told(s.content)) continue;
@@ -122,7 +158,11 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
               const clause = positional(node).find((v) => isCall(v) && (any ? v.args.length > 0 || v.head !== "Is" : v.head === form));
               if (!clause) return;
               const text = api.format(clause);
-              if (extra.every((x) => text.includes(x))) found.push(node);
+              if (!extra.every((x) => text.includes(x))) return;
+              const day = eventDay(node, s.at);
+              if (target !== undefined && day !== target) return;
+              const said = anchored(node, day);
+              if (!found.some((f) => api.format(f) === api.format(said))) found.push(said);
             });
           }
           if (!found.length) return api.call("Answer", api.call("Unknown"));

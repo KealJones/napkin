@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { c, format } from "../concept/expression.js";
+import { concept } from "../concept/unit.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { turn } from "../runtime/turn.js";
 import { seed } from "../seed/seed.js";
@@ -84,11 +85,13 @@ test("asking about someone never mints them", async () => {
 });
 
 test("an object question reads beliefs, and a past one reads what was said", async () => {
-  const { say } = chat();
+  const { store, say } = chat();
   await say("i like pizza");
   assert.equal((await say("what do i like")).rendered, "Answer(Pizza())");
   await say("greg works at google");
   assert.equal((await say("where does greg work")).rendered, "Answer(Google())");
+  // An apple the graph already knows by one name, so the reading does not wait on Wikidata.
+  store.seed(concept("GrannySmith", { relations: ["IsA(Apple())"] }));
   await say("i ate a sweet granny smith yesterday");
   assert.equal((await say("what did i eat")).rendered, "Answer(Me(Ate(Sweet(GrannySmith()), Yesterday())))");
   await say("i went to the store");
@@ -218,4 +221,16 @@ test("closing an isolated conversation drops its words and keeps what they taugh
   const likes = store.get(greg)!.relations.find((x) => format(x.claim) === "Likes(Cats())")!;
   const source = store.findStamp(likes.stamps![0].source!);
   assert.equal(source?.identity, "Isolated", "learned in an isolated conversation");
+});
+
+test("a relative time is anchored to when it was said, and said back as true now", async () => {
+  const { store, say } = chat();
+  const { parse } = await import("../concept/expression.js");
+  // Said yesterday: "i ate pancakes today".
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+  const conversation = store.all().find((u) => u.identity.startsWith("Conversation_"))!.identity;
+  store.addRelation(conversation, parse('Said(Me(), Mood(Declarative(), Me(Ate(Pancakes(), Today()))), text="i ate pancakes today")'), undefined, { ...store.reserve(), recordedAt: yesterday });
+  await say("i ate soup today");
+  assert.equal((await say("what did i eat yesterday")).rendered, "Answer(Me(Ate(Pancakes(), Yesterday())))");
+  assert.match((await say("what did i eat today")).rendered, /^Answer\(Me\(Ate\(Soup\(.*Today\(\)/);
 });
