@@ -123,3 +123,13 @@ test("he points at the person just talked about, and a role can be asked about",
   await say("greg likes cats");
   assert.equal((await say("what does he like")).rendered, "Answer(Cats())");
 });
+
+test("a subject question finds who holds the relation, believed or said", async () => {
+  const { say } = chat();
+  await say("greg likes cats");
+  await say("emmy likes cats");
+  assert.match((await say("who likes cats")).rendered, /^Answer\(List\((Emmy|Greg)_\d+\(\), (Emmy|Greg)_\d+\(\)\)\)$/);
+  await say("greg sent me a funny meme");
+  assert.match((await say("who sent me a meme")).rendered, /^Answer\(Greg\(Sent\(Me\(\), Funny\(Meme\(\)\)\)/);
+  assert.equal((await say("what is 2 plus 2")).rendered, "Answer(4)", "a computation is still computed");
+});

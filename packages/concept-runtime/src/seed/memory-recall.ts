@@ -123,8 +123,66 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
     ],
   });
 
+/**
+ * `Who(Likes(Cats()))`: a hole where the subject goes. "find the units holding Likes(Cats())"
+ * is one lookup on the relation index (reading-spec P3), then happenings said, whose subject
+ * heads the clause. "works at google" is the phrasal relation WorksAt, as it was believed.
+ * Anything else is the ordinary question: "who is greg" still describes Greg.
+ */
+const subjectQuestion = (head: string) =>
+  concept(head, {
+    realizations: [
+      realization({
+        pattern: `${head}($claim)`,
+        context: "Context(Execution(), Interrogative())",
+        evaluateArguments: false,
+        body: code(`async (args, bindings, api) => {
+          ${HELPERS}
+          const claim = args[0].value;
+          const ask = () => api.evaluate(api.call("Interrogative", claim));
+          const said = positional(claim);
+          if (!isCall(claim) || !said.length || claim.head === "Is" || named(claim, "resolvedTo")) return await ask();
+          // Something that computes is asked for its value, not its holder.
+          if ((api.store.get(claim.head)?.realizations.length ?? 0) > 0) return await ask();
+          // Only a relation asks for its holder: a thing ("who is greg") is described.
+          if (!said.some((v) => isCall(v) || typeof v !== "object")) return await ask();
+          const PREPOSITIONS = ["At", "In", "For", "With", "On", "From", "To"];
+          let predicate = thirdPerson(claim.head);
+          let objects = said;
+          if (said.length === 1 && isCall(said[0]) && PREPOSITIONS.includes(said[0].head)) {
+            predicate = predicate + said[0].head;
+            objects = positional(said[0]);
+          }
+          const wanted = objects.map((v) => api.format(v)).join(",");
+          const first = objects[0];
+          const key = isCall(first) ? first.head : first;
+          const holders = key === undefined ? [] : api.store
+            .asObject(isCall(first) && first.args.length === 0 ? first.head : api.format(first))
+            .filter((t) => t.predicate === predicate && positional(t.expr).map((v) => api.format(v)).join(",") === wanted)
+            .map((t) => api.call(t.subject));
+          if (holders.length) return api.call("Answer", holders.length === 1 ? holders[0] : api.call("List", ...holders));
+          // A happening said: whoever heads the clause that holds it.
+          const found = [];
+          for (const s of saidByUser(api.call(claim.head))) {
+            if (!told(s.content)) continue;
+            walk(s.content, (node) => {
+              const clause = positional(node).find((v) => isCall(v) && v.head === claim.head);
+              if (!clause) return;
+              const text = api.format(clause);
+              if (said.every((v) => text.includes(api.format(v).replace(/\\)$/, "")))) found.push(node);
+            });
+          }
+          if (found.length) return api.call("Answer", found.length === 1 ? found[0] : api.call("List", ...found));
+          return await ask();
+        }`),
+      }),
+    ],
+  });
+
 export function memoryRecallUnits(): ConceptUnit[] {
   return [
+    subjectQuestion("Who"),
+    subjectQuestion("What"),
     concept("PastOf", { relations: ["IsA(RelationProperty())"] }),
     ...Object.entries(IRREGULAR).map(([base, pastForm]) => concept(pastForm, { relations: [`PastOf(${base}())`] })),
     ...["WhatDo", "WhatDoes", "WhoDo", "WhoDoes", "WhereDo", "WhereDoes"].map((h) => objectQuestion(h, "present")),
