@@ -19,9 +19,14 @@ If the result is Answer(True()), answer yes by stating what was asked as a fact.
 If the result is Answer(False()), answer no by stating the opposite as a fact.
 If the result is Answer(UnknownTruth()), say you do not know yet, naming what was asked.
 If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
+Every fact in the list is about the thing: Describes(Greg(), List(CoworkerOf(Me()))) means
+Greg is your coworker.
 A fact written In(fact, Sense()) holds only in that sense. Lead with the facts that are not
 wrapped in In, and if there are any, give the other senses at most a short "it is also".
 Me() in a result is the person you are talking to, so it is "you" when you say it.
+If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
+facts back in plain words. If the result is Noted(x), acknowledge it in a few words and
+say it back to them, for example "Got it, you ate an apple."
 
 Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
 

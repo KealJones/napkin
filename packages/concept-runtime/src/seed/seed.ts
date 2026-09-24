@@ -12,6 +12,7 @@ import { type Expr, c, call, format, isCall, parse } from "../concept/expression
 import { codeSource, concept, declares, realization, type ConceptUnit } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { memoryIndividualUnits } from "./memory-individuals.js";
+import { memoryBelieveUnits } from "./memory-believe.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 
 const code = (source: string): Expr => call("Code", [{ name: "source", value: source }]);
@@ -284,7 +285,12 @@ add(
         body: code(`async (args, bindings, api) => {
           const subject = args[0].value;
           if (!subject || !subject.head) return api.call("Unknown");
-          const triples = api.relations.of(subject.head)
+          // A name resolved to an individual is described as that individual, and "me" as
+          // the user, found by what the user is rather than by identity.
+          const resolved = subject.args.find((a) => a.name === "resolvedTo")?.value;
+          const user = subject.head === "Me" ? api.store.asObject("User").find((t) => t.predicate === "IsA")?.subject : undefined;
+          const about = resolved && resolved.head ? resolved.head : user ?? subject.head;
+          const triples = api.relations.of(about)
             .filter((t) => {
               const unit = api.store.get(t.predicate);
               return !(unit?.relations ?? []).some((r) => r.claim.head === "Incidental");
@@ -621,7 +627,11 @@ add(concept("Mood", {
       body: code(`async (args, bindings, api) => {
         const ctx = api.context;
         const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
-        return await api.evaluate(args[1].value, api.call("Context", ...facets, args[0].value));
+        const kind = args[0].value;
+        // A claim is data, not a call (reading-spec Part 5.2): under Declarative the line is
+        // handed to Believe, which decides whether it lasts, instead of being evaluated.
+        const line = kind && kind.head === "Declarative" ? api.call("Believe", args[1].value) : args[1].value;
+        return await api.evaluate(line, api.call("Context", ...facets, kind));
       }`),
     }),
   ],
@@ -680,7 +690,7 @@ for (const q of ["What", "Who", "When", "Where", "Why", "How", "Which", "HowMany
 // already ask, so each is a plain synonym. A tensed one ("who did") is not: it realizes
 // through tense and inverse (reading-spec Part 5.3).
 for (const q of ["What", "Who", "When", "Where", "Why", "How", "Which"]) {
-  for (const helper of ["Is", "Are", "Do", "Does"]) {
+  for (const helper of ["Is", "Are", "Am", "Do", "Does"]) {
     add(concept(q + helper, { relations: [`SynonymOf(${q}())`] }));
   }
 }
@@ -1559,6 +1569,7 @@ export function seed(store: ConceptStore): SeedReport {
   const report: SeedReport = { created: 0, updated: 0, relations: 0, realizations: 0, synonymsDerived: 0 };
   applyUnits(store, units, report);
   applyUnits(store, memoryIndividualUnits(), report); // memory-spec Part 18 step 3
+  applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;
 }

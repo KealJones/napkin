@@ -80,3 +80,24 @@ export function resolveNames(
 
   return { expression: walk(expression), resolved };
 }
+
+/**
+ * A result as the Mouth should say it. A minted identity means nothing and must not be
+ * read (memory-spec Part 3.2), so an individual is said by its name, and the user as the
+ * person being spoken to. The result itself keeps the identities; only its rendering loses
+ * them.
+ */
+export function forSaying(store: ConceptStore, e: Expr): Expr {
+  if (!isCall(e)) return e;
+  // What a name resolved to is for memory, not for saying.
+  const args = e.args.filter((a) => a.name !== "resolvedTo").map((a) => ({ ...a, value: forSaying(store, a.value) }));
+  if (e.args.length === 0) {
+    const unit = store.get(e.head);
+    if (unit?.relations.some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && (r.claim.args[0].value as { head: string }).head === "User")) {
+      return c("Me");
+    }
+    const name = store.asSubject(e.head).find((t) => t.predicate === "Named")?.object;
+    if (typeof name === "string") return c(name.replace(/\s+(\w)/g, (_, ch: string) => ch.toUpperCase()));
+  }
+  return call(e.head, args);
+}
