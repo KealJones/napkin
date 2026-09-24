@@ -39,7 +39,8 @@ const store = new ConceptStore();
 // since a newer realization shadows an older one with the same pattern and context,
 // seeding last is what makes the current definition win.
 const loaded = flag("--fresh") ? 0 : load(store, graphPath);
-const report = seed(store);
+// The built-in packs, and a user's own beside the graph (~/.napkin/packs/*.ncon).
+const report = seed(store, { packs: [resolve(dirname(graphPath), "packs")] });
 // The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
 const tracePath = resolve(dirname(graphPath), "trace.jsonl");
 const runtime = new Runtime(store, { tracePath });

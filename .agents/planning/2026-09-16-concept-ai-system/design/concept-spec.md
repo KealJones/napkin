@@ -1410,7 +1410,59 @@ are available uniformly to every realization. That uniformity is what distinguis
 facility from a privilege: `SaveConcept` and `HttpRequest` reach the host the same way, and
 neither is special.
 
-### 17.2 Interfaces exempt by decision
+### 17.2 Packs: what exists at time zero, as files
+
+Everything Napkin knows at birth is in `.ncon` packs (N-Con, Napkin Concept Object
+Notation), not in host code. A pack is a sequence of expressions in the IR's own syntax
+(`ir-spec.md` Part 3), with `//` comments and `"""raw"""` strings for source held as text:
+
+```
+// memory.ncon
+Requires(Basic())
+
+// "games" names the kind Game.
+Concept(Members(),
+  Realization(Members($kind), context=Execution(), evaluateArguments=false, properties=List(Compile()),
+    body=Let($all, ...)),
+  IsA(Operation()))
+```
+
+Each `Concept(Name(), ...)` holds relations and `Realization(pattern, context=, body=,
+properties=, evaluateArguments=, evaluateResult=, resultContext=)`, matching the fields of a
+unit (Part 3). A relation that holds only in some context is `Relation(claim, context=...)`.
+A language pack also holds rules for its language (`ir-spec.md` Part 10.7), which load as
+ordinary realizations.
+
+**Loading.** The built-in packs (`packages/concept-runtime/packs/`) always load. A user's own
+load from `packs/` beside the graph, `~/.napkin/packs/` for the real one: an
+`economic.ncon` dropped there is seeded on the next start. Each pack loads after what it
+`Requires`, and a missing requirement is an error that names the pack.
+
+**Origin.** Seeding records the pack as the origin of what it adds (`Realization.seededFrom`,
+`Stamp.pack`, both saved). Reloading an edited pack adds what is new, retires the
+realizations it no longer has, and removes the relations only it stamped. What the user or a
+Teacher added, or also asserted, is never touched. Before packs, a unit deleted from the seed
+lingered in every saved graph.
+
+**The kernel.** `core.ncon` holds every Concept the host code names directly: the evaluator,
+selection, the compiler, the store and the turn. 50 Concepts, and the vocabulary they are
+described with. A test keeps the boundary written down: a Concept a kernel file names must
+be in core, and core may only describe itself with Concepts it holds. Everything else is an
+ordinary pack and optional. Napkin still runs without `javascript.ncon`, interpreting what
+it would have compiled.
+
+This supersedes the closed list of Part 17.1, which the evaluator no longer keeps. It also
+names `Compile`, `Forwarding`, `ForeignCode` and `JavaScript`. The criterion stands (what the
+host names should be structural), but the list is now enforced by `core.ncon` and its test
+rather than by counting.
+
+The packs were dumped from the TypeScript seed modules they replace, which were then deleted.
+Before the deletion, a check confirmed the packs hold exactly the relations and realizations
+of all 523 Concepts those modules seeded. Comments came across with the Concepts they
+describe, placed by where each unit was made (from a stack trace), since many were made in
+loops and helpers.
+
+### 17.3 Interfaces exempt by decision
 
 The web interface and the chat interface are not Concepts and are not required to be. They
 observe and present; they do not decide behaviour.

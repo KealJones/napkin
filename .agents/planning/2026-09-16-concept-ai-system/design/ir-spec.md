@@ -985,9 +985,73 @@ data. A mechanical migration needs, in order:
    `Evaluate`, `api.store.asObject` to `Subjects`, `api.relations.of` to `Closure`.
 4. `Var`, `Assign` and `ForOf` onto cells (Part 10.5).
 
-Until then a body moves to the IR by hand, the way Members and Is did. A body Napkin writes
-itself, from a snippet it conceptualized, should use only the primitives and never a raw
-`Code(...)`, so what it writes stays readable and cannot reach the host by other means.
+Each of these is now a rule in `javascript.ncon` (Part 10.7) rather than code in an
+importer. Until they are written, a body moves to the IR by hand, the way Members and Is did.
+A body Napkin writes itself, from a snippet it conceptualized, should use only the
+primitives and never a raw `Code(...)`, so what it writes stays readable and cannot reach
+the host by other means.
+
+### 10.7 Language packs: a language both ways, as data
+
+How a language is compiled to, read and written is a pack, `packs/<language>.ncon`, beside
+the Concept packs (`concept-spec.md` Part 17.2). After `Language(JavaScript())`, three rule
+forms load as ordinary realizations, so the graph holds them and can be taught more:
+
+| Form | Loads as | Used by |
+|---|---|---|
+| `Compiled(Map($xs, $f), "template")`, `Prelude("""helpers""")` | `Context(JavaScript(), Compiled())` | `runtime/compile.ts` (Part 10.6) |
+| `From(JsCallExpression(...), Map($xs, $f))` | `Context(JavaScript(), Reading())` on the syntax node's Concept | `code/rewrite.ts` |
+| `To(Map($xs, $f), "$xs.map($f)")`, `To(pattern, Statement(), ...)` | `Context(JavaScript(), Writing()[, Statement()])` | `code/write.ts` |
+
+A language that is a `SupersetOf` another uses its rules too: `typescript.ncon` holds only
+what JavaScript lacks, erasing types, and reading TypeScript applies both packs.
+
+**Reading.** `code/read.ts` hands over the parser's tree as syntax nodes named by the parser,
+`Js<Kind>(field=child, ...)`, and says nothing about meaning. It is the one language-specific
+piece of host code on the way in, as a tree-sitter grammar would be for another language.
+The `Js` prefix keeps syntax apart from Concepts that mean something else (`Block`,
+`Constructor`).
+
+From rules rewrite the tree top-down, most specific first (`specificity`, as selection
+orders realizations), until nothing applies:
+- A rule's output is read again, so a hard construct is a few small helper rules:
+  templates, spreads, modifiers, parameter properties.
+- A syntax pattern names only the fields it reads, and a field a node lacks reads as
+  `Undefined()`.
+- An output can say `Variable("x")`, `Named("k", v)` (a named argument, `Pair` when `k` is
+  not a name), `Each(list, Lambda(List($x), out))` (spliced), `Erased()` (dropped) and
+  `Parse(text)` (source held in a string).
+- A pattern can say `Bind($x, pattern)`, and `Rest` may come first, as in
+  `List(Rest($init), $last)`.
+- A node no rule reads becomes `Unsupported(kind, source)` and is reported.
+
+**Writing.** A To rule has a template or Concepts to write instead. The template marks each
+part: `$x` is an expression, `@x` a statement, `%x` a block's statements and `#x` a name.
+`Either(a, b)` offers alternatives. One rule decides every position question:
+- **An expression rule is used only where each of its expression parts can be an
+  expression.** That alone makes `If(c, Return(x), ...)` an if statement and `If(c, 1, 2)`
+  a conditional, and gives an arrow a block exactly when its body cannot be an expression.
+- Writing is a separate walk, not evaluation under `Context(JavaScript())`. A program's
+  Concepts hold variables and effects, and writing one must not run it.
+
+**Checked.** The From rules replaced about 450 lines of hand-written importer:
+- On all 84 source files, 83 read identically to the old importer. The 84th differs where
+  the old one was wrong: it wrote `{ $: "Dollars" }` as `Object($="Dollars")`, which is
+  not IR.
+- Every source file in the package now reads, writes as JavaScript that parses, and reads
+  back as the same Concepts. This is a test.
+
+The round trip also found a reading flaw the old importer had. A function body ending in an
+expression statement returns nothing, so it now reads as `Sequence(..., Undefined())`. It
+used to read the same as a concise body, which returns the value.
+
+**Limits.** The round trip is structural, not textual: formatting and comments are not kept,
+and parentheses are defensive. Reading is 2.2x slower than the old importer (about 3ms a
+file). Rules are tried one by one per head, where indexing by a discriminating field such
+as `operatorToken` would make that one lookup.
+
+The Teacher's `--study --as` still teaches emission the older way, as realizations under
+`Context(<language>)` evaluated to text. It should teach To rules instead.
 
 ---
 

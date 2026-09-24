@@ -59,7 +59,8 @@ const store = new ConceptStore();
 // Load before seeding, so a stale copy of a seeded realization cannot shadow the current
 // one: newer shadows older, and the seed must be newer.
 const loaded = load(store, graphPath);
-const seedReport = seed(store);
+// The built-in packs, and a user's own beside the graph (~/.napkin/packs/*.ncon).
+const seedReport = seed(store, { packs: [resolve(dirname(graphPath), "packs")] });
 const relations = new Relations(store);
 const conversations = new ConversationRepository(store);
 
