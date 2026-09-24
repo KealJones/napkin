@@ -18,6 +18,7 @@ import { turn } from "./runtime/turn.js";
 import { study } from "./learn/study.js";
 import { curriculum, EVERYDAY, TRACKS } from "./learn/curriculum.js";
 import { forget } from "./store/forget.js";
+import { collect } from "./store/collect.js";
 import { seed } from "./seed/seed.js";
 import { DATA, groundAll } from "./seed/grounding/layer.js";
 import { load, save } from "./store/persist.js";
@@ -90,6 +91,30 @@ if (flag("--forget")) {
           gone.map((g) => `  ${g.identity}  ${g.pattern}  [${g.context}]  ${g.reason}`).join("\n") +
           (dryRun ? "\n\nre-run with --commit to apply" : "")
       : "nothing to forget — an only-way-to-do-something is never collected",
+  );
+  process.exit(0);
+}
+
+if (flag("--consolidate")) {
+  const dryRun = !flag("--commit");
+  runtime.context.set("dryRun", String(dryRun));
+  const result = await runtime.evaluate(parse("Consolidate()"), context);
+  console.log(format(result));
+  if (!dryRun) persist();
+  else console.log("\nre-run with --commit to apply");
+  process.exit(0);
+}
+
+if (flag("--collect")) {
+  const dryRun = !flag("--commit");
+  const gone = collect(store, { dryRun, dormantForMs: Number(value("--unused-days") ?? 30) * 86_400_000 });
+  if (!dryRun) persist();
+  console.log(
+    gone.length
+      ? `${gone.length} record(s) ${dryRun ? "would be" : "were"} collected:\n` +
+          gone.map((g) => (g.what === "stamp" ? `  stamp #${g.seq} on ${g.identity}  ${g.claim}` : `  individual ${g.identity}`)).join("\n") +
+          (dryRun ? "\n\nre-run with --commit to apply" : "")
+      : "nothing to collect",
   );
   process.exit(0);
 }
@@ -278,6 +303,8 @@ if (expr) {
   napkin --activate Jam Sell            what lights up from these, ranked, with paths
   napkin --exist                        work on that agenda, bounded by --budget
   napkin --forget                       what would be forgotten (--commit to apply)
+  napkin --consolidate                  repeated happenings into lasting facts (--commit to apply)
+  napkin --collect                      stamps and individuals age can retire (--commit to apply)
   napkin --seed                         seed a graph and report
   napkin --fresh ...                    do not load or save the persistent graph
   napkin --graph <path> ...             use a different graph file
