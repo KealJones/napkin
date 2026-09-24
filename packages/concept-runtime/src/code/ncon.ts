@@ -12,6 +12,7 @@
  *   Compiled(pattern, "template")                 what a primitive compiles to
  *   Prelude("""helpers""")                        what every compiled body starts with
  *   From(syntax pattern, Concepts)                how the language is read
+ *   To(pattern, [Statement(),] "template")        how it is written (code/write.ts)
  *
  * Seeding a pack records it as the origin of what it adds, so reloading an edited pack
  * retires what it no longer has, and never touches what anyone else added.
@@ -171,8 +172,24 @@ export function parsePack(text: string, name: string): Pack {
         });
         break;
       }
+      case "To": {
+        const [pattern, ...rest] = args;
+        const statement = rest.length === 2 && isCall(rest[0]) && rest[0].head === "Statement";
+        const output = rest[rest.length - 1];
+        if (output === undefined || (rest.length === 2 && !statement)) throw new PackError(name, `To needs a pattern, optionally Statement(), and a template: ${format(form).slice(0, 80)}`);
+        const facets = statement ? [call("Writing"), call("Statement")] : [call("Writing")];
+        unit(headOf("To", pattern)).realizations.push({
+          pattern,
+          context: context(needLanguage("To"), ...facets),
+          body: output,
+          properties: [],
+          evaluateArguments: false,
+          evaluateResult: false,
+        });
+        break;
+      }
       default:
-        throw new PackError(name, `unknown form ${form.head}(...); a pack holds Requires, Language, Concept, Compiled, Prelude and From`);
+        throw new PackError(name, `unknown form ${form.head}(...); a pack holds Requires, Language, Concept, Compiled, Prelude, From and To`);
     }
   }
   return {

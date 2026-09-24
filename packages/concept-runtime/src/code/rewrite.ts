@@ -58,7 +58,21 @@ export function readingRules(store: ConceptStore, language: string): Map<string,
   return byHead;
 }
 
+const restOf = (a: Argument | undefined): string | undefined => {
+  const v = a?.value;
+  const inner = v !== undefined && isCall(v) && v.head === "Rest" ? v.args[0]?.value : undefined;
+  return inner !== undefined && isVariable(inner) ? inner.variable : undefined;
+};
+
 function matchArgs(expected: readonly Argument[], actual: readonly Argument[], b: Bindings): boolean {
+  // Rest first: the arguments before a fixed tail, as in List(Rest($init), $last).
+  const leading = expected.length > 1 ? restOf(expected[0]) : undefined;
+  if (leading !== undefined) {
+    const fixed = expected.slice(1);
+    const start = actual.length - fixed.length;
+    if (start < 0 || !fixed.every((e, i) => matches(e.value, actual[start + i].value, b))) return false;
+    return bind(b, leading, call("List", actual.slice(0, start)));
+  }
   const last = expected[expected.length - 1]?.value;
   const rest = last !== undefined && isCall(last) && last.head === "Rest" ? last.args[0]?.value : undefined;
   if (rest !== undefined && isVariable(rest)) {
@@ -173,8 +187,10 @@ export function readWith(rules: Map<string, Rule[]>, text: string, fileName = "i
  * `Each(list, Lambda(List($x), out))` spliced into the call around it, as soon as a rule
  * writes it, so the rules that apply next see the elements and not the instruction.
  */
-function expandEach(e: Expr): Expr {
-  if (!isCall(e) || isSyntax(e.head)) return e;
+export function expandEach(e: Expr): Expr {
+  // A syntax node read from source holds no Each; its named fields are what tell it apart
+  // from a helper a rule wrote.
+  if (!isCall(e) || (isSyntax(e.head) && e.args.every((a) => a.name !== undefined))) return e;
   const args: Argument[] = [];
   for (const a of e.args) {
     const v = a.value;

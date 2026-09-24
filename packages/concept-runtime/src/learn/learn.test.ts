@@ -259,7 +259,8 @@ test("expressing in a context is offered for anything in the graph", async () =>
   const { study } = await import("./study.js");
   const rt = fresh();
   rt.store.seed(concept("Chess", { relations: [] }));
-  const result = await study(rt, ["if", "chess"], { as: "TypeScript", teacher: false });
+  // Rust: If already knows how to be written in JavaScript (packs/javascript.ncon).
+  const result = await study(rt, ["if", "chess"], { as: "Rust", teacher: false });
   // Requiring existing behaviour was wrong: Function, Write and Says do nothing in any
   // context and are exactly the constructs a language needs a rendering for. Whether
   // something HAS a sensible rendering is the Teacher's judgement, and CONTEXT_SYSTEM
@@ -267,7 +268,7 @@ test("expressing in a context is offered for anything in the graph", async () =>
   assert.ok(result.steps.some((s) => s.identity === "If" && s.detail === "no Teacher"));
   assert.ok(result.steps.some((s) => s.identity === "Chess" && s.detail === "no Teacher"));
   // Something absent from the graph entirely is still not the job.
-  const missing = await study(rt, ["nonesuch"], { as: "TypeScript", teacher: false });
+  const missing = await study(rt, ["nonesuch"], { as: "Rust", teacher: false });
   assert.ok(missing.steps.some((s) => /not in the graph/.test(s.detail)));
 });
 

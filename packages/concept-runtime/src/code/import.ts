@@ -17,6 +17,7 @@ import type { Expr } from "../concept/expression.js";
 import { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, seedPacks } from "./ncon.js";
 import { readingRules, readWith } from "./rewrite.js";
+import { type Writing, writeWith, writingRules } from "./write.js";
 
 export interface ImportOptions {
   /**
@@ -41,6 +42,11 @@ const languageStore = (): ConceptStore => {
   }
   return packsOnly;
 };
+
+/** Concepts written as JavaScript by the packs' To rules: what reads back as the same Concepts. */
+export function writeJavaScript(expression: Expr, options: ImportOptions = {}): Writing {
+  return writeWith(writingRules(options.store ?? languageStore(), "JavaScript"), expression);
+}
 
 /** One file of TypeScript as one `Module(...)` expression. */
 export function importTypeScript(source: string, fileName = "input.ts", options: ImportOptions = {}): ImportResult {
