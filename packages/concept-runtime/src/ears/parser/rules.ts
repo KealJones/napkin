@@ -648,6 +648,9 @@ function whQuestion(r: Reader): Expr {
       const pps = prepositions(r);
       return c(fused, attach(subject, pps), ...complements(r));
     }
+    // "what do i like": one word left is the verb, whatever else the tagger thought it
+    // could be ("like" is also a preposition, and read as one it had no object).
+    if (r.i === r.toks.length - 1 && /^[a-z]+$/.test(r.word())) return c(fused, subject, c(name(r.next().word)));
     const rest = complements(r);
     return c(fused, subject, ...rest);
   }

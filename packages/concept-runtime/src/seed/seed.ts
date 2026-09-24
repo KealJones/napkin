@@ -13,6 +13,7 @@ import { codeSource, concept, declares, realization, type ConceptUnit } from "..
 import type { ConceptStore } from "../store/store.js";
 import { memoryIndividualUnits } from "./memory-individuals.js";
 import { memoryBelieveUnits } from "./memory-believe.js";
+import { memoryRecallUnits } from "./memory-recall.js";
 import { groundingVocabulary } from "./grounding/vocabulary.js";
 import { memoryIndexUnits } from "./memory-indexes.js";
 
@@ -1572,6 +1573,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, units, report);
   applyUnits(store, memoryIndividualUnits(), report); // memory-spec Part 18 step 3
   applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
+  applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
   report.synonymsDerived = deriveSynonymForwarding(store);
   return report;
 }
