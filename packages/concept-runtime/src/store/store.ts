@@ -7,7 +7,7 @@
  * what lets a symmetric relation be derived for Emmy without being stored twice.
  */
 import { type Expr, isCall, format, equal, walk } from "../concept/expression.js";
-import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
+import { codeLanguage, type ConceptUnit, type Realization, type Relation, type Stamp } from "../concept/unit.js";
 
 /** Same claim AND same context. Differing on either makes it a separate assertion. */
 export const sameRelation = (a: Relation, b: Relation): boolean =>
@@ -200,7 +200,10 @@ export class ConceptStore {
    * otherwise add only what is not already present, comparing structurally. Never
    * remove, never overwrite, never reorder.
    */
-  seed(unit: ConceptUnit): { created: boolean; addedRelations: number; addedRealizations: number } {
+  seed(
+    unit: ConceptUnit,
+    options: { authoritative?: boolean } = {},
+  ): { created: boolean; addedRelations: number; addedRealizations: number } {
     const existing = this.units.get(unit.identity);
     if (!existing) {
       this.put({ ...unit, relations: unit.relations.map((r) => this.withStamps(r)) });
@@ -215,9 +218,18 @@ export class ConceptStore {
         addedRelations += 1;
       }
     }
-    const realizations = [...existing.realizations];
+    let realizations = [...existing.realizations];
     let addedRealizations = 0;
     for (const r of unit.realizations) {
+      // The seed is the source of truth for what it seeds: an older seeded copy of the same
+      // pattern, context and language, left in a saved graph, is retired rather than merely
+      // shadowed, or evidence about the old copy can choose it over the current one. Only a
+      // copy with no `addedAt` came from a seed; what a Teacher or an edit added is kept.
+      if (options.authoritative) {
+        realizations = realizations.map((x) =>
+          !x.retired && x.addedAt === undefined && sameKey(x, r) && !sameRealization(x, r) ? { ...x, retired: true } : x,
+        );
+      }
       if (!realizations.some((x) => sameRealization(x, r))) {
         realizations.push(r);
         addedRealizations += 1;
@@ -500,6 +512,12 @@ function unbucket<T>(map: Map<string, Map<string, T[]>>, key: string, identity: 
 /** Every entry under a key, across every identity that contributed one. */
 function flatten<T>(bucket: Map<string, T[]> | undefined): T[] {
   return bucket ? [...bucket.values()].flat() : [];
+}
+
+/** The same pattern, context and language: which of two such realizations runs is shadowing. */
+function sameKey(a: Realization, b: Realization): boolean {
+  const ctx = (r: Realization) => (r.context === undefined ? "" : format(r.context));
+  return equal(a.pattern, b.pattern) && ctx(a) === ctx(b) && codeLanguage(a.body) === codeLanguage(b.body);
 }
 
 function sameRealization(a: Realization, b: Realization): boolean {

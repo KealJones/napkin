@@ -203,3 +203,16 @@ test("forgetting a turn drops its events from the kept trace, and only its event
     assert.equal(dropTurns(path, new Set([7])), 1);
     assert.deepEqual(readTrace(path).map((e) => e.saidSeq), [8]);
   }));
+
+test("seeding retires an older seeded copy of a realization, and keeps what a Teacher added", async () => {
+  const { realization } = await import("../concept/unit.js");
+  const store = new ConceptStore();
+  const old = realization({ pattern: "Greet()", context: "Execution()", body: parse("Old()") });
+  const taught = { ...realization({ pattern: "Greet()", context: "Execution()", body: parse("Taught()") }), addedAt: "2026-09-01T00:00:00.000Z" };
+  store.seed({ identity: "Greet", relations: [], realizations: [old, taught] });
+  store.seed(concept("Greet", { realizations: [realization({ pattern: "Greet()", context: "Execution()", body: parse("New()") })] }), { authoritative: true });
+  const by = (body: string) => store.get("Greet")!.realizations.find((r) => format(r.body) === body)!;
+  assert.equal(by("Old()").retired, true);
+  assert.notEqual(by("Taught()").retired, true);
+  assert.notEqual(by("New()").retired, true);
+});

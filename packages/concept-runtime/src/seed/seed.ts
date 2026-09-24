@@ -1689,7 +1689,7 @@ export interface SeedReport {
 
 function applyUnits(store: ConceptStore, list: readonly ConceptUnit[], report: SeedReport): void {
   for (const unit of list) {
-    const result = store.seed(unit);
+    const result = store.seed(unit, { authoritative: true });
     if (result.created) report.created += 1;
     else if (result.addedRelations || result.addedRealizations) report.updated += 1;
     report.relations += result.addedRelations;
