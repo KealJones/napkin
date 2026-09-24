@@ -6,14 +6,14 @@
  * (concept-spec Part 8.2). A parallel list of gaps alongside the tree would be duplicate
  * state that can disagree with it.
  */
-import { type Call, type Expr, c, call, equal, format, isCall, walk } from "../concept/expression.js";
+import { type Call, type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
-import { resolveNames, resolvePronouns, type NameResolution } from "./individuals.js";
+import { answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import type { Runtime } from "./evaluator.js";
 import { lineage, reachesBehaviour } from "./select.js";
@@ -345,6 +345,11 @@ export async function turn(
   options: TurnOptions = {},
 ): Promise<TurnResult> {
   runtime.reset();
+  // "the coworker one", answering "which Greg do you mean": the words asked about are read
+  // again, with the name taken to mean the one picked.
+  const answering = answerToWhich(options.history?.[options.history.length - 1]?.result, message, parse);
+  const chosen = new Map(answering ? [[answering.name, answering.chosen]] : []);
+  if (answering) message = answering.said;
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
   // The rules read first and the model only what they cannot, here rather than in each
@@ -382,6 +387,7 @@ export async function turn(
       runtime.store,
       maybe ?? h.expression!,
       runtime.ambiguities,
+      chosen,
     );
     return { expression: named, resolved, resolvedNames };
   };
@@ -398,7 +404,11 @@ export async function turn(
   let learned: LearnStep[] = [];
   let rereads = 0;
 
-  if (options.learn !== false) {
+  // A name that could be either of two people is asked about, never guessed.
+  const which = whichOf(runtime.store, expression, message);
+  if (which) {
+    result = which;
+  } else if (options.learn !== false) {
     /**
      * Resolution is a loop, not one shot (`ir-spec.md` Part 8.3).
      *

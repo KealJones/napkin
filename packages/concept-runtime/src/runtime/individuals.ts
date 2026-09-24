@@ -55,6 +55,7 @@ export function resolveNames(
   store: ConceptStore,
   expression: Expr,
   ambiguities: string[],
+  chosen: ReadonlyMap<string, string> = new Map(),
 ): { expression: Expr; resolved: NameResolution[] } {
   const resolved: NameResolution[] = [];
 
@@ -65,7 +66,8 @@ export function resolveNames(
     );
     // Already resolved by an earlier pass over this same expression: never overwritten.
     if (e.args.some((a) => a.name === "resolvedTo")) return call(e.head, args);
-    const matches = findNamed(store, e.head);
+    const picked = chosen.get(e.head);
+    const matches = picked ? [picked] : findNamed(store, e.head);
     if (matches.length === 1) {
       resolved.push({ name: e.head, to: matches[0] });
       return call(e.head, [...args, { name: "resolvedTo", value: c(matches[0]) }]);
@@ -74,6 +76,8 @@ export function resolveNames(
       ambiguities.push(
         `${e.head}() matched ${matches.length} individuals named "${e.head}": ${matches.join(", ")}`,
       );
+      // Marked in place, so the turn asks rather than attaching the claim to either.
+      return call(e.head, [...args, { name: "ambiguous", value: call("List", matches.map((m) => ({ value: c(m) }))) }]);
     }
     return call(e.head, args);
   };
@@ -165,4 +169,80 @@ export function resolvePronouns(store: ConceptStore, expression: Expr, withinMs 
     return call(e.head, e.args.map((a) => ({ ...a, value: walk(a.value) })));
   };
   return walk(expression);
+}
+
+const spokenName = (head: string): string => head.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+
+/**
+ * How to tell one individual from another by what is lasting about them (memory-spec
+ * Part 7.7): "your coworker", "who likes cats". Their name is the same, so it says nothing.
+ */
+export function describeIndividual(store: ConceptStore, identity: string): string {
+  const user = store.asObject("User").find((t) => t.predicate === "IsA")?.subject;
+  for (const t of store.asSubject(identity)) {
+    if (t.predicate === "Named" || t.context !== undefined) continue;
+    const object = t.object !== undefined && isCall(t.object) ? t.object.head : undefined;
+    if (t.predicate.endsWith("Of") && object === user) return `your ${spokenName(t.predicate.slice(0, -2))}`;
+    if (t.predicate === "IsA" && object) return `the ${spokenName(object)}`;
+    if (object) return `who ${spokenName(t.predicate)} ${spokenName(object)}`;
+  }
+  return identity;
+}
+
+/**
+ * A reading with a name that matched more than one individual becomes the question of
+ * which one was meant, carrying the words so the answer can re-read them (memory-spec
+ * Part 6.5: genuine ambiguity asks rather than guesses).
+ */
+export function whichOf(store: ConceptStore, expression: Expr, said: string): Expr | undefined {
+  let which: Expr | undefined;
+  const find = (e: Expr): void => {
+    if (which || !isCall(e)) return;
+    const options = e.args.find((a) => a.name === "ambiguous")?.value;
+    if (options !== undefined && isCall(options)) {
+      const ids = options.args.map((a) => a.value).filter(isCall).map((v) => v.head);
+      which = call("Which", [
+        { value: c(e.head) },
+        { value: call("List", ids.map((id) => ({ value: c(id) }))) },
+        { name: "described", value: call("List", ids.map((id) => ({ value: describeIndividual(store, id) }))) },
+        { name: "said", value: said },
+      ]);
+      return;
+    }
+    for (const a of e.args) find(a.value);
+  };
+  find(expression);
+  return which;
+}
+
+/**
+ * The answer to a Which asked last turn: the one whose description the reply uses, or
+ * "the first" / "the second". Undefined when the reply picks none, and the message is then
+ * read as a message of its own.
+ */
+export function answerToWhich(
+  lastResult: string | undefined,
+  message: string,
+  parse: (s: string) => Expr,
+): { name: string; chosen: string; said: string } | undefined {
+  if (!lastResult?.startsWith("Which(")) return undefined;
+  let asked: Expr;
+  try {
+    asked = parse(lastResult);
+  } catch {
+    return undefined;
+  }
+  if (!isCall(asked)) return undefined;
+  const name = asked.args[0]?.value;
+  const ids = asked.args[1]?.value;
+  const described = asked.args.find((a) => a.name === "described")?.value;
+  const said = asked.args.find((a) => a.name === "said")?.value;
+  if (name === undefined || ids === undefined || described === undefined || !isCall(name) || !isCall(ids) || !isCall(described) || typeof said !== "string") return undefined;
+  const words = new Set(message.toLowerCase().match(/[a-z]+/g) ?? []);
+  const ORDINALS = ["first", "second", "third", "fourth"];
+  const candidates = ids.args.map((a, i) => ({ id: isCall(a.value) ? a.value.head : "", text: String(described.args[i]?.value ?? "") }));
+  const byOrder = candidates.findIndex((_, i) => words.has(ORDINALS[i]));
+  const byWords = candidates.filter((cand) => cand.text.split(" ").some((w) => w.length > 3 && words.has(w)));
+  const pick = byOrder >= 0 ? candidates[byOrder] : byWords.length === 1 ? byWords[0] : undefined;
+  return pick ? { name: name.head, chosen: pick.id, said } : undefined;
 }

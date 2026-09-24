@@ -234,3 +234,23 @@ test("a relative time is anchored to when it was said, and said back as true now
   assert.equal((await say("what did i eat yesterday")).rendered, "Answer(Me(Ate(Pancakes(), Yesterday())))");
   assert.match((await say("what did i eat today")).rendered, /^Answer\(Me\(Ate\(Soup\(.*Today\(\)/);
 });
+
+test("two people with one name are asked about, and the answer picks one", async () => {
+  const { store, say } = chat();
+  await say("my coworker greg lives in denver");
+  // A second Greg, minted apart from the first (memory-spec Part 6.5).
+  const user = store.asObject("User").find((t) => t.predicate === "IsA")!.subject;
+  const greg2 = store.mint("Greg");
+  store.addRelation(greg2, c("Named", "Greg"));
+  store.addRelation(greg2, c("CousinOf", c(user)));
+
+  const asked = (await say("greg likes cats")).rendered;
+  assert.match(asked, /^Which\(Greg\(\), List\(Greg_\d+\(\), Greg_\d+\(\)\), described=List\("your coworker", "your cousin"\)/);
+  const { say: sayIt } = await import("../ears/say.js");
+  const { parse } = await import("../concept/expression.js");
+  assert.equal(await sayIt("greg likes cats", parse(asked)), "Which Greg do you mean: your coworker, or your cousin?");
+  assert.ok(!holds(store, greg2).includes("Likes(Cats())"), "nothing believed yet");
+
+  await say("the cousin");
+  assert.ok(holds(store, greg2).includes("Likes(Cats())"), "the picked Greg holds it");
+});

@@ -180,6 +180,14 @@ const SOCIAL: Record<string, string> = {
  * follow-up number, a date or a time, a missing input. Undefined when a model is needed.
  */
 function plainly(result: Expr, options: SayOptions): string | undefined {
+  // "Which Greg do you mean: your coworker, or your cousin?"
+  if (isCall(result) && result.head === "Which") {
+    const name = result.args[0]?.value;
+    const described = result.args.find((a) => a.name === "described")?.value;
+    const options = described !== undefined && isCall(described) ? described.args.map((a) => String(a.value)) : [];
+    const who = name !== undefined && isCall(name) ? name.head : "one";
+    return `Which ${who} do you mean: ${options.slice(0, -1).join(", ")}${options.length > 1 ? ", or " : ""}${options[options.length - 1] ?? ""}?`;
+  }
   const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
   if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];
   // Not knowing is said plainly: "I don't know your favorite food yet".
