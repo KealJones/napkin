@@ -20,14 +20,15 @@ import type { ConceptStore } from "../store/store.js";
 import { nameOf } from "../ears/parser/names.js";
 
 /**
- * Wikidata property to Napkin relation. Subclass of is kind to kind and chains, which is
- * IsA (Transitive). Instance of is membership and does not chain: emoji is an instance of
- * notation, and what notation is an instance of says nothing about emoji. Folded into IsA,
- * the transitive closure would say it did.
+ * Wikidata property to Napkin relation. Instance of is IsA ("is a" is its own alias on
+ * Wikidata, and the graph already says `Greg_1 IsA Person`): K2 is a mountain. Subclass
+ * of is SubclassOf, kind to kind, and it chains: a volcano is a kind of mountain, so
+ * everything that is a volcano is a mountain. Folded together, what a thing is an instance
+ * of would chain as though it were a kind.
  */
 const PROPERTIES: Record<string, string> = {
-  P31: "InstanceOf",
-  P279: "IsA",
+  P31: "IsA",
+  P279: "SubclassOf",
   P1889: "DistinctFrom",
   P361: "PartOf",
   P527: "HasPart",

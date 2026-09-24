@@ -221,9 +221,9 @@ const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
 
-// napkin --ground Emoji Emoticon: tie Concepts to Wikidata and take their classifying
+// napkin --wikidata Emoji Emoticon: tie Concepts to Wikidata and take their classifying
 // relations, deterministically, whether or not they are already known.
-if (flag("--ground")) {
+if (flag("--wikidata")) {
   const names = args.filter((a) => !a.startsWith("--") && a !== value("--graph"));
   const { groundInWikidata } = await import("./research/wikidata.js");
   for (const name of names) {

@@ -48,7 +48,8 @@ export function lineage(store: ConceptStore, identity: string, limit = 16): Conc
       const unit = store.get(id);
       if (unit) out.push(unit);
       for (const { claim: r } of unit?.relations ?? []) {
-        if (isCall(r) && r.head === "IsA") {
+        // What it is an instance of, and what it is a kind of: both lend it behaviour.
+        if (isCall(r) && (r.head === "IsA" || r.head === "SubclassOf")) {
           const parent = r.args[0]?.value;
           if (parent !== undefined && isCall(parent)) next.push(parent.head);
         }

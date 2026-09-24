@@ -33,11 +33,11 @@ test("a word is tied to its Wikidata item, and takes its classifying relations s
   const grounded = await groundInWikidata(store, "Emoji", { fetch: fake });
   assert.equal(grounded?.item, "Q1049294", "the everyday sense, not the single");
   assert.deepEqual(holds(store, "Emoji").filter((r) => !r.startsWith("SameAs")), [
-    "InstanceOf(Notation())", "IsA(Ideogram())", "IsA(UnicodeCharacter())", "DistinctFrom(Emoticon())",
+    "IsA(Notation())", "SubclassOf(Ideogram())", "SubclassOf(UnicodeCharacter())", "DistinctFrom(Emoticon())",
   ], "instance of and subclass of kept apart, and a deprecated claim skipped");
   assert.equal(wikidataItem(store, "Emoji"), "Q1049294");
   assert.equal(wikidataItem(store, "Emoticon"), "Q31963", "each target is tied to its own item");
-  const isA = store.get("Emoji")!.relations.find((r) => format(r.claim) === "IsA(Ideogram())")!;
+  const isA = store.get("Emoji")!.relations.find((r) => format(r.claim) === "SubclassOf(Ideogram())")!;
   assert.equal(store.findStamp(isA.stamps![0].source!)?.identity, "Wikidata");
 });
 
@@ -45,9 +45,13 @@ test("a grounded kind answers as one: subclass chains, membership takes one step
   const store = new ConceptStore();
   seed(store);
   await groundInWikidata(store, "Emoji", { fetch: fake });
-  store.addRelation("Ideogram", c("IsA", c("Symbol")));
+  store.addRelation("Ideogram", c("SubclassOf", c("Symbol")));
+  // K2 is a volcano; a volcano is a kind of mountain: so K2 is a mountain.
+  store.addRelation("Volcano", c("SubclassOf", c("Mountain")));
+  store.addRelation("K2", c("IsA", c("Volcano")));
   const ask = async (text: string) => (await (await import("../runtime/turn.js")).turn(new Runtime(store), text, c("Execution"), { backend: "rules", learn: false, speak: false })).rendered;
-  assert.equal(await ask("is an emoji a symbol?"), "Answer(True())");
+  assert.equal(await ask("is an emoji a symbol?"), "Answer(True())", "subclass chain");
+  assert.equal(await ask("is k2 a mountain?"), "Answer(True())", "an instance, through its kind's superclass");
   assert.equal(await ask("is an emoji a notation?"), "Answer(True())");
   assert.equal(await ask("is an emoji an emoticon?"), "Answer(False())", "Wikidata says different from");
   assert.equal(await ask("is an emoticon an emoji?"), "Answer(False())", "and that holds both ways");

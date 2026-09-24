@@ -28,12 +28,13 @@ export const MEMBERS = `
       for (const k of frontier) {
         for (const t of api.store.asObject(k)) {
           // A namesake sense ("a game called Volcano") is not a member of the kind.
-          // Subclasses and instances are both members; only subclasses are followed further.
-          if ((t.predicate !== "IsA" && t.predicate !== "InstanceOf") || t.context !== undefined || seen.has(t.subject)) continue;
+          // Instances (IsA) and kinds of it (SubclassOf) are both members; the kinds are
+          // followed further, and so is IsA among kinds, as the graph has used it.
+          if ((t.predicate !== "IsA" && t.predicate !== "SubclassOf") || t.context !== undefined || seen.has(t.subject)) continue;
           if (api.store.retracted(t.subject, t.expr)) continue;
           seen.add(t.subject);
           (/_\\d+$/.test(t.subject) ? individuals : kinds).push(api.call(t.subject));
-          if (t.predicate === "IsA") next.push(t.subject);
+          next.push(t.subject);
         }
       }
       frontier = next;
