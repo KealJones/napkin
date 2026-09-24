@@ -1,6 +1,6 @@
 # Memory Specification
 
-Status: draft 1, written 2026-09-22; build steps 1 to 4 built 2026-09-23 (Part 18). Source of truth for what the system remembers, how a
+Status: draft 1, written 2026-09-22; all build steps built by 2026-09-24 (Part 18). Source of truth for what the system remembers, how a
 memory is represented, when something earns its own identity, how time is recorded, how
 state that changes over time is kept, how memory is found, and how it fades.
 
@@ -863,12 +863,24 @@ All ordinary. The evaluator knows none of them.
 
 Easiest first. Each step is usable on its own.
 
-Status, 2026-09-23: steps 1 to 6 are built, and step 8's explicit forgetting. Steps 5 and 6
-are demonstrated with tic-tac-toe (`seed/memory-process.ts`); step 3 of Part 8.2 ranks by
-recency until `Activation` exists, and step 6 has no cell cache: the fold is replayed on
-every read, since a cache would be a second copy of what the moves say. The user's `Said`
-does not carry `resolvedTo` for a routed move; the committed effect and the reply's `Said`
-record it. Step 7, and consolidation and age collection in step 8, are not built.
+Status, 2026-09-24: all eight steps are built.
+
+- Steps 5 and 6 are demonstrated with tic-tac-toe (`seed/memory-process.ts`). Step 3 of
+  Part 8.2 ranks by `Activation`. Step 6 has no cell cache: the fold is replayed on every
+  read, since a cache would be a second copy of what the moves say.
+- The user's `Said` does not carry `resolvedTo` for a routed move; the committed effect
+  and the reply's `Said` record it.
+- `Activation`'s formula is generic host code (`runtime/activation.ts`); only its numbers
+  are graph data, on the `Activation` Concept. Consolidation thresholds are relations on
+  `Consolidate`. A repeated one-argument happening consolidates to `Likes`, anything else
+  to `Often(claim)`, since naming a specific relation needs generalisation
+  (`emergent-judgment-plan.md` Part 3.4).
+- Also built: contradicting a lasting fact asks, and a yes retracts with `Retracts(seq)`
+  (Parts 4.5 and 5.4); a name fitting two individuals asks which (Part 6.5); relative and
+  explicit dates are anchored on read (Part 4.1); an isolated conversation's effects are
+  re-sourced to `Isolated()` (Part 12).
+- Dormancy is applied to bare references and to collecting individuals. Nothing yet
+  produces default description listings or unspecific searches to filter.
 
 1. **Stamps.** `seq`, `recordedAt` and `source` on every relation; re-assertion appends a
    stamp; `Said` stores its content as an expression. *Done when* a turn's `Said` and every
