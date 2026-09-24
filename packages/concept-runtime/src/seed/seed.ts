@@ -146,6 +146,10 @@ add(
             const contextual = r.head === "In" && r.args.length === 2;
             const claim = contextual ? r.args[0].value : r;
             const namesake = !contextual && hasOther && isA(r) && NAMESAKE.has(r.args[0].value.head);
+            // "IsA(Volcano())" held "in Volcano()" says nothing: a sense named after the very
+            // thing it claims, which a Teacher writes when it has run out of senses.
+            if (contextual && claim && claim.head === "IsA" && claim.args[0] && r.args[1].value &&
+              api.format(claim.args[0].value) === api.format(r.args[1].value)) continue;
             const where = contextual ? r.args[1].value : namesake ? api.call("Namesake") : undefined;
             // A relation naming the Concept it belongs to says nothing: the subject is
             // implicit. A Teacher answered Add with relations=List(Add($left, $right)),

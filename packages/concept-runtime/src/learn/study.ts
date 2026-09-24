@@ -17,7 +17,7 @@
  * Unbounded, a relation crawl reaches the whole of Wikidata.
  */
 import { type Expr, isCall, walk } from "../concept/expression.js";
-import { claims } from "../concept/unit.js";
+import type { ConceptUnit } from "../concept/unit.js";
 import type { ModelOptions } from "../ears/ollama.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -52,6 +52,14 @@ export function identityFor(topic: string): string {
  * What a unit names but does not explain. Relation OBJECTS, not predicates: `IsA(Money())`
  * contributes `Money`, and `Symmetric()` contributes nothing because it has no object.
  */
+/**
+ * The claims to follow: those that hold in any context. A sense-scoped one is about the
+ * album or the game that shares the word's name, and following it spent the budget on
+ * namesakes: studying volcano queued MusicAlbum and VideoGame.
+ */
+const general = (unit: Pick<ConceptUnit, "relations">): Expr[] =>
+  unit.relations.filter((r) => r.context === undefined).map((r) => r.claim);
+
 export function frontierFrom(relations: readonly Expr[]): string[] {
   const out = new Set<string>();
   for (const relation of relations) {
@@ -241,7 +249,7 @@ export async function study(
     // Already understood: nothing to teach, but what it names is still worth following,
     // and it may be an island that a neighbour could give behaviour to.
     if (understood(runtime, identity)) {
-      const discovered = push(frontierFrom(claims(runtime.store.get(identity)!)), depth + 1);
+      const discovered = push(frontierFrom(general(runtime.store.get(identity)!)), depth + 1);
       const attached = fromGraph(runtime, identity);
       record({
         identity, depth,
@@ -329,7 +337,7 @@ export async function study(
     const learned = (unit?.relations.length ?? 0) + (unit?.realizations.length ?? 0);
     const discovered = [
       ...push(needed, depth),
-      ...push(frontierFrom(unit ? claims(unit) : []), depth + 1),
+      ...push(frontierFrom(unit ? general(unit) : []), depth + 1),
     ];
 
     if (learned > 0) {

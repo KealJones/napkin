@@ -92,3 +92,14 @@ test("a namesake learned flat is left out of what is said when the word has anot
   // Known only as a name, the name is what it is.
   assert.equal(format(forSaying(store, parse("Describes(Emmy(), List(IsA(GivenName())))"))), "Describes(Emmy(), List(IsA(GivenName())))");
 });
+
+test("a Teacher's IsA held in a sense named after its own object is not saved", async () => {
+  const { parse, format } = await import("../concept/expression.js");
+  const learned = new ConceptStore();
+  seed(learned);
+  await new Runtime(learned).evaluate(
+    parse('Concept(identity="GeologicalFeature", relations=List(IsA(Landform()), In(IsA(Volcano()), Volcano())), realizations=List())'),
+    c("Execution"),
+  );
+  assert.deepEqual(learned.get("GeologicalFeature")!.relations.map((r) => format(r.claim)), ["IsA(Landform())"]);
+});
