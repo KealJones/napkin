@@ -7,7 +7,7 @@
  */
 import { type Expr, heads, isCall, walk } from "../concept/expression.js";
 import type { ConceptStore } from "../store/store.js";
-import { dropArticles, lift as liftLines, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
+import { dropArticles, lift as liftLines, mendDates, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
 import { frame } from "./mood.js";
 import { parseRules } from "./parser/rules.js";
 import { learnNames, takeWanted, useGraph } from "./parser/names.js";
@@ -125,7 +125,7 @@ export interface HearOptions extends ModelOptions {
 export function read(raw: string, message: string, framed = false): Lifted {
   // A reader that already wrote each line's mood (the rules) skips the surface guess.
   const lifted = liftLines(framed ? stripFence(raw) : frame(stripFence(raw), message));
-  return lifted.expression === undefined ? lifted : { ...lifted, expression: dropArticles(mendWords(mendNumbers(lifted.expression, message), message), message) };
+  return lifted.expression === undefined ? lifted : { ...lifted, expression: dropArticles(mendDates(mendWords(mendNumbers(lifted.expression, message), message)), message) };
 }
 
 export async function hear(

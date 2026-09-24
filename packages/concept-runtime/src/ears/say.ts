@@ -107,12 +107,13 @@ function direct(result: Expr, when: "is" | "will be" | "was"): string | undefine
 
   if (spoken !== undefined) return `${spoken}.`;
   const year = field("year");
-  const month = field("month");
+  const said = answer.args.find((a) => a.name === "month")?.value;
+  const month = field("month") ?? (said !== undefined && isCall(said) ? said.head : undefined);
   const day = field("day");
   const weekday = field("weekday");
   if (year === undefined || month === undefined || day === undefined) return undefined;
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const name = months[Number(month) - 1] ?? String(month);
+  const name = typeof month === "string" ? month : months[Number(month) - 1] ?? String(month);
   return `${weekday ? `${weekday}, ` : ""}${name} ${day}, ${year}.`;
 }
 

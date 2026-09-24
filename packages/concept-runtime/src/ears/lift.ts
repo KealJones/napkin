@@ -299,7 +299,7 @@ function distance(a: string, b: string): number {
  * `It()` is not a pointing word here: in "what time is it" it points at nothing.
  */
 /** Names the reading is built from rather than names for what was said. */
-const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Item", "Heading", "Aside"]);
+const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Item", "Heading", "Aside", "Date", "On"]);
 
 export function mendWords(e: Expr, message: string): Expr {
   const said = [...new Set((message.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length >= 3))];
@@ -404,4 +404,75 @@ export function splitTopLevel(line: string): string[] {
   }
   parts.push(line.slice(start).trim());
   return parts.filter(Boolean);
+}
+
+const MONTHS: Record<string, number> = {
+  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6, July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+  Jan: 1, Feb: 2, Mar: 3, Apr: 4, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Sept: 9, Oct: 10, Nov: 11, Dec: 12,
+};
+
+const FULL_MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * A date said in words is one Date: "october 15th 2024" came out as `On(October()),
+ * Ordinal(15), 2024`, three siblings nothing could read as a day. Mechanical, since the
+ * pieces are fixed words and numbers; the event time is content, and has to be readable
+ * as a time to be anchored (memory-spec Part 4.1). A month with a year and no day is
+ * that month: "in october 2024" is `Date(year=2024, month=October())`.
+ */
+export function mendDates(e: Expr): Expr {
+  if (typeof e !== "object" || e === null || !("head" in e)) return e;
+  const args = e.args.map((a) => ({ ...a, value: mendDates(a.value) }));
+  const num = (v: Expr | undefined): number | undefined => {
+    if (typeof v === "number") return v;
+    if (typeof v === "object" && v !== null && "head" in v && v.head === "Ordinal" && v.args.length === 1 && typeof v.args[0].value === "number") return v.args[0].value;
+    return undefined;
+  };
+  const month = (v: Expr): { month: number; day?: number; on: boolean } | undefined => {
+    if (typeof v !== "object" || v === null || !("head" in v)) return undefined;
+    if (v.head === "On" && v.args.length === 1) {
+      const inner = month(v.args[0].value);
+      return inner ? { ...inner, on: true } : undefined;
+    }
+    const m = MONTHS[v.head];
+    if (m === undefined) return undefined;
+    if (v.args.length === 0) return { month: m, on: false };
+    const day = v.args.length === 1 ? num(v.args[0].value) : undefined;
+    return day !== undefined && day >= 1 && day <= 31 ? { month: m, day, on: false } : undefined;
+  };
+  const out: typeof args = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const found = args[i].name === undefined ? month(args[i].value) : undefined;
+    if (!found) {
+      out.push(args[i]);
+      continue;
+    }
+    let day = found.day;
+    const next = (): number | undefined => (args[i + 1]?.name === undefined ? num(args[i + 1]?.value) : undefined);
+    if (day === undefined) {
+      const d = next();
+      if (d !== undefined && d >= 1 && d <= 31) {
+        day = d;
+        i += 1;
+      }
+    }
+    let year: number | undefined;
+    const y = next();
+    if (y !== undefined && y >= 1000 && y <= 2999) {
+      year = y;
+      i += 1;
+    }
+    if (day === undefined && year === undefined) {
+      out.push(args[i]);
+      continue;
+    }
+    const date = call("Date", [
+      ...(year === undefined ? [] : [{ name: "year", value: year }]),
+      // The month as the word it is, so the reading keeps what was said.
+      { name: "month", value: call(FULL_MONTH[found.month - 1], []) },
+      ...(day === undefined ? [] : [{ name: "day", value: day }]),
+    ]);
+    out.push({ value: found.on ? call("On", [{ value: date }]) : date });
+  }
+  return call(e.head, out);
 }

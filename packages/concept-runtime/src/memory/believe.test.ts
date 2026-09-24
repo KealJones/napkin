@@ -115,7 +115,7 @@ test("an attribute of the user is kept under its whole name and read back", asyn
   await say("my favorite color is blue");
   assert.equal((await say("what is my favorite color")).rendered, "Answer(Blue())");
   await say("my birthday is june 5");
-  assert.equal((await say("when is my birthday")).rendered, "Answer(Birthday(June(), 5))");
+  assert.equal((await say("when is my birthday")).rendered, "Answer(Date(month=June(), day=5))");
 });
 
 test("he points at the person just talked about, and a role can be asked about", async () => {
@@ -253,4 +253,14 @@ test("two people with one name are asked about, and the answer picks one", async
 
   await say("the cousin");
   assert.ok(holds(store, greg2).includes("Likes(Cats())"), "the picked Greg holds it");
+});
+
+test("an explicit date is when it happened, asked for by day or by month", async () => {
+  const { store, say } = chat();
+  store.seed(concept("GrannySmith", { relations: ["IsA(Apple())"] }));
+  await say("i ate a sweet granny smith on october 15th 2024");
+  await say("i ate soup today");
+  assert.match((await say("what did i eat in october 2024")).rendered, /^Answer\(Me\(Ate\(Sweet\(GrannySmith\(\)\), On\(Date\(year=2024, month=October\(\), day=15\)\)\)\)\)$/);
+  assert.match((await say("what did i eat on october 15")).rendered, /GrannySmith/);
+  assert.doesNotMatch((await say("what did i eat in october 2024")).rendered, /Soup/);
 });

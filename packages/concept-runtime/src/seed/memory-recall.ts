@@ -76,6 +76,39 @@ const HELPERS = `
   };
   const RELATIVE = ["Today", "Yesterday", "Tomorrow", "Ago"];
   const eventDay = (e, at) => midnight(new Date(at)) + (offset(e) ?? 0) * DAY;
+  // An explicit date said with it: "on october 15th 2024" is On(Date(year=, month=, day=)).
+  // A month is said as its word, October(), and computed as its number.
+  const MONTH = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dateIn = (e) => {
+    let found;
+    walk(e, (n) => {
+      if (found || n.head !== "Date") return;
+      const f = (k) => n.args.find((a) => a.name === k)?.value;
+      const m = f("month");
+      const month = typeof m === "number" ? m : isCall(m) ? MONTH.indexOf(m.head) + 1 : 0;
+      if (month > 0) found = { year: f("year"), month, day: f("day") };
+    });
+    return found;
+  };
+  // When it happened, as fields: an explicit date if one was said, else the day anchored
+  // from the stamp. A date said without a year is in the year it was said.
+  const happened = (e, at) => {
+    const explicit = dateIn(e);
+    if (explicit) return { year: explicit.year ?? new Date(at).getFullYear(), month: explicit.month, day: explicit.day };
+    const d = new Date(eventDay(e, at));
+    return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+  };
+  // What the question asks for, as fields: "yesterday" is a whole day, "in october 2024" a
+  // month. Undefined when it asks for no time at all.
+  const askedFor = (e) => {
+    const explicit = dateIn(e);
+    if (explicit) return explicit;
+    const o = offset(e);
+    if (o === undefined) return undefined;
+    const d = new Date(midnight(new Date()) + o * DAY);
+    return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+  };
+  const within = (event, asked) => ["year", "month", "day"].every((k) => asked[k] === undefined || asked[k] === event[k]);
   // Said back the way it is true now: pancakes said "today" yesterday were eaten yesterday.
   const anchored = (e, day) => {
     if (!isCall(e)) return e;
@@ -114,7 +147,11 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
         evaluateArguments: false,
         body: code(`async (args, bindings, api) => {
           ${HELPERS}
-          const [subject, verb] = [args[0].value, args[1].value];
+          const [subject, asked] = [args[0].value, args[1].value];
+          // "what did i eat in october" fuses the preposition onto the verb: EatIn(...) is Eat.
+          const verb = isCall(asked) && /^[A-Z][a-z]+(In|On|At|During)$/.test(asked.head) && asked.args.length
+            ? { head: asked.head.replace(/(In|On|At|During)$/, ""), args: asked.args }
+            : asked;
           const who = about(subject);
           if (!isCall(subject) || !isCall(verb)) return api.call("Answer", api.call("Unknown"));
 
@@ -145,11 +182,10 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           // asks for any happening, so any clause the subject heads will do.
           const any = verb.head === "Do";
           const form = "${tense}" === "past" ? past(verb.head) : predicate;
-          // A time word in the question is a day to match, anchored to now; the rest must
-          // appear in what was said.
-          const when = offset(verb);
-          const target = when === undefined ? undefined : midnight(new Date()) + when * DAY;
-          const extra = positional(verb).filter((v) => offset(v) === undefined).map((v) => api.format(v));
+          // A time in the question is a day or a month to match; the rest must appear in what
+          // was said.
+          const target = askedFor(verb);
+          const extra = positional(verb).filter((v) => offset(v) === undefined && !dateIn(v)).map((v) => api.format(v));
           const found = [];
           for (const s of saidByUser(api.call(any ? subject.head : form))) {
             if (!told(s.content)) continue;
@@ -159,9 +195,8 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
               if (!clause) return;
               const text = api.format(clause);
               if (!extra.every((x) => text.includes(x))) return;
-              const day = eventDay(node, s.at);
-              if (target !== undefined && day !== target) return;
-              const said = anchored(node, day);
+              if (target !== undefined && !within(happened(node, s.at), target)) return;
+              const said = anchored(node, eventDay(node, s.at));
               if (!found.some((f) => api.format(f) === api.format(said))) found.push(said);
             });
           }
