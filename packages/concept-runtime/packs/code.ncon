@@ -1,4 +1,4 @@
-Requires(Basic())
+Requires(Core())
 
 // ================================================================
 // From src/seed/code-ir.ts
@@ -13,24 +13,15 @@ Requires(Basic())
 // called with, then the body is evaluated.
 
 // One primitive: a pattern, a body, and whether its arguments are evaluated first.
-// What a call compiles to (runtime/compile.ts): JavaScript with `$name` where the code its
-// argument compiled to goes, stored as `Text(...)` under `Context(JavaScript(), Compiled())`.
-// Read as a template, never run. A value appearing twice is bound once, so nothing is
-// evaluated twice.
-// The compiled forms, one per primitive, and for the arithmetic and If that already run.
 // A list literal is its elements' values, as an array literal is: List(Arg(e, 0)) is the
 // argument, not the expression that would find it.
 Concept(List(),
-  Realization(List(Rest($xs)), context=Context(JavaScript(), Compiled()),
-    body=Text("L([", $xs, "])")),
   Realization(List(Rest($xs)), context=Execution(),
     body=Code(
       source="(args, bindings, api) => ({ head: \"List\", args: args.map((a) => ({ value: a.value })) })")))
 
 Concept(Call(),
   IsA(CodePrimitive()),
-  Realization(Call($f, Rest($args)), context=Context(JavaScript(), Compiled()),
-    body=Text("(await (", $f, ")(", $args, "))")),
   Realization(Call($f, Rest($args)), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -58,8 +49,6 @@ Concept(Call(),
 // the first answer, so their arguments are not evaluated first.
 Concept(Equals(),
   IsA(CodePrimitive()),
-  Realization(Equals($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("B(F(", $a, ") === F(", $b, "))")),
   Realization(Equals($a, $b), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -84,8 +73,6 @@ Concept(Equals(),
 
 Concept(NotEquals(),
   IsA(CodePrimitive()),
-  Realization(NotEquals($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("B(F(", $a, ") !== F(", $b, "))")),
   Realization(NotEquals($a, $b), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -110,11 +97,6 @@ Concept(NotEquals(),
 
 Concept(Not(),
   IsA(CodePrimitive()),
-  Realization(Not($x), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((x) => (T(x) || (isCall(x) && x.head === \"False\")) ? B(!T(x)) : E(\"Not\", x))(",
-      $x,
-      ")")),
   Realization(Not($x), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -139,8 +121,6 @@ Concept(Not(),
 
 Concept(And(),
   IsA(CodePrimitive()),
-  Realization(And($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("B(T(", $a, ") && T(", $b, "))")),
   Realization(And(Rest($xs)), context=Execution(), evaluateArguments=false,
     body=Code(
       source="""async (args, bindings, api) => {
@@ -165,8 +145,6 @@ Concept(And(),
 
 Concept(Or(),
   IsA(CodePrimitive()),
-  Realization(Or($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("B(T(", $a, ") || T(", $b, "))")),
   Realization(Or(Rest($xs)), context=Execution(), evaluateArguments=false,
     body=Code(
       source="""async (args, bindings, api) => {
@@ -192,8 +170,6 @@ Concept(Or(),
 // Lists, and text where JavaScript's own length and includes read text too.
 Concept(Length(),
   IsA(CodePrimitive()),
-  Realization(Length($xs), context=Context(JavaScript(), Compiled()),
-    body=Text("((xs) => (typeof xs === \"string\" ? xs.length : I(xs).length))(", $xs, ")")),
   Realization(Length($xs), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -218,8 +194,6 @@ Concept(Length(),
 
 Concept(Concat(),
   IsA(CodePrimitive()),
-  Realization(Concat(Rest($lists)), context=Context(JavaScript(), Compiled()),
-    body=Text("L([", $lists, "].flatMap(I))")),
   Realization(Concat(Rest($lists)), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -244,13 +218,6 @@ Concept(Concat(),
 
 Concept(Includes(),
   IsA(CodePrimitive()),
-  Realization(Includes($xs, $x), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((xs, x) => B(typeof xs === \"string\" ? typeof x === \"string\" && xs.includes(x) : I(xs).some((i) => F(i) === F(x))))(",
-      $xs,
-      ", ",
-      $x,
-      ")")),
   Realization(Includes($xs, $x), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -276,13 +243,6 @@ Concept(Includes(),
 // In order, as the interpreter does: two identical calls at once read as a cycle.
 Concept(Map(),
   IsA(CodePrimitive()),
-  Realization(Map($xs, $f), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I(",
-      $xs,
-      "), ",
-      $f,
-      "))")),
   Realization(Map($xs, $f), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -307,13 +267,6 @@ Concept(Map(),
 
 Concept(FlatMap(),
   IsA(CodePrimitive()),
-  Realization(FlatMap($xs, $f), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I(",
-      $xs,
-      "), ",
-      $f,
-      "))")),
   Realization(FlatMap($xs, $f), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -338,13 +291,6 @@ Concept(FlatMap(),
 
 Concept(Filter(),
   IsA(CodePrimitive()),
-  Realization(Filter($xs, $f), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I(",
-      $xs,
-      "), ",
-      $f,
-      "))")),
   Realization(Filter($xs, $f), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -369,15 +315,6 @@ Concept(Filter(),
 
 Concept(Reduce(),
   IsA(CodePrimitive()),
-  Realization(Reduce($xs, $f, $initial), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I(",
-      $xs,
-      "), ",
-      $f,
-      ", ",
-      $initial,
-      "))")),
   Realization(Reduce($xs, $f, $initial), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -402,11 +339,6 @@ Concept(Reduce(),
 
 Concept(Unique(),
   IsA(CodePrimitive()),
-  Realization(Unique($xs), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })(",
-      $xs,
-      ")")),
   Realization(Unique($xs), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -431,13 +363,6 @@ Concept(Unique(),
 
 Concept(Matches(),
   IsA(CodePrimitive()),
-  Realization(Matches($text, $pattern), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((t, p) => B(typeof t === \"string\" && new RegExp(p).test(t)))(",
-      $text,
-      ", ",
-      $pattern,
-      ")")),
   Realization(Matches($text, $pattern), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -462,8 +387,6 @@ Concept(Matches(),
 
 Concept(First(),
   IsA(CodePrimitive()),
-  Realization(First($xs), context=Context(JavaScript(), Compiled()),
-    body=Text("((xs) => (xs.length ? xs[0] : api.call(\"Undefined\")))(I(", $xs, "))")),
   Realization(First($xs), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -489,8 +412,6 @@ Concept(First(),
 // Text.
 Concept(JoinText(),
   IsA(CodePrimitive()),
-  Realization(JoinText(Rest($parts)), context=Context(JavaScript(), Compiled()),
-    body=Text("[", $parts, "].map((p) => (typeof p === \"string\" ? p : F(p))).join(\"\")")),
   Realization(JoinText(Rest($parts)), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -515,8 +436,6 @@ Concept(JoinText(),
 
 Concept(IsCall(),
   IsA(CodePrimitive()),
-  Realization(IsCall($x), context=Context(JavaScript(), Compiled()),
-    body=Text("B(isCall(", $x, "))")),
   Realization(IsCall($x), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -543,8 +462,6 @@ Concept(IsCall(),
 // unevaluated arrive as expressions; this is how its body evaluates one.
 Concept(Evaluate(),
   IsA(CodePrimitive()),
-  Realization(Evaluate($x), context=Context(JavaScript(), Compiled()),
-    body=Text("(await api.evaluate(", $x, "))")),
   Realization(Evaluate($x), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -569,8 +486,6 @@ Concept(Evaluate(),
 
 Concept(Known(),
   IsA(CodePrimitive()),
-  Realization(Known($x), context=Context(JavaScript(), Compiled()),
-    body=Text("B(api.store.has(K(", $x, ")))")),
   Realization(Known($x), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -596,15 +511,6 @@ Concept(Known(),
 // Whether a relation holds, with inheritance and transitivity: True, False or UnknownTruth.
 Concept(TruthOf(),
   IsA(CodePrimitive()),
-  Realization(TruthOf($subject, $predicate, $object), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((s, p, o) => api.call({ true: \"True\", false: \"False\" }[api.relations.truth(K(s), String(p), o)] ?? \"UnknownTruth\"))(",
-      $subject,
-      ", ",
-      $predicate,
-      ", ",
-      $object,
-      ")")),
   Realization(TruthOf($subject, $predicate, $object), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -631,13 +537,6 @@ Concept(TruthOf(),
 // What a subject holds by a predicate, inherited and transitive; Holds is what it states.
 Concept(Closure(),
   IsA(CodePrimitive()),
-  Realization(Closure($subject, $predicate), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((s, p) => L(api.relations.of(K(s)).filter((t) => t.predicate === String(p) && !t.context && t.object !== undefined).map((t) => t.object)))(",
-      $subject,
-      ", ",
-      $predicate,
-      ")")),
   Realization(Closure($subject, $predicate), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -664,13 +563,6 @@ Concept(Closure(),
 // A nullary claim held, inherited: Small() for "the mouse is small".
 Concept(Claimed(),
   IsA(CodePrimitive()),
-  Realization(Claimed($subject, $predicate), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((s, p) => B(api.relations.of(K(s)).some((t) => t.predicate === String(p) && !t.context && t.object === undefined)))(",
-      $subject,
-      ", ",
-      $predicate,
-      ")")),
   Realization(Claimed($subject, $predicate), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -697,8 +589,6 @@ Concept(Claimed(),
 // Expressions as data: what a call is made of.
 Concept(Head(),
   IsA(CodePrimitive()),
-  Realization(Head($e), context=Context(JavaScript(), Compiled()),
-    body=Text("((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))(", $e, ")")),
   Realization(Head($e), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -723,13 +613,6 @@ Concept(Head(),
 
 Concept(Arg(),
   IsA(CodePrimitive()),
-  Realization(Arg($e, $i), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })(",
-      $e,
-      ", ",
-      $i,
-      ")")),
   Realization(Arg($e, $i), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -754,13 +637,6 @@ Concept(Arg(),
 
 Concept(ArgNamed(),
   IsA(CodePrimitive()),
-  Realization(ArgNamed($e, $name), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })(",
-      $e,
-      ", ",
-      $name,
-      ")")),
   Realization(ArgNamed($e, $name), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -785,13 +661,6 @@ Concept(ArgNamed(),
 
 Concept(MakeCall(),
   IsA(CodePrimitive()),
-  Realization(MakeCall($head, $args), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((h, xs) => ({ head: String(h), args: I(xs).map((value) => ({ value })) }))(",
-      $head,
-      ", ",
-      $args,
-      ")")),
   Realization(MakeCall($head, $args), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -817,13 +686,6 @@ Concept(MakeCall(),
 // The store, read. What holds in any context and was not retracted.
 Concept(Subjects(),
   IsA(CodePrimitive()),
-  Realization(Subjects($predicate, $object), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((p, o) => L(api.store.asObject(K(o)).filter((t) => t.predicate === String(p) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject))))(",
-      $predicate,
-      ", ",
-      $object,
-      ")")),
   Realization(Subjects($predicate, $object), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -849,13 +711,6 @@ Concept(Subjects(),
 
 Concept(Holds(),
   IsA(CodePrimitive()),
-  Realization(Holds($subject, $predicate), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "((s, p) => L(api.relations.of(K(s), { transitive: false }).filter((t) => t.predicate === String(p) && !t.context).map((t) => t.object)))(",
-      $subject,
-      ", ",
-      $predicate,
-      ")")),
   Realization(Holds($subject, $predicate), context=Execution(),
     body=Code(
       source="""async (args, bindings, api) => {
@@ -879,38 +734,19 @@ Concept(Holds(),
       return list(api.relations.of(s, { transitive: false }).filter((t) => t.predicate === String(v(1)) && !t.context).map((t) => t.object));
         }""")))
 
-Concept(If(),
-  Realization(If($condition, $then, $otherwise), context=Context(JavaScript(), Compiled()),
-    body=Text("(T(", $condition, ") ? ", $then, " : ", $otherwise, ")")))
+Concept(If())
 
-Concept(Add(),
-  Realization(Add($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("(await N(\"Add\", ", $a, ", ", $b, ", (x, y) => x + y))")))
+Concept(Add())
 
-Concept(Subtract(),
-  Realization(Subtract($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("(await N(\"Subtract\", ", $a, ", ", $b, ", (x, y) => x - y))")))
+Concept(Subtract())
 
-Concept(Multiply(),
-  Realization(Multiply($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("(await N(\"Multiply\", ", $a, ", ", $b, ", (x, y) => x * y))")))
+Concept(Multiply())
 
-Concept(Divide(),
-  Realization(Divide($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text(
-      "(await N(\"Divide\", ",
-      $a,
-      ", ",
-      $b,
-      ", (x, y) => (y === 0 ? api.call(\"Undefined\") : x / y)))")))
+Concept(Divide())
 
-Concept(GreaterThan(),
-  Realization(GreaterThan($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("(await N(\"GreaterThan\", ", $a, ", ", $b, ", (x, y) => B(x > y)))")))
+Concept(GreaterThan())
 
-Concept(LessThan(),
-  Realization(LessThan($a, $b), context=Context(JavaScript(), Compiled()),
-    body=Text("(await N(\"LessThan\", ", $a, ", ", $b, ", (x, y) => B(x < y)))")))
+Concept(LessThan())
 
 Concept(Compiled(), IsA(ContextFacet()))
 

@@ -389,3 +389,7 @@ Concept(Occurrent(), IsA(RelationProperty()))
 // What a relation Concept is a kind of: IsA(Relation()) on the predicates that relate things.
 Concept(Relation(), IsA(Category()))
 
+// What every compiled body starts with. Each language pack realizes it under
+// Context(<language>, Compiled()); without one, compiled bodies are interpreted instead.
+Concept(Prelude(), IsA(Category()))
+

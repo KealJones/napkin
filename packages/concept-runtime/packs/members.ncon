@@ -1,4 +1,4 @@
-Requires(Basic())
+Requires(Basic(), Code())
 
 // ================================================================
 // From src/seed/members.ts

@@ -110,3 +110,23 @@ test("core holds every Concept the host names, and names nothing it does not hol
   const held = packs.find((p) => p.name === "core")!.units.flatMap((u) => u.relations.flatMap((r) => [...heads(r.claim)]));
   assert.deepEqual([...new Set(held)].filter((h) => !core.has(h)), [], "core describes itself with Concepts it does not hold");
 });
+
+test("without a language pack a Compile() body is interpreted, and answers the same", async () => {
+  const { BUILT_IN_PACKS } = await import("./ncon.js");
+  const { Runtime } = await import("../runtime/evaluator.js");
+  const { c } = await import("../concept/expression.js");
+  const all = loadPacks([BUILT_IN_PACKS]);
+  const answer = async (packs: typeof all) => {
+    const store = new ConceptStore();
+    seedPacks(store, packs);
+    store.seed(concept("Robin", { relations: ["IsA(Bird())"] }));
+    const rt = new Runtime(store);
+    const out = format(await rt.evaluate(parse("Members(Birds())"), c("Execution")));
+    return { out, traced: rt.trace.all().map((e) => e.concept) };
+  };
+  const compiled = await answer(all);
+  const interpreted = await answer(all.filter((p) => p.name !== "javascript"));
+  assert.equal(interpreted.out, compiled.out);
+  assert.equal(compiled.out, "List(Robin())");
+  assert.ok(interpreted.traced.includes("Filter") && !compiled.traced.includes("Filter"));
+});

@@ -1,0 +1,67 @@
+// JavaScript, as a language pack: how the code IR is compiled to it, and (to come) how
+// it is read into Concepts and written back out (ir-spec Part 10.7).
+//
+// TypeScript is a SupersetOf JavaScript, so a TypeScript context uses these too.
+
+Requires(Core(), Code())
+
+Language(JavaScript())
+
+// The helpers every compiled body starts with, which the templates below call: T reads a
+// truth, B makes one, I and L read and make a List, F formats, K names, E calls a Concept
+// with values it already has, N does arithmetic on numbers and asks the Concept otherwise.
+Prelude("""
+  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
+  const T = (v) => v === true || (isCall(v) && v.head === "True");
+  const B = (b) => api.call(b ? "True" : "False");
+  const I = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
+  const L = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
+  const F = (x) => api.format(x);
+  const K = (x) => (isCall(x) ? x.head : String(x));
+  const E = (head, ...values) => api.apply(head, values);
+  const N = async (head, a, b, op) => (typeof a === "number" && typeof b === "number" ? op(a, b) : await E(head, a, b));
+""")
+
+// What a call compiles to (runtime/compile.ts): JavaScript with `$name` where the code its
+// argument compiled to goes, stored as `Text(...)` under `Context(JavaScript(), Compiled())`.
+// Read as a template, never run. A value appearing twice is bound once, so nothing is
+// evaluated twice.
+// In order, as the interpreter does: Map, FlatMap, Filter and Reduce loop one at a time,
+// since two identical calls at once read as a cycle.
+Compiled(List(Rest($xs)), "L([$xs])")
+Compiled(Call($f, Rest($args)), "(await ($f)($args))")
+Compiled(Equals($a, $b), "B(F($a) === F($b))")
+Compiled(NotEquals($a, $b), "B(F($a) !== F($b))")
+Compiled(Not($x), "((x) => (T(x) || (isCall(x) && x.head === \"False\")) ? B(!T(x)) : E(\"Not\", x))($x)")
+Compiled(And($a, $b), "B(T($a) && T($b))")
+Compiled(Or($a, $b), "B(T($a) || T($b))")
+Compiled(Length($xs), "((xs) => (typeof xs === \"string\" ? xs.length : I(xs).length))($xs)")
+Compiled(Concat(Rest($lists)), "L([$lists].flatMap(I))")
+Compiled(Includes($xs, $x), "((xs, x) => B(typeof xs === \"string\" ? typeof x === \"string\" && xs.includes(x) : I(xs).some((i) => F(i) === F(x))))($xs, $x)")
+Compiled(Map($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(await f(x)); return o; })(I($xs), $f))")
+Compiled(FlatMap($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) o.push(...I(await f(x))); return o; })(I($xs), $f))")
+Compiled(Filter($xs, $f), "L(await (async (xs, f) => { const o = []; for (const x of xs) if (T(await f(x))) o.push(x); return o; })(I($xs), $f))")
+Compiled(Reduce($xs, $f, $initial), "(await (async (xs, f, acc) => { for (const x of xs) acc = await f(acc, x); return acc; })(I($xs), $f, $initial))")
+Compiled(Unique($xs), "((xs) => { const seen = new Set(); return L(I(xs).filter((x) => !seen.has(F(x)) && seen.add(F(x)))); })($xs)")
+Compiled(Matches($text, $pattern), "((t, p) => B(typeof t === \"string\" && new RegExp(p).test(t)))($text, $pattern)")
+Compiled(First($xs), "((xs) => (xs.length ? xs[0] : api.call(\"Undefined\")))(I($xs))")
+Compiled(JoinText(Rest($parts)), "[$parts].map((p) => (typeof p === \"string\" ? p : F(p))).join(\"\")")
+Compiled(IsCall($x), "B(isCall($x))")
+Compiled(Evaluate($x), "(await api.evaluate($x))")
+Compiled(Known($x), "B(api.store.has(K($x)))")
+Compiled(TruthOf($subject, $predicate, $object), "((s, p, o) => api.call({ true: \"True\", false: \"False\" }[api.relations.truth(K(s), String(p), o)] ?? \"UnknownTruth\"))($subject, $predicate, $object)")
+Compiled(Closure($subject, $predicate), "((s, p) => L(api.relations.of(K(s)).filter((t) => t.predicate === String(p) && !t.context && t.object !== undefined).map((t) => t.object)))($subject, $predicate)")
+Compiled(Claimed($subject, $predicate), "((s, p) => B(api.relations.of(K(s)).some((t) => t.predicate === String(p) && !t.context && t.object === undefined)))($subject, $predicate)")
+Compiled(Head($e), "((e) => (isCall(e) ? e.head : api.call(\"Undefined\")))($e)")
+Compiled(Arg($e, $i), "((e, i) => { const a = isCall(e) ? e.args.filter((x) => x.name === undefined)[i] : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $i)")
+Compiled(ArgNamed($e, $name), "((e, n) => { const a = isCall(e) ? e.args.find((x) => x.name === n) : undefined; return a ? a.value : api.call(\"Undefined\"); })($e, $name)")
+Compiled(MakeCall($head, $args), "((h, xs) => ({ head: String(h), args: I(xs).map((value) => ({ value })) }))($head, $args)")
+Compiled(Subjects($predicate, $object), "((p, o) => L(api.store.asObject(K(o)).filter((t) => t.predicate === String(p) && t.context === undefined && !api.store.retracted(t.subject, t.expr)).map((t) => api.call(t.subject))))($predicate, $object)")
+Compiled(Holds($subject, $predicate), "((s, p) => L(api.relations.of(K(s), { transitive: false }).filter((t) => t.predicate === String(p) && !t.context).map((t) => t.object)))($subject, $predicate)")
+Compiled(If($condition, $then, $otherwise), "(T($condition) ? $then : $otherwise)")
+Compiled(Add($a, $b), "(await N(\"Add\", $a, $b, (x, y) => x + y))")
+Compiled(Subtract($a, $b), "(await N(\"Subtract\", $a, $b, (x, y) => x - y))")
+Compiled(Multiply($a, $b), "(await N(\"Multiply\", $a, $b, (x, y) => x * y))")
+Compiled(Divide($a, $b), "(await N(\"Divide\", $a, $b, (x, y) => (y === 0 ? api.call(\"Undefined\") : x / y)))")
+Compiled(GreaterThan($a, $b), "(await N(\"GreaterThan\", $a, $b, (x, y) => B(x > y)))")
+Compiled(LessThan($a, $b), "(await N(\"LessThan\", $a, $b, (x, y) => B(x < y)))")

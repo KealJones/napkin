@@ -10,6 +10,7 @@
  *   Language(JavaScript())                        the language the rules below are for
  *   Concept(Name(), relation..., Realization(pattern, context=..., body=...))
  *   Compiled(pattern, "template")                 what a primitive compiles to
+ *   Prelude("""helpers""")                        what every compiled body starts with
  *   From(syntax pattern, Concepts)                how the language is read
  *
  * Seeding a pack records it as the origin of what it adds, so reloading an edited pack
@@ -144,6 +145,19 @@ export function parsePack(text: string, name: string): Pack {
         });
         break;
       }
+      case "Prelude": {
+        const [helpers] = args;
+        if (typeof helpers !== "string") throw new PackError(name, "Prelude needs its source as a string");
+        unit("Prelude").realizations.push({
+          pattern: call("Prelude"),
+          context: context(needLanguage("Prelude"), call("Compiled")),
+          body: helpers,
+          properties: [],
+          evaluateArguments: true,
+          evaluateResult: false,
+        });
+        break;
+      }
       case "From": {
         const [pattern, output] = args;
         if (output === undefined) throw new PackError(name, `From needs a pattern and what it reads as: ${format(form).slice(0, 80)}`);
@@ -158,7 +172,7 @@ export function parsePack(text: string, name: string): Pack {
         break;
       }
       default:
-        throw new PackError(name, `unknown form ${form.head}(...); a pack holds Requires, Language, Concept, Compiled and From`);
+        throw new PackError(name, `unknown form ${form.head}(...); a pack holds Requires, Language, Concept, Compiled, Prelude and From`);
     }
   }
   return {

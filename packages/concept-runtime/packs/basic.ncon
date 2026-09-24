@@ -1,4 +1,4 @@
-Requires(Core())
+Requires(Core(), Code())
 
 // ================================================================
 // From src/seed/seed.ts

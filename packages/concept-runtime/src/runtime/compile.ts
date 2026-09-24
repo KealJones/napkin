@@ -6,9 +6,10 @@
  * The IR stays the source of truth and the function is a cache, rebuilt from it whenever
  * it is missing, the way a cell caches a fold (concept-spec Part 13).
  *
- * What each primitive compiles to is graph data: a realization under
- * `Context(JavaScript(), Compiled())` whose body is `Text(...)`, read here as a template and
- * never evaluated, so compiling can run nothing. Binding forms (`Lambda`, `Let`) are
+ * What each primitive compiles to is graph data, from `packs/javascript.ncon`: a realization
+ * under `Context(JavaScript(), Compiled())` whose body is `Text(...)`, read here as a template
+ * and never evaluated, so compiling can run nothing. The helpers the templates call are the
+ * pack's `Prelude`. Binding forms (`Lambda`, `Let`) are
  * compiled here, since they are scope rather than an operation. Anything without a
  * template stays a Concept: the compiled code calls it through `api.evaluate`, so its
  * selection, learning and evidence are what they always were.
@@ -17,19 +18,6 @@ import { type Call, type Expr, format, isCall, isVariable } from "../concept/exp
 import { match, type Bindings } from "../concept/match.js";
 import type { Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
-
-/** Runtime helpers every compiled body shares, written once. */
-const PRELUDE = `
-  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const T = (v) => v === true || (isCall(v) && v.head === "True");
-  const B = (b) => api.call(b ? "True" : "False");
-  const I = (v) => (isCall(v) && v.head === "List" ? v.args.map((a) => a.value) : []);
-  const L = (xs) => ({ head: "List", args: xs.map((value) => ({ value })) });
-  const F = (x) => api.format(x);
-  const K = (x) => (isCall(x) ? x.head : String(x));
-  const E = (head, ...values) => api.apply(head, values);
-  const N = async (head, a, b, op) => (typeof a === "number" && typeof b === "number" ? op(a, b) : await E(head, a, b));
-`;
 
 const COMPILED = "Context(JavaScript(), Compiled())";
 
@@ -105,8 +93,16 @@ function patternVariables(pattern: Expr, out = new Set<string>()): Set<string> {
   return out;
 }
 
+/** The helpers every compiled body shares: the language pack's `Prelude`. */
+function prelude(store: ConceptStore): string | undefined {
+  const r = store.get("Prelude")?.realizations.find((x) => !x.retired && x.context !== undefined && format(x.context) === COMPILED);
+  return typeof r?.body === "string" ? r.body : undefined;
+}
+
 /** Undefined when some part of the body has no compiled form; it is then interpreted. */
 export function compileRealization(store: ConceptStore, r: Realization): { fn: Compiled; source: string } | undefined {
+  const helpers = prelude(store);
+  if (helpers === undefined) return undefined;
   const vars = patternVariables(r.pattern);
   let body: string;
   try {
@@ -116,7 +112,7 @@ export function compileRealization(store: ConceptStore, r: Realization): { fn: C
     throw error;
   }
   const declare = [...vars].map((v) => `const v_${v} = bindings.get(${JSON.stringify(v)});`).join(" ");
-  const source = `return (async () => { ${PRELUDE} ${declare} return ${body}; })();`;
+  const source = `return (async () => { ${helpers} ${declare} return ${body}; })();`;
   const fn = new Function("bindings", "api", source) as Compiled;
   return { fn, source };
 }
