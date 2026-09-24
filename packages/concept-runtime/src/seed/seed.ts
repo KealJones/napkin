@@ -356,7 +356,9 @@ add(
               }
             }
             const value = await api.evaluate(line);
-            if (isCall(value) && value.head === "Answer") answers.push(value);
+            // Anything the system produces for the user is said: an answer, and what it will
+            // remember ("my name is keal and i like hiking" is two things to confirm).
+            if (isCall(value) && ["Answer", "Believed", "Noted"].includes(value.head)) answers.push(value);
             last = value;
           }
           return answers.length > 1 ? api.call("Sequence", ...answers) : last;

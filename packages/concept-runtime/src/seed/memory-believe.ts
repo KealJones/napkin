@@ -101,6 +101,7 @@ export function memoryBelieveUnits(): ConceptUnit[] {
             let subject;
             let claim;
             let owner;
+            let appositive;
             if (isCall(line) && positional(line).length >= 2 && !realizes(line.head)) {
               const [first, ...rest] = positional(line);
               subject = first;
@@ -124,11 +125,19 @@ export function memoryBelieveUnits(): ConceptUnit[] {
                 node = positional(node)[0];
               }
               const inner = positional(node);
-              if (!isCall(node) || inner.length !== 1 || !isCall(inner[0]) || (realizes(node.head) && !OWNER[node.head])) {
-                return await evaluateAsSaid();
+              // "my sister emmy is a nurse" is My(Emmy(Sister(), IsA(Nurse()))): a name, the
+              // role it holds for the owner, and the claim about them.
+              if (owner && isCall(node) && inner.length === 2 && isCall(inner[0]) && inner[0].args.length === 0 && isCall(inner[1])) {
+                appositive = inner[0].head;
+                subject = node;
+                claim = inner[1];
+              } else {
+                if (!isCall(node) || inner.length !== 1 || !isCall(inner[0]) || (realizes(node.head) && !OWNER[node.head])) {
+                  return await evaluateAsSaid();
+                }
+                subject = owner || describers.length ? api.call(describers.join("") + node.head) : node;
+                claim = inner[0];
               }
-              subject = owner || describers.length ? api.call(describers.join("") + node.head) : node;
-              claim = inner[0];
             }
             if (!isCall(claim) || !isCall(subject)) return await evaluateAsSaid();
 
@@ -143,7 +152,7 @@ export function memoryBelieveUnits(): ConceptUnit[] {
             // Turn the claim into what is kept.
             const kept = [];
             const role = claim.head === "Is" && positional(claim).length === 1 ? positional(claim)[0] : undefined;
-            if (owner && subject.head === "Name" && claim.head === "Is" && role !== undefined) {
+            if (owner && !appositive && subject.head === "Name" && claim.head === "Is" && role !== undefined) {
               // "my name is keal": a name given as a value (reading-spec R18).
               const text = typeof role === "string" ? role : isCall(role) ? spoken(role.head) : String(role);
               const target = who(owner, true);
@@ -152,7 +161,7 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               api.store.addRelation(target, api.call("Named", name), undefined, cause);
               return api.call("Believed", api.call("Me"), api.call("List", api.call("Named", name)));
             }
-            if (owner && claim.head === "Is" && positional(claim).length >= 1 && !(isCall(role) && OWNER[role.head])) {
+            if (owner && !appositive && claim.head === "Is" && positional(claim).length >= 1 && !(isCall(role) && OWNER[role.head])) {
               // "my favorite color is blue", "my birthday is june 5": an attribute of the
               // owner, FavoriteColor(Blue()), unless someone already holds the role, in
               // which case it is said about them and stays as said.
@@ -180,13 +189,30 @@ export function memoryBelieveUnits(): ConceptUnit[] {
             } else if (enduring(thirdPerson(claim.head))) {
               kept.push(api.call(thirdPerson(claim.head), ...positional(claim)));
             }
+            // The role an appositive names is itself lasting: Emmy is the user's sister.
+            const ownerOfRole = appositive ? who(owner, true) : undefined;
+            if (appositive && ownerOfRole) kept.unshift(api.call(appositive + "Of", api.call(ownerOfRole)));
             if (!kept.length) return api.call("Noted", line);
 
             // Where it lands.
             let target;
             let display = api.call(subject.head);
             const resolved = named(subject, "resolvedTo");
-            if (owner) {
+            // A person's name: an individual already Named it, or one minted for it now.
+            const person = (name) => {
+              const held = api.store.asObject(api.format(name)).find((t) => t.predicate === "Named");
+              if (held) return held.subject;
+              const id = api.store.mint(name);
+              api.store.addRelation(id, api.call("Named", name), undefined, cause);
+              return id;
+            };
+            // A given name the graph learned as a kind ("Emmy" from research) is still a
+            // person when talked about like one.
+            const NAMEISH = ["GivenName", "FirstName", "MaleName", "FemaleName", "Surname", "FamilyName", "HumanName", "Name"];
+            const isName = (head) => (api.store.get(head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(positional(r.claim)[0]) && NAMEISH.includes(positional(r.claim)[0].head));
+            if (appositive) {
+              target = isCall(resolved) ? resolved.head : person(subject.head);
+            } else if (owner) {
               const ownerId = who(owner, true);
               target = ownerId && holderOf(subject.head, ownerId);
               if (!target && ownerId) {
@@ -204,14 +230,13 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               const asKind =
                 new RegExp("\\\\b(a|an|the|every|all)\\\\s+" + word + "\\\\b").test(message) ||
                 /[^s]s$/.test(subject.head) ||
-                (api.store.has(subject.head) && !api.store.get(subject.head).relations.some((r) => isCall(r.claim) && r.claim.head === "Named"));
+                (api.store.has(subject.head) && !isName(subject.head) && !api.store.get(subject.head).relations.some((r) => isCall(r.claim) && r.claim.head === "Named"));
               if (asKind) {
                 if (kept.some((k) => k.head === "IsA") && realizes(subject.head)) return api.call("Noted", line);
                 target = subject.head;
               } else {
                 // A name nothing holds yet: a lasting claim is what earns it an identity.
-                target = api.store.mint(subject.head);
-                api.store.addRelation(target, api.call("Named", subject.head), undefined, cause);
+                target = person(subject.head);
               }
             }
             if (!target) return api.call("Noted", line);

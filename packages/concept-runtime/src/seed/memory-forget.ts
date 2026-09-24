@@ -56,7 +56,10 @@ export function memoryForgetUnits(): ConceptUnit[] {
                 }
               }
             }
-            if (!forgotten.size) return api.call("Answer", api.call("Forgotten", topic, 0));
+            // How the user put it, to say back: "the dentist", not "dentist".
+            const asSaid = /\\babout (.+?)[.!?]*$/i.exec(String(api.ambient("message") ?? ""))?.[1];
+            const forgot = (n) => api.call("Answer", { head: "Forgotten", args: [{ value: topic }, { value: n }, ...(asSaid ? [{ name: "said", value: asSaid }] : [])] });
+            if (!forgotten.size) return forgot(0);
             // Everything sourced from what goes, transitively.
             const everything = api.store.between("0000", "9999");
             for (let grew = true; grew; ) {
@@ -70,7 +73,7 @@ export function memoryForgetUnits(): ConceptUnit[] {
             }
             api.store.collect(forgotten);
             api.forgetTurns(turns);
-            return api.call("Answer", api.call("Forgotten", topic, turns.length));
+            return forgot(turns.length);
           }`),
         }),
       ],

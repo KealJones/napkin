@@ -142,7 +142,7 @@ test("forgetting what was said about something removes the words and every belie
   const user = store.asObject("User").find((t) => t.predicate === "IsA")!.subject;
   const before = (store.get(user)?.relations ?? []).length;
 
-  assert.match((await say("forget what i said about money")).rendered, /^Answer\(Forgotten\(Money\(\), 2\)\)$/);
+  assert.match((await say("forget what i said about money")).rendered, /^Answer\(Forgotten\(Money\(\), 2, said="money"\)\)$/);
   // Only the request itself still mentions money: it names the topic, not what was said.
   const mentions = store.mentioning(c("Money")).filter((m) => format(m.relation.claim).startsWith("Said(Me()"));
   assert.deepEqual(mentions.map((m) => format(m.relation.claim)).filter((t) => !t.includes("Forget(")), [], "the words are gone");
@@ -151,4 +151,21 @@ test("forgetting what was said about something removes the words and every belie
   // What was not about money stays.
   assert.equal((await say("what is my favorite color")).rendered, "Answer(Blue())");
   assert.equal((store.get(user)?.relations ?? []).length, before);
+});
+
+test("an appositive names a person and the role they hold", async () => {
+  const { store, say } = chat();
+  assert.match((await say("my sister emmy is a nurse")).rendered, /^Believed\(Emmy\(\), List\(SisterOf\(User_\d+\(\)\), IsA\(Nurse\(\)\)\)\)$/);
+  const emmy = store.asObject(format("Emmy")).find((t) => t.predicate === "Named")!.subject;
+  assert.match((await say("who is my sister")).rendered, new RegExp(`^Answer\\(${emmy}\\(\\)\\)$`));
+  await say("emmy loves pizza");
+  assert.equal((await say("what does she love")).rendered, "Answer(Pizza())");
+});
+
+test("what did i do finds any happening, and each claim in a message is confirmed", async () => {
+  const { say } = chat();
+  assert.match((await say("my name is keal and i like hiking")).rendered, /^Sequence\(Believed\(Me\(\), List\(Named\("Keal"\)\)\), Believed\(/);
+  await say("i went to the dentist today");
+  await say("i ate pancakes today");
+  assert.match((await say("what did i do today")).rendered, /^Answer\(List\(/);
 });

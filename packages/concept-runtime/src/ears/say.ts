@@ -197,7 +197,8 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
   if (answered !== undefined && isCall(answered) && answered.head === "Forgotten") {
     const what = answered.args[0]?.value;
     const count = answered.args[1]?.value;
-    const topic = what !== undefined && isCall(what) ? words(what.head) : "that";
+    const said = answered.args.find((a) => a.name === "said")?.value;
+    const topic = typeof said === "string" ? said : what !== undefined && isCall(what) ? words(what.head) : "that";
     return count === 0 ? `You haven't told me anything about ${topic}.` : `Done. I've forgotten what you told me about ${topic}.`;
   }
   // "and plus 3?" works on an answer the message never states, and a model shown only the

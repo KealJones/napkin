@@ -102,15 +102,17 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
             .map((t) => (positional(t.expr).length === 1 ? positional(t.expr)[0] : t.expr));
           if (held.length) return api.call("Answer", held.length === 1 ? held[0] : api.call("List", ...held));
 
-          // A happening: the clause said, "Me(Ate(...))", found by its verb.
+          // A happening: the clause said, "Me(Ate(...))", found by its verb. "what did i do"
+          // asks for any happening, so any clause the subject heads will do.
+          const any = verb.head === "Do";
           const form = "${tense}" === "past" ? past(verb.head) : predicate;
           const extra = positional(verb).map((v) => api.format(v));
           const found = [];
-          for (const s of saidByUser(api.call(form))) {
+          for (const s of saidByUser(api.call(any ? subject.head : form))) {
             if (!told(s.content)) continue;
             walk(s.content, (node) => {
               if (node.head !== subject.head) return;
-              const clause = positional(node).find((v) => isCall(v) && v.head === form);
+              const clause = positional(node).find((v) => isCall(v) && (any ? v.args.length > 0 || v.head !== "Is" : v.head === form));
               if (!clause) return;
               const text = api.format(clause);
               if (extra.every((x) => text.includes(x))) found.push(node);
