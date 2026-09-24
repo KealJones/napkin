@@ -23,8 +23,8 @@ Rules for what may and may not go in the Ears prompt:
 | **`ir-spec-appendix-code.md`** (678 lines) | A page of the runtime translated node for node into the IR. 43 constructs. | Fully current, and now doubles as the importer's specification and test. |
 | **`judgment-research.md`** (806 lines) | Why preference cannot be stored as a fact. Six literatures, the philosophy, and Part 14 on contextual relations. | Current. Part 14.2 says "not built" — it was built on 2026-09-22, see below. |
 | **`self-hosting.md`** (160 lines) | Writing the runtime in Rust. Why that target is verifiable where others are not. | Current. Rung 1, the importer, is done. |
-| **`memory-spec.md`** (868 lines) | Memory: kinds, individuals and expressions; stamps and the two times; said versus believed; processes such as games; routing by focus; recall; dormancy, consolidation and collection. | Draft 1, 2026-09-22, nothing built. Replaces `concept-spec.md` Part 13.2 and refines Parts 1, 13.1 and 14; its Part 16 lists every change. |
-| **`emergent-judgment-plan.md`** (506 lines) | Evidence, expectations, relevance, generalisation, choice, prediction, all as mechanisms over the trace. | Draft 1, 2026-09-22, nothing built. Shares stamps, activation, resolution and provenance with `memory-spec.md`; its section 7 says which owns what and gives the merged build order. |
+| **`memory-spec.md`** (868 lines) | Memory: kinds, individuals and expressions; stamps and the two times; said versus believed; processes such as games; routing by focus; recall; dormancy, consolidation and collection. | Draft 1, 2026-09-22. Build steps 1 to 4 and explicit forgetting built 2026-09-23; Part 18 marks each step. Replaces `concept-spec.md` Part 13.2 and refines Parts 1, 13.1 and 14; its Part 16 lists every change. |
+| **`emergent-judgment-plan.md`** (506 lines) | Evidence, expectations, relevance, generalisation, choice, prediction, all as mechanisms over the trace. | Draft 1, 2026-09-22. Phases 0 and 1 built 2026-09-23 (the Phase 1 design decision is written into the plan). Shares stamps, activation, resolution and provenance with `memory-spec.md`; its section 7 says which owns what and gives the merged build order. |
 | **`novel-prompt-findings.md`** (179 lines) | 45 prompts through the parser, 10 through the pipeline. What breaks on input nobody tried. | Current, and the most useful single document for "what is actually wrong". |
 
 Research, all current and all sourced:
@@ -113,6 +113,14 @@ not want.
 ---
 
 ## Where the work stands
+
+2026-09-23, memory and chat: relations are stamped and turns are `Said`; the mention and
+time indexes exist; individuals are minted and names resolve through `Named`; `Believe`
+keeps lasting claims and the chat answers them back (names, roles, attributes, likes,
+who holds what, what was said); explicit forgetting follows source chains; evidence
+breaks ties with facet back-off. The grounding importer (`packages/concept-runtime/src/seed/grounding/`)
+is built and tested on fixtures; the real dumps are not downloaded yet. Next in the merged
+order: unified `Activation`, then expectations and focus/processes.
 
 Done and verified: chat answers and learns; TypeScript emission from the same graph that
 interprets; the TypeScript importer reads the whole runtime with nothing unmapped; 159

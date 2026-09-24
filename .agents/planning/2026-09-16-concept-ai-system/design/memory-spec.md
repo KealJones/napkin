@@ -1,6 +1,6 @@
 # Memory Specification
 
-Status: draft 1, written 2026-09-22. Source of truth for what the system remembers, how a
+Status: draft 1, written 2026-09-22; build steps 1 to 4 built 2026-09-23 (Part 18). Source of truth for what the system remembers, how a
 memory is represented, when something earns its own identity, how time is recorded, how
 state that changes over time is kept, how memory is found, and how it fades.
 
@@ -862,6 +862,10 @@ All ordinary. The evaluator knows none of them.
 ## 18. Build order
 
 Easiest first. Each step is usable on its own.
+
+Status, 2026-09-23: steps 1 to 4 are built, and step 8's explicit forgetting. Step 5 has
+only pronoun resolution to the most recently recorded individual, not `Focus` as facets.
+Steps 6 and 7, and consolidation and age collection in step 8, are not built.
 
 1. **Stamps.** `seq`, `recordedAt` and `source` on every relation; re-assertion appends a
    stamp; `Said` stores its content as an expression. *Done when* a turn's `Said` and every
