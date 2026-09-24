@@ -2975,8 +2975,18 @@ Concept(Lowercase(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call(Member(Call($String, Index($v, 0)), "toLowerCase")))))))))
+            Return(Call(Member(Call($text, Index($v, 0)), "toLowerCase")))))))))
 
 // The text in upper case.
 Concept(Uppercase(),
@@ -2987,8 +2997,18 @@ Concept(Uppercase(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call(Member(Call($String, Index($v, 0)), "toUpperCase")))))))))
+            Return(Call(Member(Call($text, Index($v, 0)), "toUpperCase")))))))))
 
 // Whether the text begins with p.
 Concept(StartsWith(),
@@ -2999,9 +3019,19 @@ Concept(StartsWith(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
             Return(
-              Call(Member(Call($String, Index($v, 0)), "startsWith"), Call($String, Index($v, 1))))))))))
+              Call(Member(Call($text, Index($v, 0)), "startsWith"), Call($String, Index($v, 1))))))))))
 
 // Whether the text ends with p.
 Concept(EndsWith(),
@@ -3012,9 +3042,18 @@ Concept(EndsWith(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(
-              Call(Member(Call($String, Index($v, 0)), "endsWith"), Call($String, Index($v, 1))))))))))
+            Return(Call(Member(Call($text, Index($v, 0)), "endsWith"), Call($String, Index($v, 1))))))))))
 
 // The text cut at each separator (text or Regex), as a List.
 Concept(Split(),
@@ -3027,11 +3066,21 @@ Concept(Split(),
           Sequence(
             Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
             Return(
               Call(
                 $back,
-                Call(Member(Call($String, Index($v, 0)), "split"), Call($host, Index($v, 1)))))))))))
+                Call(Member(Call($text, Index($v, 0)), "split"), Call($host, Index($v, 1)))))))))))
 
 // The text filled on the left to the width.
 Concept(PadStart(),
@@ -3042,10 +3091,20 @@ Concept(PadStart(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
             Return(
               Call(
-                Member(Call($String, Index($v, 0)), "padStart"),
+                Member(Call($text, Index($v, 0)), "padStart"),
                 Index($v, 1),
                 If(Equals(Index($v, 2), Undefined()), " ", Call($String, Index($v, 2)))))))))),
   Realization(PadStart($t, $width), context=Execution(),
@@ -3054,8 +3113,18 @@ Concept(PadStart(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call(Member(Call($String, Index($v, 0)), "padStart"), Index($v, 1)))))))))
+            Return(Call(Member(Call($text, Index($v, 0)), "padStart"), Index($v, 1)))))))))
 
 // Negative, zero or positive as a sorts before, with or after b.
 Concept(CompareText(),
@@ -3066,11 +3135,19 @@ Concept(CompareText(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
             Return(
-              Call(
-                Member(Call($String, Index($v, 0)), "localeCompare"),
-                Call($String, Index($v, 1))))))))))
+              Call(Member(Call($text, Index($v, 0)), "localeCompare"), Call($String, Index($v, 1))))))))))
 
 // Whether the Regex matches somewhere in the text.
 Concept(MatchesPattern(),
@@ -3117,8 +3194,18 @@ Concept(Replace(),
             Bind($U, Call(Member($api, "call"), "Undefined")),
             Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($apply, Lambda(List($f, Spread($xs)), Call(Member($api, "applyLambda"), $f, $xs))),
+            Bind(
+              $text,
+              Lambda(
+                List($x),
+                Sequence(
+                  If(
+                    NotEquals(TypeOf($x), "string"),
+                    Throw(New($Error, "Expected text")),
+                    Undefined()),
+                  Return($x)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Bind($t, Call($String, Index($v, 0))),
+            Bind($t, Call($text, Index($v, 0))),
             Bind($p, Call($host, Index($v, 1))),
             Bind($w, Index($v, 2)),
             If(

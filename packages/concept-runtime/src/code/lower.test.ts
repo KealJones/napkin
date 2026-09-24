@@ -58,3 +58,75 @@ test("a body that falls through answers undefined, and early returns become If",
   assert.equal(await run("F", "F($x)", body, "F(2)"), '"two"');
   assert.equal(await run("F", "F($x)", body, "F(3)"), "Undefined()");
 });
+
+/** As run, but the lowered body declared a program and reached outside Execution(). */
+const runProgram = async (identity: string, pattern: string, body: Expr, call: string) => {
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept(identity, { realizations: [realization({ pattern, properties: ["Program()"], body })] }));
+  return format(await new Runtime(store).evaluate(parse(call), c("Conversation")));
+};
+
+test("loops, their signals, and a helper declared after what calls it", async () => {
+  const body = lowered(
+    "Firsts($xs)",
+    `(args) => {
+      const firsts = (xs) => pick(xs);
+      const pick = (xs) => { const seen = []; for (const x of xs) { if (x < 0) continue; if (x > 9) break; if (x === 5) return "five"; seen.push(x); } return seen.length; };
+      return firsts(args[0].value.args.map((a) => a.value));
+    }`,
+  );
+  assert.equal(await runProgram("Firsts", "Firsts($xs)", body, "Firsts(List(1, -1, 2, 10, 5))"), "2");
+  assert.equal(await runProgram("Firsts", "Firsts($xs)", body, "Firsts(List(1, 5, 2))"), '"five"');
+});
+
+test("recursion, destructuring with a default and a rest, and a spread set", async () => {
+  const body = lowered(
+    "Shape($xs)",
+    `(args) => {
+      const depth = (e) => (e && e.head === "List" ? 1 + Math.max(0, ...e.args.map((a) => depth(a.value))) : 0);
+      const [first, second = 7, ...rest] = args[0].value.args.map((a) => a.value);
+      const kinds = new Set([typeof first, typeof second]);
+      return [depth(args[0].value), second, rest.length, [...kinds].join("+")];
+    }`,
+  );
+  assert.equal(await runProgram("Shape", "Shape($xs)", body, "Shape(List(List(1), 2, 3, 4))"), 'List(2, 2, 2, "object+number")');
+  assert.equal(await runProgram("Shape", "Shape($xs)", body, "Shape(List(1))"), 'List(1, 7, 0, "number")');
+});
+
+test("an element set on a local array, dates and text through their operations", async () => {
+  const body = lowered(
+    "Stamp($y)",
+    `(args) => {
+      const cells = [".", ".", "."];
+      cells[1] = "x";
+      const d = new Date(args[0].value, 0, 31);
+      return cells.join("") + " " + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getDate() + " " + "Ab".toLowerCase();
+    }`,
+  );
+  assert.equal(await runProgram("Stamp", "Stamp($y)", body, "Stamp(2026)"), '".x. 2026-01-31 ab"');
+});
+
+test("every lowered body is made of the IR's operations, and none is JavaScript's", () => {
+  const store = new ConceptStore();
+  seed(store);
+  const operations = new Set(store.asObject("CodePrimitive").map((t) => t.subject));
+  const lowered = store.all().filter((u) => u.realizations.some((r) => r.properties.some((p) => isCall(p) && p.head === "Program")));
+  assert.ok(lowered.length >= 100, `${lowered.length} lowered`);
+  const shaped: string[] = [];
+  for (const u of lowered) {
+    for (const r of u.realizations) {
+      const walk = (e: Expr): void => {
+        if (!isCall(e) || e.head === "Quote") return;
+        if (/^Js[A-Z]/.test(e.head) || e.head === "Host") shaped.push(`${u.identity}: ${e.head}`);
+        for (const a of e.args) walk(a.value);
+      };
+      walk(r.body);
+    }
+  }
+  assert.deepEqual(shaped, []);
+  // What code.ncon lists as operations is what lowering reaches for.
+  for (const head of ["AddValues", "FirstSatisfying", "LoopOver", "LocalInstant", "NewSet", "ClaimsWithObject", "Truthy", "Steps", "Bind"]) {
+    assert.ok(operations.has(head), head);
+  }
+});
