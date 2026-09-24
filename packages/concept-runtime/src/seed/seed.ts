@@ -16,6 +16,7 @@ import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
 import { selfUnits } from "./self.js";
 import { membersUnits } from "./members.js";
+import { codeIrUnits } from "./code-ir.js";
 import { everydayUnits } from "./everyday.js";
 import { memoryForgetUnits } from "./memory-forget.js";
 import { memoryProcessUnits } from "./memory-process.js";
@@ -1749,6 +1750,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
   applyUnits(store, selfUnits(), report);
   applyUnits(store, membersUnits(), report);
+  applyUnits(store, codeIrUnits(), report);
   applyUnits(store, everydayUnits(), report);
   applyUnits(store, memoryForgetUnits(), report); // memory-spec Part 10.5
   applyUnits(store, memoryProcessUnits(), report); // memory-spec Part 18 steps 5 and 6
