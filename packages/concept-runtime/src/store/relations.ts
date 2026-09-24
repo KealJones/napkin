@@ -120,6 +120,9 @@ export class Relations {
         seen.add(key);
         for (const onward of this.store.asSubject(key)) {
           if (onward.predicate !== start.predicate) continue;
+          // Only through what holds everywhere: a sense ("in Art(), a sculpture") or a
+          // retracted fact does not carry the chain on.
+          if (onward.context !== undefined || this.store.retracted(onward.subject, onward.expr)) continue;
           const reached: Triple = {
             subject: start.subject,
             predicate: start.predicate,

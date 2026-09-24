@@ -330,7 +330,9 @@ add(
           const user = subject.head === "Me" ? api.store.asObject("User").find((t) => t.predicate === "IsA")?.subject : undefined;
           const self = subject.head === "You" && subject.args.length === 0 ? "Self" : undefined;
           const about = resolved && resolved.head ? resolved.head : user ?? self ?? subject.head;
-          const triples = api.relations.of(about)
+          // What it is directly: the transitive closure is for answering "is X a Y", and
+          // described, every ancestor of every sense read as a list of what it is.
+          const triples = api.relations.of(about, { transitive: false })
             .filter((t) => {
               const unit = api.store.get(t.predicate);
               return !(unit?.relations ?? []).some((r) => r.claim.head === "Incidental");
@@ -773,6 +775,11 @@ add(
             subject = api.call(subject.head, args[1].value);
           }
           const value = await api.evaluate(subject);
+          // A synonym forwarded to a plain kind ("smiley" to SmileyFace) is the same thing
+          // named again, not a computed value: what is asked is what it is.
+          const plainKind = subject && subject.head && subject.args.length === 0 && value && value.head && value.args.length === 0 &&
+            !(api.store.get(value.head)?.realizations ?? []).some((r) => !r.retired && !r.properties.some((p) => p.head === "Forwarding"));
+          if (plainKind && api.format(value) !== api.format(subject)) return await api.evaluate(api.call("Relations", value), api.call("Describe"));
           // If it computed, answer. If it did not, it is a residual, so describe instead:
           // the graph decides whether a question wants a value or a definition.
           if (api.format(value) !== api.format(subject)) return api.call("Answer", value);
@@ -1578,10 +1585,27 @@ export function forwardSynonym(store: ConceptStore, identity: string, target: st
 
 function deriveSynonymForwarding(store: ConceptStore): number {
   let derived = 0;
+  // A forwarding is derived from a synonym, so it goes when the synonym does: emoji kept
+  // answering "what is an emoji" with Emoticon after SynonymOf(Emoticon()) was retracted.
   for (const unit of store.all()) {
-    if (unit.realizations.length) continue;
+    const stale = unit.realizations.map((r, i) => ({ r, i })).filter(({ r }) => {
+      if (r.retired) return false;
+      const to = r.properties.find((p) => isCall(p) && p.head === FORWARDING);
+      const target = to && isCall(to) ? to.args[0]?.value : undefined;
+      if (target === undefined || !isCall(target)) return false;
+      return !unit.relations.some(
+        (x) => isCall(x.claim) && x.claim.head === "SynonymOf" && format(x.claim.args[0]?.value) === format(target) && !store.retracted(unit.identity, x.claim),
+      );
+    });
+    if (stale.length) {
+      const gone = new Set(stale.map((x) => x.i));
+      store.replaceRealizations(unit.identity, unit.realizations.map((r, i) => (gone.has(i) ? { ...r, retired: true } : r)));
+    }
+  }
+  for (const unit of store.all()) {
+    if (unit.realizations.some((r) => !r.retired)) continue;
     for (const { claim: r } of unit.relations) {
-      if (!isCall(r) || r.head !== "SynonymOf") continue;
+      if (!isCall(r) || r.head !== "SynonymOf" || store.retracted(unit.identity, r)) continue;
       const target = r.args[0]?.value;
       if (target === undefined || !isCall(target)) continue;
       if (!forwardSynonym(store, unit.identity, target.head)) continue;

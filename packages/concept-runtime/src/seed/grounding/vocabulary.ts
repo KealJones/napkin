@@ -17,7 +17,8 @@ export const groundingVocabulary: readonly ConceptUnit[] = [
   rel("UsedFor"),
   rel("CapableOf"),
   rel("Causes"),
-  rel("SameAs"),
+  // Where a Concept is tied to outside, not something to say about it.
+  rel("SameAs", "Incidental()"),
   // Kind to kind: everything that is one is also the other, so it chains (research/wikidata.ts).
   rel("SubclassOf", "Transitive()", "Enduring()"),
   rel("Named"),
