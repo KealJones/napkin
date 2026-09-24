@@ -129,6 +129,15 @@ add(
             if (!asked.some((x) => api.format(x) === api.format(r))) asked.push(r);
           }
           const relations = asked.slice(0, RELATION_CAP);
+          // "Volcano IsA ElectronicGame": research turns up the game, the film and the band
+          // that share a name, and a small Teacher files them flat beside what the word
+          // means, however the prompt asks. When the word has another category, a work or
+          // a name it shares is a namesake, held in that sense only.
+          const NAMESAKE = new Set(["ElectronicGame", "VideoGame", "Film", "Movie", "Album", "Song", "MusicSingle",
+            "Book", "Novel", "TelevisionSeries", "Band", "MusicalGroup", "Company", "Surname", "FamilyName",
+            "GivenName", "FirstName", "Musical", "Magazine", "AcademicJournal", "WrittenWork", "Painting"]);
+          const isA = (r) => r && r.head === "IsA" && r.args[0] && r.args[0].value && r.args[0].value.head;
+          const hasOther = relations.some((r) => isA(r) && !NAMESAKE.has(r.args[0].value.head));
           for (const r of relations) {
             if (!r || !r.head) continue;
             // In(claim, context) says the claim holds only in that sense of the word.
@@ -136,7 +145,8 @@ add(
             // what it says.
             const contextual = r.head === "In" && r.args.length === 2;
             const claim = contextual ? r.args[0].value : r;
-            const where = contextual ? r.args[1].value : undefined;
+            const namesake = !contextual && hasOther && isA(r) && NAMESAKE.has(r.args[0].value.head);
+            const where = contextual ? r.args[1].value : namesake ? api.call("Namesake") : undefined;
             // A relation naming the Concept it belongs to says nothing: the subject is
             // implicit. A Teacher answered Add with relations=List(Add($left, $right)),
             // which is its own pattern filed as a fact, and it stuck in the graph.
@@ -276,6 +286,8 @@ add(concept("TooMany"));
 add(concept("Forwarding", { relations: ["IsA(RealizationProperty())"] }));
 /** A claim together with the context it holds in, for reporting rather than storing. */
 add(concept("In", { relations: ["IsA(Marker())"] }));
+/** The sense of a word that is something else sharing its name: a film, a game, a surname. */
+add(concept("Namesake", { relations: ["IsA(ContextFacet())"] }));
 add(concept("NotComposed"));
 add(concept("Incomplete"));
 add(concept("NotComposed"));

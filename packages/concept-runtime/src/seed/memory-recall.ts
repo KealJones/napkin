@@ -87,8 +87,10 @@ const objectQuestion = (head: string, tense: "present" | "past") =>
           const who = about(subject);
           if (!who || !isCall(verb)) return api.call("Answer", api.call("Unknown"));
 
-          // "what did i tell you about greg": everything said mentioning Greg.
           const topic = positional(verb).find((v) => isCall(v) && v.head === "About");
+          // "what do you know about me": what is held about it.
+          if (topic && verb.head === "Know") return await api.evaluate(topic);
+          // "what did i tell you about greg": everything said mentioning Greg.
           if (topic && ["Tell", "Say"].includes(verb.head)) {
             const of = positional(topic)[0];
             const said = saidByUser(of).filter((s) => told(s.content)).map((s) => s.content);
@@ -206,7 +208,7 @@ export function memoryRecallUnits(): ConceptUnit[] {
             const described = await api.evaluate(api.call("Relations", thing), api.call("Describe"));
             // What was said about it and never became a belief is still known: "greg sent
             // me a meme" is part of what there is to tell about Greg.
-            const said = isCall(thing)
+            const said = isCall(thing) && thing.head !== "Me"
               ? saidByUser(thing)
                   .filter((s) => told(s.content))
                   .map((s) => (isCall(s.content) && s.content.head === "Mood" ? positional(s.content)[1] : s.content))

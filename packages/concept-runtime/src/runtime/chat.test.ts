@@ -67,3 +67,19 @@ test("holidays are dates, and being told it was wrong is apologised for", async 
   assert.equal(await ask("that was wrong"), "Answer(Sorry())");
   assert.equal(await ask("no"), "Answer(Okay())");
 });
+
+test("a work sharing a word's name is learned as a namesake, not as what the word is", async () => {
+  const { parse, format } = await import("../concept/expression.js");
+  const learned = new ConceptStore();
+  seed(learned);
+  await new Runtime(learned).evaluate(
+    parse('Concept(identity="Volcano", relations=List(IsA(Landform()), IsA(ElectronicGame())), realizations=List())'),
+    c("Execution"),
+  );
+  const held = learned.get("Volcano")!.relations.map((r) => [format(r.claim), r.context ? format(r.context) : ""]);
+  assert.deepEqual(held, [["IsA(Landform())", ""], ["IsA(ElectronicGame())", "Namesake()"]]);
+});
+
+test("known names read whole, even with a describing word in them", async () => {
+  assert.match(await ask("how many days until new years day"), /^Answer\(Days\(\d+\)\)$/);
+});

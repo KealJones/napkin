@@ -169,3 +169,9 @@ test("what did i do finds any happening, and each claim in a message is confirme
   await say("i ate pancakes today");
   assert.match((await say("what did i do today")).rendered, /^Answer\(List\(/);
 });
+
+test("what do you know about me is what is held about the user", async () => {
+  const { say } = chat();
+  await say("my favorite color is green");
+  assert.match((await say("what do you know about me")).rendered, /FavoriteColor\(Green\(\)\)/);
+});

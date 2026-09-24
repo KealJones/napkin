@@ -395,6 +395,11 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
   // Nouns side by side: one kind of thing when Wikidata names the phrase ("cover letter" is
   // CoverLetter), otherwise the last is the thing and the ones before describe it
   // ("barista job" is Job(Barista())).
+  // "new years day": a describing word the graph knows as part of one name is part of the
+  // name, not a description of it. Only a name the graph already holds, so nothing is asked.
+  while (describers.length && nouns.length && knownName([describers[describers.length - 1], ...nouns].map((n) => n.word).join(" "))) {
+    nouns.unshift(describers.pop()!);
+  }
   const last = nouns[nouns.length - 1];
   const phrase = nouns.map((n) => n.word).join(" ");
   const oneThing = nouns.length === 1 || namesOneThing(phrase) === true;
