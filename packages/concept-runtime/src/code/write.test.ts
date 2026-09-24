@@ -21,7 +21,7 @@ test("an expression rule is used only where each part can be an expression", () 
 });
 
 test("a body that ends in an expression statement returns nothing, read and written", () => {
-  assert.equal(format(importTypeScript("const f = () => { g(); };").expression), "Module(Let($f, Lambda(List(), Sequence(Call($g), Undefined()))))");
+  assert.equal(format(importTypeScript("const f = () => { g(); };").expression), "Module(Bind($f, Lambda(List(), Sequence(Call($g), Undefined()))))");
   assert.equal(write("const f = () => { g(); };"), "const f = () => { g() }");
 });
 

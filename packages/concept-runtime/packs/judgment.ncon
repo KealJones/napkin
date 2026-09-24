@@ -18,26 +18,26 @@ Concept(Evidence(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($target, Member(Index($args, 0), "value")),
-          Let(
+          Bind($target, Member(Index($args, 0), "value")),
+          Bind(
             $head,
             If(
               And(And($target, Equals(TypeOf($target), "object")), In("head", $target)),
               Member($target, "head"),
               Call($String, $target))),
-          Let(
+          Bind(
             $matches,
             Filter(Member($api, "events"), Lambda(List($e), Equals(Member($e, "concept"), $head)))),
           If(
             Not(Length($matches)),
             Return(Call(Member($api, "call"), "NoEvidence", Call(Member($api, "call"), $head))),
             Undefined()),
-          Let($groups, List()),
+          Bind($groups, List()),
           ForOf(
             $e,
             $matches,
             Sequence(
-              Let(
+              Bind(
                 $found,
                 Call(
                   Member($groups, "find"),

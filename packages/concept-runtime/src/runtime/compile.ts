@@ -9,7 +9,7 @@
  * What each primitive compiles to is graph data, from `packs/javascript.ncon`: a realization
  * under `Context(JavaScript(), Compiled())` whose body is `Text(...)`, read here as a template
  * and never evaluated, so compiling can run nothing. The helpers the templates call are the
- * pack's `Prelude`. Binding forms (`Lambda`, `Let`) are
+ * pack's `Prelude`. Binding forms (`Lambda`, `Bind`) are
  * compiled here, since they are scope rather than an operation. Anything without a
  * template stays a Concept: the compiled code calls it through `api.evaluate`, so its
  * selection, learning and evidence are what they always were.
@@ -62,7 +62,7 @@ function compileExpr(store: ConceptStore, e: Expr, scope: Set<string>): string {
     const inner = new Set([...scope, ...(names as string[])]);
     return `(async (${names.map((n) => `v_${n}`).join(", ")}) => (${compileExpr(store, e.args[1].value, inner)}))`;
   }
-  if (e.head === "Let" && e.args.length === 3 && isVariable(e.args[0].value)) {
+  if (e.head === "Bind" && e.args.length === 3 && isVariable(e.args[0].value)) {
     const name = e.args[0].value.variable;
     const value = compileExpr(store, e.args[1].value, scope);
     return `(await (async (v_${name}) => (${compileExpr(store, e.args[2].value, new Set([...scope, name]))}))(${value}))`;

@@ -14,36 +14,36 @@ test("a function translates exactly as the appendix has it", () => {
       error.value = expression(head, fields);
       throw error;
     }`),
-    'Func($raise, List($head, $fields, $message), Sequence(Let($error, New($Error, $message)), ' +
+    'Func($raise, List($head, $fields, $message), Sequence(Bind($error, New($Error, $message)), ' +
       'Call($whatever), Assign(Member($error, "value"), Call($expression, $head, $fields)), Throw($error)))',
   );
 });
 
 test("an identifier key is a named argument; the rest keep Pair", () => {
   // ir-spec Part 3.3: the named-argument form is preferred where the key is known.
-  assert.equal(ir("const x = { head, args: 1 };"), "Let($x, Object(head=$head, args=1))");
-  assert.equal(ir("const x = { [k]: 1 };"), 'Let($x, Object(Pair($k, 1)))');
+  assert.equal(ir("const x = { head, args: 1 };"), "Bind($x, Object(head=$head, args=1))");
+  assert.equal(ir("const x = { [k]: 1 };"), 'Bind($x, Object(Pair($k, 1)))');
 });
 
 test("a concise arrow body is the value, not a return statement", () => {
-  assert.equal(ir("const f = (a) => a + 1;"), "Let($f, Lambda(List($a), Add($a, 1)))");
-  assert.equal(ir("const f = (a) => { return a + 1; };"), "Let($f, Lambda(List($a), Return(Add($a, 1))))");
+  assert.equal(ir("const f = (a) => a + 1;"), "Bind($f, Lambda(List($a), Add($a, 1)))");
+  assert.equal(ir("const f = (a) => { return a + 1; };"), "Bind($f, Lambda(List($a), Return(Add($a, 1))))");
 });
 
 test("async and generator wrap the function rather than its parameters", () => {
-  assert.equal(ir("const f = async (a) => a;"), "Let($f, Async(Lambda(List($a), $a)))");
+  assert.equal(ir("const f = async (a) => a;"), "Bind($f, Async(Lambda(List($a), $a)))");
   assert.match(ir("function* g() { yield 1; }"), /^Generator\(Func\(\$g/);
 });
 
 test("const binds and let may be reassigned, and the IR keeps the difference", () => {
-  assert.equal(ir("const a = 1;"), "Let($a, 1)");
+  assert.equal(ir("const a = 1;"), "Bind($a, 1)");
   assert.equal(ir("let a = 1;"), "Var($a, 1)");
 });
 
 test("types are erased, because a type is a claim and not a step", () => {
-  assert.equal(ir("interface Foo { a: string }\nconst x: number = 1;"), "Let($x, 1)");
-  assert.equal(ir("const x = y as string;"), "Let($x, $y)");
-  assert.equal(ir("type A = B;\nconst x = 1;"), "Let($x, 1)");
+  assert.equal(ir("interface Foo { a: string }\nconst x: number = 1;"), "Bind($x, 1)");
+  assert.equal(ir("const x = y as string;"), "Bind($x, $y)");
+  assert.equal(ir("type A = B;\nconst x = 1;"), "Bind($x, 1)");
 });
 
 test("a class keeps its members, with modifiers wrapping what they modify", () => {
@@ -59,7 +59,7 @@ test("postfix increment is not an assignment, because it yields the old value", 
 });
 
 test("a template literal is concatenation", () => {
-  assert.equal(ir("const s = `a${b}c`;"), 'Let($s, Add(Add("a", $b), "c"))');
+  assert.equal(ir("const s = `a${b}c`;"), 'Bind($s, Add(Add("a", $b), "c"))');
 });
 
 test("anything unmapped is reported rather than dropped", () => {
@@ -88,7 +88,7 @@ test("source held in a string literal is translated, not carried as text", () =>
 });
 
 test("a string that is not source stays a string", () => {
-  assert.equal(ir('const r = notCode(`(args) => 1`);'), 'Let($r, Call($notCode, "(args) => 1"))');
+  assert.equal(ir('const r = notCode(`(args) => 1`);'), 'Bind($r, Call($notCode, "(args) => 1"))');
 });
 
 test("failures inside embedded source are reported with the outer file's", () => {
@@ -165,9 +165,9 @@ test("types are erased by the TypeScript pack, not the JavaScript one", async ()
   const asJs = readWith(readingRules(store, "JavaScript"), "interface A {}\nconst x = 1;");
   assert.equal(asJs.unsupported[0]?.kind, "InterfaceDeclaration");
   const asTs = readWith(readingRules(store, "TypeScript"), "interface A {}\nconst x = 1;");
-  assert.equal(format(asTs.expression), "Module(Let($x, 1))");
+  assert.equal(format(asTs.expression), "Module(Bind($x, 1))");
 });
 
 test("an object key that is not a name keeps Pair, even an identifier like $", () => {
-  assert.equal(ir('const m = { $: "Dollars", a: 1 };'), 'Let($m, Object(Pair("$", "Dollars"), a=1))');
+  assert.equal(ir('const m = { $: "Dollars", a: 1 };'), 'Bind($m, Object(Pair("$", "Dollars"), a=1))');
 });

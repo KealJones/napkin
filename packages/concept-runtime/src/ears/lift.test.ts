@@ -15,7 +15,7 @@ test("several lines lift to Sequence", () => {
 
 test("an assignment scopes over everything after it", () => {
   const e = lift("$x = Add(1, 2)\nMultiply($x, 10)").expression!;
-  assert.equal(format(e), "Let($x, Add(1, 2), Multiply($x, 10))");
+  assert.equal(format(e), "Bind($x, Add(1, 2), Multiply($x, 10))");
 });
 
 test("a bad line costs one clause, not the whole parse", () => {

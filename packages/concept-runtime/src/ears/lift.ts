@@ -159,7 +159,7 @@ export function lift(text: string): Lifted {
     }
     value = nameRefs(value);
     // `$x = expr` becomes a binding scoping over everything after it, built up below.
-    clauses.push(assignment ? c("Let", v(assignment[1]), value) : value);
+    clauses.push(assignment ? c("Bind", v(assignment[1]), value) : value);
   }
 
   if (!clauses.length) return { expression: undefined, clauses: 0, rejected };
@@ -187,11 +187,11 @@ function nameRefs(e: Expr): Expr {
  */
 function scope(clauses: Expr[]): Expr {
   const [first, ...rest] = clauses;
-  const isBinding = typeof first === "object" && first !== null && "head" in first && first.head === "Let" && first.args.length === 2;
+  const isBinding = typeof first === "object" && first !== null && "head" in first && first.head === "Bind" && first.args.length === 2;
 
   if (!rest.length) return isBinding ? (first.args[1].value as Expr) : first;
   if (isBinding) {
-    return call("Let", [
+    return call("Bind", [
       { value: first.args[0].value },
       { value: first.args[1].value },
       { value: scope(rest) },
@@ -299,7 +299,7 @@ function distance(a: string, b: string): number {
  * `It()` is not a pointing word here: in "what time is it" it points at nothing.
  */
 /** Names the reading is built from rather than names for what was said. */
-const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Item", "Heading", "Aside", "Date", "On"]);
+const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Bind", "Item", "Heading", "Aside", "Date", "On"]);
 
 export function mendWords(e: Expr, message: string): Expr {
   const said = [...new Set((message.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length >= 3))];

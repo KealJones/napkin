@@ -89,8 +89,8 @@ test("Sequence is variadic and returns its last step", async () => {
   assert.equal(await run("Sequence(Add(1, 1), Add(2, 2), Add(3, 3))"), "6");
 });
 
-test("Let binds for its body", async () => {
-  assert.equal(await run("Let($x, Add(2, 3), Multiply($x, 10))"), "50");
+test("Bind binds for its body", async () => {
+  assert.equal(await run("Bind($x, Add(2, 3), Multiply($x, 10))"), "50");
 });
 
 test("If evaluates exactly one branch", async () => {
@@ -102,7 +102,7 @@ test("failures are Concepts and Try recovers in Concepts", async () => {
 });
 
 test("cells hold state without breaking single assignment", async () => {
-  assert.equal(await run("Let($c, Cell(1), Sequence(Set($c, Add(Get($c), 41)), Get($c)))"), "42");
+  assert.equal(await run("Bind($c, Cell(1), Sequence(Set($c, Add(Get($c), 41)), Get($c)))"), "42");
 });
 
 test("budgets stop runaway evaluation, and an exact cycle stops at once", async () => {

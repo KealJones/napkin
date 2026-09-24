@@ -42,7 +42,7 @@ test("a body declared Compile() compiles to one function and answers exactly as 
     "Filter(List(1, 5, 9), Lambda(List($x), GreaterThan($x, 3)))",
     "If(And(Equals(1, 1), Not(False())), Concat(List(1), List(2, 3)), 0)",
     'MakeCall(Head(Likes(Cats())), List(Arg(Likes(Cats()), 0)))',
-    "Let($n, Add(2, 3), Multiply($n, $n))",
+    "Bind($n, Add(2, 3), Multiply($n, $n))",
     'Length(Subjects("IsA", Bird()))',
     "Unique(List(1, 2, 1, Cats(), Cats()))",
     'Filter(List("User_1", "Game"), Lambda(List($x), Matches($x, "_[0-9]+$")))',
@@ -89,6 +89,19 @@ test("a value substituted into a body is not evaluated again", async () => {
   assert.equal(format(out), "List(Card(), Card())");
   assert.equal(g.__cards, 0, "the value Card() was not run where Pair's body mentions it");
   g.__cards = 0;
-  await new Runtime(s).evaluate(parse("Let($v, Deal(), List($v, $v))"), c("Execution"));
-  assert.equal(g.__cards, 0, "nor where a Let's body does");
+  await new Runtime(s).evaluate(parse("Bind($v, Deal(), List($v, $v))"), c("Execution"));
+  assert.equal(g.__cards, 0, "nor where a Bind's body does");
+  // However deep it lands: the branch an If takes, the last step of a Sequence, a Bind
+  // inside a Bind (whose second substitution must not rebuild the value into a call).
+  for (const source of [
+    "Bind($v, Deal(), If(True(), $v, 0))",
+    "Bind($v, Deal(), Sequence(1, $v))",
+    "Bind($v, Deal(), Bind($w, $v, List($w)))",
+    "Bind($v, Deal(), $v)",
+  ]) {
+    g.__cards = 0;
+    const value = await new Runtime(s).evaluate(parse(source), c("Execution"));
+    assert.equal(g.__cards, 0, `${source} ran the value it binds`);
+    assert.match(format(value), /Card\(\)/);
+  }
 });

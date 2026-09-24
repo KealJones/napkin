@@ -144,7 +144,7 @@ function* freeIn(e: Expr, bound: Set<string>): Generator<string> {
     return;
   }
   if (!isCall(e)) return;
-  if (e.head === "Let" && e.args.length === 3 && isVariable(e.args[0].value)) {
+  if (e.head === "Bind" && e.args.length === 3 && isVariable(e.args[0].value)) {
     yield* freeIn(e.args[1].value, bound);
     yield* freeIn(e.args[2].value, new Set([...bound, e.args[0].value.variable]));
     return;
@@ -167,7 +167,7 @@ function lowerBody(body: Expr, scope: Scope): Expr {
 }
 
 const isStatement = (e: Expr): boolean =>
-  isCall(e) && ["Return", "Let", "Var", "If", "Throw", "ForOf", "For", "While", "Sequence"].includes(e.head) && !(e.head === "Let" && e.args.length === 3);
+  isCall(e) && ["Return", "Bind", "Var", "If", "Throw", "ForOf", "For", "While", "Sequence"].includes(e.head) && !(e.head === "Bind" && e.args.length === 3);
 
 /** Does control leave the block through every path (return or throw)? */
 function exits(e: Expr): boolean {
@@ -193,7 +193,7 @@ function lowerBlock(input: Expr[], scope: Scope): Expr {
   const [first, ...rest] = steps;
   if (isHead(first, "Return")) return first.args.length ? lowerExpr(first.args[0].value, scope) : U;
   if (isHead(first, "Throw", 1)) return c("Throw", lowerExpr(first.args[0].value, scope));
-  if (isHead(first, "Let", 2)) {
+  if (isHead(first, "Bind", 2)) {
     const [name, value] = vals(first);
     return bind(name, lowerExpr(value, scope), (inner) => lowerBlock(rest, inner), scope);
   }
@@ -214,11 +214,11 @@ function lowerBlock(input: Expr[], scope: Scope): Expr {
   return rest.length ? c("Sequence", value, lowerBlock(rest, scope)) : c("Sequence", value, U);
 }
 
-/** const x = v; ... as Let($x, v, ...). A destructuring reads each field. */
+/** const x = v; ... as Bind($x, v, ...). A destructuring reads each field. */
 function bind(name: Expr, value: Expr, body: (scope: Scope) => Expr, scope: Scope): Expr {
   if (isVariable(name)) {
     const [ir, inner] = declare(scope, name.variable);
-    return c("Let", { variable: ir }, value, body(inner));
+    return c("Bind", { variable: ir }, value, body(inner));
   }
   // A destructuring: the value once, then each part read from it.
   const parts: [string, Expr][] = [];
@@ -246,9 +246,9 @@ function bind(name: Expr, value: Expr, body: (scope: Scope) => Expr, scope: Scop
   for (let i = parts.length - 1; i >= 0; i--) {
     const key = parts[i][1];
     const read = typeof key === "number" ? c("Element", t, key) : c("FieldOf", t, key);
-    out = c("Let", { variable: names[i] }, read, out);
+    out = c("Bind", { variable: names[i] }, read, out);
   }
-  return c("Let", t, value, out);
+  return c("Bind", t, value, out);
 }
 
 /** A condition as JavaScript tests it: truthiness. */
@@ -307,12 +307,12 @@ function lowerExpr(e: Expr, scope: Scope): Expr {
   if (is(e, "OptionalMember", 2) && typeof args[1] === "string") {
     const t = fresh(scope);
     const read = args[1] === "head" ? c("Head", t) : args[1] === "args" ? c("Arguments", t) : c("FieldOf", t, args[1]);
-    return c("Let", t, x(args[0]), c("If", c("LooseEquals", t, null), U, read));
+    return c("Bind", t, x(args[0]), c("If", c("LooseEquals", t, null), U, read));
   }
   if (is(e, "Index", 2)) return c("Element", x(args[0]), x(args[1]));
   if (is(e, "OptionalIndex", 2)) {
     const t = fresh(scope);
-    return c("Let", t, x(args[0]), c("If", c("LooseEquals", t, null), U, c("Element", t, x(args[1]))));
+    return c("Bind", t, x(args[0]), c("If", c("LooseEquals", t, null), U, c("Element", t, x(args[1]))));
   }
   if (is(e, "If", 3)) return c("If", truth(args[0], scope), x(args[1]), x(args[2]));
   if (is(e, "Not", 1)) return c("Falsy", x(args[0]));
@@ -326,7 +326,7 @@ function lowerExpr(e: Expr, scope: Scope): Expr {
     const t = fresh(scope);
     const test = head === "Otherwise" ? c("LooseEquals", t, null) : c("Truthy", t);
     const [yes, no] = head === "And" ? [right, t] : head === "Or" ? [t, right] : [right, t];
-    return c("Let", t, left, c("If", test, yes, no));
+    return c("Bind", t, left, c("If", test, yes, no));
   }
   if (OPERATORS[head] && (args.length === 2 || args.length === 1)) return call(OPERATORS[head], args.map((v) => ({ value: x(v) })));
   if (is(e, "Lambda", 2)) {
@@ -346,7 +346,7 @@ function lowerExpr(e: Expr, scope: Scope): Expr {
     if (isHead(f, "Member") || isHead(f, "OptionalMember")) nope(`method .${String(f.args[1]?.value)}`);
     return call("Call", [{ value: x(f) }, ...rest.map((v) => ({ value: x(v) }))]);
   }
-  if (["Map", "Filter", "FlatMap", "Reduce", "Includes", "Length", "Concat", "List", "Sequence", "Let"].includes(e.head)) {
+  if (["Map", "Filter", "FlatMap", "Reduce", "Includes", "Length", "Concat", "List", "Sequence", "Bind"].includes(e.head)) {
     if (e.head === "List" && args.some((v) => isHead(v, "Spread"))) return listOf(args, scope);
     return call(e.head, e.args.map((a: Argument) => (a.name === undefined ? { value: x(a.value) } : { name: a.name, value: x(a.value) })));
   }

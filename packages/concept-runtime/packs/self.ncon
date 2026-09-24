@@ -58,7 +58,7 @@ Concept(WhatCan(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $can,
               Map(
                 Filter(

@@ -72,28 +72,28 @@ Concept(In(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $field,
               Lambda(
                 List($r, $n),
                 Sequence(
-                  Let(
+                  Bind(
                     $a,
                     Call(
                       Member(Member($r, "args"), "find"),
                       Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))))),
-            Let(
+            Bind(
               $DAY,
               List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
-            Let(
+            Bind(
               $units,
               Object(
                 Days=List(1, "day"),
                 Weeks=List(7, "day"),
                 Hours=List(60, "minute"),
                 Minutes=List(1, "minute"))),
-            Let(
+            Bind(
               $isDuration,
               Lambda(
                 List($v),
@@ -102,7 +102,7 @@ Concept(In(),
                     And($v, Index($units, Member($v, "head"))),
                     Equals(Length(Member($v, "args")), 1)),
                   Equals(TypeOf(Member(Index(Member($v, "args"), 0), "value")), "number")))),
-            Let(
+            Bind(
               $isRecord,
               Lambda(
                 List($v),
@@ -113,14 +113,14 @@ Concept(In(),
                   Call(
                     Member(Member($v, "args"), "every"),
                     Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))))),
-            Let(
+            Bind(
               $clock,
               Lambda(
                 List($t),
                 Sequence(
-                  Let($h24, Call(Member($Math, "floor"), Divide($t, 60))),
-                  Let($mm, Modulo($t, 60)),
-                  Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                  Bind($h24, Call(Member($Math, "floor"), Divide($t, 60))),
+                  Bind($mm, Modulo($t, 60)),
+                  Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                   Return(
                     Object(
                       head="Time",
@@ -136,7 +136,7 @@ Concept(In(),
                                 Call(Member(Call($String, $mm), "padStart"), 2, "0")),
                               " "),
                             If(LessThan($h24, 12), "AM", "PM"))))))))),
-            Let(
+            Bind(
               $date,
               Lambda(
                 List($d, $time),
@@ -149,20 +149,20 @@ Concept(In(),
                       Object(name="day", value=Call(Member($d, "getDate"))),
                       Object(name="weekday", value=Index($DAY, Call(Member($d, "getDay"))))),
                     If($time, List(Object(name="time", value=$time)), List()))))),
-            Let(
+            Bind(
               $minutesOf,
               Lambda(
                 List($t),
                 Add(
                   Multiply(Call($Number, Call($field, $t, "hour")), 60),
                   Call($Number, Call($field, $t, "minute"))))),
-            Let(
+            Bind(
               $shift,
               Lambda(
                 List($record, $duration, $sign),
                 Sequence(
-                  Let(List($per, $kind), Index($units, Member($duration, "head"))),
-                  Let(
+                  Bind(List($per, $kind), Index($units, Member($duration, "head"))),
+                  Bind(
                     $n,
                     Multiply(
                       Multiply(Member(Index(Member($duration, "args"), 0), "value"), $per),
@@ -170,13 +170,13 @@ Concept(In(),
                   If(
                     Equals(Member($record, "head"), "Date"),
                     Sequence(
-                      Let($time, Call($field, $record, "time")),
-                      Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                      Bind($time, Call($field, $record, "time")),
+                      Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                       If(And(NotEquals($kind, "day"), Not($time)), Return(Undefined()), Undefined()),
-                      Let($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
-                      Let($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
-                      Let($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
-                      Let(
+                      Bind($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
+                      Bind($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
+                      Bind($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
+                      Bind(
                         $d,
                         New(
                           $Date,
@@ -185,12 +185,12 @@ Concept(In(),
                           Add(Call($Number, Call($field, $record, "day")), $carry))),
                       Return(Call($date, $d, If($time, Call($clock, $rest), Undefined())))),
                     Undefined()),
-                  Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                  Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                   Return(
                     Call(
                       $clock,
                       Modulo(Add(Modulo(Add(Call($minutesOf, $record), $total), 1440), 1440), 1440)))))),
-            Let(
+            Bind(
               $now,
               Async(
                 Lambda(
@@ -203,7 +203,7 @@ Concept(In(),
                         Equals(Index(Index($units, Member($duration, "head")), 1), "day"),
                         "Today",
                         "Time")))))),
-            Let($x, Member(Index($args, 0), "value")),
+            Bind($x, Member(Index($args, 0), "value")),
             Return(
               If(
                 Call($isDuration, $x),
@@ -259,19 +259,19 @@ Concept(Relations(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($subject, Member(Index($args, 0), "value")),
+            Bind($subject, Member(Index($args, 0), "value")),
             If(
               Or(Not($subject), Not(Member($subject, "head"))),
               Return(Call(Member($api, "call"), "Unknown")),
               Undefined()),
-            Let(
+            Bind(
               $resolved,
               OptionalMember(
                 Call(
                   Member(Member($subject, "args"), "find"),
                   Lambda(List($a), Equals(Member($a, "name"), "resolvedTo"))),
                 "value")),
-            Let(
+            Bind(
               $user,
               If(
                 Equals(Member($subject, "head"), "Me"),
@@ -281,7 +281,7 @@ Concept(Relations(),
                     Lambda(List($t), Equals(Member($t, "predicate"), "IsA"))),
                   "subject"),
                 Undefined())),
-            Let(
+            Bind(
               $self,
               If(
                 And(
@@ -289,20 +289,20 @@ Concept(Relations(),
                   Equals(Length(Member($subject, "args")), 0)),
                 "Self",
                 Undefined())),
-            Let(
+            Bind(
               $about,
               If(
                 And($resolved, Member($resolved, "head")),
                 Member($resolved, "head"),
                 Otherwise(Otherwise($user, $self), Member($subject, "head")))),
-            Let(
+            Bind(
               $triples,
               Filter(
                 Call(Member(Member($api, "relations"), "of"), $about, Object(transitive=false)),
                 Lambda(
                   List($t),
                   Sequence(
-                    Let($unit, Call(Member(Member($api, "store"), "get"), Member($t, "predicate"))),
+                    Bind($unit, Call(Member(Member($api, "store"), "get"), Member($t, "predicate"))),
                     Return(
                       Not(
                         Call(
@@ -314,12 +314,12 @@ Concept(Relations(),
               Not(Length($triples)),
               Return(Call(Member($api, "call"), "NoDescription", $subject)),
               Undefined()),
-            Let(
+            Bind(
               $ordered,
               Concat(
                 Filter($triples, Lambda(List($t), Not(Member($t, "context")))),
                 Filter($triples, Lambda(List($t), Member($t, "context"))))),
-            Let(
+            Bind(
               $described,
               Map(
                 $ordered,
@@ -347,12 +347,12 @@ Concept(Sequence(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $unmood,
               Lambda(
                 List($e),
@@ -362,7 +362,7 @@ Concept(Sequence(),
                     Equals(Length(Member($e, "args")), 2)),
                   Member(Index(Member($e, "args"), 1), "value"),
                   $e))),
-            Let(
+            Bind(
               $binary,
               Lambda(
                 List($head),
@@ -379,7 +379,7 @@ Concept(Sequence(),
                     And(
                       Call($isCall, Member($r, "pattern")),
                       Equals(Length(Member(Member($r, "pattern"), "args")), 2)))))),
-            Let(
+            Bind(
               $carry,
               Lambda(
                 List($e, $prev),
@@ -393,16 +393,22 @@ Concept(Sequence(),
                         Call($String, Member(Index(Member($e, "args"), 0), "value")))),
                     Return($prev),
                     Undefined()),
-                  Return(
-                    Object(
-                      head=Member($e, "head"),
-                      args=Map(
-                        Member($e, "args"),
-                        Lambda(
-                          List($a),
-                          Object(Spread($a), value=Call($carry, Member($a, "value"), $prev))))))))),
+                  Bind(
+                    $carried,
+                    Map(
+                      Member($e, "args"),
+                      Lambda(List($a), Object(Spread($a), value=Call($carry, Member($a, "value"), $prev))))),
+                  // Nothing carried, the line is itself: rebuilt, a value bound into it would
+                  // become a call to evaluate again.
+                  If(
+                    Call(
+                      Member($carried, "every"),
+                      Lambda(List($a, $i), Equals(Member($a, "value"), Member(Index(Member($e, "args"), $i), "value")))),
+                    Return($e),
+                    Undefined()),
+                  Return(Object(head=Member($e, "head"), args=$carried))))),
             Var($last, null),
-            Let($answers, List()),
+            Bind($answers, List()),
             ForOf(
               List($i, $a),
               Call(Member($args, "entries")),
@@ -413,7 +419,7 @@ Concept(Sequence(),
                     And(GreaterThan($i, 0), NotEquals($last, null)),
                     Or(Equals(TypeOf($last), "number"), Call($isCall, $last))),
                   Sequence(
-                    Let(
+                    Bind(
                       $prev,
                       If(
                         And(
@@ -422,7 +428,7 @@ Concept(Sequence(),
                         Member(Index(Member($last, "args"), 0), "value"),
                         $last)),
                     Assign($line, Call($carry, $line, $prev)),
-                    Let($core, Call($unmood, $line)),
+                    Bind($core, Call($unmood, $line)),
                     If(
                       And(
                         And(
@@ -432,7 +438,7 @@ Concept(Sequence(),
                           Call($binary, Member($core, "head"))),
                         Equals(TypeOf($prev), "number")),
                       Sequence(
-                        Let(
+                        Bind(
                           $applied,
                           Call(
                             Member($api, "call"),
@@ -451,7 +457,7 @@ Concept(Sequence(),
                               $applied)))),
                       Undefined())),
                   Undefined()),
-                Let($value, Await(Call(Member($api, "evaluate"), $line))),
+                Bind($value, Await(Call(Member($api, "resolve"), $line))),
                 If(
                   And(
                     Call($isCall, $value),
@@ -472,12 +478,12 @@ Concept(If(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($test, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value")))),
-            Let($truthy, Or(Equals($test, true), And($test, Equals(Member($test, "head"), "True")))),
+            Bind($test, Await(Call(Member($api, "resolve"), Member(Index($args, 0), "value")))),
+            Bind($truthy, Or(Equals($test, true), And($test, Equals(Member($test, "head"), "True")))),
             Return(
               Await(
                 Call(
-                  Member($api, "evaluate"),
+                  Member($api, "resolve"),
                   If($truthy, Member(Index($args, 1), "value"), Member(Index($args, 2), "value")))))))))))
 
 Concept(Try(),
@@ -492,17 +498,17 @@ Concept(Try(),
               Catch(
                 $caught,
                 Sequence(
-                  Let(
+                  Bind(
                     $failure,
                     If(
                       And($caught, Member($caught, "value")),
                       Member($caught, "value"),
                       Call(Member($api, "call"), "ExecutionFailed"))),
-                  Let($handler, Member(Index($args, 1), "value")),
+                  Bind($handler, Member(Index($args, 1), "value")),
                   If(
                     And($handler, Equals(Member($handler, "head"), "Catch")),
                     Sequence(
-                      Let(
+                      Bind(
                         $name,
                         Member(Member(Index(Member($handler, "args"), 0), "value"), "variable")),
                       Return(
@@ -631,14 +637,14 @@ Concept(Tell(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $recipient,
               Lambda(
                 List($v),
                 And(
                   And($v, Includes(List("Me", "You", "We", "Us", "Them"), Member($v, "head"))),
                   Equals(Length(Member($v, "args")), 0)))),
-            Let(
+            Bind(
               $content,
               Filter($args, Lambda(List($a), Not(Call($recipient, Member($a, "value")))))),
             If(
@@ -667,14 +673,14 @@ Concept(Show(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $recipient,
               Lambda(
                 List($v),
                 And(
                   And($v, Includes(List("Me", "You", "We", "Us", "Them"), Member($v, "head"))),
                   Equals(Length(Member($v, "args")), 0)))),
-            Let(
+            Bind(
               $content,
               Filter($args, Lambda(List($a), Not(Call($recipient, Member($a, "value")))))),
             If(
@@ -701,14 +707,14 @@ Concept(Help(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $recipient,
               Lambda(
                 List($v),
                 And(
                   And($v, Includes(List("Me", "You", "We", "Us", "Them"), Member($v, "head"))),
                   Equals(Length(Member($v, "args")), 0)))),
-            Let(
+            Bind(
               $content,
               Filter($args, Lambda(List($a), Not(Call($recipient, Member($a, "value")))))),
             If(
@@ -856,7 +862,7 @@ Concept(Interrogative(),
           Sequence(
             If(Not(Length($args)), Return(Call(Member($api, "call"), "Unknown")), Undefined()),
             Var($subject, Member(Index($args, 0), "value")),
-            Let(
+            Bind(
               $WHEN,
               List(
                 "Tomorrow",
@@ -870,14 +876,14 @@ Concept(Interrogative(),
                 "On",
                 "After",
                 "Before")),
-            Let(
+            Bind(
               $when,
               Lambda(
                 List($e),
                 Sequence(
                   If(Or(Not($e), Not(Member($e, "head"))), Return(Undefined()), Undefined()),
                   If(Includes($WHEN, Member($e, "head")), Return($e), Undefined()),
-                  Let(
+                  Bind(
                     $inner,
                     Map(
                       Filter(
@@ -889,7 +895,7 @@ Concept(Interrogative(),
                       Or(Equals(Member($e, "head"), "Will"), Equals(Member($e, "head"), "Is")),
                       Equals(Member($e, "head"), "Was")),
                     Sequence(
-                      Let(
+                      Bind(
                         $rest,
                         Filter(
                           $inner,
@@ -907,7 +913,7 @@ Concept(Interrogative(),
                     Return(Call($when, Index($inner, 0))),
                     Undefined()),
                   Return(Undefined())))),
-            Let(
+            Bind(
               $at,
               Call(
                 Member(
@@ -931,7 +937,7 @@ Concept(Interrogative(),
                   Equals(Length(Member($subject, "args")), 0)),
                 Call(Member(Regex("[^s]s$", ""), "test"), Member($subject, "head"))),
               Sequence(
-                Let(
+                Bind(
                   $members,
                   Await(
                     Call(Member($api, "evaluate"), Call(Member($api, "call"), "Members", $subject)))),
@@ -959,8 +965,8 @@ Concept(Interrogative(),
                   Member($subject, "head"),
                   Member(Index($args, 1), "value"))),
               Undefined()),
-            Let($value, Await(Call(Member($api, "evaluate"), $subject))),
-            Let(
+            Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
+            Bind(
               $plainKind,
               And(
                 And(
@@ -1132,18 +1138,18 @@ Concept(WhichDoes(), SynonymOf(Which()))
 Concept(Whether(),
   IsA(Interrogative()),
   Realization(Whether($proposition), context=Execution(), evaluateArguments=false,
-    body=Let(
+    body=Bind(
       $p,
       Quote($proposition),
-      Let(
+      Bind(
         $asking,
-        Let(
+        Bind(
           $t3,
-          Let(
+          Bind(
             $t2,
-            Let(
+            Bind(
               $t1,
-              Let(
+              Bind(
                 $t0,
                 $p,
                 If(Truthy($t0), Includes(List("Can", "Could", "Would", "Will"), Head($p)), $t0)),
@@ -1153,7 +1159,7 @@ Concept(Whether(),
         If(
           Truthy($asking),
           Evaluate(FieldOf(Element(Arguments($p), 1), "value")),
-          Let(
+          Bind(
             $v,
             Evaluate($p),
             If(
@@ -1161,14 +1167,14 @@ Concept(Whether(),
                 If(
                   Identical($v, true),
                   true,
-                  Let($t4, $v, If(Truthy($t4), Identical(Head($v), "True"), $t4)))),
+                  Bind($t4, $v, If(Truthy($t4), Identical(Head($v), "True"), $t4)))),
               MakeCall("Answer", List(MakeCall("True", List()))),
               If(
                 Truthy(
                   If(
                     Identical($v, false),
                     true,
-                    Let($t5, $v, If(Truthy($t5), Identical(Head($v), "False"), $t5)))),
+                    Bind($t5, $v, If(Truthy($t5), Identical(Head($v), "False"), $t5)))),
                 MakeCall("Answer", List(MakeCall("False", List()))),
                 MakeCall("Answer", List(MakeCall("UnknownTruth", List())))))))))))
 
@@ -1187,7 +1193,7 @@ Concept(Is(),
     body=If(
       Not(IsCall($category)),
       Answer(UnknownTruth()),
-      Let(
+      Bind(
         $comparison,
         If(
           Matches(Head($category), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
@@ -1196,7 +1202,7 @@ Concept(Is(),
             Matches(Head($category), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
             "LessThan",
             "")),
-        Let(
+        Bind(
           $compared,
           If(
             And(Not(Equals($comparison, "")), Equals(Arg($category, 1), Undefined())),
@@ -1208,10 +1214,10 @@ Concept(Is(),
             If(
               Not(IsCall($subject)),
               Answer(UnknownTruth()),
-              Let(
+              Bind(
                 $resolved,
                 ArgNamed($subject, "resolvedTo"),
-                Let(
+                Bind(
                   $what,
                   If(
                     Not(Equals($resolved, Undefined())),
@@ -1221,7 +1227,7 @@ Concept(Is(),
                     And(
                       Or(Equals(Head($category), "My"), Equals(Head($category), "Your")),
                       IsCall(Arg($category, 0))),
-                    Let(
+                    Bind(
                       $owner,
                       If(
                         Equals(Head($category), "My"),
@@ -1231,16 +1237,16 @@ Concept(Is(),
                         Includes(Closure($what, JoinText(Head(Arg($category, 0)), "Of")), $owner),
                         Answer(True()),
                         Answer(UnknownTruth()))),
-                    Let(
+                    Bind(
                       $learned,
                       If(
                         Or(Known($what), Not(Equals($resolved, Undefined()))),
                         Nothing(),
                         Evaluate($what)),
-                      Let(
+                      Bind(
                         $kind,
                         Singular($category),
-                        Let(
+                        Bind(
                           $truth,
                           TruthOf($what, "IsA", $kind),
                           If(
@@ -1277,7 +1283,7 @@ Concept(Are(),
     body=If(
       Not(IsCall($category)),
       Answer(UnknownTruth()),
-      Let(
+      Bind(
         $comparison,
         If(
           Matches(Head($category), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
@@ -1286,7 +1292,7 @@ Concept(Are(),
             Matches(Head($category), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
             "LessThan",
             "")),
-        Let(
+        Bind(
           $compared,
           If(
             And(Not(Equals($comparison, "")), Equals(Arg($category, 1), Undefined())),
@@ -1298,10 +1304,10 @@ Concept(Are(),
             If(
               Not(IsCall($subject)),
               Answer(UnknownTruth()),
-              Let(
+              Bind(
                 $resolved,
                 ArgNamed($subject, "resolvedTo"),
-                Let(
+                Bind(
                   $what,
                   If(
                     Not(Equals($resolved, Undefined())),
@@ -1311,7 +1317,7 @@ Concept(Are(),
                     And(
                       Or(Equals(Head($category), "My"), Equals(Head($category), "Your")),
                       IsCall(Arg($category, 0))),
-                    Let(
+                    Bind(
                       $owner,
                       If(
                         Equals(Head($category), "My"),
@@ -1321,16 +1327,16 @@ Concept(Are(),
                         Includes(Closure($what, JoinText(Head(Arg($category, 0)), "Of")), $owner),
                         Answer(True()),
                         Answer(UnknownTruth()))),
-                    Let(
+                    Bind(
                       $learned,
                       If(
                         Or(Known($what), Not(Equals($resolved, Undefined()))),
                         Nothing(),
                         Evaluate($what)),
-                      Let(
+                      Bind(
                         $kind,
                         Singular($category),
-                        Let(
+                        Bind(
                           $truth,
                           TruthOf($what, "IsA", $kind),
                           If(
@@ -1380,9 +1386,9 @@ Concept(Number(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($v, Member(Index($args, 0), "value")),
+          Bind($v, Member(Index($args, 0), "value")),
           If(Equals(TypeOf($v), "number"), Return($v), Undefined()),
-          Let(
+          Bind(
             $words,
             Object(
               zero=0,
@@ -1414,9 +1420,9 @@ Concept(Number(),
           If(
             Equals(TypeOf($v), "string"),
             Sequence(
-              Let($n, Index($words, Call(Member($v, "toLowerCase")))),
+              Bind($n, Index($words, Call(Member($v, "toLowerCase")))),
               If(NotEquals($n, Undefined()), Return($n), Undefined()),
-              Let($parsed, Call($Number, $v)),
+              Bind($parsed, Call($Number, $v)),
               If(Call(Member($Number, "isFinite"), $parsed), Return($parsed), Undefined())),
             Undefined()),
           Return(Call(Member($api, "call"), "Number", Member(Index($args, 0), "value"))))))))
@@ -1437,11 +1443,11 @@ Concept(Format(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($subject, Member(Index($args, 0), "value")),
-          Let($spec, Member(Index($args, 1), "value")),
-          Let($pattern, If(Equals(TypeOf($spec), "string"), $spec, "")),
-          Let($wants12, Call(Member(Regex("12|am|pm", "i"), "test"), $pattern)),
-          Let(
+          Bind($subject, Member(Index($args, 0), "value")),
+          Bind($spec, Member(Index($args, 1), "value")),
+          Bind($pattern, If(Equals(TypeOf($spec), "string"), $spec, "")),
+          Bind($wants12, Call(Member(Regex("12|am|pm", "i"), "test"), $pattern)),
+          Bind(
             $withSpoken,
             Lambda(
               List($head, $source, $spoken),
@@ -1452,27 +1458,27 @@ Concept(Format(),
                     Member($source, "args"),
                     Lambda(List($a), NotEquals(Member($a, "name"), "spoken"))),
                   List(Object(name="spoken", value=$spoken)))))),
-          Let(
+          Bind(
             $named,
             Lambda(
               List($e, $n),
               Sequence(
-                Let(
+                Bind(
                   $a,
                   Call(
                     Member(Member($e, "args"), "find"),
                     Lambda(List($x), Equals(Member($x, "name"), $n)))),
                 Return(If($a, Member($a, "value"), Undefined()))))),
-          Let(
+          Bind(
             $clock,
             Lambda(
               List($h24, $minute),
               Sequence(
-                Let($mm, Call(Member(Call($String, $minute), "padStart"), 2, "0")),
+                Bind($mm, Call(Member(Call($String, $minute), "padStart"), 2, "0")),
                 If(
                   Or(Not($pattern), $wants12),
                   Sequence(
-                    Let($h, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                    Bind($h, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                     Return(
                       Add(Add(Add(Add($h, ":"), $mm), " "), If(LessThan($h24, 12), "AM", "PM")))),
                   Undefined()),
@@ -1480,14 +1486,14 @@ Concept(Format(),
           If(
             And($subject, Equals(Member($subject, "head"), "Date")),
             Sequence(
-              Let($y, Call($String, Call($named, $subject, "year"))),
-              Let(
+              Bind($y, Call($String, Call($named, $subject, "year"))),
+              Bind(
                 $m,
                 Call(Member(Call($String, Call($named, $subject, "month")), "padStart"), 2, "0")),
-              Let(
+              Bind(
                 $d,
                 Call(Member(Call($String, Call($named, $subject, "day")), "padStart"), 2, "0")),
-              Let(
+              Bind(
                 $spoken,
                 Call(
                   Member(
@@ -1505,8 +1511,8 @@ Concept(Format(),
           If(
             And($subject, Equals(Member($subject, "head"), "Time")),
             Sequence(
-              Let($h24, Call($Number, Call($named, $subject, "hour"))),
-              Let($minute, Call($Number, Call($named, $subject, "minute"))),
+              Bind($h24, Call($Number, Call($named, $subject, "hour"))),
+              Bind($minute, Call($Number, Call($named, $subject, "minute"))),
               If(
                 And(
                   Call(Member($Number, "isFinite"), $h24),
@@ -1517,19 +1523,19 @@ Concept(Format(),
           If(
             And($subject, Equals(Member($subject, "head"), "Timestamp")),
             Sequence(
-              Let(
+              Bind(
                 $raw,
                 If(
                   Index(Member($subject, "args"), 0),
                   Member(Index(Member($subject, "args"), 0), "value"),
                   Undefined())),
-              Let($when, If(Equals(TypeOf($raw), "string"), New($Date, $raw), New($Date))),
+              Bind($when, If(Equals(TypeOf($raw), "string"), New($Date, $raw), New($Date))),
               If(
                 Call(Member($Number, "isNaN"), Call(Member($when, "getTime"))),
                 Return(Call(Member($api, "call"), "Format", $subject, $spec)),
                 Undefined()),
-              Let($h24, Call(Member($when, "getHours"))),
-              Let($minute, Call(Member($when, "getMinutes"))),
+              Bind($h24, Call(Member($when, "getHours"))),
+              Bind($minute, Call(Member($when, "getMinutes"))),
               Return(
                 Object(
                   head="Time",
@@ -1664,12 +1670,12 @@ Concept(Time(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let($h24, Call(Member($now, "getHours"))),
-          Let(
+          Bind($now, New($Date)),
+          Bind($h24, Call(Member($now, "getHours"))),
+          Bind(
             $mm,
             Call(Member(Call($String, Call(Member($now, "getMinutes"))), "padStart"), 2, "0")),
-          Let($h, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+          Bind($h, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
           Return(
             Object(
               head="Time",
@@ -1684,24 +1690,24 @@ Concept(Time(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($vals, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let(
+          Bind($vals, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind(
             $period,
             Call(
               Member($vals, "find"),
               Lambda(
                 List($v),
                 And($v, Or(Equals(Member($v, "head"), "Am"), Equals(Member($v, "head"), "Pm")))))),
-          Let($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
+          Bind($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
           If(
             Or(Not(Length($nums)), NotEquals(Add(Length($nums), If($period, 1, 0)), Length($vals))),
             Return(Call(Member($api, "call"), "Time", Spread($vals))),
             Undefined()),
-          Let(List($h, Default($m, 0)), $nums),
-          Let(
+          Bind(List($h, Default($m, 0)), $nums),
+          Bind(
             $h24,
             If($period, Add(Modulo($h, 12), If(Equals(Member($period, "head"), "Pm"), 12, 0)), $h)),
-          Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+          Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
           Return(
             Object(
               head="Time",
@@ -1720,24 +1726,24 @@ Concept(Time(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($vals, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let(
+          Bind($vals, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind(
             $period,
             Call(
               Member($vals, "find"),
               Lambda(
                 List($v),
                 And($v, Or(Equals(Member($v, "head"), "Am"), Equals(Member($v, "head"), "Pm")))))),
-          Let($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
+          Bind($nums, Filter($vals, Lambda(List($v), Equals(TypeOf($v), "number")))),
           If(
             Or(Not(Length($nums)), NotEquals(Add(Length($nums), If($period, 1, 0)), Length($vals))),
             Return(Call(Member($api, "call"), "Time", Spread($vals))),
             Undefined()),
-          Let(List($h, Default($m, 0)), $nums),
-          Let(
+          Bind(List($h, Default($m, 0)), $nums),
+          Bind(
             $h24,
             If($period, Add(Modulo($h, 12), If(Equals(Member($period, "head"), "Pm"), 12, 0)), $h)),
-          Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+          Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
           Return(
             Object(
               head="Time",
@@ -1763,8 +1769,8 @@ Concept(Today(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -1794,33 +1800,33 @@ Concept(ShiftDays(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($date, Member(Index($args, 0), "value")),
-          Let($days, Member(Index($args, 1), "value")),
+          Bind($date, Member(Index($args, 0), "value")),
+          Bind($days, Member(Index($args, 1), "value")),
           If(
             Or(
               Or(Not($date), NotEquals(Member($date, "head"), "Date")),
               NotEquals(TypeOf($days), "number")),
             Return(Call(Member($api, "call"), "ShiftDays", $date, $days)),
             Undefined()),
-          Let(
+          Bind(
             $get,
             Lambda(
               List($n),
               Sequence(
-                Let(
+                Bind(
                   $a,
                   Call(
                     Member(Member($date, "args"), "find"),
                     Lambda(List($x), Equals(Member($x, "name"), $n)))),
                 Return(If($a, Member($a, "value"), Undefined()))))),
-          Let(
+          Bind(
             $d,
             New(
               $Date,
               Call($Number, Call($get, "year")),
               Subtract(Call($Number, Call($get, "month")), 1),
               Add(Call($Number, Call($get, "day")), $days))),
-          Let(
+          Bind(
             $names,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -1861,9 +1867,9 @@ Concept(ShiftHours(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($time, Member(Index($args, 0), "value")),
-          Let($raw, Member(Index($args, 1), "value")),
-          Let(
+          Bind($time, Member(Index($args, 0), "value")),
+          Bind($raw, Member(Index($args, 1), "value")),
+          Bind(
             $hours,
             If(
               Equals(TypeOf($raw), "number"),
@@ -1881,19 +1887,19 @@ Concept(ShiftHours(),
             Return(
               Call(Member($api, "call"), "ShiftHours", $time, Member(Index($args, 1), "value"))),
             Undefined()),
-          Let(
+          Bind(
             $named,
             Lambda(
               List($n),
               Sequence(
-                Let(
+                Bind(
                   $a,
                   Call(
                     Member(Member($time, "args"), "find"),
                     Lambda(List($x), Equals(Member($x, "name"), $n)))),
                 Return(If($a, Member($a, "value"), Undefined()))))),
-          Let($h0, Call($Number, Call($named, "hour"))),
-          Let($m0, Call($Number, Call($named, "minute"))),
+          Bind($h0, Call($Number, Call($named, "hour"))),
+          Bind($m0, Call($Number, Call($named, "minute"))),
           If(
             Or(
               Not(Call(Member($Number, "isFinite"), $h0)),
@@ -1901,9 +1907,9 @@ Concept(ShiftHours(),
             Return(
               Call(Member($api, "call"), "ShiftHours", $time, Member(Index($args, 1), "value"))),
             Undefined()),
-          Let($total, Modulo(Add(Modulo(Add($h0, $hours), 24), 24), 24)),
-          Let($mm, Call(Member(Call($String, $m0), "padStart"), 2, "0")),
-          Let($h12, If(Equals(Modulo($total, 12), 0), 12, Modulo($total, 12))),
+          Bind($total, Modulo(Add(Modulo(Add($h0, $hours), 24), 24), 24)),
+          Bind($mm, Call(Member(Call($String, $m0), "padStart"), 2, "0")),
+          Bind($h12, If(Equals(Modulo($total, 12), 0), 12, Modulo($total, 12))),
           Return(
             Object(
               head="Time",
@@ -1938,7 +1944,7 @@ Concept(Multiply(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -1949,8 +1955,8 @@ Concept(Multiply(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -1968,7 +1974,7 @@ Concept(Add(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -1979,8 +1985,8 @@ Concept(Add(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -1997,28 +2003,28 @@ Concept(Add(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $field,
               Lambda(
                 List($r, $n),
                 Sequence(
-                  Let(
+                  Bind(
                     $a,
                     Call(
                       Member(Member($r, "args"), "find"),
                       Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))))),
-            Let(
+            Bind(
               $DAY,
               List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
-            Let(
+            Bind(
               $units,
               Object(
                 Days=List(1, "day"),
                 Weeks=List(7, "day"),
                 Hours=List(60, "minute"),
                 Minutes=List(1, "minute"))),
-            Let(
+            Bind(
               $isDuration,
               Lambda(
                 List($v),
@@ -2027,7 +2033,7 @@ Concept(Add(),
                     And($v, Index($units, Member($v, "head"))),
                     Equals(Length(Member($v, "args")), 1)),
                   Equals(TypeOf(Member(Index(Member($v, "args"), 0), "value")), "number")))),
-            Let(
+            Bind(
               $isRecord,
               Lambda(
                 List($v),
@@ -2038,14 +2044,14 @@ Concept(Add(),
                   Call(
                     Member(Member($v, "args"), "every"),
                     Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))))),
-            Let(
+            Bind(
               $clock,
               Lambda(
                 List($t),
                 Sequence(
-                  Let($h24, Call(Member($Math, "floor"), Divide($t, 60))),
-                  Let($mm, Modulo($t, 60)),
-                  Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                  Bind($h24, Call(Member($Math, "floor"), Divide($t, 60))),
+                  Bind($mm, Modulo($t, 60)),
+                  Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                   Return(
                     Object(
                       head="Time",
@@ -2061,7 +2067,7 @@ Concept(Add(),
                                 Call(Member(Call($String, $mm), "padStart"), 2, "0")),
                               " "),
                             If(LessThan($h24, 12), "AM", "PM"))))))))),
-            Let(
+            Bind(
               $date,
               Lambda(
                 List($d, $time),
@@ -2074,20 +2080,20 @@ Concept(Add(),
                       Object(name="day", value=Call(Member($d, "getDate"))),
                       Object(name="weekday", value=Index($DAY, Call(Member($d, "getDay"))))),
                     If($time, List(Object(name="time", value=$time)), List()))))),
-            Let(
+            Bind(
               $minutesOf,
               Lambda(
                 List($t),
                 Add(
                   Multiply(Call($Number, Call($field, $t, "hour")), 60),
                   Call($Number, Call($field, $t, "minute"))))),
-            Let(
+            Bind(
               $shift,
               Lambda(
                 List($record, $duration, $sign),
                 Sequence(
-                  Let(List($per, $kind), Index($units, Member($duration, "head"))),
-                  Let(
+                  Bind(List($per, $kind), Index($units, Member($duration, "head"))),
+                  Bind(
                     $n,
                     Multiply(
                       Multiply(Member(Index(Member($duration, "args"), 0), "value"), $per),
@@ -2095,13 +2101,13 @@ Concept(Add(),
                   If(
                     Equals(Member($record, "head"), "Date"),
                     Sequence(
-                      Let($time, Call($field, $record, "time")),
-                      Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                      Bind($time, Call($field, $record, "time")),
+                      Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                       If(And(NotEquals($kind, "day"), Not($time)), Return(Undefined()), Undefined()),
-                      Let($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
-                      Let($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
-                      Let($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
-                      Let(
+                      Bind($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
+                      Bind($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
+                      Bind($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
+                      Bind(
                         $d,
                         New(
                           $Date,
@@ -2110,12 +2116,12 @@ Concept(Add(),
                           Add(Call($Number, Call($field, $record, "day")), $carry))),
                       Return(Call($date, $d, If($time, Call($clock, $rest), Undefined())))),
                     Undefined()),
-                  Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                  Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                   Return(
                     Call(
                       $clock,
                       Modulo(Add(Modulo(Add(Call($minutesOf, $record), $total), 1440), 1440), 1440)))))),
-            Let(
+            Bind(
               $now,
               Async(
                 Lambda(
@@ -2128,7 +2134,7 @@ Concept(Add(),
                         Equals(Index(Index($units, Member($duration, "head")), 1), "day"),
                         "Today",
                         "Time")))))),
-            Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+            Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
             If(
               And(Equals(TypeOf($a), "number"), Equals(TypeOf($b), "number")),
               Return(Add($a, Multiply(1, $b))),
@@ -2149,7 +2155,7 @@ Concept(Subtract(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2160,8 +2166,8 @@ Concept(Subtract(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2178,28 +2184,28 @@ Concept(Subtract(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $field,
               Lambda(
                 List($r, $n),
                 Sequence(
-                  Let(
+                  Bind(
                     $a,
                     Call(
                       Member(Member($r, "args"), "find"),
                       Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))))),
-            Let(
+            Bind(
               $DAY,
               List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
-            Let(
+            Bind(
               $units,
               Object(
                 Days=List(1, "day"),
                 Weeks=List(7, "day"),
                 Hours=List(60, "minute"),
                 Minutes=List(1, "minute"))),
-            Let(
+            Bind(
               $isDuration,
               Lambda(
                 List($v),
@@ -2208,7 +2214,7 @@ Concept(Subtract(),
                     And($v, Index($units, Member($v, "head"))),
                     Equals(Length(Member($v, "args")), 1)),
                   Equals(TypeOf(Member(Index(Member($v, "args"), 0), "value")), "number")))),
-            Let(
+            Bind(
               $isRecord,
               Lambda(
                 List($v),
@@ -2219,14 +2225,14 @@ Concept(Subtract(),
                   Call(
                     Member(Member($v, "args"), "every"),
                     Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))))),
-            Let(
+            Bind(
               $clock,
               Lambda(
                 List($t),
                 Sequence(
-                  Let($h24, Call(Member($Math, "floor"), Divide($t, 60))),
-                  Let($mm, Modulo($t, 60)),
-                  Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                  Bind($h24, Call(Member($Math, "floor"), Divide($t, 60))),
+                  Bind($mm, Modulo($t, 60)),
+                  Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                   Return(
                     Object(
                       head="Time",
@@ -2242,7 +2248,7 @@ Concept(Subtract(),
                                 Call(Member(Call($String, $mm), "padStart"), 2, "0")),
                               " "),
                             If(LessThan($h24, 12), "AM", "PM"))))))))),
-            Let(
+            Bind(
               $date,
               Lambda(
                 List($d, $time),
@@ -2255,20 +2261,20 @@ Concept(Subtract(),
                       Object(name="day", value=Call(Member($d, "getDate"))),
                       Object(name="weekday", value=Index($DAY, Call(Member($d, "getDay"))))),
                     If($time, List(Object(name="time", value=$time)), List()))))),
-            Let(
+            Bind(
               $minutesOf,
               Lambda(
                 List($t),
                 Add(
                   Multiply(Call($Number, Call($field, $t, "hour")), 60),
                   Call($Number, Call($field, $t, "minute"))))),
-            Let(
+            Bind(
               $shift,
               Lambda(
                 List($record, $duration, $sign),
                 Sequence(
-                  Let(List($per, $kind), Index($units, Member($duration, "head"))),
-                  Let(
+                  Bind(List($per, $kind), Index($units, Member($duration, "head"))),
+                  Bind(
                     $n,
                     Multiply(
                       Multiply(Member(Index(Member($duration, "args"), 0), "value"), $per),
@@ -2276,13 +2282,13 @@ Concept(Subtract(),
                   If(
                     Equals(Member($record, "head"), "Date"),
                     Sequence(
-                      Let($time, Call($field, $record, "time")),
-                      Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                      Bind($time, Call($field, $record, "time")),
+                      Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                       If(And(NotEquals($kind, "day"), Not($time)), Return(Undefined()), Undefined()),
-                      Let($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
-                      Let($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
-                      Let($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
-                      Let(
+                      Bind($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
+                      Bind($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
+                      Bind($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
+                      Bind(
                         $d,
                         New(
                           $Date,
@@ -2291,12 +2297,12 @@ Concept(Subtract(),
                           Add(Call($Number, Call($field, $record, "day")), $carry))),
                       Return(Call($date, $d, If($time, Call($clock, $rest), Undefined())))),
                     Undefined()),
-                  Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                  Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                   Return(
                     Call(
                       $clock,
                       Modulo(Add(Modulo(Add(Call($minutesOf, $record), $total), 1440), 1440), 1440)))))),
-            Let(
+            Bind(
               $now,
               Async(
                 Lambda(
@@ -2309,7 +2315,7 @@ Concept(Subtract(),
                         Equals(Index(Index($units, Member($duration, "head")), 1), "day"),
                         "Today",
                         "Time")))))),
-            Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+            Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
             If(
               And(Equals(TypeOf($a), "number"), Equals(TypeOf($b), "number")),
               Return(Add($a, Multiply(Negate(1), $b))),
@@ -2334,7 +2340,7 @@ Concept(GreaterThan(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2345,8 +2351,8 @@ Concept(GreaterThan(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2368,7 +2374,7 @@ Concept(LessThan(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2379,8 +2385,8 @@ Concept(LessThan(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2402,7 +2408,7 @@ Concept(AtLeast(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2413,8 +2419,8 @@ Concept(AtLeast(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2433,7 +2439,7 @@ Concept(AtMost(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2444,8 +2450,8 @@ Concept(AtMost(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2465,7 +2471,7 @@ Concept(Divide(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2476,8 +2482,8 @@ Concept(Divide(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2495,7 +2501,7 @@ Concept(Modulo(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2506,8 +2512,8 @@ Concept(Modulo(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2527,7 +2533,7 @@ Concept(Power(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($x),
@@ -2538,8 +2544,8 @@ Concept(Power(),
                   Return(Call($asNumber, Member(Index(Member($x, "args"), 0), "value"))),
                   Undefined()),
                 Return($NaN)))),
-          Let($l, Call($asNumber, Member(Index($args, 0), "value"))),
-          Let($r, Call($asNumber, Member(Index($args, 1), "value"))),
+          Bind($l, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($r, Call($asNumber, Member(Index($args, 1), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $l), Call(Member($Number, "isNaN"), $r)),
             Return(
@@ -2559,7 +2565,7 @@ Concept(SquareRoot(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2573,8 +2579,8 @@ Concept(SquareRoot(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, 0),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, 0),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2593,7 +2599,7 @@ Concept(SquareRoot(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2607,8 +2613,8 @@ Concept(SquareRoot(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, 0),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, 0),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2629,7 +2635,7 @@ Concept(CubeRoot(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2643,8 +2649,8 @@ Concept(CubeRoot(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, 0),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, 0),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2659,7 +2665,7 @@ Concept(CubeRoot(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2673,8 +2679,8 @@ Concept(CubeRoot(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, 0),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, 0),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2691,7 +2697,7 @@ Concept(Percent(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2705,8 +2711,8 @@ Concept(Percent(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, Call($asNumber, Member(Index($args, 0), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2721,7 +2727,7 @@ Concept(Percent(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -2735,8 +2741,8 @@ Concept(Percent(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
-          Let($p, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, Subtract(Length($args), 1)), "value"))),
+          Bind($p, Call($asNumber, Member(Index($args, 0), "value"))),
           If(
             Or(Call(Member($Number, "isNaN"), $x), Call(Member($Number, "isNaN"), $p)),
             Return(
@@ -2768,7 +2774,7 @@ Concept(Count(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $text,
             Lambda(
               List($x),
@@ -2779,8 +2785,8 @@ Concept(Count(),
                   And($x, Equals(Member($x, "head"), "String")),
                   Member(Index(Member($x, "args"), 0), "value"),
                   null)))),
-          Let($needle, Call($text, Member(Index($args, 0), "value"))),
-          Let($haystack, Call($text, Member(Index($args, 1), "value"))),
+          Bind($needle, Call($text, Member(Index($args, 0), "value"))),
+          Bind($haystack, Call($text, Member(Index($args, 1), "value"))),
           If(
             Or(Equals($needle, null), Equals($haystack, null)),
             Return(
@@ -2805,7 +2811,7 @@ Concept(Self(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($message, Call(Member($api, "ambient"), "message")),
+          Bind($message, Call(Member($api, "ambient"), "message")),
           Return(
             If(
               Equals($message, Undefined()),
@@ -2829,12 +2835,12 @@ Concept(Ambiguous(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($tried, List()),
+            Bind($tried, List()),
             ForOf(
               $a,
               $args,
               Sequence(
-                Let($value, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
+                Bind($value, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
                 If(
                   NotEquals(
                     Call(Member($api, "format"), $value),
@@ -2868,7 +2874,7 @@ Concept(WikidataSearch(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $text,
               If(
                 Equals(TypeOf(Member(Index($args, 0), "value")), "string"),
@@ -2879,7 +2885,7 @@ Concept(WikidataSearch(),
                     Member(Member(Index($args, 0), "value"), "head")),
                   Member(Member(Index($args, 0), "value"), "head"),
                   ""))),
-            Let(
+            Bind(
               Object(wikidata=$wikidata, asConcepts=$asConcepts),
               Await(DynamicImport("../research/sources.js"))),
             Return(Call($asConcepts, Await(Call($wikidata, $text, 5))))))))))
@@ -2892,7 +2898,7 @@ Concept(WebSearch(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $text,
               If(
                 Equals(TypeOf(Member(Index($args, 0), "value")), "string"),
@@ -2903,7 +2909,7 @@ Concept(WebSearch(),
                     Member(Member(Index($args, 0), "value"), "head")),
                   Member(Member(Index($args, 0), "value"), "head"),
                   ""))),
-            Let(
+            Bind(
               Object(web=$web, asConcepts=$asConcepts),
               Await(DynamicImport("../research/sources.js"))),
             Return(Call($asConcepts, Await(Call($web, $text, 5))))))))))
@@ -2958,28 +2964,28 @@ Concept(Ago(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $field,
               Lambda(
                 List($r, $n),
                 Sequence(
-                  Let(
+                  Bind(
                     $a,
                     Call(
                       Member(Member($r, "args"), "find"),
                       Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))))),
-            Let(
+            Bind(
               $DAY,
               List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
-            Let(
+            Bind(
               $units,
               Object(
                 Days=List(1, "day"),
                 Weeks=List(7, "day"),
                 Hours=List(60, "minute"),
                 Minutes=List(1, "minute"))),
-            Let(
+            Bind(
               $isDuration,
               Lambda(
                 List($v),
@@ -2988,7 +2994,7 @@ Concept(Ago(),
                     And($v, Index($units, Member($v, "head"))),
                     Equals(Length(Member($v, "args")), 1)),
                   Equals(TypeOf(Member(Index(Member($v, "args"), 0), "value")), "number")))),
-            Let(
+            Bind(
               $isRecord,
               Lambda(
                 List($v),
@@ -2999,14 +3005,14 @@ Concept(Ago(),
                   Call(
                     Member(Member($v, "args"), "every"),
                     Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))))),
-            Let(
+            Bind(
               $clock,
               Lambda(
                 List($t),
                 Sequence(
-                  Let($h24, Call(Member($Math, "floor"), Divide($t, 60))),
-                  Let($mm, Modulo($t, 60)),
-                  Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                  Bind($h24, Call(Member($Math, "floor"), Divide($t, 60))),
+                  Bind($mm, Modulo($t, 60)),
+                  Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                   Return(
                     Object(
                       head="Time",
@@ -3022,7 +3028,7 @@ Concept(Ago(),
                                 Call(Member(Call($String, $mm), "padStart"), 2, "0")),
                               " "),
                             If(LessThan($h24, 12), "AM", "PM"))))))))),
-            Let(
+            Bind(
               $date,
               Lambda(
                 List($d, $time),
@@ -3035,20 +3041,20 @@ Concept(Ago(),
                       Object(name="day", value=Call(Member($d, "getDate"))),
                       Object(name="weekday", value=Index($DAY, Call(Member($d, "getDay"))))),
                     If($time, List(Object(name="time", value=$time)), List()))))),
-            Let(
+            Bind(
               $minutesOf,
               Lambda(
                 List($t),
                 Add(
                   Multiply(Call($Number, Call($field, $t, "hour")), 60),
                   Call($Number, Call($field, $t, "minute"))))),
-            Let(
+            Bind(
               $shift,
               Lambda(
                 List($record, $duration, $sign),
                 Sequence(
-                  Let(List($per, $kind), Index($units, Member($duration, "head"))),
-                  Let(
+                  Bind(List($per, $kind), Index($units, Member($duration, "head"))),
+                  Bind(
                     $n,
                     Multiply(
                       Multiply(Member(Index(Member($duration, "args"), 0), "value"), $per),
@@ -3056,13 +3062,13 @@ Concept(Ago(),
                   If(
                     Equals(Member($record, "head"), "Date"),
                     Sequence(
-                      Let($time, Call($field, $record, "time")),
-                      Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                      Bind($time, Call($field, $record, "time")),
+                      Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                       If(And(NotEquals($kind, "day"), Not($time)), Return(Undefined()), Undefined()),
-                      Let($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
-                      Let($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
-                      Let($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
-                      Let(
+                      Bind($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
+                      Bind($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
+                      Bind($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
+                      Bind(
                         $d,
                         New(
                           $Date,
@@ -3071,12 +3077,12 @@ Concept(Ago(),
                           Add(Call($Number, Call($field, $record, "day")), $carry))),
                       Return(Call($date, $d, If($time, Call($clock, $rest), Undefined())))),
                     Undefined()),
-                  Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                  Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                   Return(
                     Call(
                       $clock,
                       Modulo(Add(Modulo(Add(Call($minutesOf, $record), $total), 1440), 1440), 1440)))))),
-            Let(
+            Bind(
               $now,
               Async(
                 Lambda(
@@ -3089,7 +3095,7 @@ Concept(Ago(),
                         Equals(Index(Index($units, Member($duration, "head")), 1), "day"),
                         "Today",
                         "Time")))))),
-            Let($x, Member(Index($args, 0), "value")),
+            Bind($x, Member(Index($args, 0), "value")),
             Return(
               If(
                 Call($isDuration, $x),
@@ -3108,28 +3114,28 @@ Concept(At(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $field,
               Lambda(
                 List($r, $n),
                 Sequence(
-                  Let(
+                  Bind(
                     $a,
                     Call(
                       Member(Member($r, "args"), "find"),
                       Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))))),
-            Let(
+            Bind(
               $DAY,
               List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
-            Let(
+            Bind(
               $units,
               Object(
                 Days=List(1, "day"),
                 Weeks=List(7, "day"),
                 Hours=List(60, "minute"),
                 Minutes=List(1, "minute"))),
-            Let(
+            Bind(
               $isDuration,
               Lambda(
                 List($v),
@@ -3138,7 +3144,7 @@ Concept(At(),
                     And($v, Index($units, Member($v, "head"))),
                     Equals(Length(Member($v, "args")), 1)),
                   Equals(TypeOf(Member(Index(Member($v, "args"), 0), "value")), "number")))),
-            Let(
+            Bind(
               $isRecord,
               Lambda(
                 List($v),
@@ -3149,14 +3155,14 @@ Concept(At(),
                   Call(
                     Member(Member($v, "args"), "every"),
                     Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))))),
-            Let(
+            Bind(
               $clock,
               Lambda(
                 List($t),
                 Sequence(
-                  Let($h24, Call(Member($Math, "floor"), Divide($t, 60))),
-                  Let($mm, Modulo($t, 60)),
-                  Let($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
+                  Bind($h24, Call(Member($Math, "floor"), Divide($t, 60))),
+                  Bind($mm, Modulo($t, 60)),
+                  Bind($h12, If(Equals(Modulo($h24, 12), 0), 12, Modulo($h24, 12))),
                   Return(
                     Object(
                       head="Time",
@@ -3172,7 +3178,7 @@ Concept(At(),
                                 Call(Member(Call($String, $mm), "padStart"), 2, "0")),
                               " "),
                             If(LessThan($h24, 12), "AM", "PM"))))))))),
-            Let(
+            Bind(
               $date,
               Lambda(
                 List($d, $time),
@@ -3185,20 +3191,20 @@ Concept(At(),
                       Object(name="day", value=Call(Member($d, "getDate"))),
                       Object(name="weekday", value=Index($DAY, Call(Member($d, "getDay"))))),
                     If($time, List(Object(name="time", value=$time)), List()))))),
-            Let(
+            Bind(
               $minutesOf,
               Lambda(
                 List($t),
                 Add(
                   Multiply(Call($Number, Call($field, $t, "hour")), 60),
                   Call($Number, Call($field, $t, "minute"))))),
-            Let(
+            Bind(
               $shift,
               Lambda(
                 List($record, $duration, $sign),
                 Sequence(
-                  Let(List($per, $kind), Index($units, Member($duration, "head"))),
-                  Let(
+                  Bind(List($per, $kind), Index($units, Member($duration, "head"))),
+                  Bind(
                     $n,
                     Multiply(
                       Multiply(Member(Index(Member($duration, "args"), 0), "value"), $per),
@@ -3206,13 +3212,13 @@ Concept(At(),
                   If(
                     Equals(Member($record, "head"), "Date"),
                     Sequence(
-                      Let($time, Call($field, $record, "time")),
-                      Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                      Bind($time, Call($field, $record, "time")),
+                      Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                       If(And(NotEquals($kind, "day"), Not($time)), Return(Undefined()), Undefined()),
-                      Let($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
-                      Let($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
-                      Let($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
-                      Let(
+                      Bind($t, Add(If($time, Call($minutesOf, $time), 0), $total)),
+                      Bind($carry, Call(Member($Math, "floor"), Divide($t, 1440))),
+                      Bind($rest, Modulo(Add(Modulo($t, 1440), 1440), 1440)),
+                      Bind(
                         $d,
                         New(
                           $Date,
@@ -3221,12 +3227,12 @@ Concept(At(),
                           Add(Call($Number, Call($field, $record, "day")), $carry))),
                       Return(Call($date, $d, If($time, Call($clock, $rest), Undefined())))),
                     Undefined()),
-                  Let($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
+                  Bind($total, If(Equals($kind, "day"), Multiply($n, 1440), $n)),
                   Return(
                     Call(
                       $clock,
                       Modulo(Add(Modulo(Add(Call($minutesOf, $record), $total), 1440), 1440), 1440)))))),
-            Let(
+            Bind(
               $now,
               Async(
                 Lambda(
@@ -3239,8 +3245,8 @@ Concept(At(),
                         Equals(Index(Index($units, Member($duration, "head")), 1), "day"),
                         "Today",
                         "Time")))))),
-            Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
-            Let(
+            Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+            Bind(
               List($d, $t),
               If(And($a, Equals(Member($a, "head"), "Date")), List($a, $b), List($b, $a))),
             If(
@@ -3276,8 +3282,8 @@ Concept(Day(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($d, Member(Index($args, 0), "value")),
-          Let(
+          Bind($d, Member(Index($args, 0), "value")),
+          Bind(
             $w,
             If(
               And($d, Equals(Member($d, "head"), "Date")),
@@ -3364,7 +3370,7 @@ Concept(Mentioning(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $toList,
             Lambda(
               List($entries),
@@ -3394,7 +3400,7 @@ Concept(Between(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $iso,
             Lambda(
               List($x),
@@ -3405,8 +3411,8 @@ Concept(Between(),
                   And($x, Equals(Member($x, "head"), "Timestamp")),
                   OptionalMember(Index(Member($x, "args"), 0), "value"),
                   Undefined())))),
-          Let($from, Call($iso, Member(Index($args, 0), "value"))),
-          Let($to, Call($iso, Member(Index($args, 1), "value"))),
+          Bind($from, Call($iso, Member(Index($args, 0), "value"))),
+          Bind($to, Call($iso, Member(Index($args, 1), "value"))),
           If(
             Or(Equals($from, Undefined()), Equals($to, Undefined())),
             Return(
@@ -3416,7 +3422,7 @@ Concept(Between(),
                 Member(Index($args, 0), "value"),
                 Member(Index($args, 1), "value"))),
             Undefined()),
-          Let(
+          Bind(
             $toList,
             Lambda(
               List($entries),
@@ -3443,14 +3449,14 @@ Concept(Stamps(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $found,
             Call(Member(Member($api, "store"), "findStamp"), Member(Index($args, 0), "value"))),
           If(
             Not($found),
             Return(Call(Member($api, "call"), "Stamps", Member(Index($args, 0), "value"))),
             Undefined()),
-          Let($s, Member($found, "stamp")),
+          Bind($s, Member($found, "stamp")),
           Return(
             Object(
               head="Stamp",
@@ -3469,7 +3475,7 @@ Concept(RecordedAt(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $found,
             Call(Member(Member($api, "store"), "findStamp"), Member(Index($args, 0), "value"))),
           Return(
@@ -3484,7 +3490,7 @@ Concept(SourceOf(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $found,
             Call(Member(Member($api, "store"), "findStamp"), Member(Index($args, 0), "value"))),
           If(

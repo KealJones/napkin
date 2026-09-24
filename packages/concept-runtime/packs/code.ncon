@@ -9,7 +9,7 @@ Requires(Core())
 // Each primitive is one small `Code(...)` body: the only JavaScript left is here, and a
 // realization composed from these is data the graph can read, compare, and one day have a
 // Rust host run with nothing but these primitives rewritten. Substitution is the binding
-// rule, as `Let` already does: a `Lambda`'s parameters are replaced by the values it is
+// rule, as `Bind` already does: a `Lambda`'s parameters are replaced by the values it is
 // called with, then the body is evaluated.
 
 // One primitive: a pattern, a body, and whether its arguments are evaluated first.
@@ -30,17 +30,17 @@ Concept(Call(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -51,8 +51,8 @@ Concept(Call(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -60,12 +60,12 @@ Concept(Call(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -75,12 +75,12 @@ Concept(Call(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -95,7 +95,7 @@ Concept(Call(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Await(
                 Call(
@@ -114,17 +114,17 @@ Concept(Equals(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -135,8 +135,8 @@ Concept(Equals(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -144,12 +144,12 @@ Concept(Equals(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -159,12 +159,12 @@ Concept(Equals(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -179,7 +179,7 @@ Concept(Equals(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Call(
                 $bool,
@@ -195,17 +195,17 @@ Concept(NotEquals(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -216,8 +216,8 @@ Concept(NotEquals(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -225,12 +225,12 @@ Concept(NotEquals(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -240,12 +240,12 @@ Concept(NotEquals(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -260,7 +260,7 @@ Concept(NotEquals(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Call(
                 $bool,
@@ -276,17 +276,17 @@ Concept(Not(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -297,8 +297,8 @@ Concept(Not(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -306,12 +306,12 @@ Concept(Not(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -321,12 +321,12 @@ Concept(Not(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -341,8 +341,8 @@ Concept(Not(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($x, Call($v, 0)),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($x, Call($v, 0)),
             If(Not(Call($isTruth, $x)), Return(Call(Member($api, "call"), "Not", $x)), Undefined()),
             Return(
               If(
@@ -358,17 +358,17 @@ Concept(And(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -379,8 +379,8 @@ Concept(And(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -388,12 +388,12 @@ Concept(And(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -403,12 +403,12 @@ Concept(And(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -423,12 +423,12 @@ Concept(And(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             ForOf(
               $a,
               $args,
               Sequence(
-                Let($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
+                Bind($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
                 If(
                   Not(Call($isTruth, $x)),
                   Return(
@@ -448,17 +448,17 @@ Concept(Or(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -469,8 +469,8 @@ Concept(Or(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -478,12 +478,12 @@ Concept(Or(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -493,12 +493,12 @@ Concept(Or(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -513,12 +513,12 @@ Concept(Or(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             ForOf(
               $a,
               $args,
               Sequence(
-                Let($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
+                Bind($x, Await(Call(Member($api, "evaluate"), Member($a, "value")))),
                 If(
                   Not(Call($isTruth, $x)),
                   Return(
@@ -539,17 +539,17 @@ Concept(Length(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -560,8 +560,8 @@ Concept(Length(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -569,12 +569,12 @@ Concept(Length(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -584,12 +584,12 @@ Concept(Length(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -604,7 +604,7 @@ Concept(Length(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               If(
                 Equals(TypeOf(Call($v, 0)), "string"),
@@ -619,17 +619,17 @@ Concept(Concat(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -640,8 +640,8 @@ Concept(Concat(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -649,12 +649,12 @@ Concept(Concat(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -664,12 +664,12 @@ Concept(Concat(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -684,7 +684,7 @@ Concept(Concat(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(Call($list, FlatMap($args, Lambda(List($a), Call($items, Member($a, "value"))))))))))))
 
 Concept(Includes(),
@@ -695,17 +695,17 @@ Concept(Includes(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -716,8 +716,8 @@ Concept(Includes(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -725,12 +725,12 @@ Concept(Includes(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -740,12 +740,12 @@ Concept(Includes(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -760,7 +760,7 @@ Concept(Includes(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             If(
               Equals(TypeOf(Call($v, 0)), "string"),
               Return(
@@ -768,7 +768,7 @@ Concept(Includes(),
                   $bool,
                   And(Equals(TypeOf(Call($v, 1)), "string"), Includes(Call($v, 0), Call($v, 1))))),
               Undefined()),
-            Let($x, Call(Member($api, "format"), Call($v, 1))),
+            Bind($x, Call(Member($api, "format"), Call($v, 1))),
             Return(
               Call(
                 $bool,
@@ -785,17 +785,17 @@ Concept(Map(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -806,8 +806,8 @@ Concept(Map(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -815,12 +815,12 @@ Concept(Map(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -830,12 +830,12 @@ Concept(Map(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -850,8 +850,8 @@ Concept(Map(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($out, List()),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($out, List()),
             ForOf(
               $x,
               Call($items, Call($v, 0)),
@@ -866,17 +866,17 @@ Concept(FlatMap(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -887,8 +887,8 @@ Concept(FlatMap(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -896,12 +896,12 @@ Concept(FlatMap(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -911,12 +911,12 @@ Concept(FlatMap(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -931,8 +931,8 @@ Concept(FlatMap(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($out, List()),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($out, List()),
             ForOf(
               $x,
               Call($items, Call($v, 0)),
@@ -949,17 +949,17 @@ Concept(Filter(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -970,8 +970,8 @@ Concept(Filter(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -979,12 +979,12 @@ Concept(Filter(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -994,12 +994,12 @@ Concept(Filter(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1014,8 +1014,8 @@ Concept(Filter(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($out, List()),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($out, List()),
             ForOf(
               $x,
               Call($items, Call($v, 0)),
@@ -1033,17 +1033,17 @@ Concept(Reduce(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1054,8 +1054,8 @@ Concept(Reduce(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1063,12 +1063,12 @@ Concept(Reduce(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1078,12 +1078,12 @@ Concept(Reduce(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1098,7 +1098,7 @@ Concept(Reduce(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Var($acc, Call($v, 2)),
             ForOf(
               $x,
@@ -1114,17 +1114,17 @@ Concept(Unique(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1135,8 +1135,8 @@ Concept(Unique(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1144,12 +1144,12 @@ Concept(Unique(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1159,12 +1159,12 @@ Concept(Unique(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1179,8 +1179,8 @@ Concept(Unique(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($seen, New($Set)),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($seen, New($Set)),
             Return(
               Call(
                 $list,
@@ -1200,17 +1200,17 @@ Concept(Matches(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1221,8 +1221,8 @@ Concept(Matches(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1230,12 +1230,12 @@ Concept(Matches(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1245,12 +1245,12 @@ Concept(Matches(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1265,7 +1265,7 @@ Concept(Matches(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Call(
                 $bool,
@@ -1281,17 +1281,17 @@ Concept(First(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1302,8 +1302,8 @@ Concept(First(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1311,12 +1311,12 @@ Concept(First(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1326,12 +1326,12 @@ Concept(First(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1346,8 +1346,8 @@ Concept(First(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let($xs, Call($items, Call($v, 0))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($xs, Call($items, Call($v, 0))),
             Return(If(Length($xs), Index($xs, 0), Call(Member($api, "call"), "Undefined")))))))))
 
 // Text.
@@ -1359,17 +1359,17 @@ Concept(JoinText(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1380,8 +1380,8 @@ Concept(JoinText(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1389,12 +1389,12 @@ Concept(JoinText(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1404,12 +1404,12 @@ Concept(JoinText(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1424,7 +1424,7 @@ Concept(JoinText(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Call(
                 Member(
@@ -1447,17 +1447,17 @@ Concept(IsCall(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1468,8 +1468,8 @@ Concept(IsCall(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1477,12 +1477,12 @@ Concept(IsCall(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1492,12 +1492,12 @@ Concept(IsCall(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1512,7 +1512,7 @@ Concept(IsCall(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(Call($bool, Call($isCall, Call($v, 0))))))))))
 
 // An expression held as a value, run. The arguments of a Concept that reads them
@@ -1525,17 +1525,17 @@ Concept(Evaluate(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1546,8 +1546,8 @@ Concept(Evaluate(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1555,12 +1555,12 @@ Concept(Evaluate(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1570,12 +1570,12 @@ Concept(Evaluate(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1590,7 +1590,7 @@ Concept(Evaluate(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(Await(Call(Member($api, "evaluate"), Call($v, 0))))))))),
   Realization(Evaluate($x, $context), context=Execution(),
     body=Code(
@@ -1611,17 +1611,17 @@ Concept(Known(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1632,8 +1632,8 @@ Concept(Known(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1641,12 +1641,12 @@ Concept(Known(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1656,12 +1656,12 @@ Concept(Known(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1676,7 +1676,7 @@ Concept(Known(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Call(
                 $bool,
@@ -1696,17 +1696,17 @@ Concept(TruthOf(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1717,8 +1717,8 @@ Concept(TruthOf(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1726,12 +1726,12 @@ Concept(TruthOf(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1741,12 +1741,12 @@ Concept(TruthOf(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1761,8 +1761,8 @@ Concept(TruthOf(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $s,
               If(
                 Call($isCall, Call($v, 0)),
@@ -1790,17 +1790,17 @@ Concept(Closure(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1811,8 +1811,8 @@ Concept(Closure(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1820,12 +1820,12 @@ Concept(Closure(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1835,12 +1835,12 @@ Concept(Closure(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1855,8 +1855,8 @@ Concept(Closure(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $s,
               If(
                 Call($isCall, Call($v, 0)),
@@ -1886,17 +1886,17 @@ Concept(Claimed(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -1907,8 +1907,8 @@ Concept(Claimed(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -1916,12 +1916,12 @@ Concept(Claimed(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -1931,12 +1931,12 @@ Concept(Claimed(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -1951,8 +1951,8 @@ Concept(Claimed(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $s,
               If(
                 Call($isCall, Call($v, 0)),
@@ -1980,17 +1980,17 @@ Concept(Head(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2001,8 +2001,8 @@ Concept(Head(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2010,12 +2010,12 @@ Concept(Head(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2025,12 +2025,12 @@ Concept(Head(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2045,7 +2045,7 @@ Concept(Head(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               If(
                 Call($isCall, Call($v, 0)),
@@ -2060,17 +2060,17 @@ Concept(Arg(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2081,8 +2081,8 @@ Concept(Arg(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2090,12 +2090,12 @@ Concept(Arg(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2105,12 +2105,12 @@ Concept(Arg(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2125,8 +2125,8 @@ Concept(Arg(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $a,
               If(
                 Call($isCall, Call($v, 0)),
@@ -2146,17 +2146,17 @@ Concept(ArgNamed(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2167,8 +2167,8 @@ Concept(ArgNamed(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2176,12 +2176,12 @@ Concept(ArgNamed(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2191,12 +2191,12 @@ Concept(ArgNamed(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2211,8 +2211,8 @@ Concept(ArgNamed(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $a,
               If(
                 Call($isCall, Call($v, 0)),
@@ -2230,17 +2230,17 @@ Concept(MakeCall(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2251,8 +2251,8 @@ Concept(MakeCall(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2260,12 +2260,12 @@ Concept(MakeCall(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2275,12 +2275,12 @@ Concept(MakeCall(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2295,7 +2295,7 @@ Concept(MakeCall(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
             Return(
               Object(
                 head=Call($String, Call($v, 0)),
@@ -2310,17 +2310,17 @@ Concept(Subjects(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2331,8 +2331,8 @@ Concept(Subjects(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2340,12 +2340,12 @@ Concept(Subjects(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2355,12 +2355,12 @@ Concept(Subjects(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2375,8 +2375,8 @@ Concept(Subjects(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $o,
               If(
                 Call($isCall, Call($v, 1)),
@@ -2409,17 +2409,17 @@ Concept(Holds(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $isCall,
               Lambda(
                 List($e),
                 And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Let(
+            Bind(
               $truthy,
               Lambda(
                 List($v),
                 Or(Equals($v, true), And(Call($isCall, $v), Equals(Member($v, "head"), "True"))))),
-            Let(
+            Bind(
               $isTruth,
               Lambda(
                 List($v),
@@ -2430,8 +2430,8 @@ Concept(Holds(),
                       Call($isCall, $v),
                       Or(Equals(Member($v, "head"), "True"), Equals(Member($v, "head"), "False"))),
                     Not(Length(Member($v, "args"))))))),
-            Let($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
-            Let(
+            Bind($bool, Lambda(List($b), Call(Member($api, "call"), If($b, "True", "False")))),
+            Bind(
               $items,
               Lambda(
                 List($v),
@@ -2439,12 +2439,12 @@ Concept(Holds(),
                   And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
                   Map(Member($v, "args"), Lambda(List($a), Member($a, "value"))),
                   List()))),
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($xs),
                 Object(head="List", args=Map($xs, Lambda(List($value), Object(value=$value)))))),
-            Let(
+            Bind(
               $apply,
               Async(
                 Lambda(
@@ -2454,12 +2454,12 @@ Concept(Holds(),
                       Or(Not(Call($isCall, $f)), NotEquals(Member($f, "head"), "Lambda")),
                       Return(Call(Member($api, "call"), "Call", $f, Spread($values))),
                       Undefined()),
-                    Let(
+                    Bind(
                       $params,
                       Map(
                         Call($items, OptionalMember(Index(Member($f, "args"), 0), "value")),
                         Lambda(List($p), And($p, Member($p, "variable"))))),
-                    Let(
+                    Bind(
                       $bound,
                       New(
                         $Map,
@@ -2474,8 +2474,8 @@ Concept(Holds(),
                             Member($api, "substitute"),
                             Member(Index(Member($f, "args"), 1), "value"),
                             $bound)))))))),
-            Let($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
-            Let(
+            Bind($v, Lambda(List($i), OptionalMember(Index($args, $i), "value"))),
+            Bind(
               $s,
               If(
                 Call($isCall, Call($v, 0)),
@@ -2530,7 +2530,7 @@ Concept(Truthy(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Member(Index($args, 0), "value")),
+          Bind($v, Member(Index($args, 0), "value")),
           If(
             Or(
               Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
@@ -2551,7 +2551,7 @@ Concept(Falsy(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Member(Index($args, 0), "value")),
+          Bind($v, Member(Index($args, 0), "value")),
           If(
             Or(
               Or(Or(Or(Equals($v, false), Equals($v, null)), Equals($v, 0)), Equals($v, "")),
@@ -2571,8 +2571,8 @@ Concept(Identical(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
-          Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
+          Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
           Return(
             If(
               And(Call($obj, $a), Call($obj, $b)),
@@ -2587,8 +2587,8 @@ Concept(NotIdentical(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
-          Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
+          Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
           Return(
             If(
               And(Call($obj, $a), Call($obj, $b)),
@@ -2603,7 +2603,7 @@ Concept(LooseEquals(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $nullish,
             Lambda(
               List($v),
@@ -2612,8 +2612,8 @@ Concept(LooseEquals(),
                 And(
                   And(Equals(TypeOf($v), "object"), Equals(Member($v, "head"), "Undefined")),
                   Equals(Length(Member($v, "args")), 0))))),
-          Let($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
-          Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
+          Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
           If(
             Or(Call($nullish, $a), Call($nullish, $b)),
             Return(And(Call($nullish, $a), Call($nullish, $b))),
@@ -2632,7 +2632,7 @@ Concept(LooseNotEquals(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $nullish,
             Lambda(
               List($v),
@@ -2641,8 +2641,8 @@ Concept(LooseNotEquals(),
                 And(
                   And(Equals(TypeOf($v), "object"), Equals(Member($v, "head"), "Undefined")),
                   Equals(Length(Member($v, "args")), 0))))),
-          Let($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
-          Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind($obj, Lambda(List($v), And(Equals(TypeOf($v), "object"), NotEquals($v, null)))),
+          Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
           If(
             Or(Call($nullish, $a), Call($nullish, $b)),
             Return(Not(And(Call($nullish, $a), Call($nullish, $b)))),
@@ -2661,7 +2661,7 @@ Concept(JsPlus(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind(List($a, $b), Map($args, Lambda(List($x), Member($x, "value")))),
           Return(
             If(
               Or(Equals(TypeOf($a), "string"), Equals(TypeOf($b), "string")),
@@ -2754,7 +2754,7 @@ Concept(TypeOf(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Member(Index($args, 0), "value")),
+          Bind($v, Member(Index($args, 0), "value")),
           If(
             And(
               And(
@@ -2773,8 +2773,8 @@ Concept(HasField(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($records, New($Set, List("Argument", "Triple", "Stamp", "Mention", "Record"))),
-          Let(List($k, $v), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind($records, New($Set, List("Argument", "Triple", "Stamp", "Mention", "Record"))),
+          Bind(List($k, $v), Map($args, Lambda(List($x), Member($x, "value")))),
           If(Or(NotEquals(TypeOf($v), "object"), Equals($v, null)), Return(false), Undefined()),
           If(In("variable", $v), Return(Equals($k, "variable")), Undefined()),
           If(
@@ -2794,12 +2794,12 @@ Concept(FieldOf(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(List($r, $k), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind(List($r, $k), Map($args, Lambda(List($x), Member($x, "value")))),
           If(
             Or(Or(NotEquals(TypeOf($r), "object"), Equals($r, null)), Not(In("head", $r))),
             Return(Call(Member($api, "call"), "Undefined")),
             Undefined()),
-          Let(
+          Bind(
             $found,
             Call(
               Member(Member($r, "args"), "find"),
@@ -2818,7 +2818,7 @@ Concept(Element(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(List($xs, $i), Map($args, Lambda(List($x), Member($x, "value")))),
+          Bind(List($xs, $i), Map($args, Lambda(List($x), Member($x, "value")))),
           If(
             Equals(TypeOf($xs), "string"),
             Return(
@@ -2833,7 +2833,7 @@ Concept(Element(),
               NotEquals(Member($xs, "head"), "List")),
             Return(Call(Member($api, "call"), "Undefined")),
             Undefined()),
-          Let($found, Index(Member($xs, "args"), $i)),
+          Bind($found, Index(Member($xs, "args"), $i)),
           Return(
             If(
               Equals($found, Undefined()),
@@ -2848,7 +2848,7 @@ Concept(Arguments(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($e, Member(Index($args, 0), "value")),
+          Bind($e, Member(Index($args, 0), "value")),
           If(
             Or(Or(NotEquals(TypeOf($e), "object"), Equals($e, null)), Not(In("head", $e))),
             Return(Call(Member($api, "call"), "Undefined")),
@@ -2881,7 +2881,7 @@ Concept(Throw(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Member(Index($args, 0), "value")),
+          Bind($v, Member(Index($args, 0), "value")),
           Throw(
             If(
               InstanceOf($v, $Error),

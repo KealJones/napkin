@@ -15,9 +15,9 @@ Concept(Build(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($value, Member(Index($args, 0), "value")),
+            Bind($value, Member(Index($args, 0), "value")),
             If(Or(Not($value), Not(Member($value, "head"))), Return($value), Undefined()),
-            Let($fields, List()),
+            Bind($fields, List()),
             ForOf(
               $a,
               Member($value, "args"),
@@ -33,9 +33,9 @@ Concept(Slot(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(Or(Not(Index($v, 0)), Not(Member(Index($v, 0), "head"))), Return(null), Undefined()),
-          Let(
+          Bind(
             $found,
             If(
               Equals(TypeOf(Index($v, 1)), "number"),
@@ -52,14 +52,14 @@ Concept(With(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Or(
               Or(Not(Index($v, 0)), Not(Member(Index($v, 0), "head"))),
               NotEquals(TypeOf(Index($v, 1)), "string")),
             Throw(New($Error, "With needs a record and field name")),
             Undefined()),
-          Let(
+          Bind(
             $fields,
             Filter(
               Member(Index($v, 0), "args"),
@@ -84,9 +84,9 @@ Concept(CoordinateLabel(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let($x, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 0), "value")),
-          Let($y, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 1), "value")),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($x, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 0), "value")),
+          Bind($y, OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 1), "value")),
           Return(
             If(
               And(
@@ -102,7 +102,7 @@ Concept(ElementAt(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -124,7 +124,7 @@ Concept(Last(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -146,7 +146,7 @@ Concept(DropLast(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -170,7 +170,7 @@ Concept(Range(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Or(
               Or(
@@ -197,7 +197,7 @@ Concept(Any(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($x),
@@ -207,13 +207,13 @@ Concept(Any(),
                     Throw(New($Error, "Expected List")),
                     Undefined()),
                   Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-            Let(
+            Bind(
               $truth,
               Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
-            Let(
+            Bind(
               $items,
               Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
-            Let($lambda, Member(Index($args, 1), "value")),
+            Bind($lambda, Member(Index($args, 1), "value")),
             If(
               Or(
                 Or(
@@ -231,12 +231,12 @@ Concept(Any(),
                 NotEquals(Length(Member($lambda, "args")), 2)),
               Throw(New($Error, "Expected Lambda(List(variable), body)")),
               Undefined()),
-            Let($results, List()),
+            Bind($results, List()),
             ForOf(
               $item,
               $items,
               Sequence(
-                Let(
+                Bind(
                   $output,
                   Await(
                     Call(
@@ -286,7 +286,7 @@ Concept(All(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($x),
@@ -296,13 +296,13 @@ Concept(All(),
                     Throw(New($Error, "Expected List")),
                     Undefined()),
                   Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-            Let(
+            Bind(
               $truth,
               Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
-            Let(
+            Bind(
               $items,
               Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
-            Let($lambda, Member(Index($args, 1), "value")),
+            Bind($lambda, Member(Index($args, 1), "value")),
             If(
               Or(
                 Or(
@@ -320,12 +320,12 @@ Concept(All(),
                 NotEquals(Length(Member($lambda, "args")), 2)),
               Throw(New($Error, "Expected Lambda(List(variable), body)")),
               Undefined()),
-            Let($results, List()),
+            Bind($results, List()),
             ForOf(
               $item,
               $items,
               Sequence(
-                Let(
+                Bind(
                   $output,
                   Await(
                     Call(
@@ -375,7 +375,7 @@ Concept(Find(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($x),
@@ -385,13 +385,13 @@ Concept(Find(),
                     Throw(New($Error, "Expected List")),
                     Undefined()),
                   Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-            Let(
+            Bind(
               $truth,
               Lambda(List($x), Or(Equals($x, true), And($x, Equals(Member($x, "head"), "True"))))),
-            Let(
+            Bind(
               $items,
               Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
-            Let($lambda, Member(Index($args, 1), "value")),
+            Bind($lambda, Member(Index($args, 1), "value")),
             If(
               Or(
                 Or(
@@ -409,12 +409,12 @@ Concept(Find(),
                 NotEquals(Length(Member($lambda, "args")), 2)),
               Throw(New($Error, "Expected Lambda(List(variable), body)")),
               Undefined()),
-            Let($results, List()),
+            Bind($results, List()),
             ForOf(
               $item,
               $items,
               Sequence(
-                Let(
+                Bind(
                   $output,
                   Await(
                     Call(
@@ -464,7 +464,7 @@ Concept(Apply(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($x),
@@ -474,7 +474,7 @@ Concept(Apply(),
                     Throw(New($Error, "Expected List")),
                     Undefined()),
                   Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-            Let($target, Member(Index($args, 0), "value")),
+            Bind($target, Member(Index($args, 0), "value")),
             If(
               Or(Not($target), Not(Member($target, "head"))),
               Throw(New($Error, "Apply needs a Concept")),
@@ -498,7 +498,7 @@ Concept(Same(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let(
+          Bind(
             $canonical,
             Lambda(
               List($x),
@@ -507,7 +507,7 @@ Concept(Same(),
                   Or(Not($x), Not(Member($x, "head"))),
                   Return(Call(Member($JSON, "stringify"), $x)),
                   Undefined()),
-                Let(
+                Bind(
                   $fields,
                   If(
                     Call(
@@ -547,7 +547,7 @@ Concept(Abs(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Call(
               Member($v, "some"),
@@ -556,7 +556,7 @@ Concept(Abs(),
                 Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
             Throw(New($Error, "Expected finite numbers")),
             Undefined()),
-          Let($result, Call(Member($Math, "abs"), Index($v, 0))),
+          Bind($result, Call(Member($Math, "abs"), Index($v, 0))),
           If(
             And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
             Throw(New($Error, "Nonfinite arithmetic result")),
@@ -570,7 +570,7 @@ Concept(Floor(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Call(
               Member($v, "some"),
@@ -579,7 +579,7 @@ Concept(Floor(),
                 Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
             Throw(New($Error, "Expected finite numbers")),
             Undefined()),
-          Let($result, Call(Member($Math, "floor"), Index($v, 0))),
+          Bind($result, Call(Member($Math, "floor"), Index($v, 0))),
           If(
             And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
             Throw(New($Error, "Nonfinite arithmetic result")),
@@ -593,7 +593,7 @@ Concept(Minimum(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Call(
               Member($v, "some"),
@@ -602,7 +602,7 @@ Concept(Minimum(),
                 Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
             Throw(New($Error, "Expected finite numbers")),
             Undefined()),
-          Let($result, Call(Member($Math, "min"), Spread($v))),
+          Bind($result, Call(Member($Math, "min"), Spread($v))),
           If(
             And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
             Throw(New($Error, "Nonfinite arithmetic result")),
@@ -616,7 +616,7 @@ Concept(Maximum(),
       ir=Lambda(
         List($args),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Call(
               Member($v, "some"),
@@ -625,7 +625,7 @@ Concept(Maximum(),
                 Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isFinite"), $x))))),
             Throw(New($Error, "Expected finite numbers")),
             Undefined()),
-          Let($result, Call(Member($Math, "max"), Spread($v))),
+          Bind($result, Call(Member($Math, "max"), Spread($v))),
           If(
             And(Equals(TypeOf($result), "number"), Not(Call(Member($Number, "isFinite"), $result))),
             Throw(New($Error, "Nonfinite arithmetic result")),
@@ -640,7 +640,7 @@ Concept(BestBy(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $list,
               Lambda(
                 List($x),
@@ -650,10 +650,10 @@ Concept(BestBy(),
                     Throw(New($Error, "Expected List")),
                     Undefined()),
                   Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-            Let(
+            Bind(
               $items,
               Call($list, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value"))))),
-            Let($lambda, Member(Index($args, 1), "value")),
+            Bind($lambda, Member(Index($args, 1), "value")),
             If(
               Or(Not($lambda), NotEquals(Member($lambda, "head"), "Lambda")),
               Throw(New($Error, "Expected scoring Lambda")),
@@ -664,7 +664,7 @@ Concept(BestBy(),
               $item,
               $items,
               Sequence(
-                Let(
+                Bind(
                   $value,
                   Await(
                     Call(
@@ -705,17 +705,17 @@ Concept(CoordinateFromLabel(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(
             Or(NotEquals(TypeOf(Index($v, 0)), "string"), NotEquals(TypeOf(Index($v, 1)), "string")),
             Return(null),
             Undefined()),
-          Let($m, Call(Member(Regex("^([a-z])([0-9]+)$", "i"), "exec"), Index($v, 0))),
+          Bind($m, Call(Member(Regex("^([a-z])([0-9]+)$", "i"), "exec"), Index($v, 0))),
           If(Not($m), Return(null), Undefined()),
-          Let(
+          Bind(
             $file,
             Call(Member(Index($v, 1), "indexOf"), Call(Member(Index($m, 1), "toLowerCase")))),
-          Let($rank, Subtract(Call($Number, Index($m, 2)), Index($v, 2))),
+          Bind($rank, Subtract(Call($Number, Index($m, 2)), Index($v, 2))),
           Return(
             If(
               Or(LessThan($file, 0), LessThan($rank, 0)),
@@ -729,13 +729,13 @@ Concept(GridOffset(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let(
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind(
             $x,
             Add(
               OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 0), "value"),
               Index($v, 1))),
-          Let(
+          Bind(
             $y,
             Add(
               OptionalMember(OptionalIndex(OptionalMember(Index($v, 0), "args"), 1), "value"),
@@ -763,7 +763,7 @@ Concept(Occupant(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -773,7 +773,7 @@ Concept(Occupant(),
                   Throw(New($Error, "Expected List")),
                   Undefined()),
                 Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
           If(Equals(Index($v, 1), null), Return(null), Undefined()),
           Return(
             Otherwise(
@@ -801,7 +801,7 @@ Concept(GridRay(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -811,8 +811,8 @@ Concept(GridRay(),
                   Throw(New($Error, "Expected List")),
                   Undefined()),
                 Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let(
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind(
             $occupied,
             New(
               $Set,
@@ -829,18 +829,18 @@ Concept(GridRay(),
                           Lambda(List($a), Equals(Member($a, "name"), "square"))),
                         "value"),
                       null)))))),
-          Let($out, List()),
-          Let($dx, Member(Index(Member(Index($v, 2), "args"), 0), "value")),
-          Let($dy, Member(Index(Member(Index($v, 2), "args"), 1), "value")),
+          Bind($out, List()),
+          Bind($dx, Member(Index(Member(Index($v, 2), "args"), 0), "value")),
+          Bind($dy, Member(Index(Member(Index($v, 2), "args"), 1), "value")),
           For(
             Var($i, 1),
             AtMost($i, Index($v, 3)),
             PostIncrement($i),
             Sequence(
-              Let(
+              Bind(
                 $x,
                 Add(Member(Index(Member(Index($v, 1), "args"), 0), "value"), Multiply($dx, $i))),
-              Let(
+              Bind(
                 $y,
                 Add(Member(Index(Member(Index($v, 1), "args"), 1), "value"), Multiply($dy, $i))),
               If(
@@ -849,8 +849,8 @@ Concept(GridRay(),
                   AtLeast($y, Index($v, 5))),
                 Break(),
                 Undefined()),
-              Let($sq, Call(Member($api, "call"), Member(Index($v, 1), "head"), $x, $y)),
-              Let($blocked, Call(Member($occupied, "has"), Call(Member($api, "format"), $sq))),
+              Bind($sq, Call(Member($api, "call"), Member(Index($v, 1), "head"), $x, $y)),
+              Bind($blocked, Call(Member($occupied, "has"), Call(Member($api, "format"), $sq))),
               If(
                 Or(Not($blocked), Equals(Index($v, 6), true)),
                 Call(Member($out, "push"), $sq),
@@ -865,7 +865,7 @@ Concept(BoardChange(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $list,
             Lambda(
               List($x),
@@ -875,9 +875,9 @@ Concept(BoardChange(),
                   Throw(New($Error, "Expected List")),
                   Undefined()),
                 Return(Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))))))),
-          Let($v, Map($args, Lambda(List($a), Member($a, "value")))),
-          Let($removed, New($Set, Map(Call($list, Index($v, 1)), Member($api, "format")))),
-          Let(
+          Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+          Bind($removed, New($Set, Map(Call($list, Index($v, 1)), Member($api, "format")))),
+          Bind(
             $kept,
             Filter(
               Call($list, Index($v, 0)),
@@ -954,7 +954,7 @@ Concept(CreateRecord(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($identity, Member(Index($args, 0), "value")),
+          Bind($identity, Member(Index($args, 0), "value")),
           If(
             Not(Call(Member(Regex("^[A-Z][A-Za-z0-9_]*$", ""), "test"), $identity)),
             Throw(New($Error, "Invalid Concept identity")),
@@ -987,10 +987,10 @@ Concept(CompareAndSwap(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($identity, Member(Index($args, 0), "value")),
-            Let($previous, Call(Member(Member($api, "store"), "get"), $identity)),
+            Bind($identity, Member(Index($args, 0), "value")),
+            Bind($previous, Call(Member(Member($api, "store"), "get"), $identity)),
             If(Not($previous), Return(Call(Member($api, "call"), "Conflict")), Undefined()),
-            Let(
+            Bind(
               $current,
               Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), $identity)))),
             If(
@@ -1067,7 +1067,7 @@ Concept(FiftyMoves(), IsA(Data()))
 Concept(Square(),
   IsA(ChessConcept()),
   Realization(Square($label), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $coordinate,
       CoordinateFromLabel($label, "abcdefgh", 1),
       If(And(Not(Same($coordinate, null)), LessThan(Slot($coordinate, 1), 8)), $coordinate, null))))
@@ -1212,12 +1212,12 @@ Concept(ChessRays(),
 Concept(ChessAttacks(),
   IsA(ChessConcept()),
   Realization(ChessAttacks($piece, $board, $rules), properties=List(Pure()),
-    body=Let($kind, Slot($piece, "kind"), ChessKindAttacks($kind, $piece, $board, $rules))))
+    body=Bind($kind, Slot($piece, "kind"), ChessKindAttacks($kind, $piece, $board, $rules))))
 
 Concept(ChessKindAttacks(),
   IsA(ChessConcept()),
   Realization(ChessKindAttacks(Pawn(), $piece, $board, $rules), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $direction,
       ChessForward(Slot($piece, "side")),
       ChessJumps(
@@ -1250,10 +1250,10 @@ Concept(ChessAttacked(),
 Concept(ChessCheck(),
   IsA(ChessConcept()),
   Realization(ChessCheck($position, $side, $rules), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $board,
       Slot($position, "board"),
-      Let(
+      Bind(
         $king,
         Find(
           $board,
@@ -1268,7 +1268,7 @@ Concept(ChessCheck(),
 Concept(ChessCanLand(),
   IsA(ChessConcept()),
   Realization(ChessCanLand($board, $square, $side), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $target,
       Occupant($board, $square),
       Or(
@@ -1300,7 +1300,7 @@ Concept(ChessEpCapture(),
       Same($square, Slot($position, "enPassant")),
       Not(Same($square, null)),
       Same(Occupant(Slot($position, "board"), $square), null),
-      Let(
+      Bind(
         $victim,
         Occupant(
           Slot($position, "board"),
@@ -1312,16 +1312,16 @@ Concept(ChessEpCapture(),
 Concept(ChessPawnDestinations(),
   IsA(ChessConcept()),
   Realization(ChessPawnDestinations($piece, $position, $rules), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $board,
       Slot($position, "board"),
-      Let(
+      Bind(
         $square,
         Slot($piece, "square"),
-        Let(
+        Bind(
           $direction,
           ChessForward(Slot($piece, "side")),
-          Let(
+          Bind(
             $one,
             GridOffset($square, 0, $direction, 8, 8),
             Concat(
@@ -1371,7 +1371,7 @@ Concept(ChessPieceMoves(),
 Concept(ChessCastleMoves(),
   IsA(ChessConcept()),
   Realization(ChessCastleMoves($piece, $position, $rules), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $rank,
       ChessHome(Slot($piece, "side")),
       If(
@@ -1384,13 +1384,13 @@ Concept(ChessCastleMoves(),
 Concept(ChessCastleWing(),
   IsA(ChessConcept()),
   Realization(ChessCastleWing($piece, $position, $rules, $rookFile, $destinationFile, $transitFile, $emptyFiles), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $rank,
       ChessHome(Slot($piece, "side")),
-      Let(
+      Bind(
         $rookSquare,
         Build(Square($rookFile, $rank)),
-        Let(
+        Bind(
           $rook,
           Occupant(Slot($position, "board"), $rookSquare),
           If(
@@ -1452,30 +1452,30 @@ Concept(ChessLegalMoves(),
 Concept(ChessPositionAfter(),
   IsA(ChessConcept()),
   Realization(ChessPositionAfter($position, $move, $rules), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $board,
       Slot($position, "board"),
-      Let(
+      Bind(
         $from,
         Slot($move, "from"),
-        Let(
+        Bind(
           $to,
           Slot($move, "to"),
-          Let(
+          Bind(
             $piece,
             Occupant($board, $from),
-            Let(
+            Bind(
               $pawn,
               Same(Slot($piece, "kind"), Pawn()),
-              Let(
+              Bind(
                 $ep,
                 And($pawn, ChessEpCapture($piece, $position, $to)),
-                Let(
+                Bind(
                   $castle,
                   And(
                     Same(Slot($piece, "kind"), King()),
                     Same(Abs(Subtract(Slot($to, 0), Slot($from, 0))), 2)),
-                  Let(
+                  Bind(
                     $newBoard,
                     BoardChange(
                       $board,
@@ -1529,7 +1529,7 @@ Concept(ChessPositionAfter(),
 Concept(ChessCastleBoard(),
   IsA(ChessConcept()),
   Realization(ChessCastleBoard($board, $from, $to), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $rookSquare,
       Build(Square(If(GreaterThan(Slot($to, 0), Slot($from, 0)), 7, 0), Slot($from, 1))),
       BoardChange(
@@ -1560,7 +1560,7 @@ Concept(ChessScore(),
           List($piece),
           Multiply(
             If(Same(Slot($piece, "side"), $side), 1, -1),
-            Let($kind, Slot($piece, "kind"), ChessMaterial($kind))))))))
+            Bind($kind, Slot($piece, "kind"), ChessMaterial($kind))))))))
 
 Concept(ChessSquareColor(),
   IsA(ChessConcept()),
@@ -1571,7 +1571,7 @@ Concept(ChessSquareColor(),
 Concept(ChessDeadPosition(),
   IsA(ChessConcept()),
   Realization(ChessDeadPosition($position), properties=List(Pure()),
-    body=Let(
+    body=Bind(
       $pieces,
       Filter(
         Slot($position, "board"),

@@ -84,6 +84,10 @@ export interface CodeApi {
   /** A call to `head` with these values as its arguments, already evaluated, so not evaluated again. */
   apply(head: string, values: Expr[]): Promise<Expr>;
   substitute(expression: Expr, bindings: Bindings): Expr;
+  /** Binding a value, as Bind binds: a value is never evaluated again, however deep it lands. */
+  bind(expression: Expr, bindings: Bindings): Expr;
+  /** An expression evaluated, where a held value is itself: binding a value copies it. */
+  resolve(expression: Expr, context?: Expr): Promise<Expr>;
   parse(source: string): Expr;
   /** Ambient facts about this turn, e.g. the message being answered, for deixis. */
   ambient(key: string): string | undefined;
@@ -168,7 +172,7 @@ export class Runtime {
 
   /**
    * Values substituted into a body, which are not expressions to evaluate again. An eager
-   * realization's bindings, a Let's value and a Lambda's arguments were evaluated already:
+   * realization's bindings, a Bind's value and a Lambda's arguments were evaluated already:
    * substituted as they are, a value that happens to be a call with a realization (a
    * Move(...), an Answer(...)) would run a second time where the body mentions it. A lazy
    * realization's bindings are expressions, and are substituted to be evaluated.
@@ -185,6 +189,32 @@ export class Runtime {
 
   private substituteValues(body: Expr, bindings: Bindings): Expr {
     return substitute(body, new Map([...bindings].map(([k, v]) => [k, this.held(v)])));
+  }
+
+  /**
+   * Binding a value: the value is held, and a value already held in the body stays a leaf,
+   * never rebuilt into a new object that would be evaluated after all. Bind, JavaScript's
+   * `const` and Rust's `let` all mean this.
+   */
+  private bindStrictly(body: Expr, bindings: Bindings): Expr {
+    const held = new Map([...bindings].map(([k, v]) => [k, this.held(v)]));
+    const walk = (e: Expr): Expr => {
+      // A variable bound to null is bound: `??` would leave it unbound.
+      if (isVariable(e)) return held.has(e.variable) ? (held.get(e.variable) as Expr) : e;
+      if (!isCall(e) || this.inert.has(e)) return e;
+      const args: Argument[] = [];
+      for (const a of e.args) {
+        // A Rest variable splices its List back into the argument list, as substitution does.
+        const rest = isCall(a.value) && a.value.head === "Rest" && isVariable(a.value.args[0]?.value) ? held.get(a.value.args[0].value.variable) : undefined;
+        if (rest !== undefined && isCall(rest) && rest.head === "List") {
+          args.push(...rest.args);
+          continue;
+        }
+        args.push(a.name === undefined ? { value: walk(a.value) } : { name: a.name, value: walk(a.value) });
+      }
+      return call(e.head, args);
+    };
+    return walk(body);
   }
 
   /**
@@ -428,8 +458,10 @@ export class Runtime {
         this.given.add(target);
         return this.run(target, context, "Code", parent, depth + 1, within);
       },
-      // What a body substitutes are values it has (a Lambda's arguments, a Let's value).
+      // What a body substitutes are values it has (a Lambda's arguments, a Bind's value).
       substitute: (expression, bindings) => this.substituteValues(expression, bindings),
+      bind: (expression, bindings) => this.bindStrictly(expression, bindings),
+      resolve: (expression, ctx) => this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
       parse,
       ambient: (key) => this.context.get(key),
       context,

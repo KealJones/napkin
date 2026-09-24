@@ -16,7 +16,7 @@ Concept(Half(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -30,7 +30,7 @@ Concept(Half(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -41,7 +41,7 @@ Concept(Half(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -55,7 +55,7 @@ Concept(Half(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -68,7 +68,7 @@ Concept(Double(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -82,7 +82,7 @@ Concept(Double(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -93,7 +93,7 @@ Concept(Double(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -107,7 +107,7 @@ Concept(Double(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -120,7 +120,7 @@ Concept(Twice(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -134,7 +134,7 @@ Concept(Twice(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -145,7 +145,7 @@ Concept(Twice(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -159,7 +159,7 @@ Concept(Twice(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -172,7 +172,7 @@ Concept(Triple(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -186,7 +186,7 @@ Concept(Triple(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -197,7 +197,7 @@ Concept(Triple(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -211,7 +211,7 @@ Concept(Triple(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let($x, Call($asNumber, Member(Index($args, 0), "value"))),
+          Bind($x, Call($asNumber, Member(Index($args, 0), "value"))),
           Return(
             If(
               Call(Member($Number, "isNaN"), $x),
@@ -224,7 +224,7 @@ Concept(Average(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -238,7 +238,7 @@ Concept(Average(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -246,7 +246,7 @@ Concept(Average(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -262,7 +262,7 @@ Concept(Average(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -276,7 +276,7 @@ Concept(Average(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -284,7 +284,7 @@ Concept(Average(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -302,7 +302,7 @@ Concept(Mean(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -316,7 +316,7 @@ Concept(Mean(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -324,7 +324,7 @@ Concept(Mean(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -340,7 +340,7 @@ Concept(Mean(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -354,7 +354,7 @@ Concept(Mean(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -362,7 +362,7 @@ Concept(Mean(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -380,7 +380,7 @@ Concept(ArithmeticMean(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -394,7 +394,7 @@ Concept(ArithmeticMean(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -402,7 +402,7 @@ Concept(ArithmeticMean(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -418,7 +418,7 @@ Concept(ArithmeticMean(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -432,7 +432,7 @@ Concept(ArithmeticMean(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -440,7 +440,7 @@ Concept(ArithmeticMean(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -458,7 +458,7 @@ Concept(Sum(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -472,7 +472,7 @@ Concept(Sum(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -480,7 +480,7 @@ Concept(Sum(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -496,7 +496,7 @@ Concept(Sum(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -510,7 +510,7 @@ Concept(Sum(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -518,7 +518,7 @@ Concept(Sum(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -536,7 +536,7 @@ Concept(Total(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -550,7 +550,7 @@ Concept(Total(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -558,7 +558,7 @@ Concept(Total(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -574,7 +574,7 @@ Concept(Total(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -588,7 +588,7 @@ Concept(Total(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -596,7 +596,7 @@ Concept(Total(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -614,7 +614,7 @@ Concept(AddUp(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -628,7 +628,7 @@ Concept(AddUp(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -636,7 +636,7 @@ Concept(AddUp(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -652,7 +652,7 @@ Concept(AddUp(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $asNumber,
             Lambda(
               List($v),
@@ -666,7 +666,7 @@ Concept(AddUp(),
                     And($v, Equals(Member($v, "head"), "Of")),
                     Call($asNumber, Member(Index(Member($v, "args"), 0), "value")),
                     $NaN))))),
-          Let(
+          Bind(
             $list,
             If(
               And(
@@ -674,7 +674,7 @@ Concept(AddUp(),
                 Equals(Member(Member(Index($args, 0), "value"), "head"), "Of")),
               Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value"),
               Member(Index($args, 0), "value"))),
-          Let(
+          Bind(
             $xs,
             If(
               And($list, Equals(Member($list, "head"), "List")),
@@ -706,8 +706,8 @@ Concept(Christmas(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -719,7 +719,7 @@ Concept(Christmas(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 25)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -738,8 +738,8 @@ Concept(ChristmasEve(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -751,7 +751,7 @@ Concept(ChristmasEve(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 24)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -770,8 +770,8 @@ Concept(NewYearsDay(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -783,7 +783,7 @@ Concept(NewYearsDay(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 0, 1)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -802,8 +802,8 @@ Concept(NewYearsEve(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -815,7 +815,7 @@ Concept(NewYearsEve(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 11, 31)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -834,8 +834,8 @@ Concept(Halloween(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -847,7 +847,7 @@ Concept(Halloween(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 9, 31)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -866,8 +866,8 @@ Concept(ValentinesDay(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let($now, New($Date)),
-          Let(
+          Bind($now, New($Date)),
+          Bind(
             $today,
             New(
               $Date,
@@ -879,7 +879,7 @@ Concept(ValentinesDay(),
             LessThan($when, $today),
             Assign($when, New($Date, Add(Call(Member($now, "getFullYear")), 1), 1, 14)),
             Undefined()),
-          Let(
+          Bind(
             $days,
             List("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
           Return(
@@ -899,9 +899,9 @@ Concept(HowMany(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($until, Member(Index(Member(Member(Index($args, 1), "value"), "args"), 0), "value")),
-            Let($date, Await(Call(Member($api, "evaluate"), $until))),
-            Let(
+            Bind($until, Member(Index(Member(Member(Index($args, 1), "value"), "args"), 0), "value")),
+            Bind($date, Await(Call(Member($api, "evaluate"), $until))),
+            Bind(
               $field,
               Lambda(
                 List($n),
@@ -921,15 +921,15 @@ Concept(HowMany(),
                   "HowMany",
                   Spread(Map($args, Lambda(List($a), Member($a, "value")))))),
               Undefined()),
-            Let($now, New($Date)),
-            Let(
+            Bind($now, New($Date)),
+            Bind(
               $today,
               Call(
                 Member($Date, "UTC"),
                 Call(Member($now, "getFullYear")),
                 Call(Member($now, "getMonth")),
                 Call(Member($now, "getDate")))),
-            Let(
+            Bind(
               $then,
               Call(
                 Member($Date, "UTC"),
@@ -955,8 +955,8 @@ Concept(Want(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($x, Member(Index($args, 0), "value")),
-            Let(
+            Bind($x, Member(Index($args, 0), "value")),
+            Bind(
               $doable,
               And(
                 And(
@@ -971,8 +971,8 @@ Concept(Want(),
                     0)),
                 GreaterThan(Length(Member($x, "args")), 0))),
             If(Not($doable), Return(Call(Member($api, "call"), "Want", $x)), Undefined()),
-            Let($ctx, Member($api, "context")),
-            Let(
+            Bind($ctx, Member($api, "context")),
+            Bind(
               $facets,
               If(
                 And($ctx, Equals(Member($ctx, "head"), "Context")),

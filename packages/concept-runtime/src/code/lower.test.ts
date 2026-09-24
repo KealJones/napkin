@@ -49,7 +49,7 @@ test("&& and || answer an operand, and stop at the first that decides", async ()
 
 test("a local that reuses the pattern's name is given its own", () => {
   const body = lowered("Take($x)", "async (args, bindings, api) => { const x = args[0].value; if (typeof x === 'number') { return x; } return await api.evaluate(x); }", true);
-  assert.equal(format(body), 'Let($x2, Quote($x), If(Identical(TypeOf($x2), "number"), $x2, Evaluate($x2)))');
+  assert.equal(format(body), 'Bind($x2, Quote($x), If(Identical(TypeOf($x2), "number"), $x2, Evaluate($x2)))');
 });
 
 test("a body that falls through answers undefined, and early returns become If", async () => {

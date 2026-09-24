@@ -31,7 +31,7 @@ const IR_VOCABULARY = new Set([
   "Do", "Fact", "Tell", "Mood", ...MOODS, "InlineCode", "Unclear",
   "MarkCorrection", "MarkMisspelling", "MarkFuzzy", "MarkEmphasis", "MarkAside", "Ref", "Not",
   "Qualify", "Ordinal", "Field", "Heading", "Item", "Block", "Please", "It",
-  "List", "Object", "Pair", "String", "Number", "Boolean", "Sequence", "Let",
+  "List", "Object", "Pair", "String", "Number", "Boolean", "Sequence", "Let", "Bind",
   "Me", "You", "We", "Self", "Date", "Time", "Am", "Pm",
 ]);
 

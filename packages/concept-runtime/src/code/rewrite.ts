@@ -21,7 +21,7 @@
  *   Erased()               nothing: dropped from the call around it
  *   Parse(text)            text read as source too (source held in a string); anything
  *                          that is not text becomes NotSource(...)
- * and a pattern can say Bind($x, pattern), to match `pattern` and bind all of it to $x.
+ * and a pattern can say Capture($x, pattern), to match `pattern` and bind all of it to $x.
  */
 import { type Argument, type Call, type Expr, c, call, equal, format, isCall, isVariable } from "../concept/expression.js";
 import { ANON, specificity, substitute, type Bindings } from "../concept/match.js";
@@ -97,7 +97,7 @@ function bind(b: Bindings, name: string, value: Expr): boolean {
 export function matches(pattern: Expr, value: Expr, b: Bindings): boolean {
   if (isVariable(pattern)) return bind(b, pattern.variable, value);
   if (!isCall(pattern)) return equal(pattern, value);
-  const bound = pattern.head === "Bind" && pattern.args.length === 2 ? pattern.args[0].value : undefined;
+  const bound = pattern.head === "Capture" && pattern.args.length === 2 ? pattern.args[0].value : undefined;
   if (bound !== undefined && isVariable(bound)) return matches(pattern.args[1].value, value, b) && bind(b, bound.variable, value);
   if (!isCall(value) || value.head !== pattern.head) return false;
   // A syntax pattern names the fields it reads; the rest of the node is not its business.

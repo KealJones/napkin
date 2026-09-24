@@ -96,9 +96,9 @@ From(JsVariableStatement(declarationList=$l, modifiers=$m), JsMods($m, $l))
 // rather than nested, which would read as a block of their own.
 From(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds))), Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d))))
 // A for loop's own declarations stay together, as its first part.
-From(JsForStatement(initializer=Bind($l, JsVariableDeclarationList()), condition=$c, incrementor=$n, statement=$s), JsForStatement(initializer=JsForInit($l), condition=$c, incrementor=$n, statement=$s))
+From(JsForStatement(initializer=Capture($l, JsVariableDeclarationList()), condition=$c, incrementor=$n, statement=$s), JsForStatement(initializer=JsForInit($l), condition=$c, incrementor=$n, statement=$s))
 From(JsForInit(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds)))), Sequence(Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d)))))
-From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name=$n, initializer=$v)), Let($n, $v))
+From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name=$n, initializer=$v)), Bind($n, $v))
 From(JsDeclare($_, JsVariableDeclaration(name=$n, initializer=$v)), Var($n, $v))
 // A destructuring keeps its shape, so what it takes apart can still be read.
 From(JsObjectBindingPattern(elements=List(Rest($es))), Object(Rest($es)))
@@ -130,8 +130,8 @@ From(JsArrowFunction(parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods(
 // A block body that does not end in return or throw falls through to undefined, whatever
 // its last statement: () => { f(); } is not () => f(), and { if (c) f(); } is not c ? f() :
 // undefined. Said with Undefined(), a body's statements are never mistaken for its value.
-From(JsBody(JsBlock(statements=List(Rest($ss), Bind($last, JsReturnStatement())))), Sequence(Rest($ss), $last))
-From(JsBody(JsBlock(statements=List(Rest($ss), Bind($last, JsThrowStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements=List(Rest($ss), Capture($last, JsReturnStatement())))), Sequence(Rest($ss), $last))
+From(JsBody(JsBlock(statements=List(Rest($ss), Capture($last, JsThrowStatement())))), Sequence(Rest($ss), $last))
 From(JsBody(JsBlock(statements=List(Rest($ss)))), Sequence(Rest($ss), Undefined()))
 From(JsBody($b), $b)
 From(JsStar(Undefined(), $f), $f)
@@ -236,12 +236,12 @@ From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, ques
 From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="flatMap")), arguments=List($f)), FlatMap($xs, $f))
 From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="reduce")), arguments=List($f, $init)), Reduce($xs, $f, $init))
 From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, questionDotToken=Undefined(), name=JsIdentifier(text="includes")), arguments=List($x)), Includes($xs, $x))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="flatMap"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="reduce"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, $_, Rest($_)))), $init)), Call($m, $f, $init))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Bind($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
-From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Bind($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="flatMap"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="reduce"))), arguments=List(Capture($f, JsArrowFunction(parameters=List($_, $_, $_, Rest($_)))), $init)), Call($m, $f, $init))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Capture($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Capture($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Capture($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
 // `code(...)` holds a function inside a string: the string is read as source too, and
 // appears as Embedded(...), so a large import cannot look complete while its behaviour
 // passes through as text.
@@ -350,9 +350,9 @@ To(NewTarget(), "new.target")
 To(Super(), "super")
 
 // Declarations.
-To(Let($n, $v), Statement(), "const $n = $v")
+To(Bind($n, $v), Statement(), "const $n = $v")
 To(Var($n, $v), Statement(), "let $n = $v")
-To(Let($n, $v, $body), "(($n) => $body)($v)")
+To(Bind($n, $v, $body), "(($n) => $body)($v)")
 To(Func($n, List(Rest($ps)), $b), Statement(), "function $n($ps) { %b }")
 To(Func($n, List(Rest($ps)), $b), "(function $n($ps) { %b })")
 To(Async(Func($n, List(Rest($ps)), $b)), Statement(), "async function $n($ps) { %b }")
@@ -364,8 +364,8 @@ To(Lambda(List(Rest($ps)), Sequence(Rest($ss))), "($ps) => { %ss }")
 To(Async(Lambda(List(Rest($ps)), Sequence(Rest($ss)))), "async ($ps) => { %ss }")
 To(Lambda(List(Rest($ps)), $b), Either("($ps) => ($b)", "($ps) => { %b }"))
 To(Async(Lambda(List(Rest($ps)), $b)), Either("async ($ps) => ($b)", "async ($ps) => { %b }"))
-To(Call(Bind($f, Lambda(Rest($_))), Rest($a)), "($f)($a)")
-To(Call(Bind($f, Async(Lambda(Rest($_)))), Rest($a)), "($f)($a)")
+To(Call(Capture($f, Lambda(Rest($_))), Rest($a)), "($f)($a)")
+To(Call(Capture($f, Async(Lambda(Rest($_)))), Rest($a)), "($f)($a)")
 To(Generator(Lambda(List(Rest($ps)), $b)), "(function* ($ps) { %b })")
 To(Async(Generator(Lambda(List(Rest($ps)), $b))), "(async function* ($ps) { %b })")
 To(Export($x), Statement(), "export @x")
@@ -406,7 +406,7 @@ To(For($i, $c, $n, $s), Statement(), "for (@i; $c; $n) { %s }")
 // Several declarations in a loop's head are one declaration there: let i = 0, j = 1.
 To(For(Sequence(Rest($ds)), $c, $n, $s), Statement(), JsWriteFor(JsDeclarators(Each(List(Rest($ds)), Lambda(List($d), JsDeclarator($d)))), $c, $n, $s))
 To(JsDeclarator(Var($n, $v)), "$n = $v")
-To(JsDeclarator(Let($n, $v)), "$n = $v")
+To(JsDeclarator(Bind($n, $v)), "$n = $v")
 To(JsWriteFor(JsDeclarators(Rest($xs)), $c, $n, $s), Statement(), "for (let $xs; $c; $n) { %s }")
 To(Hole(), "")
 To(While($c, $s), Statement(), "while ($c) { %s }")

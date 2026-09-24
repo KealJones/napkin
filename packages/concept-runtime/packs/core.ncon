@@ -72,16 +72,16 @@ Concept(Concept(),
       ir=Lambda(
         List($args, $bindings, $api),
         Sequence(
-          Let(
+          Bind(
             $get,
             Lambda(
               List($n),
               Sequence(
-                Let(
+                Bind(
                   $a,
                   Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
                 Return(If($a, Member($a, "value"), Undefined()))))),
-          Let($identity, Call($get, "identity")),
+          Bind($identity, Call($get, "identity")),
           If(
             Or(
               NotEquals(TypeOf($identity), "string"),
@@ -92,7 +92,7 @@ Concept(Concept(),
                 "InvalidDeclaration",
                 If(Equals($identity, Undefined()), Call(Member($api, "call"), "Missing"), $identity))),
             Undefined()),
-          Let(
+          Bind(
             $items,
             Lambda(
               List($x),
@@ -100,11 +100,11 @@ Concept(Concept(),
                 And($x, Equals(Member($x, "head"), "List")),
                 Map(Member($x, "args"), Lambda(List($a), Member($a, "value"))),
                 If($x, List($x), List())))),
-          Let($RELATION_CAP, 12),
+          Bind($RELATION_CAP, 12),
           Call(
             Member(Member($api, "store"), "seed"),
             Object(identity=$identity, relations=List(), realizations=List())),
-          Let($asked, List()),
+          Bind($asked, List()),
           ForOf(
             $r,
             Call($items, Call($get, "relations")),
@@ -117,8 +117,8 @@ Concept(Concept(),
                     Equals(Call(Member($api, "format"), $x), Call(Member($api, "format"), $r))))),
               Call(Member($asked, "push"), $r),
               Undefined())),
-          Let($relations, Call(Member($asked, "slice"), 0, $RELATION_CAP)),
-          Let(
+          Bind($relations, Call(Member($asked, "slice"), 0, $RELATION_CAP)),
+          Bind(
             $sharesNames,
             Lambda(
               List($head),
@@ -129,8 +129,8 @@ Concept(Concept(),
                   And(
                     Equals(Member($t, "subject"), "Namesake"),
                     Equals(Member($t, "predicate"), "Covers")))))),
-          Let($NAMESAKE, Object(has=$sharesNames)),
-          Let(
+          Bind($NAMESAKE, Object(has=$sharesNames)),
+          Bind(
             $isA,
             Lambda(
               List($r),
@@ -139,7 +139,7 @@ Concept(Concept(),
                   And(And($r, Equals(Member($r, "head"), "IsA")), Index(Member($r, "args"), 0)),
                   Member(Index(Member($r, "args"), 0), "value")),
                 Member(Member(Index(Member($r, "args"), 0), "value"), "head")))),
-          Let(
+          Bind(
             $hasOther,
             Call(
               Member($relations, "some"),
@@ -156,11 +156,11 @@ Concept(Concept(),
             $relations,
             Sequence(
               If(Or(Not($r), Not(Member($r, "head"))), Continue(), Undefined()),
-              Let(
+              Bind(
                 $contextual,
                 And(Equals(Member($r, "head"), "In"), Equals(Length(Member($r, "args")), 2))),
-              Let($claim, If($contextual, Member(Index(Member($r, "args"), 0), "value"), $r)),
-              Let(
+              Bind($claim, If($contextual, Member(Index(Member($r, "args"), 0), "value"), $r)),
+              Bind(
                 $namesake,
                 And(
                   And(And(Not($contextual), $hasOther), Call($isA, $r)),
@@ -179,7 +179,7 @@ Concept(Concept(),
                     Call(Member($api, "format"), Member(Index(Member($r, "args"), 1), "value")))),
                 Continue(),
                 Undefined()),
-              Let(
+              Bind(
                 $where,
                 If(
                   $contextual,
@@ -198,7 +198,7 @@ Concept(Concept(),
                 $where,
                 Member(Member($api, "trace"), "cause")))),
           Var($added, 0),
-          Let($rejected, List()),
+          Bind($rejected, List()),
           ForOf(
             $decl,
             Call($items, Call($get, "realizations")),
@@ -207,20 +207,20 @@ Concept(Concept(),
                 Or(Not($decl), NotEquals(Member($decl, "head"), "Realization")),
                 Continue(),
                 Undefined()),
-              Let(
+              Bind(
                 $field,
                 Lambda(
                   List($n),
                   Sequence(
-                    Let(
+                    Bind(
                       $a,
                       Call(
                         Member(Member($decl, "args"), "find"),
                         Lambda(List($x), Equals(Member($x, "name"), $n)))),
                     Return(If($a, Member($a, "value"), Undefined()))))),
-              Let($pattern, Call($field, "pattern")),
-              Let($body, Call($field, "body")),
-              Let($context, Call($field, "context")),
+              Bind($pattern, Call($field, "pattern")),
+              Bind($body, Call($field, "body")),
+              Bind($context, Call($field, "context")),
               If(
                 Or(Not($pattern), Not($body)),
                 Sequence(
@@ -233,7 +233,7 @@ Concept(Concept(),
                   Call(Member($rejected, "push"), Call(Member($api, "call"), "NotComposed", $body)),
                   Continue()),
                 Undefined()),
-              Let(
+              Bind(
                 $namesIn,
                 Lambda(
                   List($e, $acc),
@@ -242,21 +242,21 @@ Concept(Concept(),
                     Call(Member($acc, "add"), Member($e, "head")),
                     ForOf($a, Member($e, "args"), Call($namesIn, Member($a, "value"), $acc)),
                     Return($acc)))),
-              Let(
+              Bind(
                 $reachesSelf,
                 Lambda(
                   List(),
                   Sequence(
-                    Let($seen, New($Set)),
-                    Let($queue, Concat(Call($namesIn, $body, New($Set)))),
+                    Bind($seen, New($Set)),
+                    Bind($queue, Concat(Call($namesIn, $body, New($Set)))),
                     While(
                       Length($queue),
                       Sequence(
-                        Let($head, Call(Member($queue, "shift"))),
+                        Bind($head, Call(Member($queue, "shift"))),
                         If(Equals($head, $identity), Return(true), Undefined()),
                         If(Call(Member($seen, "has"), $head), Continue(), Undefined()),
                         Call(Member($seen, "add"), $head),
-                        Let($unit, Call(Member(Member($api, "store"), "get"), $head)),
+                        Bind($unit, Call(Member(Member($api, "store"), "get"), $head)),
                         If(Not($unit), Continue(), Undefined()),
                         ForOf(
                           $r,
@@ -281,14 +281,14 @@ Concept(Concept(),
                     Call(Member($api, "call"), "SelfReferential", $body)),
                   Continue()),
                 Undefined()),
-              Let(
+              Bind(
                 $canAct,
                 Lambda(
                   List($head, $seen),
                   Sequence(
                     If(Call(Member($seen, "has"), $head), Return(false), Undefined()),
                     Call(Member($seen, "add"), $head),
-                    Let($unit, Call(Member(Member($api, "store"), "get"), $head)),
+                    Bind($unit, Call(Member(Member($api, "store"), "get"), $head)),
                     If(Not($unit), Return(false), Undefined()),
                     If(Length(Member($unit, "realizations")), Return(true), Undefined()),
                     ForOf(
@@ -311,7 +311,7 @@ Concept(Concept(),
                           Undefined()),
                         Undefined())),
                     Return(false)))),
-              Let(
+              Bind(
                 $inert,
                 Concat(
                   New(
@@ -333,7 +333,7 @@ Concept(Concept(),
                         Spread(Map($inert, Lambda(List($h), Call(Member($api, "call"), $h))))))),
                   Continue()),
                 Undefined()),
-              Let($heads, List()),
+              Bind($heads, List()),
               Call(
                 Func(
                   $collect,
@@ -344,7 +344,7 @@ Concept(Concept(),
                     ForOf($a, Member($e, "args"), Call($collect, Member($a, "value"))),
                     Undefined())),
                 $body),
-              Let(
+              Bind(
                 $missing,
                 Concat(
                   New(
@@ -403,19 +403,22 @@ Concept(Concept(),
 
 Concept(Forwarding(), IsA(RealizationProperty()))
 
-Concept(Let(),
-  Realization(Let($name, $value, $body), evaluateArguments=false,
+// Binding a value (ir-spec Part 10.8): the value is evaluated once, and the name is that
+// value wherever it lands, never an expression evaluated again. JavaScript's `const` and
+// Rust's `let` mean this; `Let` does not name it, because the two languages disagree on
+// what `let` means.
+Concept(Bind(),
+  Realization(Bind($name, $value, $body), evaluateArguments=false,
     body=Code(
       ir=Async(
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(List($nameArg, $valueArg, $bodyArg), $args),
-            Let($name, Member(Member($nameArg, "value"), "variable")),
-            Let($value, Await(Call(Member($api, "evaluate"), Member($valueArg, "value")))),
-            Let($bound, New($Map, List(List($name, $value)))),
-            Let($substituted, Call(Member($api, "substitute"), Member($bodyArg, "value"), $bound)),
-            Return(Await(Call(Member($api, "evaluate"), $substituted)))))))))
+            Bind(List($nameArg, $valueArg, $bodyArg), $args),
+            Bind($name, Member(Member($nameArg, "value"), "variable")),
+            Bind($value, Await(Call(Member($api, "resolve"), Member($valueArg, "value")))),
+            Bind($bound, New($Map, List(List($name, $value)))),
+            Return(Await(Call(Member($api, "resolve"), Call(Member($api, "bind"), Member($bodyArg, "value"), $bound))))))))))
 
 Concept(Lambda(), IsA(Data()))
 
@@ -462,7 +465,7 @@ Concept(Ref(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let(
+            Bind(
               $found,
               Call(
                 Member($args, "find"),
@@ -471,8 +474,8 @@ Concept(Ref(),
               Not($found),
               Return(Call(Member($api, "call"), "Ref", Member(Index($args, 0), "value"))),
               Undefined()),
-            Let($value, Member($found, "value")),
-            Let(
+            Bind($value, Member($found, "value")),
+            Bind(
               $unwrap,
               Lambda(
                 List($x),
@@ -502,22 +505,22 @@ Concept(Mood(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($ctx, Member($api, "context")),
-            Let(
+            Bind($ctx, Member($api, "context")),
+            Bind(
               $facets,
               If(
                 And($ctx, Equals(Member($ctx, "head"), "Context")),
                 Map(Member($ctx, "args"), Lambda(List($a), Member($a, "value"))),
                 List($ctx))),
-            Let($kind, Member(Index($args, 0), "value")),
-            Let(
+            Bind($kind, Member(Index($args, 0), "value")),
+            Bind(
               $line,
               If(
                 And($kind, Equals(Member($kind, "head"), "Declarative")),
                 Call(Member($api, "call"), "Believe", Member(Index($args, 1), "value")),
                 Member(Index($args, 1), "value"))),
-            Let($conversation, Call(Member($api, "ambient"), "conversation")),
-            Let(
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            Bind(
               $focus,
               If(
                 $conversation,
@@ -526,7 +529,7 @@ Concept(Mood(),
                     Member($api, "evaluate"),
                     Call(Member($api, "call"), "Focus", Call(Member($api, "call"), $conversation)))),
                 Undefined())),
-            Let(
+            Bind(
               $focused,
               If(
                 And($focus, Equals(Member($focus, "head"), "List")),
@@ -581,7 +584,7 @@ Concept(Text(),
                   Lambda(
                     List($a),
                     Sequence(
-                      Let($v, Member($a, "value")),
+                      Bind($v, Member($a, "value")),
                       If(Equals(TypeOf($v), "string"), Return($v), Undefined()),
                       If(Or(Equals($v, null), Equals($v, Undefined())), Return(""), Undefined()),
                       Return(Call($String, $v))))),

@@ -14,17 +14,17 @@ Requires(Basic(), Code())
 // Kinds answer "what games do you know"; individuals only when there is nothing else, as for "any friends".
 Concept(Members(),
   Realization(Members($kind), context=Execution(), evaluateArguments=false, properties=List(Compile()),
-    body=Let(
+    body=Bind(
       $all,
-      Let($root, Singular($kind), Reach(List($root), List($root))),
-      Let(
+      Bind($root, Singular($kind), Reach(List($root), List($root))),
+      Bind(
         $kinds,
         Filter($all, Lambda(List($x), Not(Matches(Head($x), "_[0-9]+$")))),
         If(GreaterThan(Length($kinds), 0), $kinds, $all)))))
 
 Concept(Reach(),
   Realization(Reach($frontier, $seen), context=Execution(), properties=List(Compile()),
-    body=Let(
+    body=Bind(
       $next,
       Unique(
         Filter(
@@ -44,15 +44,15 @@ Concept(Singular(),
         Lambda(
           List($args, $bindings, $api),
           Sequence(
-            Let($kind, Member(Index($args, 0), "value")),
+            Bind($kind, Member(Index($args, 0), "value")),
             If(
               Or(
                 Or(Equals($kind, null), NotEquals(TypeOf($kind), "object")),
                 Not(In("head", $kind))),
               Return(Call(Member($api, "call"), "Nothing")),
               Undefined()),
-            Let($head, Member($kind, "head")),
-            Let(
+            Bind($head, Member($kind, "head")),
+            Bind(
               $known,
               Lambda(
                 List($h),
