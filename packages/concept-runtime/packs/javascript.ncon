@@ -65,3 +65,223 @@ Compiled(Multiply($a, $b), "(await N(\"Multiply\", $a, $b, (x, y) => x * y))")
 Compiled(Divide($a, $b), "(await N(\"Divide\", $a, $b, (x, y) => (y === 0 ? api.call(\"Undefined\") : x / y)))")
 Compiled(GreaterThan($a, $b), "(await N(\"GreaterThan\", $a, $b, (x, y) => B(x > y)))")
 Compiled(LessThan($a, $b), "(await N(\"LessThan\", $a, $b, (x, y) => B(x < y)))")
+
+// ================================================================
+// Reading JavaScript: its syntax (code/read.ts) as Concepts (ir-spec Part 10.2). Each rule
+// is a pattern over a syntax node and what it reads as; the most specific applies first.
+// A pattern names only the fields it reads, and a field a node lacks reads as Undefined().
+// Outputs are read again, so a rule can hand a part of its work to helper rules below.
+
+// A file is a module, and a block is its statements: several are a Sequence, one is
+// itself, none is Undefined().
+From(JsSourceFile(statements=List(Rest($ss))), Module(Sequence(Rest($ss))))
+From(JsBlock(statements=List(Rest($ss))), Sequence(Rest($ss)))
+From(Sequence($x), $x)
+From(Sequence(), Undefined())
+
+// Names. `undefined` is the Concept, every other name a variable.
+From(JsIdentifier(text="undefined"), Undefined())
+From(JsIdentifier(text=$n), Variable($n))
+From(JsThisKeyword(), This())
+From(JsSuperKeyword(), Super())
+From(JsParenthesizedExpression(expression=$e), $e)
+
+// Declarations. `const` binds; `let` and `var` may be reassigned, and the IR keeps the
+// difference. Several in one statement are a Sequence.
+From(JsVariableStatement(declarationList=$l, modifiers=$m), JsMods($m, $l))
+From(JsVariableDeclarationList(keyword=$k, declarations=List(Rest($ds))), Sequence(Each(List(Rest($ds)), Lambda(List($d), JsDeclare($k, $d)))))
+From(JsDeclare(JsConstKeyword(), JsVariableDeclaration(name=$n, initializer=$v)), Let($n, $v))
+From(JsDeclare($_, JsVariableDeclaration(name=$n, initializer=$v)), Var($n, $v))
+// A destructuring keeps its shape, so what it takes apart can still be read.
+From(JsObjectBindingPattern(elements=List(Rest($es))), Object(Rest($es)))
+From(JsBindingElement(propertyName=JsIdentifier(text=$k), name=$n), Named($k, $n))
+From(JsBindingElement(name=JsIdentifier(text=$k)), Named($k, Variable($k)))
+From(JsArrayBindingPattern(elements=List(Rest($es))), List(Each(List(Rest($es)), Lambda(List($e), JsElement($e)))))
+From(JsElement(JsBindingElement(name=$n)), $n)
+From(JsElement(JsOmittedExpression()), Undefined())
+From(JsParameter(name=$n), $n)
+
+// Functions. A concise arrow body is the value, not a return statement; only a block can
+// return. Async and Generator wrap the function, not its parameter list.
+From(JsFunctionDeclaration(name=$n, parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Func($n, List(Rest($ps)), $b))))
+From(JsFunctionDeclaration(name=Undefined(), parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Lambda(List(Rest($ps)), $b))))
+From(JsFunctionExpression(parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Lambda(List(Rest($ps)), $b))))
+From(JsArrowFunction(parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods($m, Lambda(List(Rest($ps)), $b)))
+From(JsStar(Undefined(), $f), $f)
+From(JsStar($_, $f), Generator($f))
+
+// Modifiers wrap what they modify, the first said outermost. Those that change nothing the
+// IR keeps (public, default, abstract, override, declare) are dropped.
+From(JsMods(Undefined(), $x), $x)
+From(JsMods(List(), $x), $x)
+From(JsMods(List($m, Rest($r)), $x), JsWrap($m, JsMods(List(Rest($r)), $x)))
+From(JsWrap(JsExportKeyword(), $x), Export($x))
+From(JsWrap(JsAsyncKeyword(), $x), Async($x))
+From(JsWrap(JsReadonlyKeyword(), $x), Readonly($x))
+From(JsWrap(JsPrivateKeyword(), $x), Private($x))
+From(JsWrap(JsStaticKeyword(), $x), Static($x))
+From(JsWrap(JsPublicKeyword(), $x), $x)
+From(JsWrap(JsProtectedKeyword(), $x), $x)
+From(JsWrap(JsDefaultKeyword(), $x), $x)
+From(JsWrap(JsAbstractKeyword(), $x), $x)
+From(JsWrap(JsOverrideKeyword(), $x), $x)
+From(JsWrap(JsDeclareKeyword(), $x), $x)
+
+// Classes keep their members, with modifiers wrapping what they modify.
+From(JsClassDeclaration(name=$n, heritageClauses=$h, members=List(Rest($ms)), modifiers=$m), JsMods($m, Class($n, JsHeritage($h), List(Rest($ms)))))
+From(JsHeritage(List(JsHeritageClause(token=JsExtendsKeyword(), types=List(JsExpressionWithTypeArguments(expression=$e), Rest($_))), Rest($_))), Extends($e))
+From(JsHeritage($_), Undefined())
+// A parameter property declares a field and assigns it; both are kept.
+From(JsConstructor(parameters=List(Rest($ps)), body=$b), Sequence(Each(List(Rest($ps)), Lambda(List($p), JsParameterField($p))), Constructor(List(Rest($ps)), $b)))
+From(JsParameterField(JsParameter(modifiers=List($m, Rest($r)), name=JsIdentifier(text=$k))), JsMods(List($m, Rest($r)), Field($k)))
+From(JsParameterField($_), Erased())
+From(JsPropertyDeclaration(name=$n, initializer=$v, modifiers=$m), JsMods($m, Field(JsMemberName($n), $v)))
+From(JsMethodDeclaration(name=$n, parameters=List(Rest($ps)), body=$b, asteriskToken=$star, modifiers=$m), JsMods($m, JsStar($star, Method(JsMemberName($n), List(Rest($ps)), $b))))
+From(JsGetAccessor(name=$n, body=$b, modifiers=$m), JsMods($m, Getter(JsMemberName($n), $b)))
+From(JsSetAccessor(name=$n, parameters=List(Rest($ps)), body=$b, modifiers=$m), JsMods($m, Setter(JsMemberName($n), List(Rest($ps)), $b)))
+From(JsMemberName(JsIdentifier(text=$k)), $k)
+From(JsMemberName(JsPrivateIdentifier(text=$k)), $k)
+From(JsMemberName($k), $k)
+
+// Statements.
+From(JsExpressionStatement(expression=$e), $e)
+From(JsReturnStatement(expression=Undefined()), Return())
+From(JsReturnStatement(expression=$e), Return($e))
+From(JsIfStatement(expression=$c, thenStatement=$t, elseStatement=$e), If($c, $t, $e))
+From(JsThrowStatement(expression=$e), Throw($e))
+From(JsTryStatement(tryBlock=$t, catchClause=$c, finallyBlock=Undefined()), Try($t, $c))
+From(JsTryStatement(tryBlock=$t, catchClause=$c, finallyBlock=$f), Finally(Try($t, $c), $f))
+From(JsCatchClause(variableDeclaration=Undefined(), block=$b), Catch(Variable("_"), $b))
+From(JsCatchClause(variableDeclaration=JsVariableDeclaration(name=$n), block=$b), Catch($n, $b))
+From(JsForOfStatement(initializer=JsVariableDeclarationList(declarations=List(JsVariableDeclaration(name=$n), Rest($_))), expression=$e, statement=$s), ForOf($n, $e, $s))
+From(JsForOfStatement(initializer=$i, expression=$e, statement=$s), ForOf($i, $e, $s))
+From(JsForStatement(initializer=$i, condition=Undefined(), incrementor=$n, statement=$s), For($i, true, $n, $s))
+From(JsForStatement(initializer=$i, condition=$c, incrementor=$n, statement=$s), For($i, $c, $n, $s))
+From(JsWhileStatement(expression=$c, statement=$s), While($c, $s))
+From(JsContinueStatement(), Continue())
+From(JsBreakStatement(), Break())
+
+// Modules.
+From(JsImportDeclaration(importClause=$c, moduleSpecifier=$from), Import(List(JsDefaultImport($c), JsImportedNames($c)), $from))
+From(JsDefaultImport(JsImportClause(name=JsIdentifier(text=$n))), Variable($n))
+From(JsDefaultImport($_), Erased())
+From(JsImportedNames(JsImportClause(namedBindings=JsNamedImports(elements=List(Rest($es))))), Each(List(Rest($es)), Lambda(List($e), JsImportName($e))))
+From(JsImportedNames(JsImportClause(namedBindings=JsNamespaceImport(name=$n))), $n)
+From(JsImportedNames($_), Erased())
+From(JsImportName(JsImportSpecifier(name=$n)), $n)
+// A re-export names things without binding them, so it is not an Export wrapping a declaration.
+From(JsExportDeclaration(exportClause=JsNamedExports(elements=List(Rest($es))), moduleSpecifier=Undefined()), ReExport(List(Rest($es))))
+From(JsExportDeclaration(exportClause=JsNamedExports(elements=List(Rest($es))), moduleSpecifier=$from), ReExport(List(Rest($es)), $from))
+From(JsExportDeclaration(moduleSpecifier=Undefined()), ReExport(All()))
+From(JsExportDeclaration(moduleSpecifier=$from), ReExport(All(), $from))
+From(JsExportSpecifier(propertyName=Undefined(), name=$n), $n)
+From(JsExportSpecifier(propertyName=$p, name=JsIdentifier(text=$k)), As($p, $k))
+From(JsExportAssignment(expression=$e), ExportDefault($e))
+
+// Reading and calling.
+// `.length` read is the Length primitive; written (`xs.length = 0`) it is a place, which
+// assignment keeps as Member.
+From(JsPropertyAccessExpression(expression=$o, name=JsIdentifier(text="length")), Length($o))
+From(JsPropertyAccessExpression(expression=$o, name=$n), Member($o, JsMemberName($n)))
+From(JsElementAccessExpression(expression=$o, argumentExpression=$i), Index($o, $i))
+From(JsPlace(JsPropertyAccessExpression(expression=$o, name=$n)), Member($o, JsMemberName($n)))
+From(JsPlace($x), $x)
+// Array methods that are code-IR primitives, so what reads runs and compiles: xs.map(f) is
+// Map($xs, f), not a method call nothing can run. A callback taking more than the primitive
+// passes (the index, the array) stays a method call.
+From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, name=JsIdentifier(text="map")), arguments=List($f)), Map($xs, $f))
+From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, name=JsIdentifier(text="filter")), arguments=List($f)), Filter($xs, $f))
+From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, name=JsIdentifier(text="flatMap")), arguments=List($f)), FlatMap($xs, $f))
+From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, name=JsIdentifier(text="reduce")), arguments=List($f, $init)), Reduce($xs, $f, $init))
+From(JsCallExpression(expression=JsPropertyAccessExpression(expression=$xs, name=JsIdentifier(text="includes")), arguments=List($x)), Includes($xs, $x))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="flatMap"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="reduce"))), arguments=List(Bind($f, JsArrowFunction(parameters=List($_, $_, $_, Rest($_)))), $init)), Call($m, $f, $init))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="map"))), arguments=List(Bind($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+From(JsCallExpression(expression=Bind($m, JsPropertyAccessExpression(name=JsIdentifier(text="filter"))), arguments=List(Bind($f, JsFunctionExpression(parameters=List($_, $_, Rest($_)))))), Call($m, $f))
+// `code(...)` holds a function inside a string: the string is read as source too, and
+// appears as Embedded(...), so a large import cannot look complete while its behaviour
+// passes through as text.
+From(JsCallExpression(expression=JsIdentifier(text="code"), arguments=List($s)), Call(Variable("code"), Embedded(Parse($s))))
+From(Embedded(Module($x)), Embedded($x))
+From(Embedded(NotSource($x)), $x)
+From(JsCallExpression(expression=JsImportKeyword(), arguments=List(Rest($a))), DynamicImport(Rest($a)))
+From(JsCallExpression(expression=$f, arguments=List(Rest($a))), Call($f, Rest($a)))
+From(JsNewExpression(expression=$c, arguments=List(Rest($a))), New($c, Rest($a)))
+From(JsNewExpression(expression=$c, arguments=Undefined()), New($c))
+From(JsAwaitExpression(expression=$e), Await($e))
+From(JsTypeOfExpression(expression=$e), TypeOf($e))
+From(JsVoidExpression(expression=$e), Void($e))
+From(JsSpreadElement(expression=$e), Spread($e))
+From(JsYieldExpression(asteriskToken=Undefined(), expression=$e), Yield($e))
+From(JsYieldExpression(expression=$e), YieldEach($e))
+// A regular expression is its own little language; its source is kept rather than read.
+From(JsRegularExpressionLiteral(pattern=$p, flags=$f), Regex($p, $f))
+From(JsConditionalExpression(condition=$c, whenTrue=$t, whenFalse=$f), If($c, $t, $f))
+
+// A template is concatenation, which Add covers for text.
+From(JsTemplateExpression(head=$h, templateSpans=List(Rest($spans))), JsTemplate($h, List(Rest($spans))))
+From(JsTemplate($acc, List()), $acc)
+From(JsTemplate($acc, List(JsTemplateSpan(expression=$e, literal=$l), Rest($r))), JsTemplate(JsAddText(Add($acc, $e), $l), List(Rest($r))))
+From(JsAddText($x, ""), $x)
+From(JsAddText($x, $l), Add($x, $l))
+
+// Operators. Postfix yields the value BEFORE the change, which is why it is not an Assign.
+From(JsPostfixUnaryExpression(operator=JsPlusPlusToken(), operand=$x), PostIncrement($x))
+From(JsPostfixUnaryExpression(operator=JsMinusMinusToken(), operand=$x), PostDecrement($x))
+From(JsPrefixUnaryExpression(operator=JsPlusPlusToken(), operand=$x), PreIncrement($x))
+From(JsPrefixUnaryExpression(operator=JsMinusMinusToken(), operand=$x), PreDecrement($x))
+From(JsPrefixUnaryExpression(operator=JsTildeToken(), operand=$x), BitNot($x))
+From(JsPrefixUnaryExpression(operator=JsExclamationToken(), operand=$x), Not($x))
+From(JsPrefixUnaryExpression(operator=JsMinusToken(), operand=$x), Negate($x))
+From(JsPrefixUnaryExpression(operator=JsPlusToken(), operand=$x), $x)
+From(JsBinaryExpression(left=$l, operatorToken=JsEqualsToken(), right=$r), Assign(JsPlace($l), $r))
+// `x += 1` is `x = x + 1`: compound assignment carries no meaning the IR needs.
+From(JsBinaryExpression(left=$l, operatorToken=JsPlusEqualsToken(), right=$r), Assign(JsPlace($l), Add(JsPlace($l), $r)))
+From(JsBinaryExpression(left=$l, operatorToken=JsMinusEqualsToken(), right=$r), Assign(JsPlace($l), Subtract(JsPlace($l), $r)))
+From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskEqualsToken(), right=$r), Assign(JsPlace($l), Multiply(JsPlace($l), $r)))
+From(JsBinaryExpression(left=$l, operatorToken=JsSlashEqualsToken(), right=$r), Assign(JsPlace($l), Divide(JsPlace($l), $r)))
+From(JsBinaryExpression(left=$l, operatorToken=JsEqualsEqualsEqualsToken(), right=$r), Equals($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsEqualsEqualsToken(), right=$r), Equals($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsExclamationEqualsEqualsToken(), right=$r), NotEquals($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsExclamationEqualsToken(), right=$r), NotEquals($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsPlusToken(), right=$r), Add($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsMinusToken(), right=$r), Subtract($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskToken(), right=$r), Multiply($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsSlashToken(), right=$r), Divide($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsPercentToken(), right=$r), Modulo($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanToken(), right=$r), GreaterThan($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsLessThanToken(), right=$r), LessThan($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanEqualsToken(), right=$r), AtLeast($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsLessThanEqualsToken(), right=$r), AtMost($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsAmpersandAmpersandToken(), right=$r), And($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsBarBarToken(), right=$r), Or($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsQuestionQuestionToken(), right=$r), Otherwise($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsInKeyword(), right=$r), In($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsInstanceOfKeyword(), right=$r), InstanceOf($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsAmpersandToken(), right=$r), BitAnd($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsBarToken(), right=$r), BitOr($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsCaretToken(), right=$r), BitXor($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsLessThanLessThanToken(), right=$r), ShiftLeft($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsGreaterThanGreaterThanToken(), right=$r), ShiftRight($l, $r))
+From(JsBinaryExpression(left=$l, operatorToken=JsAsteriskAsteriskToken(), right=$r), Power($l, $r))
+// `a, b` evaluates both and takes the second, which is what Sequence already means.
+From(JsBinaryExpression(left=$l, operatorToken=JsCommaToken(), right=$r), Sequence($l, $r))
+
+// Collections. `[...a, x]` is the lists joined, Concat($a, List($x)), which runs; the
+// elements between spreads are gathered into one List.
+From(JsArrayLiteralExpression(elements=List(Rest($es))), JsArray(List(), List(), List(Rest($es)), False()))
+From(JsArray(List(Rest($d)), List(), List(JsSpreadElement(expression=$e), Rest($r)), $_), JsArray(List(Rest($d), $e), List(), List(Rest($r)), True()))
+From(JsArray(List(Rest($d)), List($x, Rest($xs)), List(JsSpreadElement(expression=$e), Rest($r)), $_), JsArray(List(Rest($d), List($x, Rest($xs)), $e), List(), List(Rest($r)), True()))
+From(JsArray($d, List(Rest($xs)), List($x, Rest($r)), $s), JsArray($d, List(Rest($xs), $x), List(Rest($r)), $s))
+From(JsArray($_, List(Rest($xs)), List(), False()), List(Rest($xs)))
+From(JsArray(List(Rest($d)), List(), List(), True()), Concat(Rest($d)))
+From(JsArray(List(Rest($d)), List($x, Rest($xs)), List(), True()), Concat(Rest($d), List($x, Rest($xs))))
+// A known key is a named argument; anything computed keeps Pair (ir-spec Part 3.3).
+From(JsObjectLiteralExpression(properties=List(Rest($ps))), Object(Rest($ps)))
+From(JsShorthandPropertyAssignment(name=JsIdentifier(text=$k)), Named($k, Variable($k)))
+From(JsSpreadAssignment(expression=$e), Spread($e))
+From(JsPropertyAssignment(name=JsComputedPropertyName(expression=$k), initializer=$v), Pair($k, $v))
+From(JsPropertyAssignment(name=JsIdentifier(text=$k), initializer=$v), Named($k, $v))
+From(JsPropertyAssignment(name=$k, initializer=$v), Named($k, $v))

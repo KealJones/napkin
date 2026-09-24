@@ -144,3 +144,30 @@ test("an imported function body runs as the code IR, interpreted and compiled al
   assert.equal(await run("SquaresI(List(1, 2, 3, 4))"), "125");
   assert.equal(await run("SquaresC(List(1, 2, 3, 4))"), "125");
 });
+
+test("how source reads is the packs' From rules: a rule added to a store changes what imports", async () => {
+  const { ConceptStore } = await import("../store/store.js");
+  const { loadPacks, parsePack, seedPacks, BUILT_IN_PACKS } = await import("./ncon.js");
+  const store = new ConceptStore();
+  seedPacks(store, loadPacks([BUILT_IN_PACKS]).filter((p) => ["core", "code", "javascript", "typescript"].includes(p.name)));
+  assert.equal(format(importTypeScript("x ** 2;", "a.ts", { store }).expression), "Module(Power($x, 2))");
+  // Taught: squaring is its own Concept.
+  seedPacks(store, [parsePack("Language(JavaScript())\nFrom(JsBinaryExpression(left=$x, operatorToken=JsAsteriskAsteriskToken(), right=2), Square($x))", "mine")]);
+  assert.equal(format(importTypeScript("x ** 2;", "a.ts", { store }).expression), "Module(Square($x))");
+});
+
+test("types are erased by the TypeScript pack, not the JavaScript one", async () => {
+  const { ConceptStore } = await import("../store/store.js");
+  const { loadPacks, seedPacks, BUILT_IN_PACKS } = await import("./ncon.js");
+  const { readingRules, readWith } = await import("./rewrite.js");
+  const store = new ConceptStore();
+  seedPacks(store, loadPacks([BUILT_IN_PACKS]).filter((p) => ["core", "code", "javascript", "typescript"].includes(p.name)));
+  const asJs = readWith(readingRules(store, "JavaScript"), "interface A {}\nconst x = 1;");
+  assert.equal(asJs.unsupported[0]?.kind, "InterfaceDeclaration");
+  const asTs = readWith(readingRules(store, "TypeScript"), "interface A {}\nconst x = 1;");
+  assert.equal(format(asTs.expression), "Module(Let($x, 1))");
+});
+
+test("an object key that is not a name keeps Pair, even an identifier like $", () => {
+  assert.equal(ir('const m = { $: "Dollars", a: 1 };'), 'Let($m, Object(Pair("$", "Dollars"), a=1))');
+});
