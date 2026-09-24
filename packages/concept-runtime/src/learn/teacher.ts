@@ -28,7 +28,7 @@ A realization is how it behaves, written as:
 
 A relation is a fact about the Concept, written as a Concept call:
   IsA(BoardGame())        MinimumNumberOfPlayers(2)        SynonymOf(Multiply())
-  InverseOf(IsYoungerThan())    Symmetric()    Transitive()
+  InverseOf(IsYoungerThan())    Symmetric()    Transitive()    Enduring()
 
 A relation that holds only in one sense of the word says so:
   In(IsA(MusicSingle()), Music())     the band, not the stretch of time
@@ -42,6 +42,10 @@ RULES
    it is Symmetric(), Transitive(), Asymmetric(), and what its InverseOf(...) is. Each
    licenses inference over every future use, so a relation taught without them is inert in
    one direction.
+   Say too whether it is Enduring() (true until retracted: FriendOf, Likes, LivesIn) or
+   Occurrent() (happened at a time: Ate, Visited, Sent). A state that lasts a while, like
+   being sick today, is Occurrent(); a habit, like hanging out all the time, is Enduring().
+   It decides whether what someone says with it is kept as a fact about them.
    Only for relations. Cycle, Duration and Money are things, not relations, and saying a
    thing is Transitive() is a category error that later gets reasoned with.
    Check transitivity before claiming it. Before is transitive: a before b before c means

@@ -33,7 +33,7 @@ const STRUCTURAL = new Set([
   "Saved", "Rejected", "NeedsFirst", "SelfReferential", "NotComposed", "Incomplete",
   "True", "False", "Number", "String", "Boolean",
   // How a relation is said, not what it names. These leak in when a Teacher nests one.
-  "InverseOf", "SynonymOf", "Symmetric", "Transitive", "Asymmetric", "Functional",
+  "InverseOf", "SynonymOf", "Symmetric", "Transitive", "Asymmetric", "Functional", "Enduring", "Occurrent",
   "Irreflexive", "Disjoint", "Describes", "Relations",
 ]);
 
