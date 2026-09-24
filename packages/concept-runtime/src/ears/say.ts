@@ -5,7 +5,7 @@
  * the graph produced, and told to say that result and nothing else — so the answer stays
  * the graph's answer rather than the model's recollection.
  */
-import { type Expr, format, isCall, walk } from "../concept/expression.js";
+import { type Call, type Expr, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { generate, type ModelOptions } from "./ollama.js";
 
@@ -182,13 +182,58 @@ const SOCIAL: Record<string, string> = {
  * The answers with one right wording, said without a model: small talk, not knowing, a
  * follow-up number, a date or a time, a missing input. Undefined when a model is needed.
  */
+/**
+ * A move in a game has one right wording, and a model asked to narrate a board placed the
+ * pieces wherever it liked. So a game reply is said directly: what was played, how it
+ * stands, and the board as a grid.
+ */
+function game(result: Call): string {
+  const parts = result.args.filter((a) => a.name === undefined).map((a) => a.value).filter(isCall);
+  const echo = result.args.find((a) => a.name === "echo")?.value;
+  const against = typeof echo === "string" ? echo : "the game";
+  const mine = against.endsWith("against me");
+  const square = (e: Expr | undefined): string => (e !== undefined && isCall(e) ? e.head : "?");
+  const lines: string[] = [];
+  const moved = parts.filter((p) => p.head === "Moved");
+  if (parts.some((p) => p.head === "Started")) lines.push(`${against}. You're X, you go first.`);
+  if (parts.some((p) => p.head === "Resumed")) lines.push(`Back to ${against}.`);
+  if (moved.length) {
+    lines.push(
+      moved
+        .map((m, i) => (mine ? `${i === 0 ? "You" : "I"} played ${square(m.args[1]?.value)}.` : `${square(m.args[0]?.value)} played ${square(m.args[1]?.value)}.`))
+        .join(" "),
+    );
+  }
+  const illegal = parts.find((p) => p.head === "Illegal");
+  if (illegal) {
+    const reason = illegal.args.find((a) => a.name === "reason")?.value;
+    lines.push(`You can't play ${square(illegal.args[0]?.value)}${typeof reason === "string" ? `: it's ${reason}` : ""}.`);
+  }
+  if (parts.some((p) => p.head === "TookBack")) lines.push("Took that back.");
+  if (parts.some((p) => p.head === "NothingToTakeBack")) lines.push("There's nothing to take back.");
+  const won = parts.find((p) => p.head === "Won");
+  if (won) {
+    const who = square(won.args[0]?.value);
+    lines.push(mine ? (who === "X" ? "You win!" : "I win!") : `${who} wins!`);
+  }
+  if (parts.some((p) => p.head === "Drawn")) lines.push("It's a draw.");
+  const board = parts.find((p) => p.head === "Board");
+  // Labelled the way squares are named: a letter for the column, a number for the row.
+  if (board) lines.push(["  a b c", ...board.args.map((a, i) => `${i + 1} ${String(a.value).split("").join(" ")}`)].join("\n"));
+  return lines.join("\n");
+}
+
 function plainly(result: Expr, options: SayOptions): string | undefined {
+  if (isCall(result) && result.head === "InGame") return game(result);
+  if (isCall(result) && result.head === "NothingOpen") return "There's no game going. Say \"let's play tic tac toe\" to start one.";
   // "Which Greg do you mean: your coworker, or your cousin?"
   if (isCall(result) && result.head === "Which") {
     const name = result.args[0]?.value;
-    const described = result.args.find((a) => a.name === "described")?.value;
+    // People are told apart by `described`; games by the names listed in place.
+    const described = result.args.find((a) => a.name === "described")?.value ?? result.args[1]?.value;
     const options = described !== undefined && isCall(described) ? described.args.map((a) => String(a.value)) : [];
-    const who = name !== undefined && isCall(name) ? name.head : "one";
+    const person = result.args.some((a) => a.name === "described");
+    const who = person && name !== undefined && isCall(name) ? name.head : "game";
     return `Which ${who} do you mean: ${options.slice(0, -1).join(", ")}${options.length > 1 ? ", or " : ""}${options[options.length - 1] ?? ""}?`;
   }
   const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;

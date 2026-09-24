@@ -103,3 +103,9 @@ test("a Teacher's IsA held in a sense named after its own object is not saved", 
   );
   assert.deepEqual(learned.get("GeologicalFeature")!.relations.map((r) => format(r.claim)), ["IsA(Landform())"]);
 });
+
+test("a game reply is said directly, with the board as a labelled grid", async () => {
+  const { parse } = await import("../concept/expression.js");
+  const spoken = await say("b2", parse('InGame(Game_1(), echo="Tic tac toe against me", Moved(X(), B2()), Moved(O(), A1()), Board("O..", ".X.", "..."))'));
+  assert.equal(spoken, "You played B2. I played A1.\n  a b c\n1 O . .\n2 . X .\n3 . . .");
+});
