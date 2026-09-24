@@ -317,6 +317,8 @@ export class Runtime {
     // work is neither counted nor traced, as a JavaScript body's never was. What it calls is.
     const operation = this.code.has(target) && this.primitive(target.head);
     const trace = operation ? QUIET : this.trace;
+    // Nor a level of depth: what it runs is as deep as the program is.
+    const inner = operation ? depth - 1 : depth;
     const id = operation ? parent ?? "" : trace.start({
       parentEventId: parent,
       concept: target.head,
@@ -381,7 +383,7 @@ export class Runtime {
       if (realization.evaluateArguments && !this.given.has(target)) {
         args = await Promise.all(
           target.args.map(async (a) => {
-            const value = await this.run(a.value, context, target.head, id, depth + 1, within);
+            const value = await this.run(a.value, context, target.head, id, inner + 1, within);
             return a.name === undefined ? { value } : { name: a.name, value };
           }),
         );
@@ -405,7 +407,7 @@ export class Runtime {
       let result: Expr;
       if (isCodeBody(realization.body)) {
         try {
-          result = await this.runCode(realization, bindings, args, bodyContext, id, depth, within);
+          result = await this.runCode(realization, bindings, args, bodyContext, id, inner, within);
         } finally {
           if (forwardsTo !== undefined) this.forwarding.pop();
         }
@@ -414,16 +416,16 @@ export class Runtime {
         // that cannot be compiled is interpreted, as every composed body is.
         const compiled = declares(realization, "Compile") ? compiledFor(this.store, realization) : undefined;
         if (compiled) {
-          result = await compiled(bindings, this.api(bodyContext, id, depth, within));
+          result = await compiled(bindings, this.api(bodyContext, id, inner, within));
         } else {
           if (declares(realization, "Program")) this.markProgram(realization.body);
           const body = this.rebind(realization.body, bindings, realization.evaluateArguments);
-          result = await this.run(body, bodyContext, target.head, id, depth + 1, within);
+          result = await this.run(body, bodyContext, target.head, id, inner + 1, within);
         }
       }
 
       if (realization.evaluateResult) {
-        result = await this.run(result, bodyContext, target.head, id, depth + 1, within);
+        result = await this.run(result, bodyContext, target.head, id, inner + 1, within);
       }
 
       // A realization that hands back the call it was given did nothing. That is a

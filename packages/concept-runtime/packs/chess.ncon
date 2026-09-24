@@ -8,7 +8,7 @@
 Requires(Core(), Code(), Basic())
 
 Concept(Build(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Build($value), context=Execution(), evaluateArguments=false,
     body=Code(
       ir=Async(
@@ -27,7 +27,7 @@ Concept(Build(),
             Return(Object(head=Member($value, "head"), args=$fields))))))))
 
 Concept(Slot(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Slot($record, $key), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -46,7 +46,7 @@ Concept(Slot(),
           Return(If($found, Member($found, "value"), null)))))))
 
 Concept(With(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(With($record, $key, $value), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -68,7 +68,7 @@ Concept(With(),
           Return(Object(head=Member(Index($v, 0), "head"), args=$fields)))))))
 
 Concept(TextContains(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(TextContains($text, $part), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -78,7 +78,7 @@ Concept(TextContains(),
           Call(Member(Call($String, Member(Index($args, 1), "value")), "toLowerCase")))))))
 
 Concept(CoordinateLabel(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(CoordinateLabel($square, $files, $firstRank), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -96,7 +96,7 @@ Concept(CoordinateLabel(),
               "?")))))))
 
 Concept(ElementAt(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(ElementAt($items, $index), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -118,7 +118,7 @@ Concept(ElementAt(),
               null)))))))
 
 Concept(Last(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Last($items), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -140,7 +140,7 @@ Concept(Last(),
               null)))))))
 
 Concept(DropLast(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(DropLast($items), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -164,7 +164,7 @@ Concept(DropLast(),
                 Call(Member(Call($list, Member(Index($args, 0), "value")), "slice"), 0, Negate(1))))))))))
 
 Concept(Range(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Range($start, $end), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -190,7 +190,7 @@ Concept(Range(),
                   Lambda(List($_, $i), Add(Index($v, 0), $i)))))))))))
 
 Concept(Any(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Any($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
       ir=Async(
@@ -279,7 +279,7 @@ Concept(Any(),
             Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(All(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(All($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
       ir=Async(
@@ -368,7 +368,7 @@ Concept(All(),
             Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(Find(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Find($items, $lambda), context=Execution(), evaluateArguments=false,
     body=Code(
       ir=Async(
@@ -457,7 +457,7 @@ Concept(Find(),
             Return(Call(Member($api, "call"), "List", Spread($results)))))))))
 
 Concept(Apply(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Apply($callable, $arguments), context=Execution(),
     body=Code(
       ir=Async(
@@ -492,7 +492,7 @@ Concept(Apply(),
                         Lambda(List($value), Object(value=$value))))))))))))))
 
 Concept(Same(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Same($left, $right), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -541,7 +541,7 @@ Concept(Same(),
               Call($canonical, Member(Index($args, 1), "value")))))))))
 
 Concept(Abs(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Abs($value), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -564,7 +564,7 @@ Concept(Abs(),
           Return($result))))))
 
 Concept(Floor(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Floor($value), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -587,7 +587,7 @@ Concept(Floor(),
           Return($result))))))
 
 Concept(Minimum(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Minimum($left, $right), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -610,7 +610,7 @@ Concept(Minimum(),
           Return($result))))))
 
 Concept(Maximum(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Maximum($left, $right), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -633,7 +633,7 @@ Concept(Maximum(),
           Return($result))))))
 
 Concept(BestBy(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(BestBy($items, $score), context=Execution(), evaluateArguments=false,
     body=Code(
       ir=Async(
@@ -699,7 +699,7 @@ Concept(BestBy(),
             Return($best)))))))
 
 Concept(CoordinateFromLabel(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(CoordinateFromLabel($text, $files, $firstRank), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -723,7 +723,7 @@ Concept(CoordinateFromLabel(),
               Call(Member($api, "call"), "Square", $file, $rank))))))))
 
 Concept(GridOffset(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(GridOffset($square, $dx, $dy, $width, $height), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -757,7 +757,7 @@ Concept(GridOffset(),
               null)))))))
 
 Concept(Occupant(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Occupant($board, $square), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -795,7 +795,7 @@ Concept(Occupant(),
               null)))))))
 
 Concept(GridRay(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(GridRay($board, $from, $delta, $steps, $width, $height, $includeBlocker), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -859,7 +859,7 @@ Concept(GridRay(),
           Return(Call(Member($api, "call"), "List", Spread($out))))))))
 
 Concept(BoardChange(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(BoardChange($board, $removals, $additions), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -899,7 +899,7 @@ Concept(BoardChange(),
             Call(Member($api, "call"), "List", Spread($kept), Spread(Call($list, Index($v, 2))))))))))
 
 Concept(AmbientValue(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(AmbientValue($key, $fallback), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -909,7 +909,7 @@ Concept(AmbientValue(),
           Member(Index($args, 1), "value"))))))
 
 Concept(IdentityKey(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(IdentityKey($prefix, $scope), context=Execution(),
     body=Code(
       ir=Lambda(
@@ -932,7 +932,7 @@ Concept(IdentityKey(),
                 "hex"))))))))
 
 Concept(Recall(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(Recall($identity), context=Execution(), properties=List(Effectful()),
     body=Code(
       ir=Async(
@@ -948,7 +948,7 @@ Concept(Recall(),
               null)))))))
 
 Concept(CreateRecord(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(CreateRecord($identity, $value), context=Execution(), properties=List(Effectful()),
     body=Code(
       ir=Lambda(
@@ -980,7 +980,7 @@ Concept(CreateRecord(),
           Return(Call(Member($api, "call"), "Stored", Member(Index($args, 1), "value"))))))))
 
 Concept(CompareAndSwap(),
-  IsA(Capability()),
+  IsA(CodePrimitive()),
   Realization(CompareAndSwap($identity, $expected, $next), context=Execution(), properties=List(Effectful()),
     body=Code(
       ir=Async(

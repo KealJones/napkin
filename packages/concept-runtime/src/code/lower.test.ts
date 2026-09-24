@@ -29,7 +29,7 @@ const run = async (identity: string, pattern: string, body: Expr, call: string, 
 
 test("a lowered body answers what its JavaScript answered", async () => {
   const neg = lowered("Neg($x)", '(args, bindings, api) => typeof args[0].value === "number" ? -args[0].value : api.call("Neg", args[0].value)');
-  assert.equal(format(neg), 'If(Identical(TypeOf($x), "number"), JsNegate($x), MakeCall("Neg", List($x)))');
+  assert.equal(format(neg), 'If(Identical(TypeOf($x), "number"), NegateValue($x), MakeCall("Neg", List($x)))');
   assert.equal(await run("Neg", "Neg($x)", neg, "Neg(4)"), "-4");
   assert.equal(await run("Neg", "Neg($x)", neg, "Neg(Cats())"), "Neg(Cats())");
 });

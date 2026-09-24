@@ -4,7 +4,7 @@
  *
  *   Undefined()                     undefined
  *   List(a, b)                      [a, b], its elements converted too
- *   Record(k=v, ...)                { k: v, ... }, a plain object
+ *   Record(k=v, ...)                { k: v, ... }, a plain object; Argument(...) too
  *   Instant(ms)                     a Date at that instant
  *   Regex("p", "flags")             a RegExp
  *   MutableSet(ref)                 a Set of what its cell holds
@@ -24,7 +24,7 @@ export function toHost(v: unknown, cells?: CellStore): unknown {
   const e = v as Call;
   if (e.head === "Undefined" && !e.args.length) return undefined;
   if (e.head === "List") return e.args.map((a) => toHost(a.value, cells));
-  if (e.head === "Record") return Object.fromEntries(e.args.map((a) => [a.name ?? "", toHost(a.value, cells)]));
+  if (e.head === "Record" || e.head === "Argument") return Object.fromEntries(e.args.map((a) => [a.name ?? "", toHost(a.value, cells)]));
   if (e.head === "Instant" && typeof e.args[0]?.value === "number") return new Date(e.args[0].value);
   if (e.head === "Regex" && typeof e.args[0]?.value === "string") return new RegExp(e.args[0].value, String(e.args[1]?.value ?? ""));
   // A Set or a Map is its members, held in a cell because it can change.

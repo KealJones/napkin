@@ -52,27 +52,21 @@ Concept(Capability(), IsA(Category()))
 
 // "what can you do": what `Self` holds `CanDo`.
 Concept(WhatCan(),
-  Realization(WhatCan(You(), Do()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind(
-              $can,
-              Map(
-                Filter(
-                  Call(Member(Member($api, "store"), "asSubject"), "Self"),
-                  Lambda(List($t), Equals(Member($t, "predicate"), "CanDo"))),
-                Lambda(List($t), Member($t, "object")))),
-            Return(
-              Call(Member($api, "call"), "Answer", Call(Member($api, "call"), "List", Spread($can))))))))))
+  Realization(WhatCan(You(), Do()), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
+    body=Bind(
+      $can,
+      Map(
+        Filter(
+          ClaimsWithSubject("Self"),
+          Lambda(List($t), Identical(FieldOf($t, "predicate"), "CanDo"))),
+        Lambda(List($t2), FieldOf($t2, "object"))),
+      MakeCall("Answer", List(MakeCall("List", AsList($can)))))))
 
 // "how are you", "how are you doing": asked to be polite, answered the same way.
 Concept(HowAre(),
-  Realization(HowAre(You()), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+  Realization(HowAre(You()), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
     body=MakeCall("Answer", List(MakeCall("DoingWell", List())))),
-  Realization(HowAre(You(), $doing), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+  Realization(HowAre(You(), $doing), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
     body=MakeCall("Answer", List(MakeCall("DoingWell", List())))))
 
 Concept(DoingWell(), IsA(Data()))
@@ -80,7 +74,7 @@ Concept(DoingWell(), IsA(Data()))
 // "cool", "ok", "lol": a reaction, answered briefly rather than looked up.
 Concept(Approval(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false,
+  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
     body=MakeCall("Answer", List(MakeCall("GladYouLikeIt", List())))))
 
 Concept(Cool(), IsA(Approval()))
@@ -101,7 +95,7 @@ Concept(Perfect(), IsA(Approval()))
 
 Concept(Agreement(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false,
+  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
     body=MakeCall("Answer", List(MakeCall("GotIt", List())))))
 
 Concept(Ok(), IsA(Agreement()))
@@ -120,7 +114,7 @@ Concept(Understood(), IsA(Agreement()))
 
 Concept(Laughter(),
   IsA(Category()),
-  Realization($said, context=Execution(), evaluateArguments=false,
+  Realization($said, context=Execution(), evaluateArguments=false, properties=List(Program()),
     body=MakeCall("Answer", List(MakeCall("Laughing", List())))))
 
 Concept(Lol(), IsA(Laughter()))

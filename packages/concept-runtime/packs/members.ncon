@@ -38,50 +38,67 @@ Concept(Reach(),
         Concat($next, Reach($next, Concat($seen, $next)))))))
 
 Concept(Singular(),
-  Realization(Singular($kind), context=Execution(), evaluateArguments=false,
-    body=Code(
-      ir=Async(
-        Lambda(
-          List($args, $bindings, $api),
-          Sequence(
-            Bind($kind, Member(Index($args, 0), "value")),
-            If(
-              Or(
-                Or(Equals($kind, null), NotEquals(TypeOf($kind), "object")),
-                Not(In("head", $kind))),
-              Return(Call(Member($api, "call"), "Nothing")),
-              Undefined()),
-            Bind($head, Member($kind, "head")),
-            Bind(
-              $known,
-              Lambda(
-                List($h),
-                Or(
-                  Call(Member(Member($api, "store"), "has"), $h),
-                  Call(
-                    Member(Call(Member(Member($api, "store"), "asObject"), $h), "some"),
-                    Lambda(List($t), Equals(Member($t, "predicate"), "IsA")))))),
-            If(
-              And(Call($known, $head), Not(Call(Member(Regex("s$", ""), "test"), $head))),
-              Return(Call(Member($api, "call"), $head)),
-              Undefined()),
-            ForOf(
-              $h,
-              List(
-                Call(Member($head, "replace"), Regex("ies$", ""), "y"),
-                Call(Member($head, "replace"), Regex("es$", ""), ""),
-                Call(Member($head, "replace"), Regex("s$", ""), "")),
+  Realization(Singular($kind), context=Execution(), evaluateArguments=false, properties=List(Program()),
+    body=Bind(
+      $kind2,
+      Quote($kind),
+      If(
+        Truthy(
+          Bind(
+            $t0,
+            If(Identical($kind2, null), true, NotIdentical(TypeOf($kind2), "object")),
+            If(Truthy($t0), $t0, Falsy(HasField("head", $kind2))))),
+        MakeCall("Nothing", List()),
+        Bind(
+          $head,
+          Head($kind2),
+          Bind(
+            $known,
+            Lambda(
+              List($h),
               If(
-                And(NotEquals($h, $head), Call($known, $h)),
-                Return(Call(Member($api, "call"), $h)),
-                Undefined())),
-            Return(Call(Member($api, "call"), $head))))))))
+                IsKnown($h),
+                true,
+                AnySatisfies(
+                  ClaimsWithObject($h),
+                  Lambda(List($t), Identical(FieldOf($t, "predicate"), "IsA"))))),
+            If(
+              Truthy(
+                Bind(
+                  $t1,
+                  Call($known, $head),
+                  If(Truthy($t1), Falsy(MatchesPattern(Regex("s$", ""), $head)), $t1))),
+              MakeCall($head, List()),
+              Bind(
+                $t3,
+                LoopOver(
+                  List(
+                    Replace($head, Regex("ies$", ""), "y"),
+                    Replace($head, Regex("es$", ""), ""),
+                    Replace($head, Regex("s$", ""), "")),
+                  Lambda(
+                    List($t2),
+                    Bind(
+                      $h2,
+                      $t2,
+                      If(
+                        Truthy(If(NotIdentical($h2, $head), Call($known, $h2), false)),
+                        LoopReturn(MakeCall($h2, List())),
+                        Steps(Undefined(), Undefined()))))),
+                If(IsLoopReturn($t3), LoopReturnValue($t3), MakeCall($head, List()))))))))))
 
 // "any games", "some birds", asked about: the members of the kind.
 Concept(Any(),
   Realization(Any($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
-    body=Evaluate(MakeCall("Members", List(Quote($kind))))))
+    body=Code(
+      ir=Async(
+        Lambda(
+          List($args, $bindings, $api),
+          Await(
+            Call(
+              Member($api, "evaluate"),
+              Call(Member($api, "call"), "Members", Member(Index($args, 0), "value")))))))))
 
 Concept(Some(),
-  Realization(Some($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false,
+  Realization(Some($kind), context=Context(Execution(), Interrogative()), evaluateArguments=false, properties=List(Program()),
     body=Evaluate(MakeCall("Members", List(Quote($kind))))))

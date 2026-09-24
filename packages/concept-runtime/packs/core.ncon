@@ -420,7 +420,10 @@ Concept(Bind(),
             Bind($bound, New($Map, List(List($name, $value)))),
             Return(Await(Call(Member($api, "resolve"), Call(Member($api, "bind"), Member($bodyArg, "value"), $bound))))))))))
 
-Concept(Lambda(), IsA(Data()))
+Concept(Lambda(), IsA(Data()), IsA(CodePrimitive()))
+
+// A function that names itself: Recursive($f, Lambda(...)) is itself wherever the body says $f.
+Concept(Recursive(), IsA(Data()), IsA(CodePrimitive()))
 
 // A function applied to values (code.ncon has how); what is not a function stays this call.
 Concept(Call(), IsA(CodePrimitive()))
