@@ -15,6 +15,7 @@ import { memoryIndividualUnits } from "./memory-individuals.js";
 import { memoryBelieveUnits } from "./memory-believe.js";
 import { memoryRecallUnits } from "./memory-recall.js";
 import { selfUnits } from "./self.js";
+import { membersUnits } from "./members.js";
 import { everydayUnits } from "./everyday.js";
 import { memoryForgetUnits } from "./memory-forget.js";
 import { memoryProcessUnits } from "./memory-process.js";
@@ -757,6 +758,12 @@ add(
           };
           const at = args.slice(1).map((a) => when(a.value)).find((w) => w !== undefined);
           if (at && subject && subject.head && subject.args.length === 0) subject = api.call(subject.head, at);
+          // "what games do you know", "which birds are there": a plural kind asked about with
+          // a clause after it asks for the kind's members, not for what the word means.
+          if (!at && args.length > 1 && subject && subject.head && subject.args.length === 0 && /[^s]s$/.test(subject.head)) {
+            const members = await api.evaluate(api.call("Members", subject));
+            if (members && members.head === "List" && members.args.length) return api.call("Answer", members);
+          }
           // "what is double 8": the number said after a bare operation is what it works on.
           if (!at && args.length === 2 && typeof args[1].value === "number" && subject && subject.head && subject.args.length === 0) {
             subject = api.call(subject.head, args[1].value);
@@ -1704,6 +1711,7 @@ export function seed(store: ConceptStore): SeedReport {
   applyUnits(store, memoryBelieveUnits(), report); // memory-spec Part 18 step 4
   applyUnits(store, memoryRecallUnits(), report); // memory-spec Part 9
   applyUnits(store, selfUnits(), report);
+  applyUnits(store, membersUnits(), report);
   applyUnits(store, everydayUnits(), report);
   applyUnits(store, memoryForgetUnits(), report); // memory-spec Part 10.5
   applyUnits(store, memoryProcessUnits(), report); // memory-spec Part 18 steps 5 and 6

@@ -109,3 +109,23 @@ test("a game reply is said directly, with the board as a labelled grid", async (
   const spoken = await say("b2", parse('InGame(Game_1(), echo="Tic tac toe against me", Moved(X(), B2()), Moved(O(), A1()), Board("O..", ".X.", "..."))'));
   assert.equal(spoken, "You played B2. I played A1.\n  a b c\n1 O . .\n2 . X .\n3 . . .");
 });
+
+test("asking what it knows of a kind looks up the kind's members", async () => {
+  const known = new ConceptStore();
+  seed(known);
+  const { concept } = await import("../concept/unit.js");
+  known.seed(concept("Robin", { relations: ["IsA(Bird())"] }));
+  known.seed(concept("Sparrow", { relations: ["IsA(Bird())"] }));
+  known.seed(concept("Moment", { relations: [{ claim: (await import("../concept/expression.js")).parse("IsA(Bird())"), context: c("Namesake") }] }));
+  const askIt = async (text: string) => (await turn(new Runtime(known), text, c("Execution"), { backend: "rules", learn: false, speak: false })).rendered;
+  assert.equal(await askIt("do you know any games?"), "Answer(List(TicTacToe()))");
+  assert.equal(await askIt("what games do you know"), "Answer(List(TicTacToe()))");
+  assert.equal(await askIt("do you know any birds?"), "Answer(List(Robin(), Sparrow()))", "a namesake is not a member");
+});
+
+test("wanting to play, asking to play, or naming the game starts one, however it is spelled", async () => {
+  for (const said of ["wanna play tick tac toe?", "can we play tictactoe", "tic-tak-toe?", "lets play noughts and crosses"]) {
+    assert.match(await ask(said), /^InGame\(Game_\d+\(\), echo="Tic tac toe against me", Started\(\)/, said);
+  }
+  assert.match(await ask("i want pizza"), /^Noted\(/, "wanting a thing is still a want");
+});

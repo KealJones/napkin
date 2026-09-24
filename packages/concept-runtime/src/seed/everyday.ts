@@ -129,6 +129,39 @@ export function everydayUnits(): ConceptUnit[] {
       ],
     }),
 
+    /**
+     * "wanna play tic tac toe?", "can we play chess": wanting to do something together, said
+     * to the one who would do it, is asking for it (Searle's indirect requests), the way
+     * "can you X" already is. Only a thing to do: "want pizza" stays a want.
+     */
+    concept("Want", {
+      realizations: [
+        realization({
+          pattern: "Want($x)",
+          context: "Execution()",
+          evaluateArguments: false,
+          body: code(`async (args, bindings, api) => {
+            const x = args[0].value;
+            const doable = x && x.head && (api.store.get(x.head)?.realizations.length ?? 0) > 0 && x.args.length > 0;
+            if (!doable) return api.call("Want", x);
+            const ctx = api.context;
+            const facets = ctx && ctx.head === "Context" ? ctx.args.map((a) => a.value) : [ctx];
+            return await api.evaluate(x, api.call("Context", ...facets.filter((f) => f && !["Checking", "Interrogative", "Declarative"].includes(f.head)), api.call("Imperative")));
+          }`),
+        }),
+      ],
+    }),
+    concept("Can", {
+      realizations: [
+        realization({
+          pattern: "Can(We(), $x)",
+          context: "Context(Execution(), Interrogative())",
+          evaluateArguments: false,
+          body: code(`async (args, bindings, api) => await api.evaluate(args[1].value, api.call("Context", api.call("Execution"), api.call("Imperative")))`),
+        }),
+      ],
+    }),
+
     // "define recursion", "explain recursion": asking what it is, in another form.
     concept("Define", { relations: ["SynonymOf(What())"] }),
     concept("Explain", { relations: ["SynonymOf(What())"] }),

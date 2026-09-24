@@ -799,8 +799,21 @@ function sentence(text: string): Expr[] {
   return out;
 }
 
+/**
+ * Names people spell many ways, written the one way the graph knows them. A spelling
+ * corrector fixes a word, but "tick tac toe" and "tic-tak-toe" are wrong as a phrase, with
+ * every word real, so no word-level correction can see it.
+ */
+const SPELLINGS: [RegExp, string][] = [
+  [/\b(tic|tick|tik)[\s-]*(tac|tack|tak)[\s-]*(toe|to)\b/gi, "tic tac toe"],
+  [/\btictactoe\b/gi, "tic tac toe"],
+  [/\b(noughts|naughts) (and|&) crosses\b/gi, "tic tac toe"],
+];
+
+const respelled = (text: string): string => SPELLINGS.reduce((t, [from, to]) => t.replace(from, to), text);
+
 function clauses(text: string): { e: Expr; kind?: Kind }[] {
-  const fixed = correct(expandBare(text.replace(/[?.!]+\s*$/, "")));
+  const fixed = correct(expandBare(respelled(text).replace(/[?.!]+\s*$/, "")));
   typed = fixed.typed;
   trailing = [];
   const toks = tokens(fixed.text);

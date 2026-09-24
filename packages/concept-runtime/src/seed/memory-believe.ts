@@ -302,6 +302,15 @@ export function memoryBelieveUnits(): ConceptUnit[] {
               const answer = (v) => api.call("Answer", api.call(v));
               const [subject, claim] = [args[0].value, args[1].value];
               if (!isCall(subject) || !isCall(claim)) return answer("UnknownTruth");
+              // "do you know any games": knowing is having found it, so the answer is what
+              // the question finds, and not knowing any is not yet knowing.
+              if (subject.head === "You" && claim.head === "Know" && positional(claim).length === 1) {
+                const found = await api.evaluate(positional(claim)[0]);
+                const unwrapped = isCall(found) && found.head === "Answer" ? positional(found)[0] : found;
+                if (isCall(unwrapped) && unwrapped.head === "List") return unwrapped.args.length ? api.call("Answer", unwrapped) : answer("UnknownTruth");
+                if (unwrapped !== undefined && api.format(unwrapped) !== api.format(positional(claim)[0])) return api.call("Answer", unwrapped);
+                return answer("UnknownTruth");
+              }
               const resolved = named(subject, "resolvedTo");
               const about = isCall(resolved) ? resolved.head : who(subject.head, false) ?? subject.head;
               const predicate = thirdPerson(claim.head);

@@ -239,6 +239,26 @@ function machinery(): ConceptUnit[] {
         ),
       ],
     }),
+    /**
+     * "tic tac toe?" on its own: a game with an ending named as a question is an offer to
+     * play it, so it starts one. Any kind that defines an ending, not only tic-tac-toe.
+     */
+    concept("Game", {
+      relations: ["IsA(Category())"],
+      realizations: ["Context(Execution(), Checking())", "Context(Execution(), Interrogative())"].map((context) =>
+        realization({
+          pattern: "$kind",
+          context,
+          evaluateArguments: false,
+          body: code(`async (args, bindings, api) => {
+            const kind = bindings.get("kind");
+            const ends = kind && kind.args.length === 0 && api.store.asSubject(kind.head).some((t) => t.predicate === "DefinesEnding");
+            if (!ends) return kind;
+            return await api.evaluate(api.call("Play", kind), api.call("Context", api.call("Execution"), api.call("Imperative")));
+          }`),
+        }),
+      ),
+    }),
     /** "let's X" proposes doing X together, which from the system's side is doing X. */
     concept("Let", {
       realizations: [
