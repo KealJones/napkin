@@ -963,6 +963,29 @@ function clauseAt(r: Reader, out: { e: Expr; kind?: Kind }[]): "stop" | undefine
     out.push({ e: c(joiner, next.e), ...(next.kind ? { kind: next.kind } : {}) });
     return;
   }
+  // "and then add 5", "subtract 3", "multiply by 2": an arithmetic verb given only a number
+  // works on the last answer too, as an operator word does.
+  {
+    let k = 0;
+    while (/^(and|now|then)$/.test(r.word(k))) k += 1;
+    const verb = r.word(k);
+    const by = (verb === "multiply" || verb === "divide") && r.word(k + 1) === "by" ? 1 : 0;
+    const n = k + 1 + by;
+    const number = r.is("Value", n) || NUMBER_WORD.test(r.word(n));
+    // Only as the message's first line: after it, the line before is what it works on (Sequence).
+    if (!out.length && /^(add|subtract|multiply|divide)$/.test(verb) && number && (r.peek(n + 1) === undefined || /^[?.!]$/.test(r.word(n + 1)))) {
+      const at = r.i;
+      r.i += n;
+      try {
+        out.push({ e: c(name(verb), c("Ref", ""), nounPhrase(r)), kind: "Interrogative" });
+        if (r.done()) return "stop";
+        return;
+      } catch (error) {
+        if (!(error instanceof Unparsed)) throw error;
+        r.i = at;
+      }
+    }
+  }
   // "and plus 3?", "now times 2", "times that by 2": an operator with nothing said before it
   // works on the last answer. What it works on is a reference nobody put into words,
   // `Ref("")`, which memory resolves the way it resolves "it". Asking for the value, so the

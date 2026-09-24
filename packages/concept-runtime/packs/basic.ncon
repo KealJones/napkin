@@ -388,7 +388,35 @@ Concept(Relations(),
                 ),
                 Bind($triples,
                   Filter(
-                    ClaimsOf($about, Record(transitive = false)),
+                    // What its synonyms hold describes it too: they mean the same. A claim
+                    // naming the Concept itself (a synonym's IsA of it) says nothing about it.
+                    Bind($sameAs,
+                      Concat(
+                        List($about),
+                        Map(
+                          Filter(
+                            ClaimsOf($about, Record(transitive = false)),
+                            Lambda(List($syn), Identical(FieldOf($syn, "predicate"), "SynonymOf"))
+                          ),
+                          Lambda(List($syn2), Head(FieldOf($syn2, "object")))
+                        )
+                      ),
+                      Filter(
+                        FlatMap($sameAs, Lambda(List($member), ClaimsOf($member, Record(transitive = false)))),
+                        Lambda(List($claimed),
+                          Bind($object2,
+                            FieldOf($claimed, "object"),
+                            Falsy(
+                              If(
+                                Truthy(IsCall($object2)),
+                                Identical(Head($object2), $about),
+                                false
+                              )
+                            )
+                          )
+                        )
+                      )
+                    ),
                     Lambda(List($t5),
                       Bind($unit,
                         UnitOf(FieldOf($t5, "predicate")),
@@ -1273,7 +1301,81 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
+            // A question that says more than its subject, which nothing above read (a copula is
+            // only how it was asked): describing
+            // the subject would answer something else ("when do you say hello").
+            If(
+              And(
+                And(Not($at), GreaterThan(Length($args), 1)),
+                Call(
+                  Member(Call(Member($args, "slice"), 1), "some"),
+                  Lambda(List($a),
+                    And(
+                      And(Member($a, "value"), Equals(TypeOf(Member($a, "value")), "object")),
+                      And(
+                        In("head", Member($a, "value")),
+                        Not(
+                          Call(
+                            Member(List("Is", "Was", "Will", "Be", "Are"), "includes"),
+                            Member(Member($a, "value"), "head")
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              ),
+              Return(Call(Member($api, "call"), "Unknown")),
+              Undefined()
+            ),
             Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
+            // A kind that is only its synonym by another name is described as said: what
+            // the synonym holds describes it too (Relations).
+            If(
+              And(
+                And(
+                  And(
+                    And(
+                      And(
+                        And(And($subject, Member($subject, "head")), Equals(Length(Member($subject, "args")), 0)),
+                        $value
+                      ),
+                      Member($value, "head")
+                    ),
+                    Equals(Length(Member($value, "args")), 0)
+                  ),
+                  NotEquals(Member($value, "head"), Member($subject, "head"))
+                ),
+                Call(
+                  Member(
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($subject, "head")), "relations"),
+                      List()
+                    ),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    And(
+                      And(Member($r, "claim"), Equals(Member(Member($r, "claim"), "head"), "SynonymOf")),
+                      Equals(
+                        OptionalMember(OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                        Member($value, "head")
+                      )
+                    )
+                  )
+                )
+              ),
+              Return(
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(Member($api, "call"), "Relations", $subject),
+                    Call(Member($api, "call"), "Describe")
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($plainKind,
               And(
                 And(

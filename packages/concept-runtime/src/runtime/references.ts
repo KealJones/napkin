@@ -5,7 +5,7 @@
  * needs history the message does not contain. Memory is lookup rather than resending a
  * transcript: the specific prior turn is found, and only when a parse says one is needed.
  */
-import { type Expr, isCall, call, format } from "../concept/expression.js";
+import { type Expr, isCall, call, format, parse } from "../concept/expression.js";
 
 export interface PriorTurn {
   readonly message: string;
@@ -38,6 +38,18 @@ function referent(text: string, history: readonly PriorTurn[]): string | undefin
   return best?.turn.result;
 }
 
+/**
+ * What a turn answered is kept as written, `Answer(4)`: the reference is to that expression,
+ * not to its text. What does not read as one (a sentence spoken) stays text.
+ */
+function referentValue(to: string): Expr {
+  try {
+    return parse(to);
+  } catch {
+    return to;
+  }
+}
+
 export function resolveReferences(
   expression: Expr | undefined,
   history: readonly PriorTurn[],
@@ -63,7 +75,7 @@ export function resolveReferences(
           resolved.push({ reference: text, to });
           // Keep the reference visible around what it resolved to, so the record still
           // shows that the user pointed rather than named.
-          return call("Ref", [{ value: text }, { name: "resolvedTo", value: to }]);
+          return call("Ref", [{ value: text }, { name: "resolvedTo", value: referentValue(to) }]);
         }
       }
       return e;

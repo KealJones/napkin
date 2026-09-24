@@ -1063,14 +1063,70 @@ Concept(Believe(),
                                                                                               Bind($t57,
                                                                                                 Concat(
                                                                                                   List(
-                                                                                                    MakeCall(
-                                                                                                      "IsA",
-                                                                                                      List(
-                                                                                                        MakeCall(
-                                                                                                          Head(
-                                                                                                            Get($kind)
+                                                                                                    If(
+                                                                                                      Truthy(
+                                                                                                        If(
+                                                                                                          NotBelow(
+                                                                                                            Length(
+                                                                                                              Call(
+                                                                                                                $positional,
+                                                                                                                Get(
+                                                                                                                  $kind
+                                                                                                                )
+                                                                                                              )
+                                                                                                            ),
+                                                                                                            2
                                                                                                           ),
-                                                                                                          List()
+                                                                                                          AllSatisfy(
+                                                                                                            Arguments(
+                                                                                                              Get($kind)
+                                                                                                            ),
+                                                                                                            Lambda(
+                                                                                                              List(
+                                                                                                                $modifier
+                                                                                                              ),
+                                                                                                              If(
+                                                                                                                Truthy(
+                                                                                                                  Call(
+                                                                                                                    $isCall,
+                                                                                                                    FieldOf(
+                                                                                                                      $modifier,
+                                                                                                                      "value"
+                                                                                                                    )
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                Identical(
+                                                                                                                  Length(
+                                                                                                                    Arguments(
+                                                                                                                      FieldOf(
+                                                                                                                        $modifier,
+                                                                                                                        "value"
+                                                                                                                      )
+                                                                                                                    )
+                                                                                                                  ),
+                                                                                                                  0
+                                                                                                                ),
+                                                                                                                false
+                                                                                                              )
+                                                                                                            )
+                                                                                                          ),
+                                                                                                          false
+                                                                                                        )
+                                                                                                      ),
+                                                                                                      // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                      MakeCall(
+                                                                                                        "IsA",
+                                                                                                        List(Get($kind))
+                                                                                                      ),
+                                                                                                      MakeCall(
+                                                                                                        "IsA",
+                                                                                                        List(
+                                                                                                          MakeCall(
+                                                                                                            Head(
+                                                                                                              Get($kind)
+                                                                                                            ),
+                                                                                                            List()
+                                                                                                          )
                                                                                                         )
                                                                                                       )
                                                                                                     )
@@ -3244,17 +3300,79 @@ Concept(Believe(),
                                                                                                         Bind($t115,
                                                                                                           Concat(
                                                                                                             List(
-                                                                                                              MakeCall(
-                                                                                                                "IsA",
-                                                                                                                List(
-                                                                                                                  MakeCall(
-                                                                                                                    Head(
-                                                                                                                      Get(
-                                                                                                                        $kind2
+                                                                                                              If(
+                                                                                                                Truthy(
+                                                                                                                  If(
+                                                                                                                    NotBelow(
+                                                                                                                      Length(
+                                                                                                                        Call(
+                                                                                                                          $positional,
+                                                                                                                          Get(
+                                                                                                                            $kind2
+                                                                                                                          )
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      2
+                                                                                                                    ),
+                                                                                                                    AllSatisfy(
+                                                                                                                      Arguments(
+                                                                                                                        Get(
+                                                                                                                          $kind2
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      Lambda(
+                                                                                                                        List(
+                                                                                                                          $modifier
+                                                                                                                        ),
+                                                                                                                        If(
+                                                                                                                          Truthy(
+                                                                                                                            Call(
+                                                                                                                              $isCall,
+                                                                                                                              FieldOf(
+                                                                                                                                $modifier,
+                                                                                                                                "value"
+                                                                                                                              )
+                                                                                                                            )
+                                                                                                                          ),
+                                                                                                                          Identical(
+                                                                                                                            Length(
+                                                                                                                              Arguments(
+                                                                                                                                FieldOf(
+                                                                                                                                  $modifier,
+                                                                                                                                  "value"
+                                                                                                                                )
+                                                                                                                              )
+                                                                                                                            ),
+                                                                                                                            0
+                                                                                                                          ),
+                                                                                                                          false
+                                                                                                                        )
                                                                                                                       )
                                                                                                                     ),
-                                                                                                                    List(
+                                                                                                                    false
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                                MakeCall(
+                                                                                                                  "IsA",
+                                                                                                                  List(
+                                                                                                                    Get(
+                                                                                                                      $kind2
+                                                                                                                    )
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                MakeCall(
+                                                                                                                  "IsA",
+                                                                                                                  List(
+                                                                                                                    MakeCall(
+                                                                                                                      Head(
+                                                                                                                        Get(
+                                                                                                                          $kind2
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      List(
 
+                                                                                                                      )
                                                                                                                     )
                                                                                                                   )
                                                                                                                 )
@@ -5365,17 +5483,79 @@ Concept(Believe(),
                                                                                                         Bind($t163,
                                                                                                           Concat(
                                                                                                             List(
-                                                                                                              MakeCall(
-                                                                                                                "IsA",
-                                                                                                                List(
-                                                                                                                  MakeCall(
-                                                                                                                    Head(
-                                                                                                                      Get(
-                                                                                                                        $kind3
+                                                                                                              If(
+                                                                                                                Truthy(
+                                                                                                                  If(
+                                                                                                                    NotBelow(
+                                                                                                                      Length(
+                                                                                                                        Call(
+                                                                                                                          $positional,
+                                                                                                                          Get(
+                                                                                                                            $kind3
+                                                                                                                          )
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      2
+                                                                                                                    ),
+                                                                                                                    AllSatisfy(
+                                                                                                                      Arguments(
+                                                                                                                        Get(
+                                                                                                                          $kind3
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      Lambda(
+                                                                                                                        List(
+                                                                                                                          $modifier
+                                                                                                                        ),
+                                                                                                                        If(
+                                                                                                                          Truthy(
+                                                                                                                            Call(
+                                                                                                                              $isCall,
+                                                                                                                              FieldOf(
+                                                                                                                                $modifier,
+                                                                                                                                "value"
+                                                                                                                              )
+                                                                                                                            )
+                                                                                                                          ),
+                                                                                                                          Identical(
+                                                                                                                            Length(
+                                                                                                                              Arguments(
+                                                                                                                                FieldOf(
+                                                                                                                                  $modifier,
+                                                                                                                                  "value"
+                                                                                                                                )
+                                                                                                                              )
+                                                                                                                            ),
+                                                                                                                            0
+                                                                                                                          ),
+                                                                                                                          false
+                                                                                                                        )
                                                                                                                       )
                                                                                                                     ),
-                                                                                                                    List(
+                                                                                                                    false
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                // "a senior software engineer": a kind said with its words is kept whole, not cut to its head.
+                                                                                                                MakeCall(
+                                                                                                                  "IsA",
+                                                                                                                  List(
+                                                                                                                    Get(
+                                                                                                                      $kind3
+                                                                                                                    )
+                                                                                                                  )
+                                                                                                                ),
+                                                                                                                MakeCall(
+                                                                                                                  "IsA",
+                                                                                                                  List(
+                                                                                                                    MakeCall(
+                                                                                                                      Head(
+                                                                                                                        Get(
+                                                                                                                          $kind3
+                                                                                                                        )
+                                                                                                                      ),
+                                                                                                                      List(
 
+                                                                                                                      )
                                                                                                                     )
                                                                                                                   )
                                                                                                                 )
@@ -8284,7 +8464,59 @@ Concept(My(),
                                                         If(
                                                           Truthy($holder),
                                                           MakeCall($holder, List()),
-                                                          MakeCall("Unknown", List(MakeCall("My", List($thing2))))
+                                                          // A kind the owner is, that is what was asked for: an engineer, asked for a job.
+                                                          Bind($kindsHeld,
+                                                            Filter(
+                                                              ClaimsOf($ownerId, Record(transitive = false)),
+                                                              Lambda(List($kh),
+                                                                Identical(FieldOf($kh, "predicate"), "IsA")
+                                                              )
+                                                            ),
+                                                            Bind($askedAs,
+                                                              Concat(
+                                                                List(Head($thing2)),
+                                                                Map(
+                                                                  Filter(
+                                                                    ClaimsOf(Head($thing2), Record(transitive = false)),
+                                                                    Lambda(List($ks),
+                                                                      Identical(FieldOf($ks, "predicate"), "SynonymOf")
+                                                                    )
+                                                                  ),
+                                                                  Lambda(List($ks2), Head(FieldOf($ks2, "object")))
+                                                                )
+                                                              ),
+                                                              Bind($kindHeld,
+                                                                FirstSatisfying(
+                                                                  $kindsHeld,
+                                                                  Lambda(List($kh2),
+                                                                    AnySatisfies(
+                                                                      ClaimsOf(Head(FieldOf($kh2, "object"))),
+                                                                      Lambda(List($kh3),
+                                                                        If(
+                                                                          Identical(FieldOf($kh3, "predicate"), "IsA"),
+                                                                          Truthy(
+                                                                            Includes(
+                                                                              $askedAs,
+                                                                              Head(FieldOf($kh3, "object"))
+                                                                            )
+                                                                          ),
+                                                                          false
+                                                                        )
+                                                                      )
+                                                                    )
+                                                                  )
+                                                                ),
+                                                                If(
+                                                                  IsNothing($kindHeld),
+                                                                  MakeCall(
+                                                                    "Unknown",
+                                                                    List(MakeCall("My", List($thing2)))
+                                                                  ),
+                                                                  FieldOf($kindHeld, "object")
+                                                                )
+                                                              )
+                                                            )
+                                                          )
                                                         )
                                                       )
                                                     )
@@ -8341,7 +8573,54 @@ Concept(My(),
                                                     If(
                                                       Truthy($holder2),
                                                       MakeCall($holder2, List()),
-                                                      MakeCall("Unknown", List(MakeCall("My", List($thing2))))
+                                                      // A kind the owner is, that is what was asked for: an engineer, asked for a job.
+                                                      Bind($kindsHeld,
+                                                        Filter(
+                                                          ClaimsOf($ownerId, Record(transitive = false)),
+                                                          Lambda(List($kh), Identical(FieldOf($kh, "predicate"), "IsA"))
+                                                        ),
+                                                        Bind($askedAs,
+                                                          Concat(
+                                                            List(Head($thing2)),
+                                                            Map(
+                                                              Filter(
+                                                                ClaimsOf(Head($thing2), Record(transitive = false)),
+                                                                Lambda(List($ks),
+                                                                  Identical(FieldOf($ks, "predicate"), "SynonymOf")
+                                                                )
+                                                              ),
+                                                              Lambda(List($ks2), Head(FieldOf($ks2, "object")))
+                                                            )
+                                                          ),
+                                                          Bind($kindHeld,
+                                                            FirstSatisfying(
+                                                              $kindsHeld,
+                                                              Lambda(List($kh2),
+                                                                AnySatisfies(
+                                                                  ClaimsOf(Head(FieldOf($kh2, "object"))),
+                                                                  Lambda(List($kh3),
+                                                                    If(
+                                                                      Identical(FieldOf($kh3, "predicate"), "IsA"),
+                                                                      Truthy(
+                                                                        Includes(
+                                                                          $askedAs,
+                                                                          Head(FieldOf($kh3, "object"))
+                                                                        )
+                                                                      ),
+                                                                      false
+                                                                    )
+                                                                  )
+                                                                )
+                                                              )
+                                                            ),
+                                                            If(
+                                                              IsNothing($kindHeld),
+                                                              MakeCall("Unknown", List(MakeCall("My", List($thing2)))),
+                                                              FieldOf($kindHeld, "object")
+                                                            )
+                                                          )
+                                                        )
+                                                      )
                                                     )
                                                   )
                                                 )
@@ -11129,9 +11408,29 @@ Concept(What(),
         )
       )
     )
+  ),
+  // A mark says how something was said, not what: what is asked about is what was meant.
+  Realization(What(MarkMisspelling($wrote, $meant)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = What($meant)
+  ),
+  Realization(What(MarkCorrection($old, $new)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = What($new)
+  ),
+  Realization(What(MarkFuzzy($words, $x)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = What($x)
+  ),
+  Realization(What(MarkEmphasis($words, $x)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = What($x)
   )
 )
-
 Concept(PastOf(), IsA(RelationProperty()))
 
 Concept(Ate(), PastOf(Eat()))

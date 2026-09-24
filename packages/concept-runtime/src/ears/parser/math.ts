@@ -30,14 +30,21 @@ const BINARY: Record<string, { name: string; prec: number; right?: true }> = {
   "^": { name: "Power", prec: 5, right: true },
   "**": { name: "Power", prec: 5, right: true },
 };
+/**
+ * Number words next to an operator are numbers in the sum, read as the Ears reads them,
+ * Number("one"): "what is one + 2". Only beside a symbol, so "one of them" stays words.
+ */
+const NUMBER_WORDS = "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million";
+const OPERATOR = "[-+*/×÷·^%=<>]";
+
 /** Unary minus binds tighter than * and looser than ^: -2^2 is -(2^2). */
 const NEGATE = 4;
 
-type Token = { kind: "num"; value: number } | { kind: "op"; op: string } | { kind: "open" } | { kind: "close" };
+type Token = { kind: "num"; value: Expr } | { kind: "op"; op: string } | { kind: "open" } | { kind: "close" };
 
 function tokenize(src: string): Token[] | undefined {
   const out: Token[] = [];
-  const re = /\s*(\d+(?:\.\d+)?|\*\*|<=|>=|mod\b|[-+*/×÷·^%=<>()]|x(?=\s*[\d(]))/y;
+  const re = new RegExp(`\\s*(\\d+(?:\\.\\d+)?|(?:${NUMBER_WORDS})\\b|\\*\\*|<=|>=|mod\\b|[-+*/×÷·^%=<>()]|x(?=\\s*[\\d(]))`, "iy");
   let at = 0;
   while (at < src.length) {
     re.lastIndex = at;
@@ -46,6 +53,7 @@ function tokenize(src: string): Token[] | undefined {
     at = re.lastIndex;
     const t = m[1];
     if (/^\d/.test(t)) out.push({ kind: "num", value: Number(t) });
+    else if (/^[a-z]/i.test(t) && t !== "x" && t.toLowerCase() !== "mod") out.push({ kind: "num", value: c("Number", t) });
     else if (t === "(") out.push({ kind: "open" });
     else if (t === ")") out.push({ kind: "close" });
     else out.push({ kind: "op", op: t });
@@ -70,7 +78,7 @@ function parse(tokens: Token[]): Expr | undefined {
     if (t.kind === "op" && t.op === "-") {
       const next = peek();
       // "-3" is a number; "-(2 + 3)" and "-x^2" negate what follows.
-      if (next?.kind === "num" && !(tokens[i + 1]?.kind === "op" && BINARY[(tokens[i + 1] as { op: string }).op]?.prec > NEGATE)) {
+      if (next?.kind === "num" && typeof next.value === "number" && !(tokens[i + 1]?.kind === "op" && BINARY[(tokens[i + 1] as { op: string }).op]?.prec > NEGATE)) {
         i += 1;
         return -next.value;
       }
@@ -122,7 +130,11 @@ export function readMath(span: string): Expr | undefined {
 export function mathSpans(text: string, keep: (e: Expr) => string): string {
   // A span starts at a number, a parenthesis or a minus before one, and runs over the
   // characters arithmetic is written in. Letters stop it, except "x" and "mod" between numbers.
-  const span = /(?<![\w.$#@/])(?:[-(]\s*)*\d(?:[\d.\s()+\-*/×÷·^%=<>]|x(?=\s*[\d(])|mod(?=\s))*/g;
+  const word = `(?:${NUMBER_WORDS})\\b`;
+  const span = new RegExp(
+    `(?<![\\w.$#@/])(?:[-(]\\s*)*(?:\\d|${word}(?=\\s*${OPERATOR}))(?:[\\d.\\s()+\\-*/×÷·^%=<>]|(?<=${OPERATOR}\\s*)${word}|x(?=\\s*[\\d(])|mod(?=\\s))*`,
+    "gi",
+  );
   return text.replace(span, (whole) => {
     // Trailing spaces, sentence punctuation and a dangling operator belong to the sentence.
     let s = whole.replace(/[\s.]+$/, "");

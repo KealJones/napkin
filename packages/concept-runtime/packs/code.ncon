@@ -2878,10 +2878,22 @@ Concept(AddValues(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Add(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Add(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -2898,10 +2910,22 @@ Concept(SubtractValues(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Subtract(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Subtract(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -2918,10 +2942,22 @@ Concept(MultiplyValues(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Multiply(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Multiply(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -2938,10 +2974,22 @@ Concept(DivideValues(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Divide(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Divide(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -2958,10 +3006,22 @@ Concept(RemainderOf(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Modulo(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Modulo(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -2978,10 +3038,22 @@ Concept(NegateValue(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Negate(Call($host, Index($v, 0)))))
+            Return(Call($back, Negate(Call($scalar, Index($v, 0)))))
           )
         )
       )
@@ -3118,10 +3190,22 @@ Concept(RaiseToPower(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Power(Call($host, Index($v, 0)), Call($host, Index($v, 1)))))
+            Return(Call($back, Power(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1)))))
           )
         )
       )
@@ -3365,9 +3449,21 @@ Concept(Below(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(LessThan(Call($host, Index($v, 0)), Call($host, Index($v, 1))))
+            Return(LessThan(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1))))
           )
         )
       )
@@ -3384,9 +3480,21 @@ Concept(Above(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(GreaterThan(Call($host, Index($v, 0)), Call($host, Index($v, 1))))
+            Return(GreaterThan(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1))))
           )
         )
       )
@@ -3403,9 +3511,21 @@ Concept(NotAbove(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(AtMost(Call($host, Index($v, 0)), Call($host, Index($v, 1))))
+            Return(AtMost(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1))))
           )
         )
       )
@@ -3422,9 +3542,21 @@ Concept(NotBelow(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
+            Bind($scalar,
+              Lambda(List($x),
+                Sequence(
+                  Bind($h, Call(Member($api, "toHost"), $x)),
+                  If(
+                    And(And(NotEquals($h, null), Equals(TypeOf($h), "object")), Not(InstanceOf($h, $Date))),
+                    Throw(New($Error, "Expected a number, text or an instant")),
+                    Undefined()
+                  ),
+                  Return($h)
+                )
+              )
+            ),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(AtLeast(Call($host, Index($v, 0)), Call($host, Index($v, 1))))
+            Return(AtLeast(Call($scalar, Index($v, 0)), Call($scalar, Index($v, 1))))
           )
         )
       )

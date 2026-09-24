@@ -129,3 +129,56 @@ test("wanting to play, asking to play, or naming the game starts one, however it
   }
   assert.match(await ask("i want pizza"), /^Noted\(/, "wanting a thing is still a want");
 });
+
+/** A conversation, each turn knowing the ones before, on a store of its own. */
+const conversation = () => {
+  const own = new ConceptStore();
+  seed(own);
+  const history: { message: string; result: string }[] = [];
+  return async (text: string) => {
+    const r = await turn(new Runtime(own), text, c("Execution"), { backend: "rules", learn: false, speak: false, history });
+    history.push({ message: text, result: String(r.rendered) });
+    return String(r.rendered);
+  };
+};
+
+test("a number word does sums in symbols, and an arithmetic verb works on the last answer", async () => {
+  const talk = conversation();
+  assert.equal(await talk("what is one + 2?"), "Answer(3)");
+  assert.equal(await talk("what is 1 plus 3?"), "Answer(4)");
+  assert.equal(await talk("and then add 5?"), "9");
+});
+
+test("a reference resolves to what was answered, not its text", async () => {
+  const talk = conversation();
+  await talk("what is 2 plus 2");
+  const { resolveReferences } = await import("./references.js");
+  const { format, parse } = await import("../concept/expression.js");
+  const { expression } = resolveReferences(parse('Times(Ref(""), 2)'), [{ message: "what is 2 plus 2", result: "Answer(4)" }]);
+  assert.equal(format(expression!), 'Times(Ref("", resolvedTo=Answer(4)), 2)');
+});
+
+test("a kind is described with what its synonyms hold, and as it was said", async () => {
+  const own = new ConceptStore();
+  const { concept } = await import("../concept/unit.js");
+  // Seeded first, so seeding derives the synonyms' forwarding, as the graph has it.
+  own.seed(concept("Job", { relations: ["SynonymOf(Occupation())", "IsA(Work())", "RelatedTo(Employment())"] }));
+  own.seed(concept("Occupation", { relations: ["SynonymOf(Job())"] }));
+  seed(own);
+  const ask2 = async (text: string) => String((await turn(new Runtime(own), text, c("Execution"), { backend: "rules", learn: false, speak: false })).rendered);
+  assert.match(await ask2("what is an occupation"), /^Describes\(Occupation\(\), .*RelatedTo\(Employment\(\)\)/);
+  assert.match(await ask2("what is an ocupation"), /^Describes\(Occupation\(\), .*RelatedTo\(Employment\(\)\)/);
+});
+
+test("a kind said with its words is believed whole, and a job asked for is a kind one is", async () => {
+  const talk = conversation();
+  // Every word said is kept: a compound the lexicon knows, or the kind with its words.
+  assert.match(await talk("I am a Senior Software Engineer"), /IsA\((SoftwareEngineer\(\)\), Senior\(\)|Engineer\(Senior\(\), Software\(\)\)\))/);
+  await talk("a software engineer is an engineer");
+  await talk("an engineer is a job");
+  assert.match(await talk("what is my job?"), /Engineer/);
+});
+
+test("a question that asks more than its subject is not answered with the subject", async () => {
+  assert.equal(await ask("when you say hello?"), "Unknown()");
+});
