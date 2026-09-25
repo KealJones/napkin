@@ -59,3 +59,23 @@ test("Extends answers with what the stored expression says beyond the goal, or F
   assert.equal(await run("Extends(Capital(Of(France()), Is(Paris())), Capital(Of(France())))"), "List(Is(Paris()))");
   assert.equal(await run("Extends(My(Dog()), My(Name()))"), "False()");
 });
+
+test("said in another shape: the question's words are in the statement, and the rest answers", async () => {
+  const { say } = conversation();
+  await say("i live in phoenix");
+  await say("i ate an apple");
+  await say("greg is my coworker");
+  await say("my sister lives in denver");
+  assert.equal((await say("where do i live?")).rendered, "Answer(Phoenix())");
+  assert.equal((await say("what did i eat?")).rendered, "Answer(Apple())", "ate is eat");
+  assert.equal((await say("who is my coworker?")).rendered, "Answer(Greg())");
+  assert.equal((await say("where does my sister live?")).rendered, "Answer(Denver())");
+  assert.equal((await say("who is greg?")).rendered, "Answer(My(Coworker()))");
+});
+
+test("an answer of the wrong kind is passed over: who asks for someone", async () => {
+  const { say } = conversation();
+  await say("my favorite number is 7");
+  assert.equal((await say("what is my favorite number?")).rendered, "Answer(7)");
+  assert.doesNotMatch((await say("who is my favorite number?")).rendered, /^Answer\(7\)/);
+});

@@ -1308,43 +1308,65 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
-            // A question that says more than its subject, which nothing above read (a copula is
-            // only how it was asked): describing
-            // the subject would answer something else ("when do you say hello").
-            If(
-              And(
-                And(Not($at), GreaterThan(Length($args), 1)),
-                Call(
-                  Member(Call(Member($args, "slice"), 1), "some"),
-                  Lambda(List($a),
-                    And(
-                      And(Member($a, "value"), Equals(TypeOf(Member($a, "value")), "object")),
-                      And(
-                        In("head", Member($a, "value")),
-                        Not(
-                          Call(
-                            Member(List("Is", "Was", "Will", "Be", "Are"), "includes"),
-                            Member(Member($a, "value"), "head")
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              ),
-              Return(Call(Member($api, "call"), "Unknown")),
-              Undefined()
-            ),
             Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
             // A compound subject that realized to itself is looked for, not described: "my
             // name" is not a kind with relations to list, it is something said or held.
+            // A question of two or more parts ("where do i live": Me() and Live()) is looked for
+            // whole, since no one part is what it asks about; describing the subject would
+            // answer something else ("when do you say hello").
             If(
               And(
-                And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
+                Or(
+                  And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
+                  GreaterThan(Length($args), 1)
+                ),
                 Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $subject))
               ),
               Sequence(
-                Bind($found, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Pursue", $subject)))),
+                // What the question word asks for (Who: someone), so Pursue can refuse an
+                // answer of another kind.
+                Bind($question, Call(Member($bindings, "get"), "question")),
+                Bind($target,
+                  If(
+                    And($question, GreaterThan(Length($args), 1)),
+                    $question,
+                    $subject
+                  )
+                ),
+                Bind($asks,
+                  If(
+                    And($question, Member($question, "head")),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Closure",
+                          Member($question, "head"),
+                          "Asks"
+                        )
+                      )
+                    ),
+                    Undefined()
+                  )
+                ),
+                Bind($found,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      If(
+                        And(And($asks, Equals(Member($asks, "head"), "List")), Length(Member($asks, "args"))),
+                        Call(
+                          Member($api, "call"),
+                          "Pursue",
+                          $target,
+                          Member(Index(Member($asks, "args"), 0), "value")
+                        ),
+                        Call(Member($api, "call"), "Pursue", $target)
+                      )
+                    )
+                  )
+                ),
                 If(
                   And(Member($found, "head"), Equals(Member($found, "head"), "Found")),
                   Return(
@@ -1358,7 +1380,7 @@ Concept(Interrogative(),
                 ),
                 // Not found anywhere is not knowing, said plainly. Describing the head of a
                 // compound would answer "my cat's name" with what "my" is.
-                Return(Call(Member($api, "call"), "Unknown", $subject))
+                Return(Call(Member($api, "call"), "Unknown", $target))
               ),
               Undefined()
             ),
@@ -1466,7 +1488,7 @@ Concept(Interrogative(),
               Return(Call(Member($api, "call"), "Answer", $value)),
               Undefined()
             ),
-            Return(
+            Bind($described,
               Await(
                 Call(
                   Member($api, "evaluate"),
@@ -1474,7 +1496,28 @@ Concept(Interrogative(),
                   Call(Member($api, "call"), "Describe")
                 )
               )
-            )
+            ),
+            // Nothing held about it is not nothing said about it: "who is greg", after "greg is
+            // my coworker", is answered by what was said.
+            If(
+              And(Member($described, "head"), Equals(Member($described, "head"), "NoDescription")),
+              Sequence(
+                Bind($said, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Pursue", $subject)))),
+                If(
+                  And(Member($said, "head"), Equals(Member($said, "head"), "Found")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Answer",
+                      Member(Index(Member($said, "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return($described)
           )
         )
       )
@@ -1501,11 +1544,21 @@ Concept(Unclear(), IsA(Marker()))
 
 Concept(What(), IsA(Interrogative()))
 
-Concept(Who(), IsA(Interrogative()))
+// What a question word asks for, so an answer of another kind is not taken for one: "who
+// founded microsoft" is not answered by the date it was founded.
+Concept(Asks(), IsA(Relation()))
 
-Concept(When(), IsA(Interrogative()))
+Concept(Someone(), IsA(Category()))
 
-Concept(Where(), IsA(Interrogative()))
+Concept(Place(), IsA(Category()))
+
+Concept(Amount(), IsA(Category()))
+
+Concept(Who(), IsA(Interrogative()), Asks(Someone()))
+
+Concept(When(), IsA(Interrogative()), Asks(Time()))
+
+Concept(Where(), IsA(Interrogative()), Asks(Place()))
 
 Concept(Why(), IsA(Interrogative()))
 
@@ -1513,9 +1566,9 @@ Concept(How(), IsA(Interrogative()))
 
 Concept(Which(), IsA(Interrogative()))
 
-Concept(HowMany(), IsA(Interrogative()))
+Concept(HowMany(), IsA(Interrogative()), Asks(Amount()))
 
-Concept(HowMuch(), IsA(Interrogative()))
+Concept(HowMuch(), IsA(Interrogative()), Asks(Amount()))
 
 Concept(WhichOf(), IsA(Interrogative()))
 
@@ -1592,6 +1645,49 @@ Concept(WhichAm(), SynonymOf(Which()))
 Concept(WhichDo(), SynonymOf(Which()))
 
 Concept(WhichDoes(), SynonymOf(Which()))
+
+// Asked about the past, the same question word.
+Concept(WhatDid(), SynonymOf(What()))
+
+Concept(WhatWas(), SynonymOf(What()))
+
+Concept(WhatWere(), SynonymOf(What()))
+
+Concept(WhoDid(), SynonymOf(Who()))
+
+Concept(WhoWas(), SynonymOf(Who()))
+
+Concept(WhoWere(), SynonymOf(Who()))
+
+Concept(WhenDid(), SynonymOf(When()))
+
+Concept(WhenWas(), SynonymOf(When()))
+
+Concept(WhenWere(), SynonymOf(When()))
+
+Concept(WhereDid(), SynonymOf(Where()))
+
+Concept(WhereWas(), SynonymOf(Where()))
+
+Concept(WhereWere(), SynonymOf(Where()))
+
+Concept(WhyDid(), SynonymOf(Why()))
+
+Concept(WhyWas(), SynonymOf(Why()))
+
+Concept(WhyWere(), SynonymOf(Why()))
+
+Concept(HowDid(), SynonymOf(How()))
+
+Concept(HowWas(), SynonymOf(How()))
+
+Concept(HowWere(), SynonymOf(How()))
+
+Concept(WhichDid(), SynonymOf(Which()))
+
+Concept(WhichWas(), SynonymOf(Which()))
+
+Concept(WhichWere(), SynonymOf(Which()))
 
 // A yes/no question wants a truth value, not a subject, so it declares its own
 // realization locally, which beats the inherited one on distance.

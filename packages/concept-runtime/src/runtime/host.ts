@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import nlp from "compromise";
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
 
@@ -55,6 +56,19 @@ export function readText(path: string): string | undefined {
   const text = readFileSync(at, "utf8");
   texts.set(at, { at: changed, text });
   return text;
+}
+
+const lemmas = new Map<string, string>();
+
+/** A word's base form, by the tagger the Ears already reads with (CodeApi.lemma). */
+export function lemma(word: string): string {
+  const w = word.toLowerCase();
+  const held = lemmas.get(w);
+  if (held !== undefined) return held;
+  const d = nlp(w);
+  const base = d.verbs().toInfinitive().text() || d.nouns().toSingular().text() || w;
+  lemmas.set(w, base.toLowerCase());
+  return base.toLowerCase();
 }
 
 export function fromHost(v: unknown): Expr {

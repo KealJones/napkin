@@ -25,7 +25,7 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
-import { fromHost, readText, toHost } from "./host.js";
+import { fromHost, lemma, readText, toHost } from "./host.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -126,6 +126,8 @@ export interface CodeApi {
    * cached until the file changes. Undefined when it is not there.
    */
   readText(path: string): string | undefined;
+  /** A word's base form: a verb's infinitive, a noun's singular ("ate" is "eat"). */
+  lemma(word: string): string;
 }
 
 export class Runtime {
@@ -552,6 +554,7 @@ export class Runtime {
       rank: (candidates, sources = []) =>
         activation(this.store, sources, { among: candidates, events: this.evidence?.all() ?? [] }).map((a) => a.identity),
       readText,
+      lemma,
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;
         dropTurns(this.tracePath, new Set(saidSeqs));
