@@ -978,6 +978,95 @@ Concept(About(),
   )
 )
 
+// A route Pursue found and kept: an item's value by a Wikidata property, the sense that has it.
+Concept(LookUpBy(),
+  IsA(Category()),
+  Realization(LookUpBy($item, $property),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind(List($item, $property), Map($args, Lambda(List($a), Member($a, "value")))),
+            If(
+              Or(Not(Call($isCall, $item)), Not(Call($isCall, $property))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "LookUpBy",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Var($text, ""),
+            ForOf(
+              $ch,
+              Member($item, "head"),
+              Assign(
+                $text,
+                Add(
+                  $text,
+                  If(
+                    And(And(AtLeast($ch, "A"), AtMost($ch, "Z")), Length($text)),
+                    Add(" ", Call(Member($ch, "toLowerCase"))),
+                    Call(Member($ch, "toLowerCase"))
+                  )
+                )
+              )
+            ),
+            Bind($senses, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "WikidataSenses", $text)))),
+            ForOf(
+              $s,
+              If(
+                And(Call($isCall, $senses), Equals(Member($senses, "head"), "List")),
+                Call(Member(Member($senses, "args"), "slice"), 0, 4),
+                List()
+              ),
+              Sequence(
+                Bind($candidate,
+                  Call(
+                    Member($api, "call"),
+                    "Wikidata",
+                    Member(Index(Member(Member($s, "value"), "args"), 0), "value"),
+                    Member(Index(Member(Member($s, "value"), "args"), 1), "value")
+                  )
+                ),
+                Bind($got,
+                  Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "LookUp", $candidate, $property)))
+                ),
+                If(
+                  And(And(Call($isCall, $got), Equals(Member($got, "head"), "List")), Length(Member($got, "args"))),
+                  Return(
+                    If(
+                      Equals(Length(Member($got, "args")), 1),
+                      Member(Index(Member($got, "args"), 0), "value"),
+                      $got
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "LookUpBy",
+                Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Where a kept route came from.
+Concept(Chunked(), IsA(Data()))
+
 // Every relation mentioning a Concept, at any depth, read from the store's mention index.
 Concept(Mentions(),
   IsA(Category()),
@@ -2177,6 +2266,73 @@ Concept(Pursue(),
                       $fact,
                       Undefined(),
                       Member(Member($api, "trace"), "cause")
+                    ),
+                    Bind($leaf,
+                      Lambda(List($g),
+                        Sequence(
+                          If(Not(Call($isCall, $g)), Return($g), Undefined()),
+                          If(
+                            And(Equals(Member($g, "head"), Member($e, "head")), Not(Length(Member($g, "args")))),
+                            Return(Object(variable = "item")),
+                            Undefined()
+                          ),
+                          Return(
+                            Object(
+                              head = Member($g, "head"),
+                              args = Map(
+                                Filter(Member($g, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                                Lambda(List($a), Object(value = Call($leaf, Member($a, "value"))))
+                              )
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Bind($pattern, Call($leaf, $goal)),
+                    Bind($owner, Call(Member(Member($api, "store"), "get"), Member($p, "head"))),
+                    Bind($held,
+                      If(
+                        $owner,
+                        Call(
+                          Member(Member($owner, "realizations"), "some"),
+                          Lambda(List($r),
+                            Equals(
+                              Call(Member($api, "format"), Member($r, "pattern")),
+                              Call(Member($api, "format"), $pattern)
+                            )
+                          )
+                        ),
+                        false
+                      )
+                    ),
+                    If(
+                      And(
+                        Not($held),
+                        NotEquals(Call(Member($api, "format"), $pattern), Call(Member($api, "format"), $goal))
+                      ),
+                      Call(
+                        Member(Member($api, "store"), "addRealization"),
+                        Member($p, "head"),
+                        Object(
+                          pattern = $pattern,
+                          context = Call(
+                            Member($api, "call"),
+                            "Context",
+                            Call(Member($api, "call"), "Execution"),
+                            Call(Member($api, "call"), "Interrogative")
+                          ),
+                          body = Call(
+                            Member($api, "call"),
+                            "LookUpBy",
+                            Object(variable = "item"),
+                            $property
+                          ),
+                          properties = List(Call(Member($api, "call"), "Chunked", $from)),
+                          evaluateArguments = false,
+                          evaluateResult = false
+                        )
+                      ),
+                      Undefined()
                     ),
                     Return(Call(Member($api, "call"), "Found", $value, $fact))
                   )
