@@ -40,5 +40,5 @@ test("a word nobody knows hears as what the tagger says it looks like", async ()
 
 test("under Hearing a word only hears: nothing it does elsewhere runs", async () => {
   // Add and Delete have behaviour; heard, they are words.
-  assert.equal(await hear("add 2 and 3 then delete everything"), "Phrases(Add(), And(2, 3), Then(), Delete(), Everything())");
+  assert.equal(await hear("add 2 and 3 then delete everything"), "Phrases(Add(), And(2, 3), Then(), Delete(Everything()))");
 });
