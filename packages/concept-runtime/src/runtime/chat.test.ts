@@ -42,7 +42,7 @@ test("small talk is answered, not looked up", async () => {
 test("the system can say who it is and what it can do", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   assert.equal(await ask("what is your name"), 'Answer("Napkin")');
   assert.match(await ask("what can you do"), /^Answer\(List\(Arithmetic\(\), /);
-  assert.match(await ask("who are you"), /IsA\(Assistant\(\)\)/);
+  assert.match(await ask("who are you"), /IsA\(AI\(\)\)/);
   assert.doesNotMatch(await ask("who are you"), /CanDo/, "capabilities are answered when asked, not recited");
 });
 

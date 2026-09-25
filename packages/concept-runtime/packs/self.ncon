@@ -14,7 +14,8 @@ Requires(Basic(), Memory())
 // What the system can actually do today. Each is something a test exercises.
 Concept(Self(),
   Named("Napkin"),
-  IsA(Assistant()),
+  IsA(AI()),
+  IsA(WorkInProgress()),
   CanDo(Arithmetic()),
   CanDo(FollowUpArithmetic()),
   CanDo(DatesAndTimes()),
@@ -29,7 +30,10 @@ Concept(Self(),
   CanDo(ForgetWhatYouAsk())
 )
 
-Concept(Assistant(), IsA(Category()))
+Concept(AI(), IsA(Category()))
+
+// Still being built: what it can do today is what the CanDo list says, and no more.
+Concept(WorkInProgress(), IsA(Category()))
 
 // Incidental: what it can do is answered when asked, not recited in every description.
 Concept(CanDo(), Enduring(), Incidental())
