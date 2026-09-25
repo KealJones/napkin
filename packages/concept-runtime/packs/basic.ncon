@@ -1329,6 +1329,29 @@ Concept(Interrogative(),
               Undefined()
             ),
             Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
+            // A compound subject that realized to itself is looked for, not described: "my
+            // name" is not a kind with relations to list, it is something said or held.
+            If(
+              And(
+                And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
+                Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $subject))
+              ),
+              Sequence(
+                Bind($found, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Pursue", $subject)))),
+                If(
+                  And(Member($found, "head"), Equals(Member($found, "head"), "Found")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Answer",
+                      Member(Index(Member($found, "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             // A kind that is only its synonym by another name is described as said: what
             // the synonym holds describes it too (Relations).
             If(

@@ -671,40 +671,14 @@ Concept(Mood(),
               )
             ),
             Bind($kind, Member(Index($args, 0), "value")),
-            Bind($line,
-              If(
-                And($kind, Equals(Member($kind, "head"), "Declarative")),
-                Call(
-                  Member($api, "call"),
-                  "Believe",
-                  Member(Index($args, 1), "value")
-                ),
-                Member(Index($args, 1), "value")
-              )
-            ),
-            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
-            Bind($focus,
-              If(
-                $conversation,
-                Await(
-                  Call(
-                    Member($api, "evaluate"),
-                    Call(
-                      Member($api, "call"),
-                      "Focus",
-                      Call(Member($api, "call"), $conversation)
-                    )
-                  )
-                ),
-                Undefined()
-              )
-            ),
-            Bind($focused,
-              If(
-                And($focus, Equals(Member($focus, "head"), "List")),
-                Map(Member($focus, "args"), Lambda(List($a), Member($a, "value"))),
-                List()
-              )
+            Bind($line, Member(Index($args, 1), "value")),
+            // A statement is a claim, not a request: it is kept as said (the conversation's
+            // Said), and read back when something asks after it (Pursue). Running it would
+            // turn every word of it into missing behaviour.
+            If(
+              And($kind, Equals(Member($kind, "head"), "Declarative")),
+              Return(Call(Member($api, "call"), "Noted", $line)),
+              Undefined()
             ),
             Return(
               Await(
@@ -715,7 +689,6 @@ Concept(Mood(),
                     Member($api, "call"),
                     "Context",
                     Spread($facets),
-                    Spread($focused),
                     $kind
                   )
                 )

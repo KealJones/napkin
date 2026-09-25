@@ -1,0 +1,327 @@
+Requires(Basic())
+
+// ================================================================
+// Pursue: looking for an answer instead of stopping at a residual
+// (design/pursue-predict.md).
+//
+// Nothing here knows what is being asked about. A goal is an expression that realized to
+// itself; the graph is searched for what mentions it, and what was said or held is matched
+// against it by shape. Every piece is its own Concept, so each can be called, traced and
+// replaced on its own.
+
+// A relation found by what it mentions: the identity holding it, and the claim.
+Concept(Held(), IsA(Result()))
+
+// What Pursue came back with: the value, and the statement it was read from.
+Concept(Found(), IsA(Result()))
+
+// Nothing in the graph filled the goal. Not an error: the caller decides what to do next.
+Concept(NotFound(), IsA(Result()))
+
+// Every relation mentioning a Concept, at any depth, read from the store's mention index.
+Concept(Mentions(),
+  IsA(Category()),
+  Realization(Mentions($x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
+        Sequence(
+          Bind($x, Member(Index($args, 0), "value")),
+          Bind($key,
+            If(
+              And(And($x, Equals(TypeOf($x), "object")), In("head", $x)),
+              Call(Member($api, "call"), Member($x, "head")),
+              $x
+            )
+          ),
+          Bind($found, Call(Member(Member($api, "store"), "mentioning"), $key)),
+          Return(
+            Call(
+              Member($api, "call"),
+              "List",
+              Spread(
+                Map(
+                  $found,
+                  Lambda(List($m),
+                    Call(
+                      Member($api, "call"),
+                      "Held",
+                      Call(Member($api, "call"), Member($m, "identity")),
+                      Member(Member($m, "relation"), "claim")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Does a stored expression say more than the goal, in the goal's own shape? Same heads in the
+// same places, with arguments the goal did not have. The answer is those extra arguments, a
+// List, or False when the stored expression is not the goal's shape at all.
+//
+// "my name is Keal" is My(Name(Is(Keal()))); "what is my name" asks about My(Name()). The
+// stored one extends the asked one by Is(Keal()).
+Concept(Extends(),
+  IsA(Category()),
+  Realization(Extends($stored, $goal),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
+        Sequence(
+          Bind($stored, Member(Index($args, 0), "value")),
+          Bind($goal, Member(Index($args, 1), "value")),
+          Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+          Bind($rest,
+            Lambda(List($s, $g),
+              Sequence(
+                If(
+                  Not(Call($isCall, $g)),
+                  Return(
+                    If(
+                      Equals(Call(Member($api, "format"), $s), Call(Member($api, "format"), $g)),
+                      List(),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                ),
+                If(
+                  Or(
+                    Or(Not(Call($isCall, $s)), NotEquals(Member($s, "head"), Member($g, "head"))),
+                    LessThan(Length(Member($s, "args")), Length(Member($g, "args")))
+                  ),
+                  Return(Undefined()),
+                  Undefined()
+                ),
+                Bind($left, List()),
+                For(
+                  Var($i, 0),
+                  LessThan($i, Length(Member($g, "args"))),
+                  PostIncrement($i),
+                  Sequence(
+                    Bind($r,
+                      Call(
+                        $rest,
+                        Member(Index(Member($s, "args"), $i), "value"),
+                        Member(Index(Member($g, "args"), $i), "value")
+                      )
+                    ),
+                    If(
+                      Equals($r, Undefined()),
+                      Return(Undefined()),
+                      Undefined()
+                    ),
+                    Call(Member($left, "push"), Spread($r))
+                  )
+                ),
+                ForOf(
+                  $a,
+                  Call(Member(Member($s, "args"), "slice"), Length(Member($g, "args"))),
+                  Call(Member($left, "push"), Member($a, "value"))
+                ),
+                Return($left)
+              )
+            )
+          ),
+          Bind($left, Call($rest, $stored, $goal)),
+          If(
+            Equals($left, Undefined()),
+            Return(Call(Member($api, "call"), "False")),
+            Undefined()
+          ),
+          Return(Call(Member($api, "call"), "List", Spread($left)))
+        )
+      )
+    )
+  )
+)
+
+// Fill a goal from the graph.
+//
+// The goal's rarest head is searched first, so a word every relation mentions does not
+// flood the candidates (the fan effect). Newest first, so what was said last wins. What was
+// said counts only from the one asking, since "my" in someone else's words is theirs, and a
+// question asserts nothing, so interrogative lines are skipped. A single extra argument that
+// wraps one value, like Is(Keal()), answers with the value.
+Concept(Pursue(),
+  IsA(Category()),
+  Realization(Pursue($goal),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($goal, Member(Index($args, 0), "value")),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            If(
+              Not(Call($isCall, $goal)),
+              Return(Call(Member($api, "call"), "NotFound", $goal)),
+              Undefined()
+            ),
+            Bind($heads, List()),
+            Bind($collect,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    Not(Includes($heads, Member($e, "head"))),
+                    Call(Member($heads, "push"), Member($e, "head")),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($collect, Member($a, "value"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($collect, $goal),
+            Bind($fan,
+              Lambda(List($h),
+                Length(Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $h)))
+              )
+            ),
+            Bind($known, Filter($heads, Lambda(List($h), GreaterThan(Call($fan, $h), 0)))),
+            If(
+              Not(Length($known)),
+              Return(Call(Member($api, "call"), "NotFound", $goal)),
+              Undefined()
+            ),
+            Bind($rarest,
+              Call(Member($known, "reduce"), Lambda(List($a, $b), If(LessThan(Call($fan, $b), Call($fan, $a)), $b, $a)))
+            ),
+            Bind($latest,
+              Lambda(List($r),
+                Call(
+                  Member($Math, "max"),
+                  0,
+                  Spread(Map(Or(Member($r, "stamps"), List()), Lambda(List($s), Member($s, "seq"))))
+                )
+              )
+            ),
+            Bind($held,
+              Call(
+                Member(
+                  Call(
+                    Member(
+                      Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $rarest)),
+                      "slice"
+                    )
+                  ),
+                  "sort"
+                ),
+                Lambda(List($a, $b),
+                  Subtract(Call($latest, Member($b, "relation")), Call($latest, Member($a, "relation")))
+                )
+              )
+            ),
+            Bind($inner,
+              Lambda(List($e, $out),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    And(
+                      And(
+                        Equals(Member($e, "head"), "Mood"),
+                        Call($isCall, OptionalMember(Index(Member($e, "args"), 0), "value"))
+                      ),
+                      Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Interrogative")
+                    ),
+                    Return(),
+                    Undefined()
+                  ),
+                  Call(Member($out, "push"), $e),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($inner, Member($a, "value"), $out)
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf(
+              $m,
+              Call(Member($held, "slice"), 0, 200),
+              Sequence(
+                Bind($claim, Member(Member($m, "relation"), "claim")),
+                If(Not(Call($isCall, $claim)), Continue(), Undefined()),
+                If(
+                  And(
+                    Equals(Member($claim, "head"), "Said"),
+                    Not(
+                      And(
+                        Call($isCall, OptionalMember(Index(Member($claim, "args"), 0), "value")),
+                        Equals(Member(Member(Index(Member($claim, "args"), 0), "value"), "head"), "Me")
+                      )
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($content,
+                  If(
+                    Equals(Member($claim, "head"), "Said"),
+                    OptionalMember(Index(Member($claim, "args"), 1), "value"),
+                    $claim
+                  )
+                ),
+                Bind($subs, List()),
+                Call($inner, $content, $subs),
+                ForOf(
+                  $s,
+                  $subs,
+                  Sequence(
+                    Bind($left, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Extends", $s, $goal)))),
+                    If(
+                      Or(
+                        Or(Not(Call($isCall, $left)), NotEquals(Member($left, "head"), "List")),
+                        Not(Length(Member($left, "args")))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($values, Map(Member($left, "args"), Lambda(List($a), Member($a, "value")))),
+                    Bind($only,
+                      If(
+                        Equals(Length($values), 1),
+                        Index($values, 0),
+                        Undefined()
+                      )
+                    ),
+                    Bind($value,
+                      If(
+                        And(
+                          And(NotEquals($only, Undefined()), Call($isCall, $only)),
+                          Equals(Length(Member($only, "args")), 1)
+                        ),
+                        Member(Index(Member($only, "args"), 0), "value"),
+                        If(
+                          Equals(Length($values), 1),
+                          Index($values, 0),
+                          Call(Member($api, "call"), "List", Spread($values))
+                        )
+                      )
+                    ),
+                    Return(Call(Member($api, "call"), "Found", $value, $content))
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "NotFound", $goal))
+          )
+        )
+      )
+    )
+  )
+)

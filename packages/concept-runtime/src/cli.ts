@@ -15,6 +15,7 @@ import { activation } from "./runtime/activation.js";
 import { evidenceStoreFor } from "./runtime/evidence.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
 import { turn } from "./runtime/turn.js";
+import { ConversationRepository } from "./memory/conversations.js";
 import { study } from "./learn/study.js";
 import { curriculum, EVERYDAY, TRACKS } from "./learn/curriculum.js";
 import { forget } from "./store/forget.js";
@@ -301,8 +302,22 @@ if (expr) {
     console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama, or use --expr.");
     process.exit(1);
   }
+  // One conversation the command line keeps across runs, the newest persistent one, so what
+  // was said in one run is there to be read in the next, the way the studio records it.
+  const conversations = new ConversationRepository(store);
+  const conversationId = flag("--fresh")
+    ? conversations.create(false).id
+    : (conversations.listActive().find((x) => x.persistent) ?? conversations.create()).id;
+  const heard = conversations.receive();
+  runtime.trace.said(heard.seq);
+  const history = conversations
+    .turns(conversationId)
+    .slice(-6)
+    .map((t) => ({ message: t.message, result: t.result, spoken: t.spoken || t.result }));
   // The same options the studio builds, so a question answers the same either way.
   const t = await turn(runtime, message, context, {
+    history,
+    conversation: conversationId,
     learn: !flag("--no-learn"),
     ...(value("--model") === undefined ? {} : { model: value("--model")! }),
     ...(value("--endpoint") === undefined ? {} : { endpoint: value("--endpoint")! }),
@@ -319,6 +334,13 @@ if (expr) {
   if (t.gaps.length)
     show("gaps — the learning queue", t.gaps.map((g) => `${g.kind}: ${g.expression}`).join("\n"));
   if (t.ambiguities.length) show("ambiguities", t.ambiguities.join("\n"));
+  conversations.record(conversationId, {
+    message,
+    ...(t.expression === undefined ? {} : { parsed: t.expression }),
+    result: t.result ?? t.rendered,
+    ...(t.spoken === undefined ? {} : { spoken: t.spoken }),
+    heard,
+  });
   const grew = persist();
   persistTrace();
   if (t.learned.length) show("graph", `${grew} Concepts saved to ${graphPath}`);

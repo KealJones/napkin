@@ -121,6 +121,10 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
   const inputs = residuals.map((e) => e.input);
   for (const event of residuals) {
     if (explainedByAnother(event.input, inputs)) continue;
+    // A residual that was worked around is not missing: "what is my name" left My(Name())
+    // residual and then found the name some other way. Only what the answer still holds, or
+    // a turn with no answer at all, has something left to learn.
+    if (result !== undefined && ![...walk(result)].some((node) => equal(node, event.input))) continue;
     // A name resolved to an individual is a thing, not missing behaviour: "who is greg"
     // describes Greg_1 whether or not a kind called Greg exists.
     if (isCall(event.input) && event.input.args.some((a) => a.name === "resolvedTo")) continue;
