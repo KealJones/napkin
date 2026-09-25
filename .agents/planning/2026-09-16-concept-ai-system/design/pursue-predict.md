@@ -245,3 +245,29 @@ by `src/seed/dialogue/fetch.sh`, CC BY-NC-SA 4.0, not committed); `FetchText`, `
   name split across two heads, and no property word in the question.
 - The seven todo tests from the old memory pack are still todo: "what can you do", "who are
   you", holidays, members of a kind, and believed kinds.
+
+### Third pass: no model hears or speaks
+
+- **English replaces the Mouth** (packs/english.ncon). Every result Concept has a
+  realization in `Speaking()`, the way a Concept writes itself in `JavaScript()`. `Words` says
+  a Concept as its words (names keep capitals via the `properNoun` host facility, my becomes
+  your, `My(Cat(Name()))` is "your cat's name"). Replayed over 108 saved messages, the model
+  was needed 0 times, so say.ts no longer calls one.
+- **Chunk.** A Wikidata answer leaves a realization on the property's word:
+  `Capital(Of($item)) -> LookUpBy($item, Wikidata("P36", "capital"))`. The next question of
+  that shape skips the search for which word is the property.
+- **Rules-only Ears by default.** Unread words are `Unclear` and looked up with `Meaning`;
+  unreadable statements are still answered as talk by their feeling.
+- **Words** (packs/words.ncon): what was said about a word, then Wiktionary by how it was
+  used; function words get no meaning; interjections answer as talk by inheritance.
+
+Models left: the Teacher, as learning's last resort, and the Ears' `hybrid`/`model` backends,
+only when asked for.
+
+### Next: the Ears in IR
+
+The parser is about 3,600 lines of TypeScript (rules.ts is 1,321) over the compromise tagger.
+The word lists that decide meaning (filler, vocative, answer words, fixed phrases) are the
+first slice to move into the graph as Concepts the parser reads. Then the parser's passes, as
+IR bodies behind a tagging host facility, with Predict ranking candidate readings where the
+rules now pick one by keyword.
