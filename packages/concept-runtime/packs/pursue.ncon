@@ -1074,8 +1074,11 @@ Concept(Pursue(),
                   ),
                   If(
                     And(
-                      And(NotEquals($only, Undefined()), Call($isCall, $only)),
-                      Equals(Length(Member($only, "args")), 1)
+                      And(
+                        And(NotEquals($only, Undefined()), Call($isCall, $only)),
+                        Equals(Length(Member($only, "args")), 1)
+                      ),
+                      Call(Member(Member($api, "store"), "has"), Member($only, "head"))
                     ),
                     Return(Member(Index(Member($only, "args"), 0), "value")),
                     Undefined()
@@ -1398,6 +1401,83 @@ Concept(Pursue(),
                 List($goal)
               )
             ),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                If(
+                  Member($api, "context"),
+                  List(Member($api, "context")),
+                  List()
+                )
+              )
+            ),
+            Bind($here,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Spread($facets),
+                Call(Member($api, "call"), "Hypothetical")
+              )
+            ),
+            Bind($bareParts,
+              Filter($askedParts, Lambda(List($x), And(Call($isCall, $x), Not(Length(Member($x, "args"))))))
+            ),
+            ForOf(
+              $verb,
+              $bareParts,
+              Sequence(
+                Bind($unit, Call(Member(Member($api, "store"), "get"), Member($verb, "head"))),
+                Bind($takesOne,
+                  And(
+                    $unit,
+                    Call(
+                      Member(Member($unit, "realizations"), "some"),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                            Equals(Member(Member($r, "pattern"), "head"), Member($verb, "head"))
+                          ),
+                          Equals(Length(Member(Member($r, "pattern"), "args")), 1)
+                        )
+                      )
+                    )
+                  )
+                ),
+                If(Not($takesOne), Continue(), Undefined()),
+                ForOf(
+                  $other,
+                  $askedParts,
+                  Sequence(
+                    If(Equals($other, $verb), Continue(), Undefined()),
+                    Bind($attempt, Call(Member($api, "call"), Member($verb, "head"), $other)),
+                    Var($r, Undefined()),
+                    Try(Assign($r, Await(Call(Member($api, "evaluate"), $attempt, $here))), Catch($error, Continue())),
+                    If(
+                      Or(
+                        Not(Call($isCall, $r)),
+                        Equals(Call(Member($api, "format"), $r), Call(Member($api, "format"), $attempt))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Found",
+                        If(
+                          And(Equals(Member($r, "head"), "Answer"), Equals(Length(Member($r, "args")), 1)),
+                          Member(Index(Member($r, "args"), 0), "value"),
+                          $r
+                        ),
+                        $attempt
+                      )
+                    )
+                  )
+                )
+              )
+            ),
             Bind($asked, New($Set)),
             ForOf(
               $part,
@@ -1698,25 +1778,6 @@ Concept(Pursue(),
               )
             ),
             Call($gather, $goal),
-            Bind($facets,
-              If(
-                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
-                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
-                If(
-                  Member($api, "context"),
-                  List(Member($api, "context")),
-                  List()
-                )
-              )
-            ),
-            Bind($here,
-              Call(
-                Member($api, "call"),
-                "Context",
-                Spread($facets),
-                Call(Member($api, "call"), "Hypothetical")
-              )
-            ),
             ForOf(
               $part,
               $parts,
@@ -1765,7 +1826,18 @@ Concept(Pursue(),
                       )
                     )
                   ),
-                  Return(Call(Member($api, "call"), "Found", $r, $part)),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Found",
+                      If(
+                        And(Equals(Member($r, "head"), "Answer"), Equals(Length(Member($r, "args")), 1)),
+                        Member(Index(Member($r, "args"), 0), "value"),
+                        $r
+                      ),
+                      $part
+                    )
+                  ),
                   Undefined()
                 )
               )

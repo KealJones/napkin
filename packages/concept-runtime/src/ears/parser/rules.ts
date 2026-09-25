@@ -846,8 +846,12 @@ function clauses(text: string): { e: Expr; kind?: Kind }[] {
     // "like isn't who already...": a leading "like" before a clause is filler, not a hedge.
     // "yo homie can you...", "dude where is it": who is spoken to, before the clause, is an aside.
     // A response that is the whole message ("hi", "lol") is said, not filler around something.
-    const alone = () => r.i === r.toks.length - 1 && responds(r.word());
-    while ((isFiller(r.word()) && !alone() && !(r.word() === "now" && r.is("Verb", 1) === false && r.done())) || ((r.word() === "like" || VOCATIVE.test(r.word())) && opensClause(r, 1))) filler.push(r.next().raw);
+    // Nothing else said, a leading word is what was said, not filler around it ("yo" alone).
+    const alone = () => r.i === r.toks.length - 1;
+    // "lol means laugh out loud", "brb stands for be right back": a word its own verb agrees
+    // with is the subject, not an aside. An auxiliary opens a question instead ("yo is that you").
+    const subject = () => r.i + 1 < r.toks.length && r.is("Verb", 1) && /[^s]s$/.test(r.word(1)) && !/^(is|was|has|does)$/.test(r.word(1));
+    while ((isFiller(r.word()) && !alone() && !subject() && !(r.word() === "now" && r.is("Verb", 1) === false && r.done())) || ((r.word() === "like" || VOCATIVE.test(r.word())) && opensClause(r, 1))) filler.push(r.next().raw);
     if (filler.length) out.push({ e: c("MarkAside", filler.join(" ")) });
     // "yeah keep going", "sorry what did i agree to": a response said before the clause is its own line.
     const politeOnly = r.toks.length - r.i === 2 && /^(please|pls|plz|thanks|thx)$/.test(r.word(1));

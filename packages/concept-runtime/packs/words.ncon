@@ -1,0 +1,726 @@
+Requires(Basic(), Pursue(), Dialogue())
+
+// ================================================================
+// Words it does not know yet, worked out the way a question is (design/pursue-predict.md).
+//
+// A word is looked for in what was said about it first ("lol means laugh out loud"), then in
+// a dictionary, taking the sense that fits how it was used: said alone, an exclamation;
+// applied to something, a verb; named, a noun. The nearest thing sharing its spelling is
+// not it: that made Means a family name and Keep a castle keep. What is found is kept on the
+// word with where it came from.
+
+// What a word means: the word, the meaning, as what part of speech, and where it came from.
+Concept(Meaning(),
+  IsA(Result()),
+  Realization(Meaning(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Var($given, Member(Index($args, 0), "value")),
+            While(
+              And(
+                And(Call($isCall, $given), Equals(Length(Member($given, "args")), 1)),
+                Call($isCall, Member(Index(Member($given, "args"), 0), "value"))
+              ),
+              Sequence(
+                Bind($kinds,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Closure",
+                        Member($given, "head"),
+                        "IsA"
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Not(
+                    And(
+                      Call($isCall, $kinds),
+                      Call(
+                        Member(Member($kinds, "args"), "some"),
+                        Lambda(List($a),
+                          And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Marker"))
+                        )
+                      )
+                    )
+                  ),
+                  Break(),
+                  Undefined()
+                ),
+                Assign($given, Member(Index(Member($given, "args"), 0), "value"))
+              )
+            ),
+            Bind($use,
+              If(
+                And(GreaterThan(Length($args), 1), Call($isCall, Member(Index($args, 1), "value"))),
+                Member(Member(Index($args, 1), "value"), "head"),
+                Undefined()
+              )
+            ),
+            Bind($spoken,
+              Lambda(List($h),
+                Sequence(
+                  Var($text, ""),
+                  ForOf(
+                    $ch,
+                    $h,
+                    Assign(
+                      $text,
+                      Add(
+                        $text,
+                        If(
+                          And(And(AtLeast($ch, "A"), AtMost($ch, "Z")), Length($text)),
+                          Add(" ", Call(Member($ch, "toLowerCase"))),
+                          Call(Member($ch, "toLowerCase"))
+                        )
+                      )
+                    )
+                  ),
+                  Return($text)
+                )
+              )
+            ),
+            Bind($text,
+              If(
+                Equals(TypeOf($given), "string"),
+                Call(Member(Call(Member($given, "trim")), "toLowerCase")),
+                If(
+                  Call($isCall, $given),
+                  Call($spoken, Member($given, "head")),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              Not($text),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Meaning",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Var($head, ""),
+            Var($up, true),
+            ForOf(
+              $ch,
+              $text,
+              If(
+                Or(And(AtLeast($ch, "a"), AtMost($ch, "z")), And(AtLeast($ch, "0"), AtMost($ch, "9"))),
+                Sequence(Assign($head, Add($head, If($up, Call(Member($ch, "toUpperCase")), $ch))), Assign($up, false)),
+                Assign($up, true)
+              )
+            ),
+            If(
+              Or(Not($head), And(AtLeast(Index($head, 0), "0"), AtMost(Index($head, 0), "9"))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Meaning",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($words,
+              Lambda(List($e),
+                Sequence(
+                  If(Equals(TypeOf($e), "string"), Return($e), Undefined()),
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Return(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Concat(
+                              List(Call($spoken, Member($e, "head"))),
+                              Map(
+                                Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                                Lambda(List($a), Call($words, Member($a, "value")))
+                              )
+                            ),
+                            "join"
+                          ),
+                          " "
+                        ),
+                        "trim"
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($keep,
+              Lambda(List($meaning, $as, $from),
+                Sequence(
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    $head,
+                    Call(Member($api, "call"), "Means", $meaning),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  ),
+                  If(
+                    Equals($as, "Interjection"),
+                    Call(
+                      Member(Member($api, "store"), "addRelation"),
+                      $head,
+                      Call(
+                        Member($api, "call"),
+                        "IsA",
+                        Call(Member($api, "call"), "Interjection")
+                      ),
+                      Undefined(),
+                      Member(Member($api, "trace"), "cause")
+                    ),
+                    Undefined()
+                  ),
+                  Return(
+                    Object(
+                      head = "Meaning",
+                      args = List(
+                        Object(value = Call(Member($api, "call"), $head)),
+                        Object(value = $meaning),
+                        Object(
+                          name = "as",
+                          value = If(
+                            $as,
+                            Call(Member($api, "call"), $as),
+                            Call(Member($api, "call"), "Unlabelled")
+                          )
+                        ),
+                        Object(name = "from", value = $from)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($held, Call(Member(Member($api, "store"), "get"), $head)),
+            Bind($known,
+              If(
+                $held,
+                Call(
+                  Member(Map(Member($held, "relations"), Lambda(List($r), Member($r, "claim"))), "find"),
+                  Lambda(List($c),
+                    And(
+                      And(Call($isCall, $c), Equals(Member($c, "head"), "Means")),
+                      Equals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "string")
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              $known,
+              Return(
+                Object(
+                  head = "Meaning",
+                  args = List(
+                    Object(value = Call(Member($api, "call"), $head)),
+                    Object(value = Member(Index(Member($known, "args"), 0), "value")),
+                    Object(name = "from", value = Call(Member($api, "call"), "Held"))
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($base, Lambda(List($h), Call(Member($api, "lemma"), Call($spoken, $h)))),
+            ForOf(
+              $m,
+              Call(
+                Member(
+                  Call(
+                    Member(
+                      Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $head)),
+                      "slice"
+                    )
+                  ),
+                  "reverse"
+                )
+              ),
+              Sequence(
+                Bind($claim, Member(Member($m, "relation"), "claim")),
+                If(
+                  Or(
+                    Or(Not(Call($isCall, $claim)), NotEquals(Member($claim, "head"), "Said")),
+                    Not(
+                      And(
+                        Call($isCall, OptionalMember(Index(Member($claim, "args"), 0), "value")),
+                        Equals(Member(Member(Index(Member($claim, "args"), 0), "value"), "head"), "Me")
+                      )
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($found, List()),
+                Bind($look,
+                  Lambda(List($e),
+                    Sequence(
+                      If(Not(Call($isCall, $e)), Return(), Undefined()),
+                      If(
+                        Equals(Member($e, "head"), $head),
+                        ForOf(
+                          $a,
+                          Member($e, "args"),
+                          Sequence(
+                            Bind($v, Member($a, "value")),
+                            If(
+                              And(
+                                And(
+                                  Call($isCall, $v),
+                                  Or(
+                                    Call(Member(Call($base, Member($v, "head")), "startsWith"), "mean"),
+                                    Equals(Call($base, Member($v, "head")), "stand for")
+                                  )
+                                ),
+                                Length(Member($v, "args"))
+                              ),
+                              Call(
+                                Member($found, "push"),
+                                Call(
+                                  Member(
+                                    Map(Member($v, "args"), Lambda(List($x), Call($words, Member($x, "value")))),
+                                    "join"
+                                  ),
+                                  " "
+                                )
+                              ),
+                              Undefined()
+                            )
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        Call($look, Member($a, "value"))
+                      ),
+                      Undefined()
+                    )
+                  )
+                ),
+                Call($look, OptionalMember(Index(Member($claim, "args"), 1), "value")),
+                If(
+                  Length($found),
+                  Return(
+                    Call(
+                      $keep,
+                      Index($found, 0),
+                      Undefined(),
+                      Call(Member($api, "call"), "Said")
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($plain,
+              Lambda(List($html),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Call(
+                              Member(
+                                Call(
+                                  Member(Call($String, Or($html, "")), "replace"),
+                                  Regex("<style[\\s\\S]*?<\\/style>", "gi"),
+                                  ""
+                                ),
+                                "replace"
+                              ),
+                              Regex("<[^>]+>", "g"),
+                              ""
+                            ),
+                            "replace"
+                          ),
+                          Regex("&[a-z#0-9]+;", "g"),
+                          " "
+                        ),
+                        "replace"
+                      ),
+                      Regex("\\s+", "g"),
+                      " "
+                    ),
+                    "trim"
+                  )
+                )
+              )
+            ),
+            Bind($order,
+              If(
+                Equals($use, "Interjection"),
+                List("Interjection", "Phrase", "Noun"),
+                If(
+                  Equals($use, "Verb"),
+                  List("Verb", "Phrase", "Noun"),
+                  List()
+                )
+              )
+            ),
+            Bind($lookUp,
+              Async(
+                Lambda(List($spelling, $depth),
+                  Sequence(
+                    Bind($url,
+                      Add(
+                        "https://en.wiktionary.org/api/rest_v1/page/definition/",
+                        Call($encodeURIComponent, Call(Member(Call(Member($spelling, "split"), " "), "join"), "_"))
+                      )
+                    ),
+                    Bind($got,
+                      Call(
+                        Member($api, "toHost"),
+                        Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+                      )
+                    ),
+                    Bind($entries,
+                      If(
+                        And($got, Call(Member($Array, "isArray"), Member($got, "en"))),
+                        Filter(Member($got, "en"), Lambda(List($e), NotEquals(Member($e, "partOfSpeech"), "Symbol"))),
+                        List()
+                      )
+                    ),
+                    ForOf(
+                      $pos,
+                      Concat($order, List(Undefined())),
+                      ForOf(
+                        $e,
+                        $entries,
+                        Sequence(
+                          If(
+                            And(NotEquals($pos, Undefined()), NotEquals(Member($e, "partOfSpeech"), $pos)),
+                            Continue(),
+                            Undefined()
+                          ),
+                          ForOf(
+                            $x,
+                            Or(Member($e, "definitions"), List()),
+                            Sequence(
+                              Bind($html, Call($String, Or(Member($x, "definition"), ""))),
+                              Bind($d, Call($plain, $html)),
+                              If(AtMost(Length($d), 2), Continue(), Undefined()),
+                              Bind($pointer,
+                                And(
+                                  Includes($html, "form-of-definition"),
+                                  Call(Member(Regex("^alternative .*form of", "i"), "test"), $d)
+                                )
+                              ),
+                              Bind($link,
+                                Call(
+                                  Member(
+                                    Concat(
+                                      Call(
+                                        Member($html, "matchAll"),
+                                        Regex("rel=\"mw:WikiLink\" href=\"\\/wiki\\/([^\"#]+)", "g")
+                                      )
+                                    ),
+                                    "find"
+                                  ),
+                                  Lambda(List($l), Not(Includes(Call($decodeURIComponent, Index($l, 1)), ":")))
+                                )
+                              ),
+                              If(
+                                And(And($pointer, $link), LessThan($depth, 1)),
+                                Sequence(
+                                  Bind($found,
+                                    Await(
+                                      Call(
+                                        $lookUp,
+                                        Call(
+                                          Member(
+                                            Call(Member(Call($decodeURIComponent, Index($link, 1)), "split"), "_"),
+                                            "join"
+                                          ),
+                                          " "
+                                        ),
+                                        Add($depth, 1)
+                                      )
+                                    )
+                                  ),
+                                  If($found, Return($found), Undefined()),
+                                  Continue()
+                                ),
+                                Undefined()
+                              ),
+                              Return(Object(d = $d, pos = Member($e, "partOfSpeech"), url = $url))
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Return(Undefined())
+                  )
+                )
+              )
+            ),
+            Bind($found, Await(Call($lookUp, $text, 0))),
+            If(
+              $found,
+              Sequence(
+                Bind($talk,
+                  And(
+                    Equals($use, "Interjection"),
+                    Or(Equals(Member($found, "pos"), "Interjection"), Equals(Member($found, "pos"), "Phrase"))
+                  )
+                ),
+                Return(
+                  Call(
+                    $keep,
+                    Member($found, "d"),
+                    If($talk, "Interjection", Member($found, "pos")),
+                    Call(
+                      Member($api, "call"),
+                      "Wiktionary",
+                      Member($found, "url")
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Meaning",
+                Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+Concept(Means(), IsA(Relation()))
+
+// What a word means, asked as a verb: "what does lol mean" is Mean(Lol()).
+Concept(Mean(),
+  Realization(Mean($word),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Call(
+            Member($api, "evaluate"),
+            Call(
+              Member($api, "call"),
+              "Meaning",
+              Member(Index($args, 0), "value")
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+Concept(Wiktionary(),
+  IsA(Corpus()),
+  License("CC BY-SA 4.0")
+)
+
+Concept(Unlabelled(), IsA(Data()))
+
+// A word said as an exclamation: talk, answered in kind (Reply), with what it means.
+Concept(Interjection(),
+  IsA(Category()),
+  Realization($word,
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($word, Call(Member($bindings, "get"), "word")),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($message, Call(Member($api, "ambient"), "message")),
+            Bind($unit,
+              If(
+                Call($isCall, $word),
+                Call(Member(Member($api, "store"), "get"), Member($word, "head")),
+                Undefined()
+              )
+            ),
+            Bind($means,
+              If(
+                $unit,
+                Call(
+                  Member(Map(Member($unit, "relations"), Lambda(List($r), Member($r, "claim"))), "find"),
+                  Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "Means")))
+                ),
+                Undefined()
+              )
+            ),
+            Bind($heard,
+              Lambda(List($r),
+                And(
+                  And(Call($isCall, $r), Equals(Member($r, "head"), "Reply")),
+                  Call($isCall, OptionalMember(Index(Member($r, "args"), 0), "value"))
+                )
+              )
+            ),
+            Var(
+              $reply,
+              If(
+                And(Equals(TypeOf($message), "string"), Not(Includes($message, "?"))),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
+                Undefined()
+              )
+            ),
+            If(
+              And(
+                And(
+                  And(
+                    And(Not(Call($heard, $reply)), $means),
+                    Equals(TypeOf(Member(Index(Member($means, "args"), 0), "value")), "string")
+                  ),
+                  Equals(TypeOf($message), "string")
+                ),
+                Not(Includes($message, "?"))
+              ),
+              Assign(
+                $reply,
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Reply",
+                      Call(
+                        Member(Member(Index(Member($means, "args"), 0), "value"), "replace"),
+                        Regex("^(initialism|abbreviation|acronym) of ", "i"),
+                        ""
+                      )
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($args2, List(Object(value = $word))),
+            If(
+              Call($heard, $reply),
+              Call(Member($args2, "push"), Object(name = "reply", value = $reply)),
+              Undefined()
+            ),
+            If(
+              $means,
+              Call(
+                Member($args2, "push"),
+                Object(name = "means", value = Member(Index(Member($means, "args"), 0), "value"))
+              ),
+              Undefined()
+            ),
+            Return(Object(head = "Noted", args = $args2))
+          )
+        )
+      )
+    )
+  )
+)
+
+Concept(Greeting(), IsA(Interjection()))
+
+Concept(Laughter(), IsA(Interjection()))
+
+// A word the Ears could not read is looked up, and then taken as what it was said as.
+Concept(Unclear(),
+  Realization(Unclear(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($text, Member(Index($args, 0), "value")),
+            If(
+              NotEquals(TypeOf($text), "string"),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Unclear",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($alone, Call(Member($api, "ambient"), "message")),
+            Bind($use,
+              If(
+                And(
+                  Equals(TypeOf($alone), "string"),
+                  Equals(
+                    Call(
+                      Member(
+                        Call(
+                          Member(Call(Member(Call(Member($alone, "trim")), "toLowerCase")), "replace"),
+                          Regex("[^a-z ]", "g"),
+                          ""
+                        ),
+                        "trim"
+                      )
+                    ),
+                    Call(Member($text, "toLowerCase"))
+                  )
+                ),
+                Call(Member($api, "call"), "Interjection"),
+                Call(Member($api, "call"), "Unlabelled")
+              )
+            ),
+            Bind($meaning, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Meaning", $text, $use)))),
+            If(
+              Not(Call($isCallish, $meaning)),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Unclear",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($word, Member(Index(Member($meaning, "args"), 0), "value")),
+            Return(Call(Member($api, "evaluate"), $word)),
+            Func(
+              $isCallish,
+              List($e),
+              Return(
+                And(
+                  And(
+                    And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), Equals(Member($e, "head"), "Meaning")),
+                    GreaterThan(Length(Member($e, "args")), 1)
+                  ),
+                  Equals(TypeOf(Member(Index(Member($e, "args"), 1), "value")), "string")
+                )
+              )
+            ),
+            Undefined()
+          )
+        )
+      )
+    )
+  )
+)

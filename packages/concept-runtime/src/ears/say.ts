@@ -30,14 +30,17 @@ If the result is Sequence(...), each part answers the next part of the message, 
 If the result is Conflict(x, List(before), List(now)), say what you were told before about
 x and ask whether it has changed to what they just said.
 If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
-facts back in plain words. If the result is Noted(x) with no reply=, acknowledge it in a few words and
+facts back in plain words. If the result is Noted(Word(), ..., means="..."), they said only that word to you: reply to it
+by the Reply, and never define the word or say what it means. If the result is
+Noted(x) with no reply= and no means=, acknowledge it in a few words and
 say it back to them, for example "Got it, you ate an apple."
 If the result is Noted(x, reply=Reply(Act(), heard=Heard(Act(), Feeling()))),
 do not say "Got it" or repeat their words back; answer the way the Reply says: Heard is how their words came across
 (its feeling matters most: meet happiness with warmth, sadness or fear with care, anger with
 calm), and the first Act is what your reply does (Question: ask them something back; Inform:
 say something; Directive: suggest something; Commissive: offer or agree). Reply to what they
-said, in one or two short sentences, adding no facts of your own.
+said, in one or two short sentences, adding no facts of your own. If the Reply has like="...",
+that is a reply to nearly the same words: say it, in your own light wording.
 If the result is Answer(Predicted(x, rule)), say x, and in a few words the rule that gives it.
 If the result is Answer(Judged(List(a, b), Kind(...), IfYouWant(a, List(...)), IfYouWant(b, List(...)), lean)),
 do not pick for them unless lean is Leans(...). Say in one sentence they are both that kind,
@@ -289,7 +292,9 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
  */
 function withoutExamples(e: Expr): Expr {
   if (!isCall(e)) return e;
-  const args = e.args.filter((a) => !(e.head === "Reply" && (a.name === "like" || a.name === "near")));
+  // Close, the example answered nearly the same words, and is kept to be said.
+  const close = e.head === "Reply" && e.args.some((a) => a.name === "close");
+  const args = e.args.filter((a) => !(e.head === "Reply" && (a.name === "near" || a.name === "close" || (a.name === "like" && !close))));
   return { head: e.head, args: args.map((a) => ({ ...a, value: withoutExamples(a.value) })) };
 }
 

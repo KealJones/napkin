@@ -1320,7 +1320,15 @@ Concept(Interrogative(),
                   And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
                   GreaterThan(Length($args), 1)
                 ),
-                Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $subject))
+                // A subject that answers on its own ("lol", laughing back) was said to, not
+                // asked about: "what does lol mean" is not answered by laughing.
+                Or(
+                  Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $subject)),
+                  And(
+                    GreaterThan(Length($args), 1),
+                    And(Member($value, "head"), Equals(Member($value, "head"), "Answer"))
+                  )
+                )
               ),
               Sequence(
                 // What the question word asks for (Who: someone), so Pursue can refuse an

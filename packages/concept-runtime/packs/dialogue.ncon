@@ -407,6 +407,30 @@ Concept(Reply(),
                     )
                   )
                 ),
+                If(
+                  $againstBase,
+                  Sequence(
+                    Bind($support, Length(Filter($near, Lambda(List($n), Equals(Call($pick, Member($n, "i")), $best))))),
+                    If(
+                      Or(LessThan($bestLift, 1.5), LessThan($support, 2)),
+                      Sequence(
+                        Var($common, Undefined()),
+                        ForOf(
+                          List($v, $count),
+                          $prior,
+                          If(
+                            Or(Equals($common, Undefined()), GreaterThan($count, Call(Member($prior, "get"), $common))),
+                            Assign($common, $v),
+                            Undefined()
+                          )
+                        ),
+                        Return($common)
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                ),
                 Return($best)
               )
             )
@@ -449,34 +473,54 @@ Concept(Reply(),
               )
             )
           ),
+          Bind($nearWords,
+            If(
+              $example,
+              New($Set, Call($words, Member(Index($turns, Member($example, "i")), "text"))),
+              New($Set)
+            )
+          ),
+          Bind($covered,
+            Divide(
+              Length(Filter(Concat($query), Lambda(List($w), Call(Member($nearWords, "has"), $w)))),
+              Member($query, "size")
+            )
+          ),
           Return(
             Object(
               head = "Reply",
-              args = List(
-                Object(value = Call($label, "ActLabel", $replyAct)),
-                Object(
-                  name = "heard",
-                  value = Call(
-                    Member($api, "call"),
-                    "Heard",
-                    Call($label, "ActLabel", $heardAct),
-                    Call($label, "EmotionLabel", $heardFeel)
-                  )
+              args = Concat(
+                List(Object(value = Call($label, "ActLabel", $replyAct))),
+                If(
+                  AtLeast($covered, 0.75),
+                  List(Object(name = "close", value = Call(Member($api, "call"), "True"))),
+                  List()
                 ),
-                Object(
-                  name = "like",
-                  value = If(
-                    $example,
-                    Member(Index($turns, Member(Index($turns, Member($example, "i")), "next")), "text"),
-                    ""
-                  )
-                ),
-                Object(
-                  name = "near",
-                  value = If(
-                    $example,
-                    Member(Index($turns, Member($example, "i")), "text"),
-                    ""
+                List(
+                  Object(
+                    name = "heard",
+                    value = Call(
+                      Member($api, "call"),
+                      "Heard",
+                      Call($label, "ActLabel", $heardAct),
+                      Call($label, "EmotionLabel", $heardFeel)
+                    )
+                  ),
+                  Object(
+                    name = "like",
+                    value = If(
+                      $example,
+                      Member(Index($turns, Member(Index($turns, Member($example, "i")), "next")), "text"),
+                      ""
+                    )
+                  ),
+                  Object(
+                    name = "near",
+                    value = If(
+                      $example,
+                      Member(Index($turns, Member($example, "i")), "text"),
+                      ""
+                    )
                   )
                 )
               )

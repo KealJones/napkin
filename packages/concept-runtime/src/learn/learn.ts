@@ -6,7 +6,7 @@
  * The loop is bounded and every step is traced. A gap that cannot be closed stays a
  * residual, which is an honest outcome and better than a fabricated realization.
  */
-import { type Expr, c, format, isCall, walk } from "../concept/expression.js";
+import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
 import { facets } from "../runtime/context.js";
 import { lineage, reachesBehaviour } from "../runtime/select.js";
 import type { ModelOptions } from "../ears/ollama.js";
@@ -22,7 +22,7 @@ import { teach } from "./teacher.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "research" | "wikidata" | "teacher" | "unresolved";
+  readonly how: "graph" | "research" | "wikidata" | "dictionary" | "teacher" | "unresolved";
   readonly detail: string;
 }
 
@@ -136,11 +136,32 @@ export async function learn(
       // A word Wikidata knows is grounded there, deterministically and with its source:
       // what a thing is, what it is not, what it is part of. The Teacher, asked to recall
       // the same, invents (it made emoji a synonym of emoticon).
-      if (gap.kind === "unknown" && options.research !== false) {
+      //
+      // Only a word named, not a word applied: Wikidata classifies things. "keep going" made
+      // Keep a castle keep and "lol means laugh out loud" made Means a family name, because a
+      // word used on arguments is a doing, and the nearest thing sharing its label is not it.
+      const named = !isCall(gap.input) || gap.input.args.length === 0;
+      if (gap.kind === "unknown" && named && options.research !== false) {
         try {
           const grounded = await groundInWikidata(runtime.store, gap.identity, { cause: runtime.trace.cause });
           if (grounded?.relations.length) {
             steps.push({ identity: gap.identity, how: "wikidata", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
+            learnedSomething = true;
+            continue;
+          }
+        } catch {
+          // Unreachable is not an answer: fall through to research and the Teacher.
+        }
+      }
+
+      // A word's meaning, worked out like a question (packs/words.ncon): what was said about
+      // it, then the dictionary sense that fits how it was used. Applied to something, it is
+      // a verb. Only meaning is learned here; behaviour is still the Teacher's to teach.
+      if (gap.kind === "unknown" && options.research !== false) {
+        try {
+          const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, ...(named ? [] : [{ value: c("Verb") }])]), c("Execution"));
+          if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {
+            steps.push({ identity: gap.identity, how: "dictionary", detail: meaning.args[1].value });
             learnedSomething = true;
             continue;
           }
