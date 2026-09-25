@@ -34,7 +34,7 @@ test("asking what comes next reaches Predict through what the question names", a
 
 test("Continue reads the next words from a text, backing off to shorter runs", async () => {
   const text = '"The cat sat on the mat. The dog sat on the log. The cat ate the fish."';
-  assert.equal(await run(`Continue(${text}, "the cat", 4)`), 'Continued("sat on the mat", List(2, 3, 4, 5))');
+  assert.equal(await run(`Continue(${text}, "the cat", 4)`), 'Continued("sat on the mat", List(2, 3, 3, 3))');
   assert.equal(await run(`Continue(${text}, "a dog", 2)`), 'Continued("sat on", List(1, 2))');
   assert.equal(await run(`Continue(${text}, "zebra", 2)`), `Continue(${text}, "zebra", 2)`);
 });

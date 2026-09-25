@@ -554,7 +554,8 @@ Concept(Continued(), IsA(Result()))
 // Words that follow a starter in a text, one after another: each is the word that most often
 // followed the longest run of the last words the text has seen, backing off to shorter runs
 // when a longer one never occurred (prediction by partial matching). The counts are read from
-// the text every time, never stored.
+// the text every time, never stored. At most three words back unless a fourth argument says
+// otherwise: a longer run only copies the text back out.
 Concept(Continue(),
   IsA(Category()),
   Realization(Continue(Rest($x)),
@@ -572,10 +573,20 @@ Concept(Continue(),
               1
             )
           ),
+          Bind($most,
+            If(
+              GreaterThan(Length($args), 3),
+              Call(Member($api, "toHost"), Member(Index($args, 3), "value")),
+              3
+            )
+          ),
           If(
             Or(
-              Or(NotEquals(TypeOf($corpus), "string"), NotEquals(TypeOf($starter), "string")),
-              NotEquals(TypeOf($count), "number")
+              Or(
+                Or(NotEquals(TypeOf($corpus), "string"), NotEquals(TypeOf($starter), "string")),
+                NotEquals(TypeOf($count), "number")
+              ),
+              NotEquals(TypeOf($most), "number")
             ),
             Return(
               Call(
@@ -649,7 +660,7 @@ Concept(Continue(),
               Var($next, Undefined()),
               Var($order, 0),
               For(
-                Var($k, Call(Member($Math, "min"), Length($context), 6)),
+                Var($k, Call(Member($Math, "min"), Length($context), $most)),
                 And(AtLeast($k, 1), Equals($next, Undefined())),
                 PostDecrement($k),
                 Sequence(
