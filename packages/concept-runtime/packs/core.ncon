@@ -42,6 +42,10 @@ Concept(RealizationProperty(), IsA(Category()))
 // ------------------------------------------------------------------
 Concept(ContextFacet(), IsA(Category()))
 
+// A facet holding Exclusive() admits only realizations declared for it: under Hearing(), a
+// word hears and nothing it does elsewhere runs (runtime/context.ts, exclusiveFacets).
+Concept(Exclusive(), IsA(Category()))
+
 // Reading what was said as the graph names it: folds realize here and nothing else runs, so
 // reading a phrase finds the Concept it spells, or leaves the phrase as said.
 Concept(Reading(), IsA(ContextFacet()))

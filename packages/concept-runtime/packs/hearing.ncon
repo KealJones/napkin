@@ -1,0 +1,277 @@
+Requires(Basic())
+
+// ================================================================
+// Hearing: the words of a message finding their relations to each other
+// (design/prompt-hearing.md). Stage 0: the Prompt, links, rounds and what is written out,
+// with no word yet proposing anything, so every word is heard alone.
+
+// Under Hearing(), a word hears, and nothing it does elsewhere runs: "add" must not add.
+Concept(Hearing(), IsA(ContextFacet()), Exclusive())
+
+// A message as its words, in order, each as typed with the tags the tagger proposes.
+Concept(Prompt(), IsA(Data()))
+
+Concept(Word(), IsA(Data()))
+
+// What hearing writes out: one Concept expression per part of the message that stands alone.
+Concept(Phrases(), IsA(Data()))
+
+// A relation one word proposes to another, by position: Link(from, to, role).
+Concept(Link(), IsA(Data()))
+
+Concept(LinkRole(), IsA(Category()))
+
+// "teen" modifies "film": the thing is the head.
+Concept(Modifies(), IsA(LinkRole()))
+
+// "by" takes "weitz"; "directed" takes "by".
+Concept(Takes(), IsA(LinkRole()))
+
+// "and" groups the words either side of it.
+Concept(Joins(), IsA(LinkRole()))
+
+// "the" is part of how "car" is said, and adds nothing to run.
+Concept(Absorbs(), IsA(LinkRole()))
+
+// "?", "not", "maybe": asked, negated, blurred.
+Concept(Marks(), IsA(LinkRole()))
+
+// "paul" and "weitz" are one name.
+Concept(Names(), IsA(LinkRole()))
+
+// "too", "also": one more of something said before.
+Concept(Adds(), IsA(LinkRole()))
+
+// "it", "that bug": something said before, or known.
+Concept(PointsAt(), IsA(LinkRole()))
+
+// Every word hears, known or not: a word with no hearing of its own proposes nothing yet.
+Concept(Concept(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = List()
+  )
+)
+
+// A message heard: its words, the rounds in which they propose links until nothing changes,
+// and each word written as its Concept with the words linked to it as arguments.
+Concept(Hear(),
+  Realization(Hear($text),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($text, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            Bind($said, Call(Member($api, "words"), Call($String, $text))),
+            Bind($name,
+              Lambda(List($t),
+                Call(
+                  Member(
+                    Map(
+                      Filter(
+                        Call(Member($t, "split"), Regex("[^A-Za-z0-9]+", "")),
+                        Lambda(List($p), GreaterThan(Length($p), 0))
+                      ),
+                      Lambda(List($p),
+                        Add(
+                          Call(Member(Index($p, 0), "toUpperCase")),
+                          Call(Member(Call(Member($p, "slice"), 1), "toLowerCase"))
+                        )
+                      )
+                    ),
+                    "join"
+                  ),
+                  ""
+                )
+              )
+            ),
+            Bind($words, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              Call(
+                Member($words, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Word",
+                  Member(Index($said, $i), "text"),
+                  $i,
+                  Call(
+                    Member($api, "call"),
+                    "List",
+                    Spread(Map(Member(Index($said, $i), "tags"), Lambda(List($t), Call(Member($api, "call"), $t))))
+                  )
+                )
+              )
+            ),
+            Bind($prompt, Call(Member($api, "call"), "Prompt", Spread($words))),
+            Bind($hearing, Call(Member($api, "call"), "Hearing")),
+            Var($links, List()),
+            Bind($linked,
+              Lambda(List(),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Spread(
+                    Map(
+                      $links,
+                      Lambda(List($l),
+                        Call(
+                          Member($api, "call"),
+                          "Link",
+                          Member($l, "from"),
+                          Member($l, "to"),
+                          Call(Member($api, "call"), Member($l, "role"))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            For(
+              Var($round, 0),
+              LessThan($round, Add(Length($said), 2)),
+              PostIncrement($round),
+              Sequence(
+                Bind($placed, New($Set, Map($links, Lambda(List($l), Member($l, "from"))))),
+                Bind($proposals, List()),
+                For(
+                  Var($i, 0),
+                  LessThan($i, Length($said)),
+                  PostIncrement($i),
+                  Sequence(
+                    Bind($head, Call($name, Member(Index($said, $i), "text"))),
+                    If(
+                      Or(Call(Member($placed, "has"), $i), Not(Call(Member(Regex("^[A-Za-z]", ""), "test"), $head))),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($proposed,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            $head,
+                            $prompt,
+                            $i,
+                            Call($linked)
+                          ),
+                          $hearing
+                        )
+                      )
+                    ),
+                    If(
+                      Or(Not(Call($isCall, $proposed)), NotEquals(Member($proposed, "head"), "List")),
+                      Continue(),
+                      Undefined()
+                    ),
+                    ForOf(
+                      $a,
+                      Member($proposed, "args"),
+                      Sequence(
+                        Bind($p, Member($a, "value")),
+                        If(
+                          Or(
+                            Or(Not(Call($isCall, $p)), NotEquals(Member($p, "head"), "Link")),
+                            LessThan(Length(Member($p, "args")), 3)
+                          ),
+                          Continue(),
+                          Undefined()
+                        ),
+                        Bind($role, Member(Index(Member($p, "args"), 2), "value")),
+                        Call(
+                          Member($proposals, "push"),
+                          Object(
+                            from = Member(Index(Member($p, "args"), 0), "value"),
+                            to = Member(Index(Member($p, "args"), 1), "value"),
+                            role = If(
+                              Call($isCall, $role),
+                              Member($role, "head"),
+                              Call($String, $role)
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($accepted, List()),
+                Bind($taken, New($Set, $placed)),
+                ForOf(
+                  $p,
+                  $proposals,
+                  Sequence(
+                    If(
+                      Or(Call(Member($taken, "has"), Member($p, "from")), Equals(Member($p, "from"), Member($p, "to"))),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Call(Member($accepted, "push"), $p),
+                    Call(Member($taken, "add"), Member($p, "from"))
+                  )
+                ),
+                If(Equals(Length($accepted), 0), Break(), Undefined()),
+                Assign($links, Call(Member($links, "concat"), $accepted))
+              )
+            ),
+            Bind($parentOf, New($Map, Map($links, Lambda(List($l), List(Member($l, "from"), $l))))),
+            Bind($build,
+              Lambda(List($i),
+                Sequence(
+                  Bind($kids, List()),
+                  For(
+                    Var($j, 0),
+                    LessThan($j, Length($said)),
+                    PostIncrement($j),
+                    Sequence(
+                      Bind($l, Call(Member($parentOf, "get"), $j)),
+                      If(
+                        And(
+                          And(NotEquals($l, Undefined()), Equals(Member($l, "to"), $i)),
+                          NotEquals(Member($l, "role"), "Absorbs")
+                        ),
+                        Call(Member($kids, "push"), Call($build, $j)),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Bind($t, Member(Index($said, $i), "text")),
+                  If(
+                    And(Call(Member(Regex("^[0-9]+([.][0-9]+)?$", ""), "test"), $t), Equals(Length($kids), 0)),
+                    Return(Call($Number, $t)),
+                    Undefined()
+                  ),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      Or(Call($name, $t), $t),
+                      Spread($kids)
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($roots, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              If(
+                Not(Call(Member($parentOf, "has"), $i)),
+                Call(Member($roots, "push"), Call($build, $i)),
+                Undefined()
+              )
+            ),
+            Return(Call(Member($api, "call"), "Phrases", Spread($roots)))
+          )
+        )
+      )
+    )
+  )
+)

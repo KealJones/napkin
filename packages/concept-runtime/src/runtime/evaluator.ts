@@ -25,12 +25,12 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
-import { fromHost, lemma, properNoun, readText, toHost } from "./host.js";
+import { fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
 import { dropTurns, realizationHash, type StoredTraceEvent } from "../store/traces.js";
-import { facets, suppressedProperties } from "./context.js";
+import { exclusiveFacets, facets, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { activation } from "./activation.js";
@@ -132,6 +132,8 @@ export interface CodeApi {
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
   properNoun(word: string): boolean;
+  /** A text's words in order, as typed, with the tags the tagger proposes. */
+  words(text: string): { text: string; tags: string[] }[];
 }
 
 export class Runtime {
@@ -346,9 +348,9 @@ export class Runtime {
       if (depth > this.maximumDepth) budget("depth", this.maximumDepth);
       if (this.steps > this.maximumSteps) budget("steps", this.maximumSteps);
 
-      const suppressed = suppressedProperties(context, (identity) =>
-        claims({ relations: this.store.get(identity)?.relations ?? [] }),
-      );
+      const relationsOf = (identity: string) => claims({ relations: this.store.get(identity)?.relations ?? [] });
+      const suppressed = suppressedProperties(context, relationsOf);
+      const exclusive = operation ? new Set<string>() : exclusiveFacets(context, relationsOf);
 
       // Tier 3: evidence in this context, falling back to recency where there is none
       // (Phase 1). `this.evidence` is undefined with no `tracePath`, so an unconfigured
@@ -368,6 +370,8 @@ export class Runtime {
         ) {
           return false;
         }
+        // An exclusive facet admits only what was declared for it.
+        if (exclusive.size && !facets(candidate.realization.context).some((f) => isCall(f) && exclusive.has(f.head))) return false;
         // Never forward back to where the call just came from.
         const to = forwardTarget(candidate.realization);
         return to === undefined || !this.forwarding.includes(to);
@@ -563,6 +567,7 @@ export class Runtime {
         activation(this.store, sources, { among: candidates, events: this.evidence?.all() ?? [] }).map((a) => a.identity),
       readText,
       lemma,
+      words,
       properNoun,
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;

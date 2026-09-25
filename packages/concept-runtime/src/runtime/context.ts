@@ -64,6 +64,19 @@ export function matchContext(
 }
 
 /**
+ * Facets that admit only realizations declared for them: under `Hearing()`, a word hears,
+ * and nothing it would do elsewhere runs ("add" must not add). A facet is one by holding
+ * `Exclusive()`, so the evaluator never learns which facets those are.
+ */
+export function exclusiveFacets(active: Expr | undefined, relationsOf: (identity: string) => Expr[]): Set<string> {
+  const out = new Set<string>();
+  for (const facet of facets(active)) {
+    if (isCall(facet) && relationsOf(facet.head).some((r) => isCall(r) && r.head === "Exclusive")) out.add(facet.head);
+  }
+  return out;
+}
+
+/**
  * Properties the active context suppresses. The rule is generic over whatever property is
  * named, so the evaluator never learns that Describe, Effectful, or Lossy exist
  * (concept-spec Part 4.0).

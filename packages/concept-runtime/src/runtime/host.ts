@@ -72,6 +72,19 @@ export function lemma(word: string): string {
   return base.toLowerCase();
 }
 
+/**
+ * A text's words in order, each as typed and with what the tagger proposes it is
+ * (CodeApi.words). Proposals, not facts: hearing weighs them (design/prompt-hearing.md).
+ */
+export function words(text: string): { text: string; tags: string[] }[] {
+  const out: { text: string; tags: string[] }[] = [];
+  for (const t of nlp(text).terms().json() as { terms: { text: string; tags: string[] }[] }[]) {
+    const term = t.terms[0];
+    if (term?.text) out.push({ text: term.text, tags: [...term.tags] });
+  }
+  return out;
+}
+
 let english: Set<string> | undefined;
 
 /** A name, as opposed to a word: Berlin, Greg, Keal, but not bolt or apple (CodeApi.properNoun). */

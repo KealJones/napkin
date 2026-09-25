@@ -54,14 +54,14 @@ Prompt(
 Hearing produces links between positions. A link is a Concept:
 
 ```
-Link(from=4, to=9, role=Describes())
+Link(from=4, to=9, role=Modifies())
 ```
 
 The roles are few, and they are a closed vocabulary of the IR, like the markers:
 
 | Role | Meaning | Example |
 |---|---|---|
-| `Describes` | `from` says something about `to`, the thing | "teen" to "film" |
+| `Modifies` | `from` says something about `to`, the thing | "teen" to "film" |
 | `Takes` | `from` holds `to` as what it acts on | "by" to "weitz", "directed" to "by" |
 | `Joins` | `from` groups the words either side of it | "and" between "directed" and "co-produced" |
 | `Absorbs` | `from` is part of how `to` is said, adding nothing to run | "the" to "car" |
@@ -179,7 +179,7 @@ Concept exists) and the graph decides later, or asks.
 When settled, each tree is written as a Concept expression. A word's expression is its
 Concept, with its dependents as arguments, in the order they were said:
 
-- `Describes` dependents become arguments: "my old car" is `Car(My(), Old())`, "ice cream"
+- `Modifies` dependents become arguments: "my old car" is `Car(My(), Old())`, "ice cream"
   is `Cream(Ice())`, and "a 1999 American teen comedy film" is
   `Film(1999, American(), Teen(), Comedy())`. The thing is always the head.
 - `Takes` dependents are arguments too: `Directed(By(Weitz(Paul())))`.
@@ -260,10 +260,10 @@ Their hearing behaviour proposes a link to an earlier position instead of a neig
 
 ```
 Link(from=<"too", sentence 4>, to=<"need", sentence 2>, role=Adds())
-Link(from=<"it", sentence 3>, to=<"file", sentence 1>, role=Refers())
+Link(from=<"it", sentence 3>, to=<"file", sentence 1>, role=PointsAt())
 ```
 
-`Adds` and `Refers` are two more roles for section 2.2. A backward link is found the way
+`Adds` and `PointsAt` are two more roles for section 2.2. A backward link is found the way
 section 7 finds any reference, starting from inside the message.
 
 **Grouping claims of the same shape is interpretation.** Two claims linked by `Adds`, with
@@ -391,7 +391,7 @@ cases, plus a new set of about 50 sentences: Wikipedia first sentences and real 
 with "and", numbers, "by" and fragments.
 
 **Stage 3b: across sentences and references.** Backward-pointing words (`Adds`,
-`Refers`), same-shape grouping (section 6), and the scoped resolver (section 7) for scopes
+`PointsAt`), same-shape grouping (section 6), and the scoped resolver (section 7) for scopes
 1 to 3, replacing `references.ts`. Measured on messages with pronouns, "too" and "also",
 and references to earlier turns. Scope 4 comes later, once the user can connect a source.
 
