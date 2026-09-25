@@ -681,9 +681,11 @@ Concept(Mood(),
               And($kind, Equals(Member($kind, "head"), "Declarative")),
               Sequence(
                 Bind($message, Call(Member($api, "ambient"), "message")),
+                // Said beside a question, a statement is what the question is about, not talk to
+                // answer in kind: "i'm planning a wedding: ... what am i missing?"
                 Bind($reply,
                   If(
-                    $message,
+                    And($message, Not(Call(Member($message, "includes"), "?"))),
                     Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
                     Undefined()
                   )

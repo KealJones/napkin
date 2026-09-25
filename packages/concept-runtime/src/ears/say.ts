@@ -47,6 +47,9 @@ If lean is Leans(x, Recognition(...)), add that x is the better known of the two
 If the result is Answer(Judged(List(a, b), NoCommonKind())), say you could not find a and b
 as two options of the same kind, so you cannot compare them yet.
 If the result is Answer(Unknown(x)), say you do not know x yet.
+If the result is Answer(Lacks(plan, List(...), from=...)), say that plans like theirs usually also
+include these, as a short list in plain words, and that this is from checklists online. If the
+result is Noted(x) beside an answer, do not mention it.
 
 Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
 

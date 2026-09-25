@@ -1,0 +1,274 @@
+Requires(Basic(), Pursue())
+
+// ================================================================
+// What a plan is missing (design/pursue-predict.md, section 4.4).
+//
+// Nothing here knows what a wedding needs. The plan's own words are searched for as a
+// checklist, and what several of the pages found agree on, by the words their items share,
+// is the reference. Whatever the reference has that no step of the plan mentions is missing.
+// Every item named comes with the pages it was read from.
+
+// What a plan lacks: what it is for, the missing steps, and the pages that agree on them.
+Concept(Lacks(), IsA(Result()))
+
+// "what am i missing": the steps others' plans for the same thing have, and this one does not.
+Concept(Missing(),
+  Realization(Missing(),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($message, Call(Member($api, "ambient"), "message")),
+            If(
+              NotEquals(TypeOf($message), "string"),
+              Return(Call(Member($api, "call"), "Missing")),
+              Undefined()
+            ),
+            Bind($sentences,
+              Filter(
+                Call(Member($message, "split"), Regex("(?<=[.!?])\\s+", "")),
+                Lambda(List($s), Not(Call(Member(Call(Member($s, "trim")), "endsWith"), "?")))
+              )
+            ),
+            Bind($plan, Call(Member(Call(Member($sentences, "join"), " "), "trim"))),
+            If(
+              Not($plan),
+              Return(Call(Member($api, "call"), "Missing")),
+              Undefined()
+            ),
+            Bind($cut, Call(Member($plan, "search"), Regex("[:.]", ""))),
+            Bind($about,
+              Call(
+                Member(
+                  If(
+                    GreaterThan($cut, 0),
+                    Call(Member($plan, "slice"), 0, $cut),
+                    $plan
+                  ),
+                  "trim"
+                )
+              )
+            ),
+            Bind($steps,
+              Filter(
+                Map(
+                  Call(
+                    Member(
+                      If(
+                        GreaterThan($cut, 0),
+                        Call(Member($plan, "slice"), Add($cut, 1)),
+                        ""
+                      ),
+                      "split"
+                    ),
+                    Regex("[,;.]|\\band\\b", "")
+                  ),
+                  Lambda(List($s), Call(Member($s, "trim")))
+                ),
+                $Boolean
+              )
+            ),
+            Bind($words,
+              Lambda(List($t),
+                Map(
+                  Or(Call(Member(Call(Member($t, "toLowerCase")), "match"), Regex("[a-z']+", "g")), List()),
+                  Lambda(List($w), Call(Member($api, "lemma"), $w))
+                )
+              )
+            ),
+            Bind($found,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "SearchPages",
+                    Add($about, " checklist")
+                  )
+                )
+              )
+            ),
+            Bind($urls,
+              If(
+                And($found, Equals(Member($found, "head"), "List")),
+                Map(Member($found, "args"), Lambda(List($a), Member($a, "value"))),
+                List()
+              )
+            ),
+            Bind($pages, List()),
+            ForOf(
+              $url,
+              $urls,
+              Sequence(
+                Bind($items, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "ListItems", $url)))),
+                If(
+                  And(And($items, Equals(Member($items, "head"), "List")), Length(Member($items, "args"))),
+                  Call(
+                    Member($pages, "push"),
+                    Object(url = $url, items = Map(Member($items, "args"), Lambda(List($a), Member($a, "value"))))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              LessThan(Length($pages), 2),
+              Return(Call(Member($api, "call"), "Missing")),
+              Undefined()
+            ),
+            Bind($all, FlatMap($pages, Lambda(List($p), Member($p, "items")))),
+            Bind($df, New($Map)),
+            ForOf(
+              $t,
+              $all,
+              ForOf(
+                $w,
+                New($Set, Call($words, $t)),
+                Call(
+                  Member($df, "set"),
+                  $w,
+                  Add(Or(Call(Member($df, "get"), $w), 0), 1)
+                )
+              )
+            ),
+            Bind($content,
+              Lambda(List($t),
+                New(
+                  $Set,
+                  Filter(
+                    Call($words, $t),
+                    Lambda(List($w),
+                      And(
+                        GreaterThan(Length($w), 2),
+                        LessThan(Or(Call(Member($df, "get"), $w), 0), Multiply(Length($all), 0.08))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($need, If(AtLeast(Length($pages), 4), 3, 2)),
+            Bind($scored, List()),
+            Call(
+              Member($pages, "forEach"),
+              Lambda(List($p, $pi),
+                Sequence(
+                  ForOf(
+                    $t,
+                    Member($p, "items"),
+                    Sequence(
+                      Bind($c, Call($content, $t)),
+                      If(Not(Member($c, "size")), Continue(), Undefined()),
+                      Var($support, 0),
+                      Call(
+                        Member($pages, "forEach"),
+                        Lambda(List($o, $pj),
+                          Sequence(
+                            If(
+                              And(
+                                NotEquals($pj, $pi),
+                                Call(
+                                  Member(Member($o, "items"), "some"),
+                                  Lambda(List($u),
+                                    Call(
+                                      Member(Concat(Call($content, $u)), "some"),
+                                      Lambda(List($w), Call(Member($c, "has"), $w))
+                                    )
+                                  )
+                                )
+                              ),
+                              Assign($support, Add($support, 1)),
+                              Undefined()
+                            ),
+                            Undefined()
+                          )
+                        )
+                      ),
+                      If(
+                        AtLeast($support, $need),
+                        Call(
+                          Member($scored, "push"),
+                          Object(
+                            t = $t,
+                            c = $c,
+                            support = $support,
+                            url = Member($p, "url")
+                          )
+                        ),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call(Member($scored, "sort"), Lambda(List($a, $b), Subtract(Member($b, "support"), Member($a, "support")))),
+            Bind($have, New($Set, FlatMap($steps, $words))),
+            Bind($asked, New($Set, Call($words, Add($about, " checklist planning plan")))),
+            Bind($missing, List()),
+            ForOf(
+              $x,
+              $scored,
+              Sequence(
+                If(
+                  Call(Member(Concat(Member($x, "c")), "some"), Lambda(List($w), Call(Member($have, "has"), $w))),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  Or(
+                    Call(Member(Concat(Member($x, "c")), "every"), Lambda(List($w), Call(Member($asked, "has"), $w))),
+                    Call(Member(Call(Member(Member($x, "t"), "trim")), "endsWith"), "?")
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  Call(
+                    Member($missing, "some"),
+                    Lambda(List($m),
+                      Call(
+                        Member(Concat(Member($m, "c")), "some"),
+                        Lambda(List($w), Call(Member(Member($x, "c"), "has"), $w))
+                      )
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Call(Member($missing, "push"), $x),
+                If(AtLeast(Length($missing), 7), Break(), Undefined())
+              )
+            ),
+            Return(
+              Object(
+                head = "Lacks",
+                args = List(
+                  Object(value = $about),
+                  Object(
+                    value = Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map($missing, Lambda(List($m), Member($m, "t"))))
+                    )
+                  ),
+                  Object(
+                    name = "from",
+                    value = Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map($pages, Lambda(List($p), Member($p, "url"))))
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

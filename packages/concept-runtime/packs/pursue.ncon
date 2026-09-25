@@ -92,6 +92,254 @@ Concept(Fetch(),
   )
 )
 
+// A web page's text. Failed(...) when it cannot be read.
+Concept(FetchText(),
+  IsA(Category()),
+  Realization(FetchText($url),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($url, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            If(
+              NotEquals(TypeOf($url), "string"),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "FetchText",
+                  Member(Index($args, 0), "value")
+                )
+              ),
+              Undefined()
+            ),
+            Try(
+              Sequence(
+                Bind($response,
+                  Await(
+                    Call(
+                      $fetch,
+                      $url,
+                      Object(
+                        headers = Object(
+                          Pair(
+                            "user-agent",
+                            "Mozilla/5.0 (compatible; napkin/0.1; https://github.com/KealJones/napkin)"
+                          )
+                        ),
+                        signal = Call(Member($AbortSignal, "timeout"), 8000)
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Not(Member($response, "ok")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Failed",
+                      Call(Member($api, "call"), "FetchText", $url),
+                      Member($response, "status")
+                    )
+                  ),
+                  Undefined()
+                ),
+                Return(Await(Call(Member($response, "text"))))
+              ),
+              Catch(
+                $error,
+                Return(
+                  Call(
+                    Member($api, "call"),
+                    "Failed",
+                    Call(Member($api, "call"), "FetchText", $url),
+                    Call($String, $error)
+                  )
+                )
+              )
+            ),
+            Undefined()
+          )
+        )
+      )
+    )
+  )
+)
+
+// The pages a web search finds for a query, best first, as their addresses (DuckDuckGo's
+// HTML results). WebSearch (basic) gives titles and snippets; this gives pages to read.
+Concept(SearchPages(),
+  IsA(Category()),
+  Realization(SearchPages($query),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($query, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            If(
+              NotEquals(TypeOf($query), "string"),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($html,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "FetchText",
+                    Add("https://html.duckduckgo.com/html/?q=", Call($encodeURIComponent, $query))
+                  )
+                )
+              )
+            ),
+            If(
+              NotEquals(TypeOf($html), "string"),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($out, List()),
+            Bind($marker, "class=\"result__a\""),
+            Var($at, Call(Member($html, "indexOf"), $marker)),
+            While(
+              And(AtLeast($at, 0), LessThan(Length($out), 6)),
+              Sequence(
+                Bind($href, Call(Member($html, "indexOf"), "href=\"", $at)),
+                Bind($end, Call(Member($html, "indexOf"), "\"", Add($href, 6))),
+                Var($url, Call(Member($html, "slice"), Add($href, 6), $end)),
+                Bind($u, Call(Member($url, "indexOf"), "uddg=")),
+                If(
+                  AtLeast($u, 0),
+                  Assign(
+                    $url,
+                    Call(
+                      $decodeURIComponent,
+                      Index(Call(Member(Call(Member($url, "slice"), Add($u, 5)), "split"), "&"), 0)
+                    )
+                  ),
+                  Undefined()
+                ),
+                If(
+                  And(
+                    And(Call(Member($url, "startsWith"), "http"), Not(Includes($url, "duckduckgo.com/y.js"))),
+                    Not(Includes($out, $url))
+                  ),
+                  Call(Member($out, "push"), $url),
+                  Undefined()
+                ),
+                Assign($at, Call(Member($html, "indexOf"), $marker, $end))
+              )
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// What a page lists, as text: every list item of two to ten words, without the page's
+// scripts, navigation, header and footer.
+Concept(ListItems(),
+  IsA(Category()),
+  Realization(ListItems($url),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($url, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            Bind($page,
+              If(
+                Equals(TypeOf($url), "string"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "FetchText", $url))),
+                Undefined()
+              )
+            ),
+            If(
+              NotEquals(TypeOf($page), "string"),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Var($body, $page),
+            ForOf(
+              $tag,
+              List("script", "style", "nav", "header", "footer"),
+              Assign(
+                $body,
+                Call(
+                  Member($body, "replace"),
+                  New(
+                    $RegExp,
+                    Add(Add(Add(Add("<", $tag), "[\\s\\S]*?</"), $tag), ">"),
+                    "gi"
+                  ),
+                  " "
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($s),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Call(
+                              Member(
+                                Call(
+                                  Member(Call(Member($s, "replace"), Regex("<[^>]+>", "g"), " "), "replace"),
+                                  Regex("&amp;", "g"),
+                                  "&"
+                                ),
+                                "replace"
+                              ),
+                              Regex("&#8217;|&rsquo;|&#039;|&#39;", "g"),
+                              "'"
+                            ),
+                            "replace"
+                          ),
+                          Regex("&[a-z#0-9]+;", "g"),
+                          " "
+                        ),
+                        "replace"
+                      ),
+                      Regex("\\s+", "g"),
+                      " "
+                    ),
+                    "trim"
+                  )
+                )
+              )
+            ),
+            Bind($items, List()),
+            Bind($re, Regex("<li[^>]*>([\\s\\S]*?)<\\/li>", "gi")),
+            Var($m, Undefined()),
+            While(
+              Assign($m, Call(Member($re, "exec"), $body)),
+              Sequence(
+                Bind($t, Call(Member(Index(Call(Member(Call($text, Index($m, 1)), "split"), ":"), 0), "trim"))),
+                Bind($n, Length(Call(Member($t, "split"), " "))),
+                If(
+                  And(And(AtLeast($n, 2), AtMost($n, 10)), Not(Includes($items, $t))),
+                  Call(Member($items, "push"), $t),
+                  Undefined()
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($items)))
+          )
+        )
+      )
+    )
+  )
+)
+
 // Every Wikidata item whose label or alias is exactly this text: its senses, best known
 // first (by how many Wikipedias write about it), each with what it is a kind of.
 Concept(WikidataSenses(),
@@ -1344,7 +1592,7 @@ Concept(Pursue(),
                 Bind($unit, Call(Member(Member($api, "store"), "get"), Member($part, "head"))),
                 If(
                   Or(
-                    Or(Not($unit), Not(Length(Member($part, "args")))),
+                    Not($unit),
                     Not(
                       Call(Member(Member($unit, "realizations"), "some"), Lambda(List($r), Not(Member($r, "retired"))))
                     )
