@@ -213,18 +213,35 @@ Also changed: a statement is `Noted`, not run; a question nothing answered is pu
 Concepts named side by side are peers and not lifted as facets; the CLI keeps a conversation
 across runs.
 
+### Second pass, same day
+
+| Asked | Answer | How |
+|---|---|---|
+| haha that's hilarious | reply, heard as Inform with Happiness | Reply: nearest DailyDialog utterances, feelings counted against their base rate |
+| I'm so scared about tomorrow | reply, heard with Fear | same; the Mouth sees act and feeling, not the corpus example |
+| who founded microsoft? | `List(BillGates(), PaulAllen())` | Who asks for Someone; a date is passed over; "founded by" tried as the agent |
+| where do i live? (after "i live in phoenix") | `Phoenix()` | a statement in another shape, words compared by base form |
+| what did i eat? (after "i ate an apple") | `Apple()` | ate is eat, by the lemma host facility |
+| who is greg? (after "greg is my coworker") | `My(Coworker())` | a kind with nothing held is looked for in what was said |
+| what is your name? | `"Napkin"` | Your refers to Self; name matches Named by base form |
+| should i learn python or javascript? | if gradual typing, Python; if prototype-based, JavaScript | Judge now holds IfYouWant per option |
+| wedding plan, what am I missing? | set a budget, wedding website, RSVP list, ... | Missing: what several web checklists agree on, minus the plan's own steps |
+
+New pieces: `Reply` and the `DailyDialog` corpus Concept (packs/dialogue.ncon, data fetched
+by `src/seed/dialogue/fetch.sh`, CC BY-NC-SA 4.0, not committed); `FetchText`, `SearchPages`,
+`ListItems` (pursue.ncon); `Missing`, `Lacks` (packs/plan.ncon); `Asks`, `Someone`, `Place`,
+`Amount`, `Refers` (basic); host facilities `readText` and `lemma`.
+
 ### Known gaps
 
-- "who founded microsoft" answers a date: "founded" matches an alias of inception. A who
-  question should only accept someone. Pursue does not yet know what kind the question asks
-  for.
-- Judge has no direction on a dimension (is a longer life expectancy better?), so it can set
-  differences side by side but not yet say "if you want X, pick A". That needs a goal
-  (`For(...)`) or the user's past choices.
-- Act dispatch (joke, encouragement) is not built. The design calls for predicting the reply
-  from a dialogue corpus, which means downloading one (DailyDialog). Not done without asking.
-- Plans ("what am I missing") are not built. Wikidata has no parts for a wedding; the next
-  source to try is consensus across several web checklists.
-- Recall that went with memory.ncon (who, where, did, beliefs about other people) is not
-  recovered yet. Its tests are kept as todo targets.
-- Continue copies long runs from its text, the same weakness the gzip model had.
+- Reply is a bag-of-words nearest-neighbour vote over 87k utterances. The feeling it hears is
+  usually right; the reply act is noisy, and the Mouth model still words it loosely.
+- Judge still has no direction of its own (is a longer life expectancy better?). It says
+  which way each option goes and leaves the want to the user. Past choices (`For(User)`
+  evidence) do not feed it yet.
+- Missing depends on the web search and on pages that list their steps as list items. Moving
+  checklists come back with section headings mixed in.
+- "where is the eiffel tower" and "how many legs does a spider have" are not answered: a
+  name split across two heads, and no property word in the question.
+- The seven todo tests from the old memory pack are still todo: "what can you do", "who are
+  you", holidays, members of a kind, and believed kinds.
