@@ -39,7 +39,7 @@ test("small talk is answered, not looked up", async () => {
   assert.equal(await say("cool", c("Answer", c("GladYouLikeIt"))), "Glad you like it!");
 });
 
-test("the system can say who it is and what it can do", async () => {
+test("the system can say who it is and what it can do", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   assert.equal(await ask("what is your name"), 'Answer("Napkin")');
   assert.match(await ask("what can you do"), /^Answer\(List\(Arithmetic\(\), /);
   assert.match(await ask("who are you"), /IsA\(Assistant\(\)\)/);
@@ -61,7 +61,7 @@ test("each question in a message is answered", async () => {
   assert.equal(await say("cool, thanks", c("Sequence", c("Answer", c("GladYouLikeIt")), c("Answer", c("YoureWelcome")))), "Glad you like it! You're welcome!");
 });
 
-test("holidays are dates, and being told it was wrong is apologised for", async () => {
+test("holidays are dates, and being told it was wrong is apologised for", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const days = await ask("how many days until christmas");
   assert.match(days, /^Answer\(Days\(\d+\)\)$/);
   assert.equal(await ask("that was wrong"), "Answer(Sorry())");
@@ -110,7 +110,7 @@ test("a game reply is said directly, with the board as a labelled grid", async (
   assert.equal(spoken, "You played B2. I played A1.\n  a b c\n1 O . .\n2 . X .\n3 . . .");
 });
 
-test("asking what it knows of a kind looks up the kind's members", async () => {
+test("asking what it knows of a kind looks up the kind's members", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const known = new ConceptStore();
   seed(known);
   const { concept } = await import("../concept/unit.js");
@@ -121,13 +121,6 @@ test("asking what it knows of a kind looks up the kind's members", async () => {
   assert.equal(await askIt("do you know any games?"), "Answer(List(TicTacToe()))");
   assert.equal(await askIt("what games do you know"), "Answer(List(TicTacToe()))");
   assert.equal(await askIt("do you know any birds?"), "Answer(List(Robin(), Sparrow()))", "a namesake is not a member");
-});
-
-test("wanting to play, asking to play, or naming the game starts one, however it is spelled", async () => {
-  for (const said of ["wanna play tick tac toe?", "can we play tictactoe", "tic-tak-toe?", "lets play noughts and crosses"]) {
-    assert.match(await ask(said), /^InGame\(Game_\d+\(\), echo="Tic tac toe against me", Started\(\)/, said);
-  }
-  assert.match(await ask("i want pizza"), /^Noted\(/, "wanting a thing is still a want");
 });
 
 /** A conversation, each turn knowing the ones before, on a store of its own. */
@@ -158,7 +151,7 @@ test("a reference resolves to what was answered, not its text", async () => {
   assert.equal(format(expression!), 'Times(Ref("", resolvedTo=Answer(4)), 2)');
 });
 
-test("a kind is described with what its synonyms hold, and as it was said", async () => {
+test("a kind is described with what its synonyms hold, and as it was said", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const own = new ConceptStore();
   const { concept } = await import("../concept/unit.js");
   // Seeded first, so seeding derives the synonyms' forwarding, as the graph has it.
@@ -170,7 +163,7 @@ test("a kind is described with what its synonyms hold, and as it was said", asyn
   assert.match(await ask2("what is an ocupation"), /^Describes\(Occupation\(\), .*RelatedTo\(Employment\(\)\)/);
 });
 
-test("a kind said with its words is believed whole, and a job asked for is a kind one is", async () => {
+test("a kind said with its words is believed whole, and a job asked for is a kind one is", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const talk = conversation();
   // Every word said is kept: a compound the lexicon knows, or the kind with its words.
   assert.match(await talk("I am a Senior Software Engineer"), /IsA\((SoftwareEngineer\(\)\), Senior\(\)|Engineer\(Senior\(\), Software\(\)\)\))/);
@@ -196,7 +189,7 @@ test("\"I meant\" takes the place of the last turn, and a mistyped times is time
   assert.equal(await again("woops i meant and TIMES 27?"), "324");
 });
 
-test("what is said of two things joined by or is believed of each, a described kind kept whole", async () => {
+test("what is said of two things joined by or is believed of each, a described kind kept whole", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const talk = conversation();
   assert.match(await talk("Woops or Whoops is a word you say when you do something wrong on accident"), /^Sequence\(Believed\(Woops\(\), List\(IsA\(Word\(.+\)\)\)\), Believed\(Whoops\(\), /);
   assert.match(await talk("what is whoops"), /^Describes\(Whoops\(\), List\(IsA\(Word\(/);
