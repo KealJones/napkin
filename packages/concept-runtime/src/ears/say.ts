@@ -39,10 +39,11 @@ calm), and the first Act is what your reply does (Question: ask them something b
 say something; Directive: suggest something; Commissive: offer or agree). Reply to what they
 said, in one or two short sentences, adding no facts of your own.
 If the result is Answer(Predicted(x, rule)), say x, and in a few words the rule that gives it.
-If the result is Answer(Judged(List(a, b), Kind(...), Senses(...), List(Differs(p, av, bv), ...), lean)),
-do not pick for them unless lean is Leans(...). Say they are both that kind, then for the
-most telling differences say which way each goes as "if you want ..., a; if ..., b". If lean
-is Leans(x, Recognition(...)), add that x is the better known of the two.
+If the result is Answer(Judged(List(a, b), Kind(...), IfYouWant(a, List(...)), IfYouWant(b, List(...)), lean)),
+do not pick for them unless lean is Leans(...). Say in one sentence they are both that kind,
+then "if you want ..., a; if you want ..., b", using only what each IfYouWant lists: Has(p, v)
+is having v as its p, More(p, x, y) is a higher p (x against y), Less(p, x, y) a lower one.
+If lean is Leans(x, Recognition(...)), add that x is the better known of the two.
 If the result is Answer(Judged(List(a, b), NoCommonKind())), say you could not find a and b
 as two options of the same kind, so you cannot compare them yet.
 If the result is Answer(Unknown(x)), say you do not know x yet.

@@ -10,8 +10,8 @@ Requires(Basic(), Pursue())
 // conditional: if that matters to you, this one. With nothing else to go on, the far better
 // known one is leaned toward (the recognition heuristic), and said to be why.
 
-// What Judge came back with: the options, the kind they share, the senses taken, how they
-// differ, and a lean or NoLean.
+// What Judge came back with: the options, the kind they share, for each option what choosing
+// it gets you, and a lean or NoLean.
 Concept(Judged(), IsA(Result()))
 
 Concept(Kind(), IsA(Data()))
@@ -19,10 +19,15 @@ Concept(Kind(), IsA(Data()))
 // The senses found share no kind: not known yet as alternatives to one another.
 Concept(NoCommonKind(), IsA(Data()))
 
-Concept(Senses(), IsA(Data()))
+// What choosing an option gets you: what only it has (Has), and which way an amount goes
+// (More or Less: the property, its amount, the other's).
+Concept(IfYouWant(), IsA(Data()))
 
-// One way the options differ: the property, then each option's values, in order.
-Concept(Differs(), IsA(Data()))
+Concept(Has(), IsA(Data()))
+
+Concept(More(), IsA(Data()))
+
+Concept(Less(), IsA(Data()))
 
 Concept(Leans(), IsA(Data()))
 
@@ -244,7 +249,7 @@ Concept(Judge(),
                   ),
                   If(
                     NotEquals(Member($v, "time"), Undefined()),
-                    Return(Call(Member(Member($v, "time"), "slice"), 1, 5)),
+                    Return(Call($Number, Call(Member(Member($v, "time"), "slice"), 0, 5))),
                     Undefined()
                   ),
                   Return(Undefined())
@@ -372,6 +377,61 @@ Concept(Judge(),
                 )
               )
             ),
+            Bind($META, List("Q28100549", "Q115429021")),
+            Bind($propIds, Map($dims, Lambda(List($d), Member($d, "p")))),
+            Bind($meta, New($Set)),
+            If(
+              Length($propIds),
+              Sequence(
+                Bind($pk,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(Add($base, "action=wbgetentities&props=claims&ids="), Call(Member($propIds, "join"), "|"))
+                        )
+                      )
+                    )
+                  )
+                ),
+                ForOf(
+                  List($id, $e),
+                  Call(Member($Object, "entries"), Or(And($pk, Member($pk, "entities")), Object())),
+                  Sequence(
+                    Bind($kinds,
+                      Map(
+                        Or(And(Member($e, "claims"), Member(Member($e, "claims"), "P31")), List()),
+                        Lambda(List($c),
+                          If(
+                            And(Member($c, "mainsnak"), Member(Member($c, "mainsnak"), "datavalue")),
+                            Member(Member(Member(Member($c, "mainsnak"), "datavalue"), "value"), "id"),
+                            Undefined()
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      Call(Member($kinds, "some"), Lambda(List($k), Includes($META, $k))),
+                      Call(Member($meta, "add"), $id),
+                      Undefined()
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($ownName,
+              Lambda(List($v, $i),
+                And(
+                  Equals(TypeOf(Call($say, $v)), "string"),
+                  Includes(Call(Member(Call($say, $v), "toLowerCase")), Index($words, $i))
+                )
+              )
+            ),
             Bind($wiki,
               Lambda(List($v),
                 And(
@@ -388,27 +448,102 @@ Concept(Judge(),
                 Assign(Member($d, "vb"), Filter(Member($d, "vb"), Lambda(List($v), Not(Call($wiki, $v)))))
               )
             ),
-            Bind($kept, Filter($dims, Lambda(List($d), And(Length(Member($d, "va")), Length(Member($d, "vb")))))),
-            Bind($differs,
-              Map(
-                $kept,
+            ForOf(
+              $d,
+              $dims,
+              Sequence(
+                Assign(Member($d, "va"), Filter(Member($d, "va"), Lambda(List($v), Not(Call($ownName, $v, 0))))),
+                Assign(Member($d, "vb"), Filter(Member($d, "vb"), Lambda(List($v), Not(Call($ownName, $v, 1)))))
+              )
+            ),
+            Bind($kept,
+              Filter(
+                $dims,
                 Lambda(List($d),
-                  Call(
-                    Member($api, "call"),
-                    "Differs",
-                    Call($say, Member($d, "p")),
-                    Call(
-                      Member($api, "call"),
-                      "List",
-                      Spread(Map(Member($d, "va"), $say))
-                    ),
-                    Call(
-                      Member($api, "call"),
-                      "List",
-                      Spread(Map(Member($d, "vb"), $say))
-                    )
+                  And(
+                    And(Length(Member($d, "va")), Length(Member($d, "vb"))),
+                    Not(Call(Member($meta, "has"), Member($d, "p")))
                   )
                 )
+              )
+            ),
+            Bind($reasons,
+              Lambda(List($mine, $theirs),
+                Sequence(
+                  Bind($out, List()),
+                  ForOf(
+                    $d,
+                    $kept,
+                    Sequence(
+                      Bind(List($m, $t), List(Call($mine, $d), Call($theirs, $d))),
+                      If(
+                        And(
+                          Call(Member($m, "every"), Lambda(List($v), Equals(TypeOf($v), "number"))),
+                          Call(Member($t, "every"), Lambda(List($v), Equals(TypeOf($v), "number")))
+                        ),
+                        Sequence(
+                          Bind($mid,
+                            Lambda(List($xs),
+                              Divide(
+                                Call(
+                                  Member($Math, "round"),
+                                  Multiply(Divide(Reduce($xs, Lambda(List($a, $b), Add($a, $b)), 0), Length($xs)), 100)
+                                ),
+                                100
+                              )
+                            )
+                          ),
+                          Bind(List($x, $y), List(Call($mid, $m), Call($mid, $t))),
+                          If(
+                            NotEquals($x, $y),
+                            Call(
+                              Member($out, "push"),
+                              Call(
+                                Member($api, "call"),
+                                If(GreaterThan($x, $y), "More", "Less"),
+                                Call($say, Member($d, "p")),
+                                $x,
+                                $y
+                              )
+                            ),
+                            Undefined()
+                          ),
+                          Continue()
+                        ),
+                        Undefined()
+                      ),
+                      Bind($only, Map(Filter($m, Lambda(List($v), Not(Includes($t, $v)))), $say)),
+                      If(
+                        Length($only),
+                        Call(
+                          Member($out, "push"),
+                          Call(
+                            Member($api, "call"),
+                            "Has",
+                            Call($say, Member($d, "p")),
+                            Spread($only)
+                          )
+                        ),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Return(Call(Member($out, "slice"), 0, 4))
+                )
+              )
+            ),
+            Bind($forA,
+              Call(
+                $reasons,
+                Lambda(List($d), Member($d, "va")),
+                Lambda(List($d), Member($d, "vb"))
+              )
+            ),
+            Bind($forB,
+              Call(
+                $reasons,
+                Lambda(List($d), Member($d, "vb")),
+                Lambda(List($d), Member($d, "va"))
               )
             ),
             Bind($la, Call($named, Member($best, "a"), "sitelinks")),
@@ -442,26 +577,20 @@ Concept(Judge(),
                 Call(
                   Member($api, "call"),
                   "Kind",
-                  Spread(Map(Member($best, "shared"), $say))
+                  Spread(Map(Call(Member(Member($best, "shared"), "slice"), 0, 3), $say))
                 ),
                 Call(
                   Member($api, "call"),
-                  "Senses",
-                  Spread(
-                    Map(
-                      $chosen,
-                      Lambda(List($e),
-                        Call(
-                          Member($api, "call"),
-                          "Wikidata",
-                          Member(Index(Member($e, "args"), 0), "value"),
-                          Call($named, $e, "description")
-                        )
-                      )
-                    )
-                  )
+                  "IfYouWant",
+                  Index($options, 0),
+                  Call(Member($api, "call"), "List", Spread($forA))
                 ),
-                Call(Member($api, "call"), "List", Spread($differs)),
+                Call(
+                  Member($api, "call"),
+                  "IfYouWant",
+                  Index($options, 1),
+                  Call(Member($api, "call"), "List", Spread($forB))
+                ),
                 $leans
               )
             )
