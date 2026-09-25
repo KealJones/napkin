@@ -371,11 +371,20 @@ Concept(Meaning(),
               If(
                 Equals($use, "Interjection"),
                 List("Interjection", "Phrase", "Noun"),
-                If(
-                  Equals($use, "Verb"),
-                  List("Verb", "Phrase", "Noun"),
-                  List()
-                )
+                List()
+              )
+            ),
+            Bind($STRUCTURE,
+              List(
+                "Preposition",
+                "Adverb",
+                "Conjunction",
+                "Determiner",
+                "Article",
+                "Pronoun",
+                "Particle",
+                "Postposition",
+                "Contraction"
               )
             ),
             Bind($lookUp,
@@ -461,6 +470,11 @@ Concept(Meaning(),
                                   If($found, Return($found), Undefined()),
                                   Continue()
                                 ),
+                                Undefined()
+                              ),
+                              If(
+                                Includes($STRUCTURE, Member($e, "partOfSpeech")),
+                                Return(Undefined()),
                                 Undefined()
                               ),
                               Return(Object(d = $d, pos = Member($e, "partOfSpeech"), url = $url))

@@ -22,7 +22,10 @@ Concept(Self(),
   CanDo(RecallWhatYouSaid()),
   CanDo(DescribeWhatIKnow()),
   CanDo(LearnNewWords()),
-  CanDo(PlayTicTacToe()),
+  CanDo(LookThingsUp()),
+  CanDo(ContinueSequences()),
+  CanDo(CompareTwoThings()),
+  CanDo(SayWhatAPlanIsMissing()),
   CanDo(ForgetWhatYouAsk())
 )
 
@@ -39,13 +42,19 @@ Concept(DatesAndTimes(), IsA(Capability()))
 
 Concept(RememberWhatYouTellMe(), IsA(Capability()))
 
+Concept(LookThingsUp(), IsA(Capability()))
+
+Concept(ContinueSequences(), IsA(Capability()))
+
+Concept(CompareTwoThings(), IsA(Capability()))
+
+Concept(SayWhatAPlanIsMissing(), IsA(Capability()))
+
 Concept(RecallWhatYouSaid(), IsA(Capability()))
 
 Concept(DescribeWhatIKnow(), IsA(Capability()))
 
 Concept(LearnNewWords(), IsA(Capability()))
-
-Concept(PlayTicTacToe(), IsA(Capability()))
 
 Concept(ForgetWhatYouAsk(), IsA(Capability()))
 

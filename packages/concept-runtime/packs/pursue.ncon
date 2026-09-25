@@ -847,6 +847,116 @@ Concept(LookUp(),
   )
 )
 
+// What is held about something, described: "tell me about yourself". A word for someone in
+// the conversation is about who it refers to.
+Concept(About(),
+  Realization(About($x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Var($x, Member(Index($args, 0), "value")),
+            If(
+              Not(Call($isCall, $x)),
+              Return(Call(Member($api, "call"), "About", $x)),
+              Undefined()
+            ),
+            Bind($refers,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Closure",
+                    Member($x, "head"),
+                    "Refers"
+                  )
+                )
+              )
+            ),
+            Bind($to,
+              If(
+                And(
+                  And(
+                    And(Call($isCall, $refers), Equals(Member($refers, "head"), "List")),
+                    Length(Member($refers, "args"))
+                  ),
+                  Call($isCall, Member(Index(Member($refers, "args"), 0), "value"))
+                ),
+                Member(Member(Index(Member($refers, "args"), 0), "value"), "head"),
+                Undefined()
+              )
+            ),
+            If(
+              Equals($to, "Self"),
+              Assign($x, Call(Member($api, "call"), "Self")),
+              If(
+                Equals($to, "Me"),
+                Sequence(
+                  Bind($user,
+                    Call(
+                      Member(Call(Member(Member($api, "store"), "all")), "find"),
+                      Lambda(List($u),
+                        Call(
+                          Member(Member($u, "relations"), "some"),
+                          Lambda(List($r),
+                            And(
+                              And(
+                                And(
+                                  Call($isCall, Member($r, "claim")),
+                                  Equals(Member(Member($r, "claim"), "head"), "IsA")
+                                ),
+                                Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                              ),
+                              Equals(
+                                Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                                "User"
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  If(
+                    $user,
+                    Assign($x, Call(Member($api, "call"), Member($user, "identity"))),
+                    Undefined()
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            Bind($described,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Relations", $x),
+                  Call(Member($api, "call"), "Describe")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Call($isCall, $described), Equals(Member($described, "head"), "Describes")),
+                $described,
+                Call(
+                  Member($api, "call"),
+                  "About",
+                  Member(Index($args, 0), "value")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // Every relation mentioning a Concept, at any depth, read from the store's mention index.
 Concept(Mentions(),
   IsA(Category()),

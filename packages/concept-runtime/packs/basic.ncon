@@ -1388,7 +1388,7 @@ Concept(Interrogative(),
                 ),
                 // Not found anywhere is not knowing, said plainly. Describing the head of a
                 // compound would answer "my cat's name" with what "my" is.
-                Return(Call(Member($api, "call"), "Unknown", $target))
+                Return(Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Talk", $target))))
               ),
               Undefined()
             ),
@@ -2924,7 +2924,11 @@ Concept(Now(),
 
 Concept(Me(), IsA(Deictic()))
 
-Concept(You(), IsA(Deictic()))
+Concept(You(), IsA(Deictic()), Refers(Self()))
+
+Concept(Yourself(), IsA(Deictic()), Refers(Self()))
+
+Concept(Myself(), IsA(Deictic()), Refers(Me()))
 
 // Whose: the one speaking, or the one spoken to, and who that is.
 Concept(My(), IsA(Deictic()), Refers(Me()))

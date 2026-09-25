@@ -173,7 +173,7 @@ test("a kind said with its words is believed whole, and a job asked for is a kin
 });
 
 test("a question that asks more than its subject is not answered with the subject", async () => {
-  assert.match(await ask("when you say hello?"), /^Unknown\(/);
+  assert.doesNotMatch(await ask("when you say hello?"), /^Answer\(Hello/);
 });
 
 test("\"I meant\" takes the place of the last turn, and a mistyped times is times", async () => {

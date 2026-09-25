@@ -531,3 +531,80 @@ Concept(Reply(),
     )
   )
 )
+
+// A question nothing answered that is about the two people talking ("how you doin") is talk:
+// replied to as people reply to it. Anything else is not known yet.
+Concept(Talk(),
+  Realization(Talk($asked),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($asked, Member(Index($args, 0), "value")),
+            Bind($message, Call(Member($api, "ambient"), "message")),
+            Var($aboutUs, false),
+            Bind($look,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $e)), $aboutUs),
+                      Return(),
+                      Undefined()
+                    ),
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "Closure",
+                            Member($e, "head"),
+                            "Refers"
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      And(And(Call($isCall, $r), Equals(Member($r, "head"), "List")), Length(Member($r, "args"))),
+                      Assign($aboutUs, true),
+                      Undefined()
+                    ),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Await(Call($look, Member($a, "value")))
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($look, $asked)),
+            If(
+              And($aboutUs, Equals(TypeOf($message), "string")),
+              Sequence(
+                Bind($reply, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message)))),
+                If(
+                  And(
+                    And(Call($isCall, $reply), Equals(Member($reply, "head"), "Reply")),
+                    Call($isCall, OptionalMember(Index(Member($reply, "args"), 0), "value"))
+                  ),
+                  Return(
+                    Object(head = "Noted", args = List(Object(value = $asked), Object(name = "reply", value = $reply)))
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "Unknown", $asked))
+          )
+        )
+      )
+    )
+  )
+)

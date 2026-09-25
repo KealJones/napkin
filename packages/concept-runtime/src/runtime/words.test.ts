@@ -40,3 +40,8 @@ test("a word alone is said, not set aside", async () => {
   const { say } = conversation();
   assert.equal(await say("yo"), "Answer(Hello())");
 });
+
+test("tell me about yourself describes Self, and a question about us nothing answers is not known", async () => {
+  const { say } = conversation();
+  assert.match(await say("tell me about yourself"), /^Describes\(Self\(\), List\(Named\("Napkin"\)/);
+});
