@@ -546,3 +546,214 @@ Concept(After(),
     )
   )
 )
+
+// What Continue came back with: the words, and for each how many words of context it was
+// read from (the order it backed off to).
+Concept(Continued(), IsA(Result()))
+
+// Words that follow a starter in a text, one after another: each is the word that most often
+// followed the longest run of the last words the text has seen, backing off to shorter runs
+// when a longer one never occurred (prediction by partial matching). The counts are read from
+// the text every time, never stored.
+Concept(Continue(),
+  IsA(Category()),
+  Realization(Continue(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
+        Sequence(
+          Bind($corpus, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+          Bind($starter, Call(Member($api, "toHost"), Member(Index($args, 1), "value"))),
+          Bind($count,
+            If(
+              GreaterThan(Length($args), 2),
+              Call(Member($api, "toHost"), Member(Index($args, 2), "value")),
+              1
+            )
+          ),
+          If(
+            Or(
+              Or(NotEquals(TypeOf($corpus), "string"), NotEquals(TypeOf($starter), "string")),
+              NotEquals(TypeOf($count), "number")
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Continue",
+                Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              )
+            ),
+            Undefined()
+          ),
+          Bind($split,
+            Lambda(List($s),
+              Sequence(
+                Bind($out, List()),
+                Var($word, ""),
+                ForOf(
+                  $ch,
+                  $s,
+                  Sequence(
+                    Bind($space,
+                      Or(
+                        Or(
+                          Equals($ch, " "),
+                          Equals(
+                            $ch,
+                            """
+  """
+                          )
+                        ),
+                        Equals($ch, "\t")
+                      )
+                    ),
+                    Bind($mark,
+                      Or(
+                        Or(
+                          Or(Or(Or(Equals($ch, "."), Equals($ch, ",")), Equals($ch, "!")), Equals($ch, "?")),
+                          Equals($ch, ";")
+                        ),
+                        Equals($ch, ":")
+                      )
+                    ),
+                    If(
+                      Or($space, $mark),
+                      Sequence(
+                        If($word, Call(Member($out, "push"), $word), Undefined()),
+                        Assign($word, ""),
+                        If($mark, Call(Member($out, "push"), $ch), Undefined())
+                      ),
+                      Assign($word, Add($word, $ch))
+                    )
+                  )
+                ),
+                If($word, Call(Member($out, "push"), $word), Undefined()),
+                Return($out)
+              )
+            )
+          ),
+          Bind($words, Call($split, $corpus)),
+          Bind($low, Map($words, Lambda(List($w), Call(Member($w, "toLowerCase"))))),
+          Bind($said, Call($split, $starter)),
+          Bind($added, List()),
+          Bind($orders, List()),
+          For(
+            Var($n, 0),
+            LessThan($n, $count),
+            PostIncrement($n),
+            Sequence(
+              Bind($context,
+                Map(Call(Member($said, "concat"), $added), Lambda(List($w), Call(Member($w, "toLowerCase"))))
+              ),
+              Var($next, Undefined()),
+              Var($order, 0),
+              For(
+                Var($k, Call(Member($Math, "min"), Length($context), 6)),
+                And(AtLeast($k, 1), Equals($next, Undefined())),
+                PostDecrement($k),
+                Sequence(
+                  Bind($tail, Call(Member($context, "slice"), Subtract(Length($context), $k))),
+                  Bind($seen, New($Map)),
+                  Var($firstAt, New($Map)),
+                  For(
+                    Var($i, 0),
+                    LessThan(Add($i, $k), Length($low)),
+                    PostIncrement($i),
+                    Sequence(
+                      Var($match, true),
+                      For(
+                        Var($j, 0),
+                        LessThan($j, $k),
+                        PostIncrement($j),
+                        If(
+                          NotEquals(Index($low, Add($i, $j)), Index($tail, $j)),
+                          Sequence(Assign($match, false), Break()),
+                          Undefined()
+                        )
+                      ),
+                      If(Not($match), Continue(), Undefined()),
+                      Bind($w, Index($words, Add($i, $k))),
+                      Call(
+                        Member($seen, "set"),
+                        $w,
+                        Add(Or(Call(Member($seen, "get"), $w), 0), 1)
+                      ),
+                      If(
+                        Not(Call(Member($firstAt, "has"), $w)),
+                        Call(Member($firstAt, "set"), $w, $i),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Var($best, Undefined()),
+                  ForOf(
+                    List($w, $c),
+                    $seen,
+                    If(
+                      Or(
+                        Or(Equals($best, Undefined()), GreaterThan($c, Call(Member($seen, "get"), $best))),
+                        And(
+                          Equals($c, Call(Member($seen, "get"), $best)),
+                          LessThan(Call(Member($firstAt, "get"), $w), Call(Member($firstAt, "get"), $best))
+                        )
+                      ),
+                      Assign($best, $w),
+                      Undefined()
+                    )
+                  ),
+                  If(
+                    NotEquals($best, Undefined()),
+                    Sequence(Assign($next, $best), Assign($order, $k)),
+                    Undefined()
+                  )
+                )
+              ),
+              If(Equals($next, Undefined()), Break(), Undefined()),
+              Call(Member($added, "push"), $next),
+              Call(Member($orders, "push"), $order)
+            )
+          ),
+          If(
+            Not(Length($added)),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Continue",
+                Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              )
+            ),
+            Undefined()
+          ),
+          Var($text, ""),
+          ForOf(
+            $w,
+            $added,
+            Assign(
+              $text,
+              Add(
+                $text,
+                Add(
+                  If(
+                    And($text, Not(And(Equals(Length($w), 1), Includes(".,!?;:", $w)))),
+                    " ",
+                    ""
+                  ),
+                  $w
+                )
+              )
+            )
+          ),
+          Return(
+            Call(
+              Member($api, "call"),
+              "Continued",
+              $text,
+              Call(Member($api, "call"), "List", Spread($orders))
+            )
+          )
+        )
+      )
+    )
+  )
+)
