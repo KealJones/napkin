@@ -1235,10 +1235,13 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
-            // "what is a work in progress": a phrase that spells a Concept is asked as it.
+            // "what is a work in progress": a question whose words spell a Concept asks about
+            // it, read once and asked again as the graph names it.
+            Bind($asked, Call(Member($bindings, "get"), "question")),
+            Bind($readAs, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $asked)))),
             If(
-              And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
-              Assign($subject, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $subject)))),
+              NotEquals(Call(Member($api, "format"), $readAs), Call(Member($api, "format"), $asked)),
+              Return(Await(Call(Member($api, "evaluate"), $readAs))),
               Undefined()
             ),
             Bind($WHEN,
@@ -1634,7 +1637,8 @@ Concept(HowMuch(), IsA(Interrogative()), Asks(Amount()))
 Concept(WhichOf(), IsA(Interrogative()))
 
 // A phrase read as the graph names it: "a work in progress" is WorkInProgress() when the
-// graph holds one, and is left as said when it does not. Only folds run while reading.
+// graph holds one, and is left as said when it does not. Only folds are consulted, matched
+// and never run, and a phrase anywhere inside is read ("until new years day").
 Concept(Read(),
   Realization(Read($x),
     context = Execution(),
@@ -1642,14 +1646,57 @@ Concept(Read(),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
-          Return(
-            Await(
-              Call(
-                Member($api, "evaluate"),
-                Member(Index($args, 0), "value"),
-                Call(Member($api, "call"), "Reading")
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($folds,
+              Filter(
+                Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), "Concept"), "realizations"), List()),
+                Lambda(List($r),
+                  And(
+                    Not(Member($r, "retired")),
+                    Call(
+                      Member(Member($r, "properties"), "some"),
+                      Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Fold")))
+                    )
+                  )
+                )
               )
-            )
+            ),
+            Bind($read,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return($e), Undefined()),
+                  ForOf(
+                    $f,
+                    $folds,
+                    Sequence(
+                      Bind($found, Call(Member($api, "match"), Member($f, "pattern"), $e)),
+                      If(
+                        $found,
+                        Return(Call(Member($api, "substitute"), Member($f, "body"), $found)),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Return(
+                    Object(
+                      head = Member($e, "head"),
+                      args = Map(
+                        Member($e, "args"),
+                        Lambda(List($a),
+                          If(
+                            Equals(Member($a, "name"), Undefined()),
+                            Object(value = Call($read, Member($a, "value"))),
+                            Object(name = Member($a, "name"), value = Call($read, Member($a, "value")))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(Call($read, Member(Index($args, 0), "value")))
           )
         )
       )

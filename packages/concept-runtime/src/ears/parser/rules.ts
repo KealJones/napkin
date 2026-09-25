@@ -16,7 +16,6 @@ import nlp from "compromise";
 import { type Expr, c, format, isCall } from "../../concept/expression.js";
 import { correct, expandBare, isWord, unclear } from "./words.js";
 import { mathSpans } from "./math.js";
-import { knownName, namesOneThing } from "./names.js";
 
 interface Tok {
   word: string;
@@ -368,7 +367,7 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
     return c(kind, Number(r.next().word));
   }
   // After a helper, "the build go": the last word is the verb the helper carries.
-  if (stopAtVerb && nouns.length > 1 && canBeVerb(nouns[nouns.length - 1].word) && !knownName(nouns.map((n) => n.word).join(" "))) {
+  if (stopAtVerb && nouns.length > 1 && canBeVerb(nouns[nouns.length - 1].word)) {
     r.i -= 1;
     nouns.pop();
   }
@@ -393,19 +392,13 @@ function simpleNounPhrase(r: Reader, subject: boolean, stopAtVerb: boolean): Exp
     if (describers.length) return describers.reduceRight<Expr>((inner, d) => c(name(d.word), inner), c(name(describers.pop()!.word)));
     fail(`expected a noun at "${r.word()}"`);
   }
-  // Nouns side by side: one kind of thing when Wikidata names the phrase ("cover letter" is
-  // CoverLetter), otherwise the last is the thing and the ones before describe it
-  // ("barista job" is Job(Barista())).
-  // "new years day": a describing word the graph knows as part of one name is part of the
-  // name, not a description of it. Only a name the graph already holds, so nothing is asked.
-  while (describers.length && nouns.length && knownName([describers[describers.length - 1], ...nouns].map((n) => n.word).join(" "))) {
-    nouns.unshift(describers.pop()!);
-  }
+  // Nouns side by side: the last is the thing and the ones before describe it, "barista
+  // job" is Job(Barista()) and "ice cream" is Cream(Ice()). The words are read as said,
+  // whatever the graph knows: when the graph names the phrase (IceCream), its fold reads it
+  // as that Concept (Read), and the reading never depends on what was learned.
   const last = nouns[nouns.length - 1];
-  const phrase = nouns.map((n) => n.word).join(" ");
-  const oneThing = nouns.length === 1 || namesOneThing(phrase) === true;
-  const kind = oneThing ? nouns.map(named).join("") : named(last);
-  const modifiers = oneThing ? [] : nouns.slice(0, -1).map((n) => spelled(n, c(named(n))));
+  const kind = named(last);
+  const modifiers = nouns.slice(0, -1).map((n) => spelled(n, c(named(n))));
   let core: Expr = stressed(last, spelled(last, c(kind, ...modifiers, ...prepositions(r, true), ...relative(r), ...reducedRelative(r))));
   for (const d of [...describers].reverse()) core = stressed(d, wrap(name(d.word), core));
   return core;
@@ -658,7 +651,8 @@ function whQuestion(r: Reader): Expr {
     const ask = (...rest: Expr[]): Expr => c(head, c(helper, ...rest));
     if (r.done()) return ask();
     if (r.word() === "be" || (r.is("Verb") && !r.is("Noun") && !PERSON[r.word()] && !DET.has(r.word()))) return ask(verbPhrase(r));
-    const subject = nounPhrase(r, true, true);
+    // A copula carries no verb ("what is the square root"), so its thing keeps every word.
+    const subject = nounPhrase(r, true, !COPULA.has(aux.word));
     // "what is the weather in pittsburgh": with no verb, a phrase after the subject is part of it.
     if (COPULA.has(aux.word) && PREP.has(r.word())) {
       const pps = prepositions(r);
@@ -704,7 +698,7 @@ function whQuestion(r: Reader): Expr {
 /** A yes/no question led by its helper: Could(You(), Close(Door())), Is(Chess(), Sport()). */
 function helperQuestion(r: Reader): Expr {
   const aux = r.next();
-  const subject = nounPhrase(r, true, true);
+  const subject = nounPhrase(r, true, !COPULA.has(aux.word));
   if (r.done()) return c(name(aux.word), subject);
   // "could you please summarize this": the polite word stays, around what it asks.
   const polite = r.word() === "please";

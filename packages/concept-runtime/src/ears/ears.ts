@@ -10,7 +10,6 @@ import type { ConceptStore } from "../store/store.js";
 import { dropArticles, lift as liftLines, mendDates, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
 import { frame } from "./mood.js";
 import { parseRules } from "./parser/rules.js";
-import { learnNames, takeWanted, useGraph } from "./parser/names.js";
 import { useGraphNames } from "./parser/words.js";
 import { generate, type ModelOptions } from "./ollama.js";
 import { earsPrompt } from "./prompt.js";
@@ -135,17 +134,12 @@ export async function hear(
 ): Promise<EarsResult> {
   let fallback: string | undefined;
   if (options.backend === "rules" || options.backend === "hybrid") {
-    // What the words name comes from Wikidata and the graph, never from a model.
+    // The speller knows the graph's words, so a name it holds is not "corrected" away.
     if (store.size() !== graphNamesAt) {
       useGraphNames(store.all().map((u) => u.identity));
       graphNamesAt = store.size();
     }
-    useGraph(store);
-    takeWanted();
-    let ruled = parseRules(message);
-    // Phrases the rules could not decide are looked up on Wikidata once, then read again.
-    const wanted = takeWanted();
-    if (wanted.length && (await learnNames(wanted).catch(() => false))) ruled = parseRules(message);
+    const ruled = parseRules(message);
     // In hybrid, a reading with words the rules could not read goes to the model instead.
     if (ruled.reading && !(options.backend === "hybrid" && ruled.unread)) {
       const raw = ruled.reading.lines.join("\n");

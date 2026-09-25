@@ -85,6 +85,8 @@ export interface CodeApi {
   /** A call to `head` with these values as its arguments, already evaluated, so not evaluated again. */
   apply(head: string, values: Expr[]): Promise<Expr>;
   substitute(expression: Expr, bindings: Bindings): Expr;
+  /** The bindings that make `pattern` match `expression`, or undefined when it does not. */
+  match(pattern: Expr, expression: Expr): Bindings | undefined;
   /** Binding a value, as Bind binds: a value is never evaluated again, however deep it lands. */
   bind(expression: Expr, bindings: Bindings): Expr;
   /** An expression evaluated, where a held value is itself: binding a value copies it. */
@@ -527,6 +529,10 @@ export class Runtime {
       },
       // What a body substitutes are values it has (a Lambda's arguments, a Bind's value).
       substitute: (expression, bindings) => this.substituteValues(expression, bindings),
+      match: (pattern, expression) => {
+        const bindings: Bindings = new Map();
+        return match(pattern, expression, bindings) ? bindings : undefined;
+      },
       bind: (expression, bindings) => this.substituteValues(expression, bindings),
       resolve: (expression, ctx) => this.run(expression, ctx ?? context, "Code", parent, depth + 1, within),
       applyLambda: async (f, values) => {

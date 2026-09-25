@@ -680,7 +680,7 @@ Concept(Mood(),
               )
             ),
             Bind($kind, Member(Index($args, 0), "value")),
-            Bind($line, Member(Index($args, 1), "value")),
+            Var($line, Member(Index($args, 1), "value")),
             // A statement is a claim, not a request: it is kept as said (the conversation's
             // Said), and read back when something asks after it (Pursue). Running it would
             // turn every word of it into missing behaviour.
@@ -709,6 +709,9 @@ Concept(Mood(),
               ),
               Undefined()
             ),
+            // What was asked or ordered is read as the graph names it first: "how many days
+            // until new years day" asks about NewYearsDay. The Said keeps the words as said.
+            Assign($line, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
             Bind($context,
               Call(
                 Member($api, "call"),

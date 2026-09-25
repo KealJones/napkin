@@ -9,12 +9,12 @@
  * Nothing in a pack is stubbed. A Concept that cannot yet be honestly realized is omitted,
  * so that it produces a residual the learning path can act on rather than a wrong answer.
  */
-import { c, equal, format, isCall, parse } from "../concept/expression.js";
+import { c, call, equal, format, isCall, parse } from "../concept/expression.js";
 import { declares, realization, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
 import { readPhrase } from "../ears/parser/rules.js";
-import { reachesBehaviour, UNIVERSAL } from "../runtime/select.js";
+import { UNIVERSAL } from "../runtime/select.js";
 
 /** A realization that only hands the call to another Concept, rather than doing anything. */
 const FORWARDING = "Forwarding";
@@ -120,14 +120,14 @@ const foldTarget = (r: Realization): string | undefined => {
  * `Reading()` context: the phrase stays as said, and reading it (`Read`) finds the Concept.
  *
  * The fold lives on `Concept`, which every head inherits from, so no Concept is created for
- * `Work` just to hold it: a word nobody taught stays unknown. Only things fold. A name with
- * behaviour of its own (`MakeCall`) is an operation, and "make call" is an order to do it.
- * Nobody writes a fold: a Concept learned tomorrow folds the next time the graph is seeded,
+ * `Work` just to hold it: a word nobody taught stays unknown. A fold only runs while reading
+ * and only matches the phrase exactly as the Ears reads it, so a name nobody says
+ * (`MakeCall`) folds a phrase nobody says. Nobody writes a fold: a Concept learned tomorrow folds the next time the graph is seeded,
  * and a fold goes when its Concept does.
  */
 function deriveFolds(store: ConceptStore): number {
   const folds = (store.get(UNIVERSAL)?.realizations ?? []).filter((r) => !r.retired && foldTarget(r) !== undefined);
-  const lapsed = (to: string) => !store.has(to) || reachesBehaviour(store, to);
+  const lapsed = (to: string) => !store.has(to);
   if (folds.some((r) => lapsed(foldTarget(r)!))) {
     const universal = store.get(UNIVERSAL)!;
     store.replaceRealizations(UNIVERSAL, universal.realizations.map((r) => {
@@ -139,12 +139,22 @@ function deriveFolds(store: ConceptStore): number {
   let derived = 0;
   for (const unit of store.all()) {
     // Words only: a minted individual (Greg_1) or an acronym is not a phrase.
-    if (folded.has(unit.identity) || !/^(?:[A-Z][a-z]+){2,}$/.test(unit.identity) || reachesBehaviour(store, unit.identity)) continue;
+    if (folded.has(unit.identity) || !/^(?:[A-Z][a-z]+){2,}$/.test(unit.identity)) continue;
     const said = readPhrase(unit.identity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase());
     if (said === undefined || !isCall(said) || said.head === unit.identity || equal(said, c(unit.identity))) continue;
+    // A compound's describers come first and what is said of it follows: "the square root
+    // of 144" is Root(Square(), Of(144)), which is SquareRoot(Of(144)).
+    const open = said.args.length > 0 && said.args.every((a) => a.name === undefined && isCall(a.value) && !a.value.args.length);
+    const rest = parse("Rest($rest)");
     store.addRealization(
       UNIVERSAL,
-      realization({ pattern: said, context: "Reading()", evaluateArguments: false, properties: [`${FOLD}(${unit.identity}())`], body: c(unit.identity) }),
+      realization({
+        pattern: open ? call(said.head, [...said.args, { value: rest }]) : said,
+        context: "Reading()",
+        evaluateArguments: false,
+        properties: [`${FOLD}(${unit.identity}())`],
+        body: open ? call(unit.identity, [{ value: rest }]) : c(unit.identity),
+      }),
     );
     derived += 1;
   }
