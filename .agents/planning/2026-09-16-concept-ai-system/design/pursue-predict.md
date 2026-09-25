@@ -1,6 +1,6 @@
 # Pursue, Predict, Plan, Judge
 
-Status: draft 1, 2026-09-24, nothing built. Builds on `emergent-judgment-plan.md` (which it
+Status: draft 2, 2026-09-24. Pursue, Predict, Continue and Judge are built (section 8). Builds on `emergent-judgment-plan.md` (which it
 narrows and reorders) and `compression-as-prediction.md`. Grounded in a trace audit of nine
 real prompts and a seed audit, both run 2026-09-24 against a fresh `store.ncon`.
 
@@ -110,7 +110,7 @@ talking to itself, and the trace is the transcript.
 |---|---|
 | `Predict(hole, around)` | fill a hole from what surrounds it. "Next" has a left side, "middle" has both |
 | `Corpus(x)` | what candidates are scored against: a given document, the trace, researched text |
-| `DescriptionLength(expr)` | the MDL score. The candidate that makes the whole shortest to describe wins |
+| `DescriptionLength(expr)` | dropped. Surface length means nothing: a one-word Concept can realize to a 600-step chain. Scoring is by counts instead (surprisal), where a Concept reference is one symbol whatever it expands to |
 | `Counts` | PPM-style context counts, derived from the corpus at query time, never stored |
 | `BackOff` | drop context one level at a time when counts are thin. Shared with `Evidence` |
 | `AntiUnify(a, b)` | least general pattern of two expressions; predicts structure |
@@ -185,3 +185,46 @@ the last source `Research` tries.
 - **Unattended learning writes bad facts.** The audit hit this: "keep going" grounded `Keep`
   as a castle keep. Research needs a relevance check against the sentence it came from
   before anything is saved.
+
+## 8. What was built, 2026-09-24
+
+Measured on real prompts through the CLI, not only the test suite.
+
+| Asked | Answer | How |
+|---|---|---|
+| my name is Keal / what is my name? | `Answer(Keal())` | Pursue: what was said, matched by shape (`Extends`) |
+| my dog's name is Bolt / what is my dog's name? | `Answer(Bolt())` | same, no code about dogs or names |
+| what is the capital of germany? | `Answer(Berlin())` | Pursue: world lookup, "capital" as property, "germany" as item |
+| who is the author of dune? | `Answer(FrankHerbert())` | the sense that has the property (the novel, not the landform) |
+| what is the currency of japan? (twice) | `Answer(Yen())` | second ask read from the graph, kept in the asked shape |
+| what comes next: 2, 4, 8, 16 | `Predicted(32, Multiply(Previous(), 2))` | Predict: rule found among the graph's operations |
+| what is next in 1, 1, 2, 3, 5, 8 | `Predicted(13, Add(BeforePrevious(), Previous()))` | second-order rule |
+| what's next after 1, 4, 9, 16? | `Predicted(25, RaiseToPower(Position(), 2))` | positional rule |
+| should I get a cat or a dog? | life expectancy 15 vs 9, meow vs bark, ... | Judge: shared-kind senses, aligned differences |
+| should i learn python or javascript? | designers, typing discipline, inception | Judge: the language senses, not the snake |
+| should I use tabs or spaces? | `NoCommonKind()` | no sense of each shares a kind; said so instead of guessing |
+
+Pieces, each a Concept: `Mentions`, `Extends`, `Pursue`, `Fetch`, `WikidataSenses`,
+`WikidataFind`, `LookUp` (packs/pursue.ncon); `Hypothetical` (basic); `Predict`, `Next`,
+`After`, `Continue` (packs/predict.ncon); `Judge`, `Or` in questions (packs/judge.ncon).
+
+Also changed: a statement is `Noted`, not run; a question nothing answered is pursued from
+`Mood`, whatever word starts it; a residual the answer no longer holds is not a gap; bare
+Concepts named side by side are peers and not lifted as facets; the CLI keeps a conversation
+across runs.
+
+### Known gaps
+
+- "who founded microsoft" answers a date: "founded" matches an alias of inception. A who
+  question should only accept someone. Pursue does not yet know what kind the question asks
+  for.
+- Judge has no direction on a dimension (is a longer life expectancy better?), so it can set
+  differences side by side but not yet say "if you want X, pick A". That needs a goal
+  (`For(...)`) or the user's past choices.
+- Act dispatch (joke, encouragement) is not built. The design calls for predicting the reply
+  from a dialogue corpus, which means downloading one (DailyDialog). Not done without asking.
+- Plans ("what am I missing") are not built. Wikidata has no parts for a wedding; the next
+  source to try is consensus across several web checklists.
+- Recall that went with memory.ncon (who, where, did, beliefs about other people) is not
+  recovered yet. Its tests are kept as todo targets.
+- Continue copies long runs from its text, the same weakness the gzip model had.
