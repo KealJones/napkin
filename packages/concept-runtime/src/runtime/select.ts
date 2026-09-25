@@ -15,7 +15,7 @@ import { type Expr, type Call, isCall } from "../concept/expression.js";
 import { type Bindings, match } from "../concept/match.js";
 import { declares, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
-import { matchContext } from "./context.js";
+import { facets, matchContext } from "./context.js";
 
 export interface Candidate {
   readonly realization: Realization;
@@ -75,9 +75,19 @@ export function reachesBehaviour(store: ConceptStore, identity: string): boolean
   return lineage(store, identity).some(
     // The universal parent is excluded: inheriting only the universal fallback is not
     // having behaviour of your own, and counting it would make everything look attached.
-    (u) => u.identity !== UNIVERSAL && u.realizations.length > 0,
+    (u) => u.identity !== UNIVERSAL && u.realizations.some((r) => !r.retired && runs(r)),
   );
 }
+
+/**
+ * Behaviour is what runs when a Concept is evaluated. A realization only for another mode
+ * (the words for True in `Speaking()`) says the Concept, it does not do anything, and
+ * counting it made True look like a computation that never happened.
+ */
+export const runs = (r: Realization): boolean => r.context === undefined || facets(r.context).some((f) => isCall(f) && f.head === EXECUTION);
+
+/** The mode evaluation runs in, one of the identities the loop may know. */
+const EXECUTION = "Execution";
 
 export function candidates(
   store: ConceptStore,
