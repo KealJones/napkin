@@ -298,9 +298,9 @@ if (expr) {
   show("trace", runtime.trace.render());
   persistTrace();
 } else if (message) {
-  if (!(await modelAvailable())) {
-    console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama, or use --expr.");
-    process.exit(1);
+  // Hearing and speaking need no model. Only the Teacher, the last resort in learning, does.
+  if (!flag("--no-learn") && !(await modelAvailable())) {
+    console.error("No local model reachable at http://127.0.0.1:11434: learning will not reach the Teacher.");
   }
   // One conversation the command line keeps across runs, the newest persistent one, so what
   // was said in one run is there to be read in the next, the way the studio records it.

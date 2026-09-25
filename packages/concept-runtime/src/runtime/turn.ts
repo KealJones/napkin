@@ -423,9 +423,11 @@ export async function turn(
     if (value === undefined) runtime.context.delete(key);
     else runtime.context.set(key, value);
   }
-  // The rules read first and the model only what they cannot, here rather than in each
-  // caller, so the CLI and the studio hear a message the same way.
-  options = { backend: "hybrid", ...options };
+  // The rules read, here rather than in each caller, so the CLI and the studio hear a message
+  // the same way. A word they cannot read is Unclear and looked up (Meaning), not handed to a
+  // model: the model's readings were where "good news i was lol" became Good(MarkAside(...)).
+  // "hybrid" and "model" are still there to ask for.
+  options = { backend: "rules", ...options };
   const hearMessage = async (): Promise<EarsResult> =>
     options.inputMode === "expression" ? exactExpression(message) : hear(runtime.store, message, options);
   let heard = await hearMessage();

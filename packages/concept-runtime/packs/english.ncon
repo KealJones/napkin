@@ -838,7 +838,7 @@ Concept(Reply(),
                   )
                 ),
                 If(
-                  Equals(TypeOf($f), "string"),
+                  And(Equals(TypeOf($f), "string"), $f),
                   Call(Member($parts, "push"), $f),
                   Undefined()
                 )
@@ -858,7 +858,7 @@ Concept(Reply(),
                   )
                 ),
                 If(
-                  Equals(TypeOf($a), "string"),
+                  And(Equals(TypeOf($a), "string"), $a),
                   Call(Member($parts, "push"), $a),
                   Undefined()
                 )
@@ -1664,7 +1664,11 @@ Concept(Sequence(),
                   ),
                   Undefined()
                 ),
-                If($s, Call(Member($parts, "push"), $s), Undefined())
+                If(
+                  And($s, Not(Includes($parts, $s))),
+                  Call(Member($parts, "push"), $s),
+                  Undefined()
+                )
               )
             ),
             Return(Call(Member($parts, "join"), " "))

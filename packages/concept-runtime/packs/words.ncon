@@ -708,11 +708,46 @@ Concept(Unclear(),
             Bind($meaning, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Meaning", $text, $use)))),
             If(
               Not(Call($isCallish, $meaning)),
-              Return(
-                Call(
-                  Member($api, "call"),
-                  "Unclear",
-                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              Sequence(
+                Bind($message, Call(Member($api, "ambient"), "message")),
+                If(
+                  And(And(Equals(TypeOf($message), "string"), Not(Includes($message, "?"))), Includes($text, " ")),
+                  Sequence(
+                    Bind($reply, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message)))),
+                    If(
+                      And(
+                        And(
+                          And(And($reply, Equals(Member($reply, "head"), "Reply")), Index(Member($reply, "args"), 0)),
+                          Member(Index(Member($reply, "args"), 0), "value")
+                        ),
+                        Member(Member(Index(Member($reply, "args"), 0), "value"), "head")
+                      ),
+                      Return(
+                        Object(
+                          head = "Noted",
+                          args = List(
+                            Object(
+                              value = Call(
+                                Member($api, "call"),
+                                "Unclear",
+                                Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                              )
+                            ),
+                            Object(name = "reply", value = $reply)
+                          )
+                        )
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                ),
+                Return(
+                  Call(
+                    Member($api, "call"),
+                    "Unclear",
+                    Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                  )
                 )
               ),
               Undefined()
