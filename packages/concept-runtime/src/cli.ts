@@ -368,7 +368,7 @@ if (expr) {
   napkin --study --track napkin --from .agents/planning/2026-09-16-concept-ai-system/design
                                          learn its own vocabulary from its own specs
   napkin --import src/thing.ts          read TypeScript as Concept expressions
-  napkin --sources                      learned facts by where they came from: Wikidata, Wiktionary, Teacher, said
+  napkin --sources                      learned facts by where they came from: every LearningSource, and packs
   napkin --agenda                       what it would work on next, unprompted
   napkin --evidence Multiply            counts by context, from the persisted trace
   napkin --activate Jam Sell            what lights up from these, ranked, with paths

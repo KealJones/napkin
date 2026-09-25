@@ -879,6 +879,17 @@ Concept(TruthValue(), IsA(Data()))
 // ------------------------------------------------------------------
 Concept(Source(), IsA(Category()))
 
+// Where what Napkin learns comes from (design/sources.md). Every learned fact is stamped from
+// a record on one of these (Wikidata Imported("Q..."), Teacher Taught(...)), so each can be
+// traced, counted, and trusted by how its facts hold up. Not Source, which Text is.
+Concept(LearningSource(), IsA(Category()))
+
+// A model asked to teach, the last resort (src/learn/teacher.ts).
+Concept(Teacher(), IsA(LearningSource()))
+
+// What the user said, a turn at a time.
+Concept(Conversation(), IsA(LearningSource()))
+
 // Declared the way Symmetric() is (memory-spec Part 5.3): a property of a relation.
 Concept(Enduring(), IsA(RelationProperty()))
 

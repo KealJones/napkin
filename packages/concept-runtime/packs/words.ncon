@@ -576,6 +576,7 @@ Concept(Mean(),
 
 Concept(Wiktionary(),
   IsA(Corpus()),
+  IsA(LearningSource()),
   License("CC BY-SA 4.0")
 )
 

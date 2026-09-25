@@ -4454,9 +4454,9 @@ Concept(Ambiguous(),
   )
 )
 
-Concept(Web(), IsA(Source()))
+Concept(Web(), IsA(Source()), IsA(LearningSource()))
 
-Concept(Wikidata(), IsA(Source()))
+Concept(Wikidata(), IsA(Source()), IsA(LearningSource()))
 
 Concept(SearchResult(), IsA(Data()))
 

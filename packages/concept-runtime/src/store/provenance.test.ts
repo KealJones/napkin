@@ -6,6 +6,8 @@ import { factsBySource } from "./provenance.js";
 
 test("learned facts are counted by the source they were read from", () => {
   const store = new ConceptStore();
+  for (const source of ["Conversation", "Wiktionary", "Teacher"]) store.addRelation(source, parse("IsA(LearningSource())"));
+  store.addRelation("Conversation_1", parse("IsA(Conversation())"));
   const said = store.addRelation("Conversation_1", parse('Said(Me(), Hi(), text="hi")'));
   const page = store.addRelation("Wiktionary", call("Imported", [{ value: "https://en.wiktionary.org/wiki/lol" }]), undefined, said.seq);
   store.addRelation("Lol", c("Means", "laughing out loud"), undefined, page.seq);
@@ -16,5 +18,5 @@ test("learned facts are counted by the source they were read from", () => {
   const counts = factsBySource(store);
   assert.equal(counts.get("Wiktionary")?.facts, 1);
   assert.equal(counts.get("Teacher")?.facts, 2);
-  assert.equal(counts.get("said")?.facts, 1);
+  assert.equal(counts.get("Conversation")?.facts, 1);
 });

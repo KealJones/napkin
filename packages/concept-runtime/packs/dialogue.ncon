@@ -15,6 +15,7 @@ Requires(Basic())
 // The corpus: its files, and what its labels mean.
 Concept(DailyDialog(),
   IsA(Corpus()),
+  IsA(LearningSource()),
   Utterances("data/dialog/dumps/train/dialogues_train.txt"),
   Acts("data/dialog/dumps/train/dialogues_act_train.txt"),
   Emotions("data/dialog/dumps/train/dialogues_emotion_train.txt"),

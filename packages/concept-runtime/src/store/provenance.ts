@@ -1,35 +1,54 @@
 /**
  * Where what the graph holds came from, counted by source: Wikidata, Wiktionary, the
- * Teacher, the user, or a pack. Every learned fact is stamped from the record of where it
- * was read (`Wikidata Imported("Q...")`, `Wiktionary Imported(url)`, `Teacher Taught(...)`),
- * which is itself stamped from the turn that asked, so each source can be measured against
- * the others: how much it gave, and how much of that was later taken back.
+ * Teacher, a conversation, or a pack. Every learned fact is stamped from the record of where
+ * it was read (`Wikidata Imported("Q...")`, `Wiktionary Imported(url)`, `Teacher Taught(...)`),
+ * or from the turn that said it, so each source can be measured against the others: how much
+ * it gave, and how much of that was later taken back (design/sources.md).
+ *
+ * A source is any Concept that is a `LearningSource`. A new one needs no change here.
  */
+import { type Expr, isCall } from "../concept/expression.js";
+import { lineage } from "../runtime/select.js";
 import type { ConceptStore } from "./store.js";
 
-/** The records sources are kept under. A fact stamped from one of these came from it. */
-const SOURCES = new Set(["Wikidata", "Wiktionary", "Teacher", "Web"]);
+/** The one Concept every source is, and the one identity this module names. */
+const LEARNING_SOURCE = "LearningSource";
 
 export interface SourceCount {
   readonly facts: number;
   readonly retracted: number;
 }
 
-/** Facts by where they came from. A fact stamped straight from a turn is what the user said. */
+/**
+ * The source an identity is a record on: itself when it is a source (`Wikidata`), or the
+ * source it is an instance of (`Conversation_7` is a `Conversation`).
+ */
+function sourceOf(store: ConceptStore, identity: string): string | undefined {
+  const isSource = (claim: Expr) => isCall(claim) && claim.head === "IsA" && isCall(claim.args[0]?.value) && claim.args[0].value.head === LEARNING_SOURCE;
+  return lineage(store, identity).find((unit) => unit.relations.some((r) => isSource(r.claim)))?.identity;
+}
+
+/** Facts by where they came from. */
 export function factsBySource(store: ConceptStore): Map<string, SourceCount> {
   const out = new Map<string, { facts: number; retracted: number }>();
-  const origin = (source: number | undefined): string => {
-    for (let at = source, hops = 0; at !== undefined && hops < 16; hops += 1) {
+  const known = new Map<string, string | undefined>();
+  const source = (identity: string) => {
+    if (!known.has(identity)) known.set(identity, sourceOf(store, identity));
+    return known.get(identity);
+  };
+  const origin = (from: number | undefined): string => {
+    for (let at = from, hops = 0; at !== undefined && hops < 16; hops += 1) {
       const entry = store.findStamp(at);
       if (!entry) return "unsourced";
-      if (SOURCES.has(entry.identity)) return entry.identity;
-      if (entry.identity.startsWith("Conversation_")) return "said";
+      const found = source(entry.identity);
+      if (found) return found;
       at = entry.stamp.source;
     }
     return "unsourced";
   };
   for (const unit of store.all()) {
-    if (SOURCES.has(unit.identity) || unit.identity.startsWith("Conversation_")) continue;
+    // A source's own records (what was imported, what was said) are not facts about the world.
+    if (source(unit.identity) !== undefined) continue;
     for (const relation of unit.relations) {
       const stamp = relation.stamps?.[0];
       const from = stamp === undefined ? "unsourced" : stamp.pack !== undefined ? "pack" : origin(stamp.source);
