@@ -2,13 +2,14 @@ Requires(Basic())
 
 // ================================================================
 // Hearing: the words of a message finding their relations to each other
-// (design/prompt-hearing.md). Stage 0: the Prompt, links, rounds and what is written out,
-// with no word yet proposing anything, so every word is heard alone.
+// (design/prompt-hearing.md). A word hears as its own Concept, then as what it is (its
+// kind, its word class, the tagger's tags), then as the universal parent. What each hears is
+// a proposal of links to other words, settled in rounds until nothing changes.
 
 // Under Hearing(), a word hears, and nothing it does elsewhere runs: "add" must not add.
 Concept(Hearing(), IsA(ContextFacet()), Exclusive())
 
-// A message as its words, in order, each as typed with the tags the tagger proposes.
+// A message as its words, in order, each as typed with what it is known or tagged to be.
 Concept(Prompt(), IsA(Data()))
 
 Concept(Word(), IsA(Data()))
@@ -24,7 +25,7 @@ Concept(LinkRole(), IsA(Category()))
 // "teen" modifies "film": the thing is the head.
 Concept(Modifies(), IsA(LinkRole()))
 
-// "by" takes "weitz"; "directed" takes "by".
+// "by" takes "weitz"; "co-produced" takes "by".
 Concept(Takes(), IsA(LinkRole()))
 
 // "and" groups the words either side of it.
@@ -35,9 +36,6 @@ Concept(Absorbs(), IsA(LinkRole()))
 
 // "?", "not", "maybe": asked, negated, blurred.
 Concept(Marks(), IsA(LinkRole()))
-
-// "paul" and "weitz" are one name.
-Concept(Names(), IsA(LinkRole()))
 
 // "too", "also": one more of something said before.
 Concept(Adds(), IsA(LinkRole()))
@@ -147,10 +145,18 @@ Concept(Concept(),
   )
 )
 
-// The tagger's proposals for what a word is, as Concepts with hearing of their own.
+// What a word is, as the tagger proposes it or the graph knows it, with hearing of its own.
 Concept(Determiner(), IsA(WordClass()))
 
 Concept(Value(), IsA(WordClass()))
+
+Concept(Pronoun(), IsA(WordClass()))
+
+Concept(Preposition(), IsA(WordClass()))
+
+Concept(Conjunction(), IsA(WordClass()))
+
+Concept(Copula(), IsA(WordClass()))
 
 // A word that says something about the thing after it: "old", "1999", "my".
 Concept(Describer(), IsA(Category()))
@@ -160,6 +166,122 @@ Concept(Adjective(), IsA(Describer()))
 Concept(Value(), IsA(Describer()))
 
 Concept(Possessive(), IsA(Describer()))
+
+// The closed classes, known by the graph whatever the tagger guesses in context: "in" in
+// "work in progress" is a preposition, though the tagger calls it a noun there.
+Concept(In(), IsA(Preposition()))
+
+Concept(On(), IsA(Preposition()))
+
+Concept(At(), IsA(Preposition()))
+
+Concept(For(), IsA(Preposition()))
+
+Concept(To(), IsA(Preposition()))
+
+Concept(Of(), IsA(Preposition()))
+
+Concept(With(), IsA(Preposition()))
+
+Concept(About(), IsA(Preposition()))
+
+Concept(From(), IsA(Preposition()))
+
+Concept(By(), IsA(Preposition()))
+
+Concept(Into(), IsA(Preposition()))
+
+Concept(Onto(), IsA(Preposition()))
+
+Concept(Over(), IsA(Preposition()))
+
+Concept(Under(), IsA(Preposition()))
+
+Concept(After(), IsA(Preposition()))
+
+Concept(Before(), IsA(Preposition()))
+
+Concept(Until(), IsA(Preposition()))
+
+Concept(Near(), IsA(Preposition()))
+
+Concept(As(), IsA(Preposition()))
+
+Concept(Like(), IsA(Preposition()))
+
+Concept(Per(), IsA(Preposition()))
+
+Concept(Without(), IsA(Preposition()))
+
+Concept(Through(), IsA(Preposition()))
+
+Concept(During(), IsA(Preposition()))
+
+Concept(Above(), IsA(Preposition()))
+
+Concept(Across(), IsA(Preposition()))
+
+Concept(Against(), IsA(Preposition()))
+
+Concept(Along(), IsA(Preposition()))
+
+Concept(Alongside(), IsA(Preposition()))
+
+Concept(Amid(), IsA(Preposition()))
+
+Concept(Among(), IsA(Preposition()))
+
+Concept(Around(), IsA(Preposition()))
+
+Concept(Atop(), IsA(Preposition()))
+
+Concept(Behind(), IsA(Preposition()))
+
+Concept(Below(), IsA(Preposition()))
+
+Concept(Beneath(), IsA(Preposition()))
+
+Concept(Beside(), IsA(Preposition()))
+
+Concept(Besides(), IsA(Preposition()))
+
+Concept(Between(), IsA(Preposition()))
+
+Concept(Beyond(), IsA(Preposition()))
+
+Concept(Despite(), IsA(Preposition()))
+
+Concept(Except(), IsA(Preposition()))
+
+Concept(Inside(), IsA(Preposition()))
+
+Concept(Outside(), IsA(Preposition()))
+
+Concept(Past(), IsA(Preposition()))
+
+Concept(Throughout(), IsA(Preposition()))
+
+Concept(Toward(), IsA(Preposition()))
+
+Concept(Towards(), IsA(Preposition()))
+
+Concept(Underneath(), IsA(Preposition()))
+
+Concept(Unlike(), IsA(Preposition()))
+
+Concept(Upon(), IsA(Preposition()))
+
+Concept(Via(), IsA(Preposition()))
+
+Concept(Within(), IsA(Preposition()))
+
+Concept(Versus(), IsA(Preposition()))
+
+Concept(And(), IsA(Conjunction()))
+
+Concept(Or(), IsA(Conjunction()))
+
+Concept(But(), IsA(Conjunction()))
 
 // The thing a phrase starting after a word is about: the last noun of what follows.
 Concept(ThingAfter(),
@@ -213,7 +335,12 @@ Concept(ThingAfter(),
                     ),
                     Lambda(List($t), Call($has, $i, $t))
                   ),
-                  Not(Call($has, $i, "Pronoun"))
+                  Not(
+                    Call(
+                      Member(List("Pronoun", "Preposition", "Conjunction", "Copula"), "some"),
+                      Lambda(List($t), Call($has, $i, $t))
+                    )
+                  )
                 )
               )
             ),
@@ -375,6 +502,285 @@ Concept(Noun(),
   )
 )
 
+// "by Paul Weitz": takes the thing after it, and belongs to the word before it.
+Concept(Preposition(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($out, List()),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Bind($taken,
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                $thing,
+                If(
+                  LessThan(Add($at, 1), Length(Member($prompt, "args"))),
+                  Add($at, 1),
+                  Negate(1)
+                )
+              )
+            ),
+            If(
+              GreaterThan($taken, $at),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  $taken,
+                  $at,
+                  Call(Member($api, "call"), "Takes")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              GreaterThan($at, 0),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  $at,
+                  Call($root, Subtract($at, 1)),
+                  Call(Member($api, "call"), "Takes")
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// "toilet paper and cheese sticks": the words either side are one group.
+Concept(Conjunction(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            If(
+              Or(Equals($at, 0), AtLeast(Add($at, 1), Length(Member($prompt, "args")))),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Bind($right,
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                $thing,
+                Add($at, 1)
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Call($root, Subtract($at, 1)),
+                  $at,
+                  Call(Member($api, "call"), "Joins")
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  $right,
+                  $at,
+                  Call(Member($api, "call"), "Joins")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "napkin is a work in progress": holds what is before it and what is after it.
+Concept(Copula(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($out, List()),
+            If(
+              GreaterThan($at, 0),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Call($root, Subtract($at, 1)),
+                  $at,
+                  Call(Member($api, "call"), "Takes")
+                )
+              ),
+              Undefined()
+            ),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Bind($right,
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                $thing,
+                If(
+                  LessThan(Add($at, 1), Length(Member($prompt, "args"))),
+                  Add($at, 1),
+                  Negate(1)
+                )
+              )
+            ),
+            If(
+              GreaterThan($right, $at),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  $right,
+                  $at,
+                  Call(Member($api, "call"), "Takes")
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
 // A message heard: its words, the rounds in which they propose links until nothing changes,
 // and each word written as its Concept with the words linked to it as arguments.
 Concept(Hear(),
@@ -409,22 +815,80 @@ Concept(Hear(),
                 )
               )
             ),
+            Bind($classOf,
+              Lambda(List($w),
+                Sequence(
+                  Bind($kinds, List()),
+                  Bind($unit, Call(Member(Member($api, "store"), "get"), Call($name, $w))),
+                  ForOf(
+                    $r,
+                    If($unit, Member($unit, "relations"), List()),
+                    Sequence(
+                      Bind($k,
+                        If(
+                          And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                          Member(Index(Member(Member($r, "claim"), "args"), 0), "value"),
+                          Undefined()
+                        )
+                      ),
+                      If(Not(Call($isCall, $k)), Continue(), Undefined()),
+                      Bind($kind, Call(Member(Member($api, "store"), "get"), Member($k, "head"))),
+                      Bind($isClass,
+                        If(
+                          $kind,
+                          Call(
+                            Member(Member($kind, "relations"), "some"),
+                            Lambda(List($x),
+                              And(
+                                And(
+                                  And(
+                                    Call($isCall, Member($x, "claim")),
+                                    Equals(Member(Member($x, "claim"), "head"), "IsA")
+                                  ),
+                                  Call($isCall, Member(Index(Member(Member($x, "claim"), "args"), 0), "value"))
+                                ),
+                                Equals(
+                                  Member(Member(Index(Member(Member($x, "claim"), "args"), 0), "value"), "head"),
+                                  "WordClass"
+                                )
+                              )
+                            )
+                          ),
+                          false
+                        )
+                      ),
+                      If(
+                        $isClass,
+                        Call(Member($kinds, "push"), Member($k, "head")),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Return($kinds)
+                )
+              )
+            ),
             Bind($words, List()),
             For(
               Var($i, 0),
               LessThan($i, Length($said)),
               PostIncrement($i),
-              Call(
-                Member($words, "push"),
+              Sequence(
+                Bind($known, Call($classOf, Member(Index($said, $i), "text"))),
+                Bind($tags, If(Length($known), $known, Member(Index($said, $i), "tags"))),
+                Assign(Member(Index($said, $i), "tags"), $tags),
                 Call(
-                  Member($api, "call"),
-                  "Word",
-                  Member(Index($said, $i), "text"),
-                  $i,
+                  Member($words, "push"),
                   Call(
                     Member($api, "call"),
-                    "List",
-                    Spread(Map(Member(Index($said, $i), "tags"), Lambda(List($t), Call(Member($api, "call"), $t))))
+                    "Word",
+                    Member(Index($said, $i), "text"),
+                    $i,
+                    Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map($tags, Lambda(List($t), Call(Member($api, "call"), $t))))
+                    )
                   )
                 )
               )
