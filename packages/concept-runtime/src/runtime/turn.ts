@@ -329,6 +329,13 @@ export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
   // nothing to scope and put one line's mood on every line.
   const scoped = new Set<Expr>();
   for (const node of walk(expression)) if (isCall(node) && node.head === "Mood" && node.args[0]) scoped.add(node.args[0].value);
+  // Things named side by side are peers, not a setting: "python or javascript" offers Python
+  // as one of two options, where "in python" asks for it as the language to work in.
+  for (const node of walk(expression)) {
+    if (!isCall(node)) continue;
+    const bare = node.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.args.length === 0);
+    if (bare.length >= 2) for (const a of bare) scoped.add(a.value);
+  }
   for (const node of walk(expression)) {
     if (!isCall(node) || node.args.length > 0 || scoped.has(node)) continue;
     if (node.head === "Context") continue;
@@ -342,8 +349,10 @@ export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
 /** Drop the facets that have moved into the context, so the shape says what it means. */
 function withoutFacets(runtime: Runtime, e: Expr): Expr {
   if (!isCall(e)) return e;
+  const peers = e.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.args.length === 0).length >= 2;
   const kept = e.args.filter((a, i) => {
     if (e.head === "Mood" && i === 0) return true;
+    if (peers) return true;
     const v = a.value;
     return !(
       isCall(v) &&

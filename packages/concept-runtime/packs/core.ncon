@@ -680,20 +680,47 @@ Concept(Mood(),
               Return(Call(Member($api, "call"), "Noted", $line)),
               Undefined()
             ),
-            Return(
-              Await(
-                Call(
-                  Member($api, "evaluate"),
-                  $line,
-                  Call(
-                    Member($api, "call"),
-                    "Context",
-                    Spread($facets),
-                    $kind
-                  )
-                )
+            Bind($context,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Spread($facets),
+                $kind
               )
-            )
+            ),
+            Bind($value, Await(Call(Member($api, "evaluate"), $line, $context))),
+            // A question nothing answered is pursued, whatever word it starts with: "should i
+            // use tabs or spaces" has no What to route it, and still asks something.
+            If(
+              And(
+                And($kind, Equals(Member($kind, "head"), "Interrogative")),
+                Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $line))
+              ),
+              Sequence(
+                Bind($found,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Pursue", $line),
+                      $context
+                    )
+                  )
+                ),
+                If(
+                  And(Member($found, "head"), Equals(Member($found, "head"), "Found")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Answer",
+                      Member(Index(Member($found, "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return($value)
           )
         )
       )

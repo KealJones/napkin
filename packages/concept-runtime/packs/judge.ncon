@@ -1,0 +1,531 @@
+Requires(Basic(), Pursue())
+
+// ================================================================
+// Judge: a choice between two things, made with almost nothing known about either
+// (design/pursue-predict.md, section 4.5).
+//
+// No value is stored and nothing is weighted. The options are grounded in Wikidata, as the
+// senses of each that are the same kind of thing, since alternatives are alternatives of one
+// kind. What they both have and differ on is set side by side, so the answer can be
+// conditional: if that matters to you, this one. With nothing else to go on, the far better
+// known one is leaned toward (the recognition heuristic), and said to be why.
+
+// What Judge came back with: the options, the kind they share, the senses taken, how they
+// differ, and a lean or NoLean.
+Concept(Judged(), IsA(Result()))
+
+Concept(Kind(), IsA(Data()))
+
+// The senses found share no kind: not known yet as alternatives to one another.
+Concept(NoCommonKind(), IsA(Data()))
+
+Concept(Senses(), IsA(Data()))
+
+// One way the options differ: the property, then each option's values, in order.
+Concept(Differs(), IsA(Data()))
+
+Concept(Leans(), IsA(Data()))
+
+Concept(NoLean(), IsA(Data()))
+
+// How much better known the leaned-toward option is: its count, then the other's.
+Concept(Recognition(), IsA(Data()))
+
+Concept(Judge(),
+  IsA(Category()),
+  Realization(Judge($options),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Member(Index($args, 0), "value")),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            If(
+              Or(
+                Or(Not(Call($isCall, $list)), NotEquals(Member($list, "head"), "List")),
+                NotEquals(Length(Member($list, "args")), 2)
+              ),
+              Return(Call(Member($api, "call"), "Judge", $list)),
+              Undefined()
+            ),
+            Bind($options, Map(Member($list, "args"), Lambda(List($a), Member($a, "value")))),
+            Bind($words,
+              Map(
+                $options,
+                Lambda(List($o),
+                  Sequence(
+                    If(Equals(TypeOf($o), "string"), Return($o), Undefined()),
+                    If(Not(Call($isCall, $o)), Return(Undefined()), Undefined()),
+                    Var($text, ""),
+                    ForOf(
+                      $ch,
+                      Member($o, "head"),
+                      Assign(
+                        $text,
+                        Add(
+                          $text,
+                          If(
+                            And(And(AtLeast($ch, "A"), AtMost($ch, "Z")), Length($text)),
+                            Add(" ", Call(Member($ch, "toLowerCase"))),
+                            Call(Member($ch, "toLowerCase"))
+                          )
+                        )
+                      )
+                    ),
+                    Return($text)
+                  )
+                )
+              )
+            ),
+            If(
+              Call(Member($words, "some"), Lambda(List($w), Equals($w, Undefined()))),
+              Return(Call(Member($api, "call"), "Judge", $list)),
+              Undefined()
+            ),
+            Bind($senseList, List()),
+            ForOf(
+              $w,
+              $words,
+              Sequence(
+                Var($s, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "WikidataSenses", $w)))),
+                If(
+                  And(Or(Not(Call($isCall, $s)), Not(Length(Member($s, "args")))), Call(Member($w, "endsWith"), "s")),
+                  Assign(
+                    $s,
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "WikidataSenses",
+                          Call(Member($w, "slice"), 0, Negate(1))
+                        )
+                      )
+                    )
+                  ),
+                  Undefined()
+                ),
+                Call(
+                  Member($senseList, "push"),
+                  If(
+                    And(Call($isCall, $s), Equals(Member($s, "head"), "List")),
+                    Map(Member($s, "args"), Lambda(List($a), Member($a, "value"))),
+                    List()
+                  )
+                )
+              )
+            ),
+            If(
+              Call(Member($senseList, "some"), Lambda(List($s), Not(Length($s)))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Judged",
+                  $list,
+                  Call(
+                    Member($api, "call"),
+                    "NotFound",
+                    Spread(Call(Member($options, "filter"), Lambda(List($o, $i), Not(Length(Index($senseList, $i))))))
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($named,
+              Lambda(List($e, $n),
+                Member(
+                  Or(
+                    Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), $n))),
+                    Object()
+                  ),
+                  "value"
+                )
+              )
+            ),
+            Bind($kinds,
+              Lambda(List($e),
+                Sequence(
+                  Bind($k, Call($named, $e, "kinds")),
+                  Return(
+                    If(
+                      Call($isCall, $k),
+                      Map(Member($k, "args"), Lambda(List($a), Member($a, "value"))),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Var($best, Undefined()),
+            ForOf(
+              $a,
+              Index($senseList, 0),
+              ForOf(
+                $b,
+                Index($senseList, 1),
+                Sequence(
+                  Bind($shared, Filter(Call($kinds, $a), Lambda(List($k), Includes(Call($kinds, $b), $k)))),
+                  Bind($score,
+                    Add(
+                      Add(Multiply(Length($shared), 1000000), Call($named, $a, "sitelinks")),
+                      Call($named, $b, "sitelinks")
+                    )
+                  ),
+                  If(
+                    Or(Not($best), GreaterThan($score, Member($best, "score"))),
+                    Assign($best, Object(a = $a, b = $b, shared = $shared, score = $score)),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Bind($chosen, List(Member($best, "a"), Member($best, "b"))),
+            If(
+              Not(Length(Member($best, "shared"))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Judged",
+                  $list,
+                  Call(Member($api, "call"), "NoCommonKind")
+                )
+              ),
+              Undefined()
+            ),
+            Bind($ids, Map($chosen, Lambda(List($e), Member(Index(Member($e, "args"), 0), "value")))),
+            Bind($base, "https://www.wikidata.org/w/api.php?format=json&"),
+            Bind($got,
+              Call(
+                Member($api, "toHost"),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Fetch",
+                      Add(Add($base, "action=wbgetentities&props=claims&ids="), Call(Member($ids, "join"), "|"))
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($claimsOf,
+              Lambda(List($id),
+                If(
+                  And(And($got, Member($got, "entities")), Index(Member($got, "entities"), $id)),
+                  Or(Member(Index(Member($got, "entities"), $id), "claims"), Object()),
+                  Object()
+                )
+              )
+            ),
+            Bind($valueOf,
+              Lambda(List($snak),
+                Sequence(
+                  Bind($v,
+                    If(
+                      And($snak, Member($snak, "datavalue")),
+                      Member(Member($snak, "datavalue"), "value"),
+                      Undefined()
+                    )
+                  ),
+                  If(
+                    Equals($v, Undefined()),
+                    Return(Undefined()),
+                    Undefined()
+                  ),
+                  If(Equals(TypeOf($v), "string"), Return($v), Undefined()),
+                  If(Member($v, "id"), Return(Member($v, "id")), Undefined()),
+                  If(
+                    NotEquals(Member($v, "amount"), Undefined()),
+                    Return(Call($Number, Member($v, "amount"))),
+                    Undefined()
+                  ),
+                  If(
+                    NotEquals(Member($v, "time"), Undefined()),
+                    Return(Call(Member(Member($v, "time"), "slice"), 1, 5)),
+                    Undefined()
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Bind($wanted, List("wikibase-item", "quantity", "time")),
+            Bind($dims, List()),
+            Bind(List($ca, $cb), Map($ids, $claimsOf)),
+            ForOf(
+              $p,
+              Call(Member($Object, "keys"), $ca),
+              Sequence(
+                If(Not(Index($cb, $p)), Continue(), Undefined()),
+                Bind($type,
+                  If(
+                    And(Index(Index($ca, $p), 0), Member(Index(Index($ca, $p), 0), "mainsnak")),
+                    Member(Member(Index(Index($ca, $p), 0), "mainsnak"), "datatype"),
+                    ""
+                  )
+                ),
+                If(
+                  Or(Or(Not(Includes($wanted, $type)), Equals($p, "P31")), Equals($p, "P279")),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($va,
+                  Concat(
+                    New(
+                      $Set,
+                      Filter(
+                        Map(Index($ca, $p), Lambda(List($c), Call($valueOf, Member($c, "mainsnak")))),
+                        Lambda(List($v), NotEquals($v, Undefined()))
+                      )
+                    )
+                  )
+                ),
+                Bind($vb,
+                  Concat(
+                    New(
+                      $Set,
+                      Filter(
+                        Map(Index($cb, $p), Lambda(List($c), Call($valueOf, Member($c, "mainsnak")))),
+                        Lambda(List($v), NotEquals($v, Undefined()))
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Or(
+                    Or(Or(Not(Length($va)), Not(Length($vb))), GreaterThan(Length($va), 4)),
+                    GreaterThan(Length($vb), 4)
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  And(Equals(Length($va), Length($vb)), Call(Member($va, "every"), Lambda(List($v), Includes($vb, $v)))),
+                  Continue(),
+                  Undefined()
+                ),
+                Call(Member($dims, "push"), Object(p = $p, va = $va, vb = $vb)),
+                If(AtLeast(Length($dims), 10), Break(), Undefined())
+              )
+            ),
+            Bind($toLabel, New($Set, Concat(Member($best, "shared"), Map($dims, Lambda(List($d), Member($d, "p")))))),
+            ForOf(
+              $d,
+              $dims,
+              ForOf(
+                $v,
+                Concat(Member($d, "va"), Member($d, "vb")),
+                If(
+                  And(Equals(TypeOf($v), "string"), Call(Member(Regex("^Q\\d+$", ""), "test"), $v)),
+                  Call(Member($toLabel, "add"), $v),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($labels, Object()),
+            Bind($idList, Concat($toLabel)),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($idList)),
+              Assign($i, Add($i, 50)),
+              Sequence(
+                Bind($l,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(
+                            Add($base, "action=wbgetentities&props=labels&languages=en&ids="),
+                            Call(Member(Call(Member($idList, "slice"), $i, Add($i, 50)), "join"), "|")
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                ForOf(
+                  List($id, $e),
+                  Call(Member($Object, "entries"), Or(And($l, Member($l, "entities")), Object())),
+                  Assign(
+                    Index($labels, $id),
+                    If(
+                      And(Member($e, "labels"), Member(Member($e, "labels"), "en")),
+                      Member(Member(Member($e, "labels"), "en"), "value"),
+                      $id
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($say,
+              Lambda(List($v),
+                If(
+                  And(Equals(TypeOf($v), "string"), Index($labels, $v)),
+                  Index($labels, $v),
+                  $v
+                )
+              )
+            ),
+            Bind($wiki,
+              Lambda(List($v),
+                And(
+                  Equals(TypeOf(Call($say, $v)), "string"),
+                  Call(Member(Regex("^[A-Z][a-z]+:\\S", ""), "test"), Call($say, $v))
+                )
+              )
+            ),
+            ForOf(
+              $d,
+              $dims,
+              Sequence(
+                Assign(Member($d, "va"), Filter(Member($d, "va"), Lambda(List($v), Not(Call($wiki, $v))))),
+                Assign(Member($d, "vb"), Filter(Member($d, "vb"), Lambda(List($v), Not(Call($wiki, $v)))))
+              )
+            ),
+            Bind($kept, Filter($dims, Lambda(List($d), And(Length(Member($d, "va")), Length(Member($d, "vb")))))),
+            Bind($differs,
+              Map(
+                $kept,
+                Lambda(List($d),
+                  Call(
+                    Member($api, "call"),
+                    "Differs",
+                    Call($say, Member($d, "p")),
+                    Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map(Member($d, "va"), $say))
+                    ),
+                    Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map(Member($d, "vb"), $say))
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($la, Call($named, Member($best, "a"), "sitelinks")),
+            Bind($lb, Call($named, Member($best, "b"), "sitelinks")),
+            Bind($leans,
+              If(
+                And(AtLeast($la, Multiply(2, $lb)), GreaterThan($la, 0)),
+                Call(
+                  Member($api, "call"),
+                  "Leans",
+                  Index($options, 0),
+                  Call(Member($api, "call"), "Recognition", $la, $lb)
+                ),
+                If(
+                  And(AtLeast($lb, Multiply(2, $la)), GreaterThan($lb, 0)),
+                  Call(
+                    Member($api, "call"),
+                    "Leans",
+                    Index($options, 1),
+                    Call(Member($api, "call"), "Recognition", $lb, $la)
+                  ),
+                  Call(Member($api, "call"), "NoLean")
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Judged",
+                $list,
+                Call(
+                  Member($api, "call"),
+                  "Kind",
+                  Spread(Map(Member($best, "shared"), $say))
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Senses",
+                  Spread(
+                    Map(
+                      $chosen,
+                      Lambda(List($e),
+                        Call(
+                          Member($api, "call"),
+                          "Wikidata",
+                          Member(Index(Member($e, "args"), 0), "value"),
+                          Call($named, $e, "description")
+                        )
+                      )
+                    )
+                  )
+                ),
+                Call(Member($api, "call"), "List", Spread($differs)),
+                $leans
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Two things offered in a question are a choice between them.
+Concept(Or(),
+  Realization(Or($a, $b),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($options, Map($args, Lambda(List($a), Member($a, "value")))),
+            Bind($isOption,
+              Lambda(List($o),
+                Or(
+                  Equals(TypeOf($o), "string"),
+                  And(
+                    And(And(NotEquals($o, null), Equals(TypeOf($o), "object")), In("head", $o)),
+                    Not(Length(Member($o, "args")))
+                  )
+                )
+              )
+            ),
+            If(
+              And(Equals(Length($options), 2), Call(Member($options, "every"), $isOption)),
+              Sequence(
+                Bind($j,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Judge",
+                        Call(Member($api, "call"), "List", Spread($options))
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And($j, Equals(Member($j, "head"), "Judged")),
+                  Return($j),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(Member($api, "call"), "Or", Spread($options)),
+                Call(Member($api, "call"), "Execution")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
