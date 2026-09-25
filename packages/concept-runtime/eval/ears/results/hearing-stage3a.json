@@ -1,0 +1,1512 @@
+{
+  "label": "stage3a",
+  "same": 8,
+  "recall": 0.28621842062470987,
+  "grouped": 0.23447402708112977,
+  "rows": [
+    {
+      "message": "write me a typescript function that says hello world",
+      "rules": "Write(Me(), Function(Typescript(), That(Says(\"hello world\"))))",
+      "prompt": "Write(Me()) | Function(Typescript()) | That() | Says() | Hello() | World()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "can you write me a typescript function that says hello world",
+      "rules": "Can(You(), Write(Me(), Function(Typescript(), That(Says(\"hello world\")))))",
+      "prompt": "Can(You()) | Write(Me()) | Function(Typescript()) | That() | Says() | Hello() | World()",
+      "same": false,
+      "recall": 0.375,
+      "grouped": 0
+    },
+    {
+      "message": "please add 2 and 2",
+      "rules": "Please(Add(2, 2))",
+      "prompt": "Please() | Add() | And(2, 2)",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "show me what you know about money",
+      "rules": "Show(Me(), What(You(Know(About(Money())))))",
+      "prompt": "Show(Me(What(You()))) | Know(About(Money()))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0.4
+    },
+    {
+      "message": "give me three examples of a bird",
+      "rules": "Give(Me(), Examples(Number(\"three\"), Of(Bird())))",
+      "prompt": "Give(Me()) | Examples(Three(), Of(Bird()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.25
+    },
+    {
+      "message": "remind me to call mum tomorrow",
+      "rules": "Remind(Me(), Call(Mum(), Tomorrow()))",
+      "prompt": "Remind(Me(To(Call(Mum())))) | Tomorrow()",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "what is 17 times 4",
+      "rules": "What(Is(Times(17, 4)))",
+      "prompt": "Is(What(), Times(17)) | 4",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "how many days until christmas",
+      "rules": "HowMany(Days(), Until(Christmas()))",
+      "prompt": "How() | Days(Many(), Until(Christmas()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.5
+    },
+    {
+      "message": "what is half of 90",
+      "rules": "What(Is(Half(Of(90))))",
+      "prompt": "Is(What(), Half(Of(90)))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.75
+    },
+    {
+      "message": "is 100 more than 99",
+      "rules": "Is(100, MoreThan(99))",
+      "prompt": "Is(100) | More(Than(99))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "what's the average of 2, 4 and 9",
+      "rules": "What(Is(Average(Of(List(2, 4, 9)))))",
+      "prompt": "WhatS() | The() | Average(Of(2)) | And(4, 9)",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0
+    },
+    {
+      "message": "what is a promise",
+      "rules": "What(Is(Promise()))",
+      "prompt": "Is(What(), Promise())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "define recursion",
+      "rules": "Define(Recursion())",
+      "prompt": "Define(Recursion())",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what's the difference between a list and a set",
+      "rules": "What(Is(Difference(Between(List())), Set()))",
+      "prompt": "WhatS() | Difference(Between(And(List(), Set())))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "is a tomato a fruit",
+      "rules": "Is(Tomato(), Fruit())",
+      "prompt": "Is(Fruit(Tomato()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 1
+    },
+    {
+      "message": "take 10, double it, then subtract 5",
+      "rules": "Take(10) | Double(Ref(\"it\")) | Subtract(5)",
+      "prompt": "Take() | 10 | Double(It()) | Then() | Subtract() | 5",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what day is it and what time is it",
+      "rules": "What(Day(), Is(It())) | What(Time(), Is(It()))",
+      "prompt": "What() | Is(Day()) | And(It(), What()) | Is(Time(), It())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "if it is after noon tell me the time otherwise tell me the date",
+      "rules": "If(It(Is(After(Noon()))), Tell(Me(), Time()), Otherwise(Tell(Me(), Date())))",
+      "prompt": "If() | Is(It(), After(Noon())) | Tell(Me()) | Otherwise(Time(), Tell(Me())) | Date()",
+      "same": false,
+      "recall": 0.45454545454545453,
+      "grouped": 0.2857142857142857
+    },
+    {
+      "message": "what would happen if i doubled my rent",
+      "rules": "What(Would(Happen(If(Me(Doubled(My(Rent())))))))",
+      "prompt": "What() | Would() | If(Happen(), I(Doubled(Rent(My()))))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.2857142857142857
+    },
+    {
+      "message": "suppose x is 5, what is x plus 3",
+      "rules": "Suppose(\"x\", Is(5)) | What(Is(\"x\", Plus(), 3))",
+      "prompt": "Is(Suppose(X()), 5) | Is(What(), Plus(X(), 3))",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0.5
+    },
+    {
+      "message": "if a train leaves at 3pm and takes 2 hours when does it arrive",
+      "rules": "If(Train(Leaves(At(Time(3, Pm())), Takes(Hours(2), When(Does(It(), Arrive()))))))",
+      "prompt": "If() | Train(Leaves(At())) | And(3pm(), Takes(Hours(2, When(Does(It()))))) | Arrive()",
+      "same": false,
+      "recall": 0.46153846153846156,
+      "grouped": 0
+    },
+    {
+      "message": "what is not a mammal",
+      "rules": "What(Is(Not(Mammal())))",
+      "prompt": "Is(What(), Not()) | Mammal()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "dont tell me the time, tell me the date",
+      "rules": "DoNot(Tell(Me(), Time())) | Tell(Me(), Date())",
+      "prompt": "Dont() | Tell(Me()) | Time() | Tell(Me()) | Date()",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0
+    },
+    {
+      "message": "i said the second one not the first",
+      "rules": "Me(Said(Ref(\"the second one\"), Not(Ordinal(\"first\"))))",
+      "prompt": "I(Said()) | The() | Second() | One() | Not() | The() | First()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what concepts do you know about time",
+      "rules": "What(Concepts(), Do(You(), Know(About(Time()))))",
+      "prompt": "What() | Concepts(Do(You())) | Know(About(Time()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "what can you do",
+      "rules": "What(Can(You(), Do()))",
+      "prompt": "What() | Can(You()) | Do()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "how did you work that out",
+      "rules": "How(Did(You(), Work(Ref(\"that\"), Out())))",
+      "prompt": "How() | Did(You()) | Work() | That(Out())",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "forget what i said about money",
+      "rules": "Forget(What(Me(Said(About(Money())))))",
+      "prompt": "Forget(What(I(Said(About(Money())))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.4
+    },
+    {
+      "message": "how much is a lot",
+      "rules": "HowMuch(Is(A(), Lot()))",
+      "prompt": "How() | Is(Much(), A()) | Lot()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "which is bigger, a mouse or an elephant",
+      "rules": "Which(Is(Bigger(), Or(Mouse(), Elephant())))",
+      "prompt": "Is(Which(), Or(Mouse(Bigger()), Elephant()))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "how heavy is a car",
+      "rules": "How(Heavy(), Is(Car()))",
+      "prompt": "How() | Is(Heavy(), Car())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "thanks",
+      "rules": "Thanks()",
+      "prompt": "Thanks()",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "that was wrong",
+      "rules": "Was(Ref(\"that\"), Wrong())",
+      "prompt": "Was(That(), Wrong())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "no i meant the other one",
+      "rules": "No() | MarkCorrection(Ref(\"\"), Ref(\"the other one\"))",
+      "prompt": "No() | I(Meant()) | The() | Other() | One()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
+      "rules": "Today(Is(What())) | Unclear(\"A Sept 20 B Noday C Sept 1st\", A(), Sept(), Sept(), St()) | Idk(D(1991))",
+      "prompt": "Is(Today(), Idk(____(), Sept(), 20, B(), Noday(), C(), Sept(), 1st(), 1991, D()))",
+      "same": false,
+      "recall": 0.1111111111111111,
+      "grouped": 0
+    },
+    {
+      "message": "What is 5 times three?",
+      "rules": "What(Is(Times(5, Number(\"three\"))))",
+      "prompt": "Is(What(), Times(5)) | Three()",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0
+    },
+    {
+      "message": "What is todays date?",
+      "rules": "What(Is(Todays(), Date()))",
+      "prompt": "Is(What(), Todays()) | Date()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "What is the date?",
+      "rules": "What(Is(Date()))",
+      "prompt": "Is(What(), Date())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "What is today?",
+      "rules": "What(Is(Today()))",
+      "prompt": "Is(What(), Today())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "What do we need?",
+      "rules": "What(Do(We(), Need()))",
+      "prompt": "What() | Do(We()) | Need()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "who ate what",
+      "rules": "Who(Ate(What()))",
+      "prompt": "Who() | Ate() | What()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "Is chess a sport?",
+      "rules": "Is(Chess(), Sport())",
+      "prompt": "Is(Sport(Chess()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 1
+    },
+    {
+      "message": "how many r's are in strawberry",
+      "rules": "HowMany(\"r\", Are(In(Strawberry())))",
+      "prompt": "How() | Are(Many(), RS(), In(Strawberry()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "i went to virginya to visit my mom. She has lived there 5 years. I havent been there for 3 years. it was crazy.",
+      "rules": "Me(Went(To(MarkMisspelling(\"virginya\", Virginia())), Visit(My(Mom())))) | She(Has(Lived(There(), Years(5)))) | Me(HaveNot(Been(There(), For(Years(3))))) | Was(Ref(\"it\"), Crazy())",
+      "prompt": "I(Went(To(Virginya(To(Visit(Mom(My()))))))) | She() | Has() | Lived(Years(There(), 5)) | Havent(I(), Been(There(For(Years(3))))) | Was(It(), Crazy())",
+      "same": false,
+      "recall": 0.3181818181818182,
+      "grouped": 0.35294117647058826
+    },
+    {
+      "message": "grab the weights, er the scores or whatever, from those probe things i sent you. Not the first batch the second one and like add em up and tell me if its more than this time",
+      "rules": "Grab(MarkCorrection(Weights(), MarkFuzzy(\"or whatever\", Scores())), From($ref1)) | Not(Batch(Ordinal(\"first\"))) | Ref(\"the second one\") | MarkFuzzy(\"like\", Add(Ref(\"em\"), Up())) | Tell(Me(), If(It(Is(MoreThan($ref2)))))",
+      "prompt": "Grab(Or(Scores(Weights(), Er()), Whatever(From(Things(Probe()))))) | I(Sent(You())) | Not() | Batch(First()) | The() | Second() | And(One(), Like(Add(Em()))) | And(Up(), Tell()) | If(Me(), Its()) | More(Than(Time()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "get the size, sorry the length, of the files i sent, not the first one, the second, and total them and say if its bigger than before",
+      "rules": "Get(MarkCorrection(Size(), Length(Of(Files(Me(Sent()))))), Not(Ref(\"the first one\")), Ordinal(\"second\")) | Total(Ref(\"them\")) | Say(If(Is(Ref(\"it\"), BiggerThan(Before()))))",
+      "prompt": "Get(Length(Size(), Sorry(), Of(Files()))) | I(Sent()) | Not() | The() | First() | One() | The() | And(Second(), Total()) | If(And(Them(), Say()), Its()) | Bigger(Than(Before()))",
+      "same": false,
+      "recall": 0.1,
+      "grouped": 0
+    },
+    {
+      "message": "is that bigger than the other one?",
+      "rules": "Is(Ref(\"that\"), BiggerThan(Ref(\"the other one\")))",
+      "prompt": "Is(That()) | Bigger(Than(The())) | Other() | One()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "how did the build go?",
+      "rules": "How(Did(Build(), Go()))",
+      "prompt": "How() | Did(Go(Build()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.5
+    },
+    {
+      "message": "how you doing?",
+      "rules": "How(You(), Doing())",
+      "prompt": "How(You(Doing()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 1
+    },
+    {
+      "message": "what is double 21?",
+      "rules": "What(Is(Double(), 21))",
+      "prompt": "Is(What(), Double()) | 21",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "tell me the time",
+      "rules": "Tell(Me(), Time())",
+      "prompt": "Tell(Me()) | Time()",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "would you rather have a million dollars or owe a million dollars",
+      "rules": "Would(You(), Rather(), Have(Or(Dollars(Number(\"million\")), Owe(Dollars(Number(\"million\"))))))",
+      "prompt": "Would(You()) | Rather() | Have(Or(Dollars(Million()), Owe(Dollars(Million()))))",
+      "same": false,
+      "recall": 0.45454545454545453,
+      "grouped": 0
+    },
+    {
+      "message": "uhmm soooo what is it?",
+      "rules": "MarkAside(\"uhmm soooo\") | What(Is(Ref(\"it\")))",
+      "prompt": "Soooo(Uhmm()) | Is(What(), It())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "and if we add 5 hours?",
+      "rules": "If(We(Add(Hours(5))))",
+      "prompt": "If(And(), We(Add(Hours(5))))",
+      "same": false,
+      "recall": 1,
+      "grouped": 0.75
+    },
+    {
+      "message": "open the second one",
+      "rules": "Open(Ref(\"the second one\"))",
+      "prompt": "Open() | The() | Second() | One()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "and germany?",
+      "rules": "Germany()",
+      "prompt": "And() | Germany()",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what is 9 times 9",
+      "rules": "What(Is(Times(9, 9)))",
+      "prompt": "Is(What(), Times(9)) | 9",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0
+    },
+    {
+      "message": "wait no, make it blue instead of red",
+      "rules": "MarkAside(\"wait\") | No() | Make(Ref(\"it\"), Blue(), Instead(), Of(Red()))",
+      "prompt": "Wait() | No() | Make(It()) | Blue() | Instead(Of(Red()))",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0.25
+    },
+    {
+      "message": "do NOT delete the backups",
+      "rules": "MarkEmphasis(\"NOT\", DoNot(Delete(Backups())))",
+      "prompt": "Do() | Not() | Delete(Backups())",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "book a flight to pheonix next friday",
+      "rules": "Book(Flight(), To(MarkMisspelling(\"pheonix\", Phoenix())), Next(Friday()))",
+      "prompt": "Book(Flight(To(Friday(Pheonix(), Next()))))",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0
+    },
+    {
+      "message": "grab those logs or whatever from yesterday",
+      "rules": "Grab(MarkFuzzy(\"or whatever\", Ref(\"those logs\")), From(Yesterday()))",
+      "prompt": "Grab(Or(Logs(), Whatever(From(Yesterday()))))",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0.25
+    },
+    {
+      "message": "who owns which service?",
+      "rules": "Who(Owns(Which(Service())))",
+      "prompt": "Who() | Owns() | Which() | Service()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "where did i put my keys",
+      "rules": "Where(Did(Me(), Put(My(Keys()))))",
+      "prompt": "Where() | Did(I()) | Put(Keys(My()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.5
+    },
+    {
+      "message": "why is the sky blue",
+      "rules": "Why(Is(Sky(), Blue()))",
+      "prompt": "Is(Why(), Sky()) | Blue()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "when does the store close tonight",
+      "rules": "When(Does(Store(), Close(Tonight())))",
+      "prompt": "When() | Does(Tonight(Store(), Close()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "how many tests failed on linux and mac",
+      "rules": "HowMany(Tests(), Failed(On(Linux()), Mac()))",
+      "prompt": "How() | Tests(Many(), Failed(On(And(Linux(), Mac()))))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "my sister's birthday is on june 3rd",
+      "rules": "My(Sister(Birthday(Is(On(June()), Ordinal(3)))))",
+      "prompt": "Is(Birthday(My(), SisterS()), On(June())) | 3rd()",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "i ate a very sweet granny smith on october 15th 2024",
+      "rules": "Me(Ate(Very(Sweet(Smith(Granny()))), On(October()), Ordinal(15), 2024))",
+      "prompt": "I(Ate()) | A() | Very() | Smith(Sweet(), Granny(), On(October())) | 15th() | 2024",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.14285714285714285
+    },
+    {
+      "message": "greg is my coworker and we share memes all the time",
+      "rules": "Greg(Is(My(Coworker()))) | We(Share(All(Memes()), Time()))",
+      "prompt": "Is(Greg(), And(Coworker(My()), We())) | Share(Time(Memes(), All()))",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "could you please summarize this article, it's really long lol",
+      "rules": "Could(You(), Please(Summarize(Ref(\"this article\")))) | Is(Ref(\"it\"), Really(), Long()) | MarkAside(\"lol\")",
+      "prompt": "Could(You()) | Please() | Summarize(Article()) | ItS() | Really() | Long() | Lol()",
+      "same": false,
+      "recall": 0.1,
+      "grouped": 0
+    },
+    {
+      "message": "let's play chess",
+      "rules": "Let(We(), Play(Chess()))",
+      "prompt": "LetS() | Play(Chess())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.5
+    },
+    {
+      "message": "knight to f3",
+      "rules": "Knight(To(F3()))",
+      "prompt": "Knight(To(F3()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "is it my move?",
+      "rules": "Is(Ref(\"it\"), My(Move()))",
+      "prompt": "Is(It()) | Move(My())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "set a timer for 10 minutes",
+      "rules": "Set(Timer(), For(Minutes(10)))",
+      "prompt": "Set(Timer(For(Minutes(10))))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 1
+    },
+    {
+      "message": "convert 72 fahrenheit to celsius",
+      "rules": "Convert(Fahrenheit(72), To(Celsius()))",
+      "prompt": "Convert(Fahrenheit(72, To(Celsius())))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "what's 15% of 80",
+      "rules": "What(Is(Percent(15, Of(80))))",
+      "prompt": "WhatS() | 15(Of(80))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.25
+    },
+    {
+      "message": "i have 3 cats and 2 dogs, how many pets is that?",
+      "rules": "Me(Have(Cats(3), Dogs(2))) | HowMany(Pets(), Is(Ref(\"that\")))",
+      "prompt": "I(Have(And(Cats(3), Dogs(2)))) | How() | Is(Pets(Many()), That())",
+      "same": false,
+      "recall": 0.2222222222222222,
+      "grouped": 0.2857142857142857
+    },
+    {
+      "message": "tell me whether it will rain tomorrow",
+      "rules": "Tell(Me(), Whether(It(Will(Rain(Tomorrow())))))",
+      "prompt": "Tell() | Whether(Me(), It()) | Will() | Rain() | Tomorrow()",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "remind me every monday to water the plants",
+      "rules": "Remind(Me(), Every(Monday()), Water(Plants()))",
+      "prompt": "Remind(Me()) | Monday(To(Plants(Water())))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "the meeting is at 3, er, 4pm",
+      "rules": "Meeting(Is(At(MarkCorrection(3, Time(4, Pm())))))",
+      "prompt": "Is(Meeting(), At(Er(3))) | 4pm()",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0
+    },
+    {
+      "message": "compare python and rust for web servers",
+      "rules": "Compare(Python(), Rust(For(Servers(Web()))))",
+      "prompt": "And(Python(Compare()), Rust(For(Servers(Web()))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.75
+    },
+    {
+      "message": "hmm idk, maybe tuesday?",
+      "rules": "MarkAside(\"hmm idk\") | MarkFuzzy(\"maybe\", Tuesday())",
+      "prompt": "Hmm() | Idk() | Maybe() | Tuesday()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "¿qué hora es?",
+      "rules": "Hora(Que(), Es())",
+      "prompt": "Es(Qu(), Hora())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what day will it be in 5 days?",
+      "rules": "What(Day(), Will(It(), Be(In(Days(5)))))",
+      "prompt": "What() | Day(Will(It())) | Be(In(Days(5)))",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.6
+    },
+    {
+      "message": "what time will it be in 2 hours",
+      "rules": "What(Time(), Will(It(), Be(In(Hours(2)))))",
+      "prompt": "What() | Time() | Will(It()) | Be(In(Hours(2)))",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.6
+    },
+    {
+      "message": "remind me tomorrow at 3pm to call greg",
+      "rules": "Remind(Me(), Tomorrow(), At(Time(3, Pm())), Call(Greg()))",
+      "prompt": "Remind(Me()) | Tomorrow(At(3pm(To(Call(Greg())))))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.25
+    },
+    {
+      "message": "Ah hem, correction, that is a misspelling of my fuzzy bears name Ref, as an aside i dont mind too much.",
+      "rules": "MarkAside(\"Ah hem\") | Correction(That(Is(Misspelling(Of(My(Fuzzy(Bears())))), Name(Ref())))) | As(Aside(Me(DoNot(Mind(Too(), Much())))))",
+      "prompt": "Ah() | Correction(Hem()) | Is(That(), Misspelling(Of(Bears(My(), Fuzzy())))) | Name(Ref(As(An()))) | Aside() | I() | Dont() | Mind() | Too() | Much()",
+      "same": false,
+      "recall": 0.1875,
+      "grouped": 0.21428571428571427
+    },
+    {
+      "message": "can you add emphasis to this",
+      "rules": "Can(You(), Add(Emphasis(), To(Ref(\"this\"))))",
+      "prompt": "Can(You()) | Add(Emphasis(To(This())))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "turn off the lights",
+      "rules": "TurnOff(Lights())",
+      "prompt": "Turn() | Off(Lights())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "set an alarm for 7am",
+      "rules": "Set(Alarm(), For(Time(7, Am())))",
+      "prompt": "Set(Alarm(For(7am())))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "what's the capital of france?",
+      "rules": "What(Is(Capital(Of(France()))))",
+      "prompt": "WhatS() | Capital(Of(France()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "who wrote hamlet",
+      "rules": "Who(Wrote(Hamlet()))",
+      "prompt": "Who() | Wrote(Hamlet())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "could you help me write a cover letter for a barista job?",
+      "rules": "Could(You(), Help(Me(), Write(Letter(Cover()), For(Job(Barista())))))",
+      "prompt": "Could(You()) | Help(Me()) | Write(Letter(Cover(), For(Job(Barista()))))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0.5
+    },
+    {
+      "message": "grab me the latest numbers please",
+      "rules": "Please(Grab(Me(), Latest(Numbers())))",
+      "prompt": "Grab(Me()) | Numbers(Latest()) | Please()",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "i'm allergic to peanuts",
+      "rules": "Me(AllergicTo(Peanuts()))",
+      "prompt": "IM() | Allergic(To(Peanuts()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "my name is keal",
+      "rules": "My(Name(Is(Keal())))",
+      "prompt": "Is(Name(My()), Keal())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "colorless green ideas sleep furiously",
+      "rules": "Colorless(Green(Ideas(Sleep(Furiously()))))",
+      "prompt": "Ideas(Colorless(), Green(), Sleep()) | Furiously()",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0
+    },
+    {
+      "message": "asdkjh qwe zzz",
+      "rules": "Unclear(\"asdkjh qwe zzz\")",
+      "prompt": "Zzz(Asdkjh(), Qwe())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "why is a raven like a writing desk",
+      "rules": "Why(Is(Raven(Like(Desk(Writing())))))",
+      "prompt": "Is(Why(), Raven(Like(Desk(Writing()))))",
+      "same": false,
+      "recall": 0.8,
+      "grouped": 0.8
+    },
+    {
+      "message": "how many angels can dance on the head of a pin",
+      "rules": "HowMany(Angels(), Can(Dance(On(Head(Of(Pin()))))))",
+      "prompt": "How() | Angels(Many(), Can(), Dance(On(Head(Of(Pin())))))",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "banana",
+      "rules": "Banana()",
+      "prompt": "Banana()",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "hey there!",
+      "rules": "MarkEmphasis(\"!\", HeyThere())",
+      "prompt": "Hey() | There()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "1. clone the repo\n2. install deps\n3. run the tests\n4. tell me what failed",
+      "rules": "Item(1, Mood(Imperative(), Clone(Repo()))) | Item(2, Mood(Imperative(), Install(Deps()))) | Item(3, Mood(Imperative(), Run(Tests()))) | Item(4, Mood(Imperative(), Tell(Me(), What(Failed()))))",
+      "prompt": "1 | Clone(Repo()) | 2 | Install(Deps()) | 3 | Run(Tests()) | 4 | Tell(Me()) | What() | Failed()",
+      "same": false,
+      "recall": 0.18181818181818182,
+      "grouped": 0.23076923076923078
+    },
+    {
+      "message": "first check if the server is up, then if it is restart the worker, otherwise page me",
+      "rules": "Unclear(\"first check if the server is up\", First(), Check(), If(), The(), Server(), Is(), Up()) | If(Is(Ref(\"it\")), Restart(Worker()), Otherwise(Page(Me())))",
+      "prompt": "Is(If(Check(First()), Server()), Up()) | Is(If(Then(), It()), Restart(Otherwise(Worker(), Page(Me()))))",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0.14285714285714285
+    },
+    {
+      "message": "## Task\nRefactor `parseConfig` in src/config.ts.\n\n### Requirements\n- keep the public API the same\n- add tests for the yaml path\n- don't touch the CLI\n\nThanks!",
+      "rules": "Heading(2, \"Task\") | Refactor(InlineCode(\"parseConfig\"), In(\"src/config.ts\")) | Heading(3, \"Requirements\") | Item(Mood(Imperative(), Keep(Public(Same(Api(), The()))))) | Item(Mood(Imperative(), Add(Tests(), For(Path(Yaml()))))) | Item(Mood(Imperative(), DoNot(Touch(Number(\"cli\"))))) | MarkEmphasis(\"!\", Thanks())",
+      "prompt": "Task(##(), Refactor(Parseconfig(In(Requirements(SrcConfigTs(), ###()))))) | Keep(Same(Public(), Api(), The())) | Add(Tests(For(Path(Yaml())))) | DonT() | Touch() | The() | Cli() | Thanks()",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0.23809523809523808
+    },
+    {
+      "message": "I'm building a small web app for my jam business. It needs a product page, a cart, and checkout with Stripe. Keep it simple, no user accounts for now. Use Next.js and Tailwind.\n\nCan you give me a step by step plan and then the code for the product page?",
+      "rules": "Me(Am(Building(Small(App(Web())), For(My(Business(Jam())))))) | Needs(Ref(\"it\"), Page(Product()), Cart(), Checkout(), With(Stripe())) | Keep(It(MarkCorrection(Simple(), User()), Accounts(For(Now())))) | Use(\"Next.js\", Tailwind()) | Can(You(), Give(Me(), Step(), By(Plan(Step())))) | Unclear(\"the code for the product page\", The(), Code(), For(), The(), Product(), Page())",
+      "prompt": "IM(Building(App(Small(), Web(), For(Business(My(), Jam()))))) | It() | Needs(And(Cart(Product(), Page()), Checkout(With(Stripe())))) | Keep() | It() | Simple() | No() | User() | Accounts() | Now(For(), Use(And(NextJs(), Tailwind()))) | Can(You()) | Give(Me()) | Step(By(And(Plan(Step()), Then()))) | Code(For(Page(Product())))",
+      "same": false,
+      "recall": 0.175,
+      "grouped": 0.2608695652173913
+    },
+    {
+      "message": "write a python function that returns the nth fibonacci number, with memoization",
+      "rules": "Write(Function(Python(), That(Returns(Number(Nth(), Fibonacci())))), With(Memoization()))",
+      "prompt": "Write(Function(Python())) | That() | Returns(Number(Nth(), Fibonacci(), With(Memoization())))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "rename getUser to fetchUser everywhere in src/ and update the tests",
+      "rules": "Rename(\"getUser\", To(\"fetchUser\"), Everywhere(), In(Src())) | Update(Tests())",
+      "prompt": "Rename(Getuser(To(Fetchuser()))) | Everywhere(In(And(Src(), Update(Tests()))))",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0.5
+    },
+    {
+      "message": "run `pnpm test` and paste the failures",
+      "rules": "Run(InlineCode(\"pnpm test\")) | Paste(Failures())",
+      "prompt": "And(Test(Run(), Pnpm()), Paste(Failures()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "review PR #482 in cnocept, focus on the memory changes and leave comments but don't approve",
+      "rules": "Review(MarkEmphasis(\"PR\", Pr()), Number(\"#482\"), In(MarkMisspelling(\"cnocept\", Concept()))) | Focus(On(Memory()), Changes(Leave(Comments()))) | But(DoNot(Approve()))",
+      "prompt": "Review(Pr()) | 482(In(Cnocept())) | Focus(On(Memory())) | And(Changes(), Leave(But(Comments(), DonT()))) | Approve()",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0.09090909090909091
+    },
+    {
+      "message": "can you look at https://github.com/foo/bar/pull/12 and tell me if it's safe to merge",
+      "rules": "Can(You(), Look(At(\"https://github.com/foo/bar/pull/12\"))) | Tell(Me(), If(SafeTo(Ref(\"it\"), Merge())))",
+      "prompt": "Can(You()) | Look(At()) | And(HttpsGithubComFooBarPull12(), Tell()) | If(Me(), ItS()) | Safe(To(Merge()))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "do the same thing for the other file",
+      "rules": "Do(Ref(\"the same thing\"), For(Ref(\"the other file\")))",
+      "prompt": "Do(Thing(Same(), For(File(Other()))))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "send it to him",
+      "rules": "Send(Ref(\"it\"), To(Ref(\"him\")))",
+      "prompt": "Send(It(To(Him())))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "remember that bug we talked about last week? is it fixed yet",
+      "rules": "Remember($ref1) | Is(Ref(\"it\", $ref1), Fixed(), Yet())",
+      "prompt": "Remember(Bug()) | Is(We(Talked(About(Week(Last())))), It()) | Fixed() | Yet()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "now make it handle unicode",
+      "rules": "MarkAside(\"now\") | Make(Ref(\"it\"), Handle(Unicode()))",
+      "prompt": "Now() | Make(It()) | Handle(Unicode())",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.25
+    },
+    {
+      "message": "tell me more about the second one",
+      "rules": "Tell(Me(), More(), About(Ref(\"the second one\")))",
+      "prompt": "Tell(Me()) | More(About(The())) | Second() | One()",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "what did i say my sister's name was?",
+      "rules": "What(Did(Me(), Say(\"my sister's name was\")))",
+      "prompt": "What() | Did(I()) | Say(Name(My(), SisterS(), Was()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "why?",
+      "rules": "Why()",
+      "prompt": "Why()",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "write a function that parses csv",
+      "rules": "Write(Function(That(Parses(Csv()))))",
+      "prompt": "Write(Function()) | That() | Parses(Csv())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.25
+    },
+    {
+      "message": "make it faster",
+      "rules": "Make(Ref(\"it\"), Faster())",
+      "prompt": "Make(It()) | Faster()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "run the usual",
+      "rules": "Run(Ref(\"the usual\"))",
+      "prompt": "Run(Usual(The()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "book me a table for tonight",
+      "rules": "Book(Me(), Table(), For(Tonight()))",
+      "prompt": "Book(Me()) | Table(For(Tonight()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "convert this to celsius",
+      "rules": "Convert(Ref(\"this\"), To(Celsius()))",
+      "prompt": "Convert() | This(To(Celsius()))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "thanks! also what's the weather tomorrow and can you remind me to bring an umbrella if it rains",
+      "rules": "MarkEmphasis(\"!\", Thanks()) | MarkAside(\"also\") | What(Is(Weather(), Tomorrow())) | Can(You(), Remind(Me(), Bring(Umbrella(), If(It(Rains())))))",
+      "prompt": "Thanks() | Also() | WhatS() | Weather() | And(Tomorrow(), Can(You())) | Remind(Me(To(Bring(If(Umbrella(), It()))))) | Rains()",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0
+    },
+    {
+      "message": "move the meeting to tuesday, no wait, wednesday",
+      "rules": "Move(Meeting(), MarkCorrection(To(Tuesday()), Wednesday()))",
+      "prompt": "Move(Meeting(To(Tuesday()))) | No() | Wednesday(Wait())",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "not that one, the blue one",
+      "rules": "Not(Ref(\"that one\")) | Ref(\"the blue one\")",
+      "prompt": "Not() | That() | One() | The() | Blue() | One()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "please do NOT push to main",
+      "rules": "Please(MarkEmphasis(\"NOT\", DoNot(Push(To(Main())))))",
+      "prompt": "Please() | Do() | Not() | Push(To(Main()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.4
+    },
+    {
+      "message": "give me like five-ish names for a cat",
+      "rules": "Give(Me(), Like(FiveIsh()), Names(For(Cat())))",
+      "prompt": "Give(Me(Like(FiveIsh()))) | Names(For(Cat()))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0.75
+    },
+    {
+      "message": "whats the wether in pittsburgh",
+      "rules": "What(Is(MarkMisspelling(\"wether\", Weather(In(Pittsburgh())))))",
+      "prompt": "Wether(Whats(), In(Pittsburgh()))",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0.2
+    },
+    {
+      "message": "which of these is a prime: 21, 27, 29, 33?",
+      "rules": "Unclear(\"which of these\", Which(), Of(), These()) | Is(Prime(), List(21, 27, 29, 33))",
+      "prompt": "Is(Which(Of(These())), A()) | Prime() | 21 | 27 | 29 | 33",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "if i invest 1000 dollars at 5% a year, how much will i have in 10 years?",
+      "rules": "If(Me(Invest(Dollars(1000), At(At(Percent(5), Per(Year()))))), HowMuch(Will(I(Have(In(Years(10)))))))",
+      "prompt": "If() | I(Invest(Dollars(1000, At(Year(5()))))) | How() | Much() | Will() | I() | Have(In(Years(10)))",
+      "same": false,
+      "recall": 0.29411764705882354,
+      "grouped": 0.21428571428571427
+    },
+    {
+      "message": "explain like i'm five how vaccines work",
+      "rules": "Explain(Like(Me()), Am(Number(\"five\"), How(Vaccines(Work()))))",
+      "prompt": "Explain(Like(IM())) | Five() | How() | Vaccines() | Work()",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0
+    },
+    {
+      "message": "draft an email to my landlord saying the heater is broken again and asking when they can fix it, keep it polite",
+      "rules": "Draft(Email(), To(My(Landlord())), Saying(Heater(), Is(Broken(), Again()))) | Asking(When(They(Can(Fix(Ref(\"it\")))))) | Keep(It(Polite()))",
+      "prompt": "Draft(Email(To(Landlord(My())))) | Is(Saying(Heater()), Broken()) | And(Again(), Asking(When(They()))) | Can() | Fix(It()) | Keep() | It() | Polite()",
+      "same": false,
+      "recall": 0.29411764705882354,
+      "grouped": 0.15384615384615385
+    },
+    {
+      "message": "forget everything i told you about my ex",
+      "rules": "Forget(Everything(Me(Told(You(), About(My(Ex()))))))",
+      "prompt": "Forget(Everything()) | I(Told(You(About(My())))) | Ex()",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0
+    },
+    {
+      "message": "e4",
+      "rules": "E4()",
+      "prompt": "E4()",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "i saw the man with the telescope",
+      "rules": "Me(Saw(Man(), With(Telescope())))",
+      "prompt": "I(Saw(Man(With(Telescope()))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "it's tuesday, right?",
+      "rules": "It(Is(Tuesday())) | Right()",
+      "prompt": "Tuesday(ItS()) | Right()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "ok so basically i've been trying to get my raspberry pi to connect to wifi for like 3 hours and it keeps dropping, i already tried rebooting it and changing the channel on the router, what else should i try?? its a pi 4 btw",
+      "rules": "MarkEmphasis(\"??\", MarkAside(\"ok so basically\")) | MarkEmphasis(\"??\", Me(Have(Been(Trying(Get(My(Pi(Raspberry())), Connect(To(Wifi()), For(MarkFuzzy(\"like\", Hours(3)))))))))) | MarkEmphasis(\"??\", It(Keeps(Dropping(Me(), Already(), Tried(Rebooting(Ref(\"it\"))))))) | MarkEmphasis(\"??\", Changing(Channel(), On(Router()))) | MarkEmphasis(\"??\", What(Else(), Should(Me(), Try()))) | IsA(Ref(\"it\"), Pi(4)) | Btw()",
+      "prompt": "Ok() | So() | Basically() | IVe(Been(), Trying(To(Get(Pi(My(), Raspberry(), To(Connect(To(Wifi(For(Like(And(Hours(3), It())))))))))))) | Keeps() | Dropping(I()) | Already() | Tried() | Rebooting() | And(It(), Changing(Channel(On(Router(What(Else())))))) | Should() | I() | Try(Pi(Its())) | 4 | Btw()",
+      "same": false,
+      "recall": 0.15555555555555556,
+      "grouped": 0.03225806451612903
+    },
+    {
+      "message": "could you close the door please",
+      "rules": "Could(You(), Close(Door()))",
+      "prompt": "Could(You()) | Close(Door()) | Please()",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0.5
+    },
+    {
+      "message": "chess is a sport?",
+      "rules": "Chess(IsA(Sport()))",
+      "prompt": "Is(Chess(), Sport())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "thanks!",
+      "rules": "MarkEmphasis(\"!\", Thanks())",
+      "prompt": "Thanks()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "## Task\nRefactor `parseConfig`",
+      "rules": "Heading(2, \"Task\") | Refactor(InlineCode(\"parseConfig\"))",
+      "prompt": "Parseconfig(##(), Task(), Refactor())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "1. clone the repo\n2. run the tests",
+      "rules": "Item(1, Mood(Imperative(), Clone(Repo()))) | Item(2, Mood(Imperative(), Run(Tests())))",
+      "prompt": "1 | Clone(Repo()) | 2 | Run(Tests())",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "book a flight to pheonix",
+      "rules": "Book(Flight(), To(MarkMisspelling(\"pheonix\", Phoenix())))",
+      "prompt": "Book(Flight(To(Pheonix())))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "what is it?",
+      "rules": "What(Is(Ref(\"it\")))",
+      "prompt": "Is(What(), It())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what time is it?",
+      "rules": "What(Time(), Is(It()))",
+      "prompt": "What() | Is(Time(), It())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "grab those logs from yesterday",
+      "rules": "Grab(Ref(\"those logs\"), From(Yesterday()))",
+      "prompt": "Grab(Logs(From(Yesterday())))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "put it on the shelf beside the lamp",
+      "rules": "Put(Ref(\"it\"), On(Shelf()), Beside(Lamp()))",
+      "prompt": "Put(It(On(Shelf(Beside(Lamp())))))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.25
+    },
+    {
+      "message": "i hid it behind the couch",
+      "rules": "Me(Hid(Ref(\"it\"), Behind(Couch())))",
+      "prompt": "I(Hid(It(Behind(Couch()))))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0.25
+    },
+    {
+      "message": "can you sort these by date",
+      "rules": "Can(You(), Sort(Ref(\"these\"), By(Date())))",
+      "prompt": "Can(You()) | Sort() | These(By(Date()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.25
+    },
+    {
+      "message": "no, not that one",
+      "rules": "No() | Not(Ref(\"that one\"))",
+      "prompt": "No() | Not() | That() | One()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "yeah keep going",
+      "rules": "Yeah() | Keep(Going())",
+      "prompt": "Yeah() | Keep() | Going()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "yes please",
+      "rules": "Please(Yes())",
+      "prompt": "Yes() | Please()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "omg thank you",
+      "rules": "MarkAside(\"omg\") | ThankYou()",
+      "prompt": "Omg() | Thank(You())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "lol ok do it",
+      "rules": "MarkAside(\"lol ok\") | Do(Ref(\"it\"))",
+      "prompt": "Lol() | Ok() | Do(It())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "no problem",
+      "rules": "No(Problem())",
+      "prompt": "No() | Problem()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "maybe tuesday?",
+      "rules": "MarkFuzzy(\"maybe\", Tuesday())",
+      "prompt": "Maybe() | Tuesday()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "we need to add a like checklist to this",
+      "rules": "We(Need(Add(MarkFuzzy(\"like\", Checklist()), To(Ref(\"this\")))))",
+      "prompt": "We(Need(To(Add()))) | A(Like(Checklist(To(This()))))",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0
+    },
+    {
+      "message": "like isnt that obvious?",
+      "rules": "MarkAside(\"like\") | Is(Not(Ref(\"that\")), Obvious())",
+      "prompt": "Like(Isnt(That())) | Obvious()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "not the first batch",
+      "rules": "Not(Batch(Ordinal(\"first\")))",
+      "prompt": "Not() | Batch(First())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "say if its bigger than before",
+      "rules": "Say(If(Is(Ref(\"it\"), BiggerThan(Before()))))",
+      "prompt": "If(Say(), Its()) | Bigger(Than(Before()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "i bought apples, pears and plums",
+      "rules": "Me(Bought(Apples(), Pears(), Plums()))",
+      "prompt": "I(Bought(And(Pears(Apples()), Plums())))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "every dog barks",
+      "rules": "Every(Dog(Barks()))",
+      "prompt": "Barks(Dog())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.5
+    },
+    {
+      "message": "yo homie can you help me figure out what 5 time 17 is?",
+      "rules": "MarkAside(\"yo homie\") | Can(You(), Help(Me(), FigureOut(What(Is(MarkMisspelling(\"time\", Times(5, 17)))))))",
+      "prompt": "Yo() | Homie(Can(You())) | Help(Me()) | Figure() | Out() | What() | 5 | Time() | Is(17)",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "dude where is my car",
+      "rules": "MarkAside(\"dude\") | Where(Is(My(Car())))",
+      "prompt": "Dude() | Is(Where(), Car(My()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.5
+    },
+    {
+      "message": "what ahppened to that hsit",
+      "rules": "What(MarkMisspelling(\"ahppened\", Happened(To(Ref(\"that shit\")))))",
+      "prompt": "What() | Ahppened(To(Hsit()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "waht is teh time",
+      "rules": "What(Is(Time()))",
+      "prompt": "Is(Waht(), Time(Teh()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "what is the time",
+      "rules": "What(Is(Time()))",
+      "prompt": "Is(What(), Time())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    },
+    {
+      "message": "blorp zap the frobnicator",
+      "rules": "Blorp(Zap(), Frobnicator())",
+      "prompt": "Frobnicator(Blorp(), Zap())",
+      "same": false,
+      "recall": 0,
+      "grouped": 1
+    },
+    {
+      "message": "you specificlly stated it",
+      "rules": "You(MarkMisspelling(\"specificlly\", Specifically(Stated(Ref(\"it\")))))",
+      "prompt": "You() | Specificlly() | Stated(It())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what is 5 * 3?",
+      "rules": "What(Is(Times(5, 3)))",
+      "prompt": "Is(What(), 5) | 3",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what is (2 + 3) * 4",
+      "rules": "What(Is(Times(Plus(2, 3), 4)))",
+      "prompt": "Is(What(), +(2())) | 3 | 4",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "is 5 > 3?",
+      "rules": "Is(GreaterThan(5, 3))",
+      "prompt": "Is(>(5)) | 3",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "it costs $5",
+      "rules": "Costs(Ref(\"it\"), Dollars(5))",
+      "prompt": "It(Costs()) | 5()",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "call me at 555-1234",
+      "rules": "Call(Me(), At(\"555-1234\"))",
+      "prompt": "Call(Me(At(5551234())))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "we are open 24/7",
+      "rules": "We(Are(Open(\"24/7\")))",
+      "prompt": "Are(We(), Open()) | 247()",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "look up the word",
+      "rules": "LookUp(Word())",
+      "prompt": "Look() | Up(Word())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "tell me where the station is",
+      "rules": "Tell(Me(), Where(Is(Station())))",
+      "prompt": "Is(Tell(Me(Where(Station()))))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "what 17 times 3 is?",
+      "rules": "What(Is(Times(17, 3)))",
+      "prompt": "What() | Times(17) | Is(3)",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0
+    },
+    {
+      "message": "hi",
+      "rules": "Hi()",
+      "prompt": "Hi()",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "and plus 3?",
+      "rules": "Plus(Ref(\"\"), 3)",
+      "prompt": "Plus(And(), 3)",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "and minus 1",
+      "rules": "Minus(Ref(\"\"), 1)",
+      "prompt": "And() | Minus() | 1",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "times that by 2",
+      "rules": "Times(Ref(\"that\"), 2)",
+      "prompt": "Times() | That(By(2))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what is that plus 3",
+      "rules": "What(Is(Plus(Ref(\"that\"), 3)))",
+      "prompt": "Is(What()) | Plus(That(), 3)",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "5 plus 3",
+      "rules": "Plus(5, 3)",
+      "prompt": "Plus(5, 3)",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what is a work in progress",
+      "rules": "What(Is(Work(In(Progress()))))",
+      "prompt": "Is(What(), Work(In(Progress())))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.75
+    },
+    {
+      "message": "is napkin a work in progress",
+      "rules": "Is(Napkin(), Work(In(Progress())))",
+      "prompt": "Is(Work(Napkin(), In(Progress())))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "napkin is a work in progress",
+      "rules": "Napkin(IsA(Work(In(Progress()))))",
+      "prompt": "Is(Napkin(), Work(In(Progress())))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.5
+    }
+  ]
+}

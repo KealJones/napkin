@@ -24,6 +24,16 @@ test("the closed class: prepositions take the thing after them, and joins, is ho
   assert.equal(await hear("directed and co-produced by Paul Weitz"), "Phrases(And(Directed(), CoProduced(By(Weitz(Paul())))))");
 });
 
+test("doings: a verb takes what follows and belongs to the thing before; after a verb, a doing is said about the thing", async () => {
+  assert.equal(await hear("i need toilet paper and cheese sticks"), "Phrases(I(Need(And(Paper(Toilet()), Sticks(Cheese())))))");
+  assert.equal(await hear("the old dog barked at the mailman"), "Phrases(Dog(Old(), Barked(At(Mailman()))))");
+  // design/prompt-hearing.md section 5, word for word.
+  assert.equal(
+    await hear("American Pie is a 1999 American teen comedy film directed and co-produced by Paul Weitz"),
+    "Phrases(Is(Pie(American()), Film(1999, American(), Teen(), Comedy(), And(Directed(), CoProduced(By(Weitz(Paul())))))))",
+  );
+});
+
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
   assert.equal(await hear("the americanpie"), "Phrases(Americanpie())");
 });
