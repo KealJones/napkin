@@ -79,3 +79,8 @@ test("an answer of the wrong kind is passed over: who asks for someone", async (
   assert.equal((await say("what is my favorite number?")).rendered, "Answer(7)");
   assert.doesNotMatch((await say("who is my favorite number?")).rendered, /^Answer\(7\)/);
 });
+
+test("what my or your names is what that one holds by it", async () => {
+  const { say } = conversation();
+  assert.equal((await say("what is your name?")).rendered, 'Answer("Napkin")');
+});

@@ -1208,6 +1208,138 @@ Concept(Pursue(),
               ),
               Undefined()
             ),
+            Bind($holderOf,
+              Async(
+                Lambda(List($h),
+                  Sequence(
+                    Bind($r, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Closure", $h, "Refers")))),
+                    Bind($to,
+                      If(
+                        And(
+                          And(And(Call($isCall, $r), Equals(Member($r, "head"), "List")), Length(Member($r, "args"))),
+                          Call($isCall, Member(Index(Member($r, "args"), 0), "value"))
+                        ),
+                        Member(Member(Index(Member($r, "args"), 0), "value"), "head"),
+                        Undefined()
+                      )
+                    ),
+                    If(NotEquals($to, "Me"), Return($to), Undefined()),
+                    Bind($user,
+                      Call(
+                        Member(Call(Member(Member($api, "store"), "all")), "find"),
+                        Lambda(List($u),
+                          Call(
+                            Member(Member($u, "relations"), "some"),
+                            Lambda(List($x),
+                              And(
+                                And(
+                                  And(
+                                    Call($isCall, Member($x, "claim")),
+                                    Equals(Member(Member($x, "claim"), "head"), "IsA")
+                                  ),
+                                  Call($isCall, OptionalMember(Index(Member(Member($x, "claim"), "args"), 0), "value"))
+                                ),
+                                Equals(
+                                  Member(Member(Index(Member(Member($x, "claim"), "args"), 0), "value"), "head"),
+                                  "User"
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Return(If($user, Member($user, "identity"), Undefined()))
+                  )
+                )
+              )
+            ),
+            Bind($attribute,
+              If(
+                And(
+                  And(
+                    Equals(Length(Member($goal, "args")), 1),
+                    Call($isCall, Member(Index(Member($goal, "args"), 0), "value"))
+                  ),
+                  Not(Length(Member(Member(Index(Member($goal, "args"), 0), "value"), "args")))
+                ),
+                Member(Index(Member($goal, "args"), 0), "value"),
+                Undefined()
+              )
+            ),
+            Bind($holder,
+              If(
+                $attribute,
+                Await(Call($holderOf, Member($goal, "head"))),
+                Undefined()
+              )
+            ),
+            If(
+              And($holder, Call(Member(Member($api, "store"), "get"), $holder)),
+              Sequence(
+                Bind($baseWord,
+                  Lambda(List($h),
+                    Sequence(
+                      Var($text, ""),
+                      ForOf(
+                        $ch,
+                        $h,
+                        Assign(
+                          $text,
+                          Add(
+                            $text,
+                            If(
+                              And(And(AtLeast($ch, "A"), AtMost($ch, "Z")), Length($text)),
+                              Add(" ", Call(Member($ch, "toLowerCase"))),
+                              Call(Member($ch, "toLowerCase"))
+                            )
+                          )
+                        )
+                      ),
+                      Return(Call(Member($api, "lemma"), $text))
+                    )
+                  )
+                ),
+                Bind($want, Call($baseWord, Member($attribute, "head"))),
+                ForOf(
+                  $r,
+                  Member(Call(Member(Member($api, "store"), "get"), $holder), "relations"),
+                  Sequence(
+                    Bind($claim, Member($r, "claim")),
+                    If(
+                      Or(
+                        Or(
+                          Or(Not(Call($isCall, $claim)), NotEquals(Member($r, "context"), Undefined())),
+                          NotEquals(Call($baseWord, Member($claim, "head")), $want)
+                        ),
+                        Not(Length(Member($claim, "args")))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($value, Member(Index(Member($claim, "args"), 0), "value")),
+                    If(
+                      Call($fits, $value),
+                      Return(
+                        Call(
+                          Member($api, "call"),
+                          "Found",
+                          $value,
+                          Call(
+                            Member($api, "call"),
+                            "Held",
+                            Call(Member($api, "call"), $holder),
+                            $claim
+                          )
+                        )
+                      ),
+                      Undefined()
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($kindsOf,
               Async(
                 Lambda(List($h),

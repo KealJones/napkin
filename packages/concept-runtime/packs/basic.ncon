@@ -2918,10 +2918,12 @@ Concept(Me(), IsA(Deictic()))
 
 Concept(You(), IsA(Deictic()))
 
-// Whose: the one speaking, or the one spoken to.
-Concept(My(), IsA(Deictic()))
+// Whose: the one speaking, or the one spoken to, and who that is.
+Concept(My(), IsA(Deictic()), Refers(Me()))
 
-Concept(Your(), IsA(Deictic()))
+Concept(Your(), IsA(Deictic()), Refers(Self()))
+
+Concept(Refers(), IsA(Relation()))
 
 // ------------------------------------------------------------------ *
 // A little arithmetic, so the first end-to-end turn computes something real.
