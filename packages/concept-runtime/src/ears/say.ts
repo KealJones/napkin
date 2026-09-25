@@ -1,60 +1,13 @@
 /**
- * The Mouth: render a computed Concept result as a sentence.
+ * The host's plain wordings: what is said when the graph's own English (packs/english.ncon)
+ * has no wording for a result. Small talk, not knowing, a date or a time, a follow-up number.
  *
- * The model renders; it does not decide. It is given the original message and the result
- * the graph produced, and told to say that result and nothing else — so the answer stays
- * the graph's answer rather than the model's recollection.
+ * There is no model here any more. It was asked to put results into sentences and said
+ * things the graph never worked out, so a result nothing can word is shown as it is.
  */
 import { type Call, type Expr, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
-import { generate, type ModelOptions } from "./ollama.js";
-
-const SYSTEM = `You put a computed result into one short sentence.
-
-The result was produced by a Concept network, not by you. Say what it says. Do not add
-facts, do not hedge, do not explain the notation, and do not mention Concepts. Never
-compute anything yourself: the result is already the answer to the whole message.
-
-If the result is Answer(x), say x.
-If the result is Answer(True()), answer yes by stating what was asked as a fact.
-If the result is Answer(False()), answer no by stating the opposite as a fact.
-If the result is Answer(UnknownTruth()), say "I don't know yet whether" and then what was asked.
-If the result is Describes(Thing(), List(...)), describe the thing using only those facts.
-Every fact in the list is about the thing: Describes(Greg(), List(CoworkerOf(Me()))) means
-Greg is your coworker.
-A fact written In(fact, Sense()) holds only in that sense; say which sense it is.
-Me() in a result is the person you are talking to, so it is "you" when you say it.
-Self() is you, the one replying, so it is "I".
-If the result is Answer(List(...)) of capabilities, say what you can do as a short list.
-If the result is Sequence(...), each part answers the next part of the message, in order.
-If the result is Conflict(x, List(before), List(now)), say what you were told before about
-x and ask whether it has changed to what they just said.
-If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
-facts back in plain words. If the result is Noted(Word(), ..., means="..."), they said only that word to you: reply to it
-by the Reply, and never define the word or say what it means. If the result is
-Noted(x) with no reply= and no means=, acknowledge it in a few words and
-say it back to them, for example "Got it, you ate an apple."
-If the result is Noted(x, reply=Reply(Act(), heard=Heard(Act(), Feeling()))),
-do not say "Got it" or repeat their words back; answer the way the Reply says: Heard is how their words came across
-(its feeling matters most: meet happiness with warmth, sadness or fear with care, anger with
-calm), and the first Act is what your reply does (Question: ask them something back; Inform:
-say something; Directive: suggest something; Commissive: offer or agree). Reply to what they
-said, in one or two short sentences, adding no facts of your own. If the Reply has like="...",
-that is a reply to nearly the same words: say it, in your own light wording.
-If the result is Answer(Predicted(x, rule)), say x, and in a few words the rule that gives it.
-If the result is Answer(Judged(List(a, b), Kind(...), IfYouWant(a, List(...)), IfYouWant(b, List(...)), lean)),
-do not pick for them unless lean is Leans(...). Say in one sentence they are both that kind,
-then "if you want ..., a; if you want ..., b", using only what each IfYouWant lists: Has(p, v)
-is having v as its p, More(p, x, y) is a higher p (x against y), Less(p, x, y) a lower one.
-If lean is Leans(x, Recognition(...)), add that x is the better known of the two.
-If the result is Answer(Judged(List(a, b), NoCommonKind())), say you could not find a and b
-as two options of the same kind, so you cannot compare them yet.
-If the result is Answer(Unknown(x)), say you do not know x yet.
-If the result is Answer(Lacks(plan, List(...), from=...)), say that plans like theirs usually also
-include these, as a short list in plain words, and that this is from checklists online. If the
-result is Noted(x) beside an answer, do not mention it.
-
-Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
+import type { ModelOptions } from "./ollama.js";
 
 /**
  * A residual is not an answer. Narrating one as though it were is how a system starts
@@ -285,19 +238,6 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
   return direct(result, tense(options.asked)) ?? question(result);
 }
 
-/**
- * A Reply's example is a real person's answer to a different conversation. Shown it, the model
- * repeated it ("the pilot knows what he's doing" to someone scared about tomorrow), so it
- * sees the act and the feeling the graph decided, and not the words.
- */
-function withoutExamples(e: Expr): Expr {
-  if (!isCall(e)) return e;
-  // Close, the example answered nearly the same words, and is kept to be said.
-  const close = e.head === "Reply" && e.args.some((a) => a.name === "close");
-  const args = e.args.filter((a) => !(e.head === "Reply" && (a.name === "near" || a.name === "close" || (a.name === "like" && !close))));
-  return { head: e.head, args: args.map((a) => ({ ...a, value: withoutExamples(a.value) })) };
-}
-
 export async function say(
   message: string,
   result: Expr,
@@ -315,12 +255,9 @@ export async function say(
     return unresolved(message, result, options.unrealized ?? []);
   }
 
-  const prompt = `The message was: ${message}\n\nThe result is: ${format(withoutExamples(result))}\n\nSay it.`;
-  try {
-    const text = await generate(SYSTEM, prompt, options);
-    return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim() || format(result);
-  } catch {
-    // Rendering is a convenience; the result is the answer, so fall back to showing it.
-    return format(result);
-  }
+  // Nothing has a wording for it yet. Said as that, with the answer shown as it was worked
+  // out, never handed to a model to put in words the graph did not choose (packs/english.ncon
+  // is where a wording goes).
+  if (typeof result === "number" || typeof result === "string") return String(result);
+  return `I worked that out, but I don't know how to say it yet: ${format(result)}`;
 }

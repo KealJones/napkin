@@ -748,6 +748,10 @@ Concept(Mood(),
   )
 )
 
+// The turn's hook for a reply the graph writes itself (runtime/turn.ts); English is one
+// language that realizes it (english.ncon).
+Concept(RenderResponse())
+
 Concept(Modifier(), IsA(Category()))
 
 Concept(Not(), IsA(Modifier()))

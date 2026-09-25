@@ -29,6 +29,10 @@ Concept(More(), IsA(Data()))
 
 Concept(Less(), IsA(Data()))
 
+Concept(Earlier(), IsA(Data()))
+
+Concept(Later(), IsA(Data()))
+
 Concept(Leans(), IsA(Data()))
 
 Concept(NoLean(), IsA(Data()))
@@ -494,13 +498,29 @@ Concept(Judge(),
                             )
                           ),
                           Bind(List($x, $y), List(Call($mid, $m), Call($mid, $t))),
+                          Bind($when,
+                            And(
+                              And(
+                                And(Index($ca, Member($d, "p")), Index(Index($ca, Member($d, "p")), 0)),
+                                Member(Index(Index($ca, Member($d, "p")), 0), "mainsnak")
+                              ),
+                              Equals(
+                                Member(Member(Index(Index($ca, Member($d, "p")), 0), "mainsnak"), "datatype"),
+                                "time"
+                              )
+                            )
+                          ),
                           If(
                             NotEquals($x, $y),
                             Call(
                               Member($out, "push"),
                               Call(
                                 Member($api, "call"),
-                                If(GreaterThan($x, $y), "More", "Less"),
+                                If(
+                                  $when,
+                                  If(GreaterThan($x, $y), "Later", "Earlier"),
+                                  If(GreaterThan($x, $y), "More", "Less")
+                                ),
                                 Call($say, Member($d, "p")),
                                 $x,
                                 $y

@@ -15,6 +15,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import nlp from "compromise";
+import { createRequire } from "node:module";
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
 
@@ -69,6 +70,15 @@ export function lemma(word: string): string {
   const base = d.verbs().toInfinitive().text() || d.nouns().toSingular().text() || w;
   lemmas.set(w, base.toLowerCase());
   return base.toLowerCase();
+}
+
+let english: Set<string> | undefined;
+
+/** A name, as opposed to a word: Berlin, Greg, Keal, but not bolt or apple (CodeApi.properNoun). */
+export function properNoun(word: string): boolean {
+  const w = word.toLowerCase();
+  english ??= new Set(createRequire(import.meta.url)("an-array-of-english-words") as string[]);
+  return nlp(w).has("#ProperNoun") || !english.has(w);
 }
 
 export function fromHost(v: unknown): Expr {

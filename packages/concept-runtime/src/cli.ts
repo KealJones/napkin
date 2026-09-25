@@ -326,6 +326,7 @@ if (expr) {
   show("heard", t.heard.raw.trim());
   show("parsed", t.parsed ?? "(nothing)");
   show("result", t.rendered);
+  show(`said (${t.spokenBy})`, t.spoken);
   if (t.heard.problems.length) show("checks failed", t.heard.problems.join("\n"));
   if (t.heard.rejected.length)
     show("lines rejected", t.heard.rejected.map((r) => `${r.line}  <-- ${r.reason}`).join("\n"));

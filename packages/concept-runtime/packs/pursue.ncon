@@ -800,13 +800,34 @@ Concept(LookUp(),
                         )
                       ),
                       Bind($head, Call($name, $label)),
-                      Call(
-                        Member($values, "push"),
-                        If(
-                          And($head, Not(And(AtLeast(Index($head, 0), "0"), AtMost(Index($head, 0), "9")))),
-                          Call(Member($api, "call"), $head),
-                          $label
-                        )
+                      If(
+                        And($head, Not(And(AtLeast(Index($head, 0), "0"), AtMost(Index($head, 0), "9")))),
+                        Sequence(
+                          If(
+                            Not(
+                              Call(
+                                Member(
+                                  Member(
+                                    Or(Call(Member(Member($api, "store"), "get"), $head), Object(relations = List())),
+                                    "relations"
+                                  ),
+                                  "some"
+                                ),
+                                Lambda(List($r),
+                                  And(Member($r, "claim"), Equals(Member(Member($r, "claim"), "head"), "Named"))
+                                )
+                              )
+                            ),
+                            Call(
+                              Member(Member($api, "store"), "addRelation"),
+                              $head,
+                              Call(Member($api, "call"), "Named", $label)
+                            ),
+                            Undefined()
+                          ),
+                          Call(Member($values, "push"), Call(Member($api, "call"), $head))
+                        ),
+                        Call(Member($values, "push"), $label)
                       )
                     ),
                     If(
@@ -1855,7 +1876,10 @@ Concept(Pursue(),
                     ),
                     If(
                       Or(
-                        Equals(Call(Member($api, "format"), $r), Call(Member($api, "format"), $attempt)),
+                        Or(
+                          Equals(Call(Member($api, "format"), $r), Call(Member($api, "format"), $attempt)),
+                          Equals(Call(Member($api, "format"), $r), Call(Member($api, "format"), $d))
+                        ),
                         And(
                           Call($isCall, $r),
                           Includes(List("ExecutionFailed", "Failed", "NotFound", "Unknown"), Member($r, "head"))

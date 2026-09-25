@@ -47,6 +47,8 @@ export interface TurnResult {
   readonly rendered: string;
   /** The result as a sentence. The graph decides the answer; this only says it. */
   readonly spoken: string;
+  /** Who worded it: the graph (packs/english.ncon), or the host's plain wordings. */
+  readonly spokenBy: "graph" | "plain" | "none";
   readonly gaps: Gap[];
   readonly ambiguities: string[];
   readonly learned: LearnStep[];
@@ -437,6 +439,7 @@ export async function turn(
       result: undefined,
       rendered: "(nothing parsed)",
       spoken: "I could not read that as Concepts.",
+      spokenBy: "plain",
       gaps: [],
       ambiguities: [],
       learned: [],
@@ -544,10 +547,13 @@ export async function turn(
   const graphSpoken = options.speak !== false && result !== undefined && !uncomputed && !unrealized.length
     ? await graphText(runtime, "RenderResponse", result)
     : undefined;
+  // Who said it: the graph's own English, or the host's plain wordings.
+  let spokenBy: TurnResult["spokenBy"] = graphSpoken !== undefined ? "graph" : "plain";
   const spoken =
     options.speak === false || result === undefined
       ? rendered
-      : graphSpoken ?? await say(message, forSaying(runtime.store, result), { ...options, unrealized, uncomputed, asked: expression });
+      : graphSpoken ?? await say(message, forSaying(runtime.store, result), { ...options, unrealized, uncomputed, asked: expression});
+  if (options.speak === false || result === undefined) spokenBy = "none";
 
   return {
     heard,
@@ -558,6 +564,7 @@ export async function turn(
     result,
     rendered,
     spoken,
+    spokenBy,
     gaps,
     ambiguities: [...runtime.ambiguities],
     learned,

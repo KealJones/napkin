@@ -2922,7 +2922,7 @@ Concept(Now(),
   IsA(Deictic())
 )
 
-Concept(Me(), IsA(Deictic()))
+Concept(Me(), IsA(Deictic()), Refers(Me()))
 
 Concept(You(), IsA(Deictic()), Refers(Self()))
 
@@ -2931,11 +2931,22 @@ Concept(Yourself(), IsA(Deictic()), Refers(Self()))
 Concept(Myself(), IsA(Deictic()), Refers(Me()))
 
 // Whose: the one speaking, or the one spoken to, and who that is.
-Concept(My(), IsA(Deictic()), Refers(Me()))
+Concept(My(),
+  IsA(Deictic()),
+  IsA(Possessive()),
+  Refers(Me())
+)
 
-Concept(Your(), IsA(Deictic()), Refers(Self()))
+Concept(Your(),
+  IsA(Deictic()),
+  IsA(Possessive()),
+  Refers(Self())
+)
 
 Concept(Refers(), IsA(Relation()))
+
+// Whose something is, not who: "my cat" is about the cat.
+Concept(Possessive(), IsA(Category()))
 
 // ------------------------------------------------------------------ *
 // A little arithmetic, so the first end-to-end turn computes something real.

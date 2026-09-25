@@ -78,13 +78,13 @@ test("a data Concept with behavior is still residual when its inputs cannot be h
   assert.equal(holdsResidual(rt, result), true);
 });
 
-test("residual renderers fall back to the existing mouth", async (t) => {
+test("a residual renderer falls back to the plain wordings, never to a model", async (t) => {
   const rt = fresh();
   hook(rt, "RenderResponse", c("MissingRenderer"));
   const requests = model(t, () => "The result is 42.");
   const result = await turn(rt, "Multiply(6, 7)", EXEC, { inputMode: "expression", learn: false });
-  assert.equal(result.spoken, "The result is 42.");
-  assert.equal(requests.length, 1);
+  assert.equal(result.spoken, "42");
+  assert.equal(requests.length, 0);
 });
 
 test("expression mode is strict and preserves false and zero results", async (t) => {

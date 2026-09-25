@@ -529,10 +529,11 @@ Concept(Meaning(),
 
 Concept(Means(), IsA(Relation()))
 
-// What a word means, asked as a verb: "what does lol mean" is Mean(Lol()).
+// What a word means, asked as a verb: "what does lol mean" is Mean(Lol()). Only in a question,
+// where it cannot be the average of a list (everyday.ncon's Mean).
 Concept(Mean(),
   Realization(Mean($word),
-    context = Execution(),
+    context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     body = Code(
       ir = Async(

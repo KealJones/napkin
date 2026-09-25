@@ -480,10 +480,20 @@ Concept(Reply(),
               New($Set)
             )
           ),
+          Bind($rare,
+            Filter(
+              Concat($query),
+              Lambda(List($w), LessThan(Or(Call(Member($df, "get"), $w), 0), Multiply(Length($turns), 0.002)))
+            )
+          ),
           Bind($covered,
-            Divide(
-              Length(Filter(Concat($query), Lambda(List($w), Call(Member($nearWords, "has"), $w)))),
-              Member($query, "size")
+            If(
+              Call(Member($rare, "every"), Lambda(List($w), Call(Member($nearWords, "has"), $w))),
+              Divide(
+                Length(Filter(Concat($query), Lambda(List($w), Call(Member($nearWords, "has"), $w)))),
+                Member($query, "size")
+              ),
+              0
             )
           ),
           Return(
@@ -555,6 +565,33 @@ Concept(Talk(),
                       Return(),
                       Undefined()
                     ),
+                    Bind($kinds,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "Closure",
+                            Member($e, "head"),
+                            "IsA"
+                          )
+                        )
+                      )
+                    ),
+                    Bind($whose,
+                      And(
+                        Call($isCall, $kinds),
+                        Call(
+                          Member(Member($kinds, "args"), "some"),
+                          Lambda(List($a),
+                            And(
+                              Call($isCall, Member($a, "value")),
+                              Equals(Member(Member($a, "value"), "head"), "Possessive")
+                            )
+                          )
+                        )
+                      )
+                    ),
                     Bind($r,
                       Await(
                         Call(
@@ -569,10 +606,14 @@ Concept(Talk(),
                       )
                     ),
                     If(
-                      And(And(Call($isCall, $r), Equals(Member($r, "head"), "List")), Length(Member($r, "args"))),
+                      And(
+                        And(And(Not($whose), Call($isCall, $r)), Equals(Member($r, "head"), "List")),
+                        Length(Member($r, "args"))
+                      ),
                       Assign($aboutUs, true),
                       Undefined()
                     ),
+                    If($whose, Return(), Undefined()),
                     ForOf(
                       $a,
                       Member($e, "args"),
