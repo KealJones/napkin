@@ -233,7 +233,118 @@ Everything said is there, nothing is added, and "and" is kept. That "by Paul Wei
 belongs to both doings is interpretation. The graph does it later (`And` sharing its
 `Takes`), like folding `Pie(American())` into `AmericanPie`.
 
-## 6. Where it runs
+## 6. Across sentences and paragraphs
+
+A message can be many sentences, in many paragraphs, and a later one can be about an
+earlier one: "I need toilet paper and cheese sticks", a paragraph about recycling, then
+"oh, I also need chips".
+
+**Word links stay local.** Each sentence settles on its own (section 3). Nothing tries to
+link "chips" to "cheese sticks" across two paragraphs, which keeps long messages
+tractable. The message's Prompt holds every sentence, each with its position in the
+message (paragraph, sentence, word), so later steps can see how far apart two things were
+said.
+
+**A few words point back.** Most words link sideways. Some point at something said before,
+and that is their whole job:
+
+| Word | Points at |
+|---|---|
+| "too", "also", "as well", "again", "another" | an earlier claim of the same shape, adding one more |
+| "it", "that", "this", "them", "those" | an earlier thing, or the last answer |
+| "the" + a noun ("the file", "the bug") | a thing of that kind already known in this conversation |
+| "he", "she", "they" | an earlier person |
+| "the first one", "the other one" | one of several things just listed or offered |
+
+Their hearing behaviour proposes a link to an earlier position instead of a neighbour:
+
+```
+Link(from=<"too", sentence 4>, to=<"need", sentence 2>, role=Adds())
+Link(from=<"it", sentence 3>, to=<"file", sentence 1>, role=Refers())
+```
+
+`Adds` and `Refers` are two more roles for section 2.2. A backward link is found the way
+section 7 finds any reference, starting from inside the message.
+
+**Grouping claims of the same shape is interpretation.** Two claims linked by `Adds`, with
+the same shape once the thing that differs is taken out, line up. That is anti-unification,
+which Predict already uses to find the rule behind a sequence:
+
+```
+Need(Me(), And(ToiletPaper(), CheeseSticks()))
+Need(Me(), Chips())
+  gives  Need(Me(), $x)  with  $x = ToiletPaper, CheeseSticks, Chips
+```
+
+The graph's interpretation is `Need(Me(), List(ToiletPaper(), CheeseSticks(), Chips()))`.
+What was heard stays as the sentences that were said.
+
+With no pointer word ("oh, and chips"), the same-shape match against earlier sentences
+still runs, but as a guess. One clear fit groups it there. Several fits leave it separate,
+or ask.
+
+## 7. References: where a pointer looks
+
+A reference is something said that means something else: "it", "that bug", "the auth
+thing", "Greg", "the file I sent you". Today `references.ts` matches words against this
+conversation only, takes the best word overlap, and has no notion of "none" or "two". This
+section is what it should become.
+
+### 7.1 A reference asks for a kind
+
+Like a question word, a reference says what it wants (Answer by kind, AGENTS.md):
+
+- "he", "she", "Greg" want a `Person`.
+- "that file", "the config" want a `File`.
+- "it" wants anything, preferring the last thing talked about.
+- "the bug", "that meeting" want a `Bug`, a `Meeting`: the noun is the kind.
+
+A candidate of another kind is passed over, however well its words match.
+
+### 7.2 Where it looks, nearest first
+
+The search widens one scope at a time and stops at the first scope that has a candidate
+that fits:
+
+1. **This message.** Earlier in the same Prompt ("I wrote a function. It fails.").
+2. **This conversation.** Earlier turns, most recent first: the `Said` lines, and what was
+   answered.
+3. **What Napkin holds.** The graph: known individuals (`Greg_1`), things learned, and
+   earlier conversations through the mention index (`store.mentioning`), ranked by
+   activation, so something talked about yesterday outranks something from a month ago.
+4. **The user's world.** Sources the user has connected: a workspace folder, a repository,
+   a calendar. "The auth thing" may be `src/auth/session.ts`, never mentioned in any
+   conversation. A source here is searched the way Wikidata is for world knowledge: by
+   name, then by what is inside, with what was found recorded with provenance
+   (`Workspace Found("src/auth/session.ts")`).
+5. **The world.** Wikidata and the web, only for names ("Paul Weitz"), never for pointing
+   words: the world does not know what "it" is.
+
+Each scope is a Concept (`InMessage`, `InConversation`, `InMemory`, `InWorkspace`,
+`InWorld`) with a `Find($reference, $kind)` realization, so a new source is a new Concept,
+not a change to the resolver. Scope 4 does not exist yet: it needs the user to say which
+folders or services Napkin may look in, and it is off until they do.
+
+### 7.3 Deciding
+
+In each scope, candidates are scored by fit: the kind (7.1), the words the reference and
+the candidate share, how recently the candidate came up (activation), and whether it plays
+the same part (the thing a fix is asked about is more likely a bug than a person). Then:
+
+- **One clear candidate:** resolved, recorded in place (`Ref("that bug", resolvedTo=
+  Bug_3())`), once, at write time (memory-spec Part 8.3). History never changes when the
+  ranking does.
+- **Two or more close:** asked with the one `Which` mechanism that already asks for
+  people and senses: "Which file do you mean: session.ts, or login.ts?" The reply picks
+  it, and the message is heard again with that choice.
+- **None in any scope:** said plainly and asked: "I don't know which bug you mean. Where
+  is it?" It is never guessed. The unresolved `Ref` stays in the reading and is a gap of
+  kind `reference`, so a later message that answers it ("the one in auth.ts") resolves it.
+
+Names, senses and references are then one pattern: find candidates, fit by kind and
+context, take one, ask between several, admit none.
+
+## 8. Where it runs
 
 - `ears.ts` gets a `prompt` backend: words, Prompt, `Hear` rounds, `Emit`. `Mood` is a
   `Marks` link from the final "?" or the word order, not a separate pass.
@@ -243,7 +354,7 @@ belongs to both doings is interpretation. The graph does it later (`And` sharing
 - `Said` keeps the text and the Prompt (words and links), so any message can be heard again
   later with more knowledge.
 
-## 7. Plan
+## 9. Plan
 
 Each stage ends measured, and none is written for one sentence.
 
@@ -279,6 +390,11 @@ Done when the Prompt reading is at least as good as the rules reading on all mea
 cases, plus a new set of about 50 sentences: Wikipedia first sentences and real messages
 with "and", numbers, "by" and fragments.
 
+**Stage 3b: across sentences and references.** Backward-pointing words (`Adds`,
+`Refers`), same-shape grouping (section 6), and the scoped resolver (section 7) for scopes
+1 to 3, replacing `references.ts`. Measured on messages with pronouns, "too" and "also",
+and references to earlier turns. Scope 4 comes later, once the user can connect a source.
+
 **Stage 4: switch.** The Prompt backend becomes the default. The rules parser stays as the
 fallback, and is deleted rule by rule as nothing uses it.
 
@@ -286,7 +402,7 @@ fallback, and is deleted rule by rule as nothing uses it.
 then shows it meant, the word gets its own hearing realization, kept like Chunk keeps a
 route: seen, kept, with provenance. `Judge` (3.1, step 3) gets stronger as the graph grows.
 
-## 8. What is still open
+## 10. What is still open
 
 - **Cost.** Roughly words times rounds evaluations per message, each small. It needs
   measuring against the rules parser. If it is slow, the rounds can start from the rules
@@ -302,7 +418,7 @@ route: seen, kept, with provenance. `Judge` (3.1, step 3) gets stronger as the g
 - **Several sentences.** Each sentence gets its own Prompt, and references across them
   (`Ref`) resolve as today.
 
-## 9. Prior art
+## 11. Prior art
 
 - Word expert parsing (Small and Rieger, early 1980s): every word is a small program that
   knows how it combines.
