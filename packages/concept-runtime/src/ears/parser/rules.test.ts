@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRules } from "./rules.js";
+import { parseRules, readPhrase } from "./rules.js";
+import { format } from "../../concept/expression.js";
 
 /** The reading without its mood, for the shape tests; mood has its own test below. */
 const unmood = (line: string) => line.replace(/^Mood\((Imperative|Declarative|Interrogative|Checking)\(\), (.*)\)$/, "$2");
@@ -156,4 +157,16 @@ test("an operator with nothing before it works on the last answer, and one after
   assert.equal(read("times that by 2"), 'Times(Ref("that"), 2)');
   assert.equal(read("what is that plus 3"), 'What(Is(Plus(Ref("that"), 3)))');
   assert.equal(read("5 plus 3"), "Plus(5, 3)", "two values are unchanged");
+});
+
+test("a phrase reads as one thing, the way it reads inside a message", () => {
+  const phrase = (words: string) => {
+    const e = readPhrase(words);
+    return e === undefined ? undefined : format(e);
+  };
+  assert.equal(phrase("work in progress"), "Work(In(Progress()))");
+  assert.equal(phrase("ice cream"), "Cream(Ice())");
+  assert.equal(read("what is a work in progress"), "What(Is(Work(In(Progress()))))");
+  assert.equal(read("is napkin a work in progress"), "Is(Napkin(), Work(In(Progress())))");
+  assert.equal(read("napkin is a work in progress"), "Napkin(IsA(Work(In(Progress()))))");
 });

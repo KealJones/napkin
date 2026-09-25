@@ -133,6 +133,8 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
     // A name resolved to an individual is a thing, not missing behaviour: "who is greg"
     // describes Greg_1 whether or not a kind called Greg exists.
     if (isCall(event.input) && event.input.args.some((a) => a.name === "resolvedTo")) continue;
+    // A value is the answer's structure, not something missing: Answer(True()) holds True.
+    if (isCall(event.input) && isPureData(runtime, event.input.head)) continue;
     // A residual is not automatically a gap. A Concept that exists and simply does not
     // realize here is behaving correctly — that is how markers, relations and pure data
     // work. Only an identity the graph has never heard of is something to learn.

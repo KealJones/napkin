@@ -9,10 +9,12 @@
  * Nothing in a pack is stubbed. A Concept that cannot yet be honestly realized is omitted,
  * so that it produces a residual the learning path can act on rather than a wrong answer.
  */
-import { format, isCall, parse } from "../concept/expression.js";
-import { declares, realization, type ConceptUnit } from "../concept/unit.js";
+import { c, equal, format, isCall, parse } from "../concept/expression.js";
+import { declares, realization, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
+import { readPhrase } from "../ears/parser/rules.js";
+import { reachesBehaviour, UNIVERSAL } from "../runtime/select.js";
 
 /** A realization that only hands the call to another Concept, rather than doing anything. */
 const FORWARDING = "Forwarding";
@@ -102,6 +104,53 @@ function deriveSynonymForwarding(store: ConceptStore): number {
   return derived;
 }
 
+/** A realization that says a phrase is one Concept, derived from that Concept's name. */
+const FOLD = "Fold";
+
+const foldTarget = (r: Realization): string | undefined => {
+  const p = r.properties.find((x) => isCall(x) && x.head === FOLD);
+  const target = p !== undefined && isCall(p) ? p.args[0]?.value : undefined;
+  return target !== undefined && isCall(target) ? target.head : undefined;
+};
+
+/**
+ * Every multi-word name folds its own phrase. `WorkInProgress` is spelled from "work in
+ * progress", and the Ears reads those words as `Work(In(Progress()))`, so the universal
+ * parent gets a realization with that pattern whose body is `WorkInProgress()`, in the
+ * `Reading()` context: the phrase stays as said, and reading it (`Read`) finds the Concept.
+ *
+ * The fold lives on `Concept`, which every head inherits from, so no Concept is created for
+ * `Work` just to hold it: a word nobody taught stays unknown. Only things fold. A name with
+ * behaviour of its own (`MakeCall`) is an operation, and "make call" is an order to do it.
+ * Nobody writes a fold: a Concept learned tomorrow folds the next time the graph is seeded,
+ * and a fold goes when its Concept does.
+ */
+function deriveFolds(store: ConceptStore): number {
+  const folds = (store.get(UNIVERSAL)?.realizations ?? []).filter((r) => !r.retired && foldTarget(r) !== undefined);
+  const lapsed = (to: string) => !store.has(to) || reachesBehaviour(store, to);
+  if (folds.some((r) => lapsed(foldTarget(r)!))) {
+    const universal = store.get(UNIVERSAL)!;
+    store.replaceRealizations(UNIVERSAL, universal.realizations.map((r) => {
+      const to = foldTarget(r);
+      return !r.retired && to !== undefined && lapsed(to) ? { ...r, retired: true } : r;
+    }));
+  }
+  const folded = new Set(folds.map((r) => foldTarget(r)!).filter((to) => !lapsed(to)));
+  let derived = 0;
+  for (const unit of store.all()) {
+    // Words only: a minted individual (Greg_1) or an acronym is not a phrase.
+    if (folded.has(unit.identity) || !/^(?:[A-Z][a-z]+){2,}$/.test(unit.identity) || reachesBehaviour(store, unit.identity)) continue;
+    const said = readPhrase(unit.identity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase());
+    if (said === undefined || !isCall(said) || said.head === unit.identity || equal(said, c(unit.identity))) continue;
+    store.addRealization(
+      UNIVERSAL,
+      realization({ pattern: said, context: "Reading()", evaluateArguments: false, properties: [`${FOLD}(${unit.identity}())`], body: c(unit.identity) }),
+    );
+    derived += 1;
+  }
+  return derived;
+}
+
 export interface SeedReport {
   created: number;
   updated: number;
@@ -111,6 +160,7 @@ export interface SeedReport {
   retired: number;
   removed: number;
   synonymsDerived: number;
+  foldsDerived: number;
   /** The packs seeded, by name. */
   packs: string[];
 }
@@ -128,7 +178,7 @@ const packsIn = (dirs: readonly string[]): Pack[] => {
 export function seed(store: ConceptStore, options: { packs?: readonly string[] } = {}): SeedReport {
   const packs = packsIn([BUILT_IN_PACKS, ...(options.packs ?? [])]);
   const report = seedPacks(store, packs);
-  return { ...report, synonymsDerived: deriveSynonymForwarding(store), packs: packs.map((p) => p.name) };
+  return { ...report, synonymsDerived: deriveSynonymForwarding(store), foldsDerived: deriveFolds(store), packs: packs.map((p) => p.name) };
 }
 
 /** Every unit the built-in packs seed. */

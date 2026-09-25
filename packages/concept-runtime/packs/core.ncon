@@ -42,6 +42,10 @@ Concept(RealizationProperty(), IsA(Category()))
 // ------------------------------------------------------------------
 Concept(ContextFacet(), IsA(Category()))
 
+// Reading what was said as the graph names it: folds realize here and nothing else runs, so
+// reading a phrase finds the Concept it spells, or leaves the phrase as said.
+Concept(Reading(), IsA(ContextFacet()))
+
 Concept(JavaScript(), IsA(TargetLanguage()))
 
 Concept(SupersetOf(), Transitive(), Asymmetric())
@@ -525,6 +529,11 @@ Concept(Concept(),
 )
 
 Concept(Forwarding(), IsA(RealizationProperty()))
+
+// A realization derived from a multi-word name (src/seed/seed.ts): the phrase `Work(In(
+// Progress()))` is the Concept `WorkInProgress()`. The target is named so a fold goes when
+// its Concept does.
+Concept(Fold(), IsA(RealizationProperty()))
 
 // Binding a value (ir-spec Part 10.8): the value is evaluated once, and the name is that
 // value wherever it lands, never an expression evaluated again. JavaScript's `const` and

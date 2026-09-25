@@ -1235,6 +1235,12 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
+            // "what is a work in progress": a phrase that spells a Concept is asked as it.
+            If(
+              And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
+              Assign($subject, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $subject)))),
+              Undefined()
+            ),
             Bind($WHEN,
               List(
                 "Tomorrow",
@@ -1627,6 +1633,30 @@ Concept(HowMuch(), IsA(Interrogative()), Asks(Amount()))
 
 Concept(WhichOf(), IsA(Interrogative()))
 
+// A phrase read as the graph names it: "a work in progress" is WorkInProgress() when the
+// graph holds one, and is left as said when it does not. Only folds run while reading.
+Concept(Read(),
+  Realization(Read($x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Return(
+            Await(
+              Call(
+                Member($api, "evaluate"),
+                Member(Index($args, 0), "value"),
+                Call(Member($api, "call"), "Reading")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // The helpers ("is", "did", "will"): said after a question word, they carry the question
 // ("what is chess", "who did it"), and what they hold is what is asked. A closed class of
 // English, like the pointing words.
@@ -1762,90 +1792,98 @@ Concept(Is(),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Compile()),
-    body = If(
-      Not(IsCall($category)),
-      Answer(UnknownTruth()),
-      Bind($comparison,
-        If(
-          Matches(Head($category), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
-          "GreaterThan",
+    body = Bind($kind0,
+      Read($category),
+      If(
+        Not(IsCall($kind0)),
+        Answer(UnknownTruth()),
+        Bind($comparison,
           If(
-            Matches(Head($category), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
-            "LessThan",
-            ""
-          )
-        ),
-        Bind($compared,
-          If(
-            And(Not(Equals($comparison, "")), Equals(Arg($category, 1), Undefined())),
-            Evaluate(MakeCall($comparison, List(Evaluate($subject), Evaluate(Arg($category, 0))))),
-            Nothing()
-          ),
-          If(
-            Or(Equals($compared, True()), Equals($compared, False())),
-            Answer($compared),
+            Matches(Head($kind0), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
+            "GreaterThan",
             If(
-              Not(IsCall($subject)),
-              Answer(UnknownTruth()),
-              Bind($resolved,
-                ArgNamed($subject, "resolvedTo"),
-                Bind($what,
+              Matches(Head($kind0), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
+              "LessThan",
+              ""
+            )
+          ),
+          Bind($compared,
+            If(
+              And(Not(Equals($comparison, "")), Equals(Arg($kind0, 1), Undefined())),
+              Evaluate(MakeCall($comparison, List(Evaluate($subject), Evaluate(Arg($kind0, 0))))),
+              Nothing()
+            ),
+            If(
+              Or(Equals($compared, True()), Equals($compared, False())),
+              Answer($compared),
+              If(
+                Not(IsCall($subject)),
+                Answer(UnknownTruth()),
+                Bind($resolved,
                   If(
-                    Not(Equals($resolved, Undefined())),
-                    MakeCall(Head($resolved), List()),
-                    Singular($subject)
+                    // "are you ...": a word for someone in the conversation is who it refers to.
+                    And(Equals(ArgNamed($subject, "resolvedTo"), Undefined()), Equals(Arg($subject, 0), Undefined())),
+                    First(Closure(Head($subject), "Refers")),
+                    ArgNamed($subject, "resolvedTo")
                   ),
-                  If(
-                    And(Or(Equals(Head($category), "My"), Equals(Head($category), "Your")), IsCall(Arg($category, 0))),
-                    Bind($owner,
-                      If(
-                        Equals(Head($category), "My"),
-                        First(Subjects("IsA", "User")),
-                        MakeCall("Self", List())
-                      ),
-                      If(
-                        Includes(Closure($what, JoinText(Head(Arg($category, 0)), "Of")), $owner),
-                        Answer(True()),
-                        Answer(UnknownTruth())
-                      )
+                  Bind($what,
+                    If(
+                      Not(Equals($resolved, Undefined())),
+                      MakeCall(Head($resolved), List()),
+                      Singular($subject)
                     ),
-                    Bind($learned,
-                      If(
-                        Or(Known($what), Not(Equals($resolved, Undefined()))),
-                        Nothing(),
-                        Evaluate($what)
+                    If(
+                      And(Or(Equals(Head($kind0), "My"), Equals(Head($kind0), "Your")), IsCall(Arg($kind0, 0))),
+                      Bind($owner,
+                        If(
+                          Equals(Head($kind0), "My"),
+                          First(Subjects("IsA", "User")),
+                          MakeCall("Self", List())
+                        ),
+                        If(
+                          Includes(Closure($what, JoinText(Head(Arg($kind0, 0)), "Of")), $owner),
+                          Answer(True()),
+                          Answer(UnknownTruth())
+                        )
                       ),
-                      Bind($kind,
-                        Singular($category),
-                        Bind($truth,
-                          TruthOf($what, "IsA", $kind),
-                          If(
-                            Equals($truth, True()),
-                            Answer(True()),
+                      Bind($learned,
+                        If(
+                          Or(Known($what), Not(Equals($resolved, Undefined()))),
+                          Nothing(),
+                          Evaluate($what)
+                        ),
+                        Bind($kind,
+                          Singular($kind0),
+                          Bind($truth,
+                            TruthOf($what, "IsA", $kind),
                             If(
-                              Equals(TruthOf($what, "SubclassOf", $kind), True()),
+                              Equals($truth, True()),
                               Answer(True()),
                               If(
-                                GreaterThan(
-                                  Length(
-                                    Filter(
-                                      Closure($what, "IsA"),
-                                      Lambda(List($k), Equals(TruthOf($k, "SubclassOf", $kind), True()))
-                                    )
-                                  ),
-                                  0
-                                ),
+                                Equals(TruthOf($what, "SubclassOf", $kind), True()),
                                 Answer(True()),
                                 If(
-                                  Includes(Holds($what, "DistinctFrom"), $kind),
-                                  Answer(False()),
+                                  GreaterThan(
+                                    Length(
+                                      Filter(
+                                        Closure($what, "IsA"),
+                                        Lambda(List($k), Equals(TruthOf($k, "SubclassOf", $kind), True()))
+                                      )
+                                    ),
+                                    0
+                                  ),
+                                  Answer(True()),
                                   If(
-                                    Claimed($what, Head($kind)),
-                                    Answer(True()),
+                                    Includes(Holds($what, "DistinctFrom"), $kind),
+                                    Answer(False()),
                                     If(
-                                      Equals($truth, False()),
-                                      Answer(False()),
-                                      Answer(UnknownTruth())
+                                      Claimed($what, Head($kind)),
+                                      Answer(True()),
+                                      If(
+                                        Equals($truth, False()),
+                                        Answer(False()),
+                                        Answer(UnknownTruth())
+                                      )
                                     )
                                   )
                                 )
@@ -1877,90 +1915,98 @@ Concept(Are(),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Compile()),
-    body = If(
-      Not(IsCall($category)),
-      Answer(UnknownTruth()),
-      Bind($comparison,
-        If(
-          Matches(Head($category), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
-          "GreaterThan",
+    body = Bind($kind0,
+      Read($category),
+      If(
+        Not(IsCall($kind0)),
+        Answer(UnknownTruth()),
+        Bind($comparison,
           If(
-            Matches(Head($category), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
-            "LessThan",
-            ""
-          )
-        ),
-        Bind($compared,
-          If(
-            And(Not(Equals($comparison, "")), Equals(Arg($category, 1), Undefined())),
-            Evaluate(MakeCall($comparison, List(Evaluate($subject), Evaluate(Arg($category, 0))))),
-            Nothing()
-          ),
-          If(
-            Or(Equals($compared, True()), Equals($compared, False())),
-            Answer($compared),
+            Matches(Head($kind0), "^(More|Greater|Bigger|Larger|Higher|Taller|Older)Than$"),
+            "GreaterThan",
             If(
-              Not(IsCall($subject)),
-              Answer(UnknownTruth()),
-              Bind($resolved,
-                ArgNamed($subject, "resolvedTo"),
-                Bind($what,
+              Matches(Head($kind0), "^(Less|Smaller|Fewer|Lower|Shorter|Younger)Than$"),
+              "LessThan",
+              ""
+            )
+          ),
+          Bind($compared,
+            If(
+              And(Not(Equals($comparison, "")), Equals(Arg($kind0, 1), Undefined())),
+              Evaluate(MakeCall($comparison, List(Evaluate($subject), Evaluate(Arg($kind0, 0))))),
+              Nothing()
+            ),
+            If(
+              Or(Equals($compared, True()), Equals($compared, False())),
+              Answer($compared),
+              If(
+                Not(IsCall($subject)),
+                Answer(UnknownTruth()),
+                Bind($resolved,
                   If(
-                    Not(Equals($resolved, Undefined())),
-                    MakeCall(Head($resolved), List()),
-                    Singular($subject)
+                    // "are you ...": a word for someone in the conversation is who it refers to.
+                    And(Equals(ArgNamed($subject, "resolvedTo"), Undefined()), Equals(Arg($subject, 0), Undefined())),
+                    First(Closure(Head($subject), "Refers")),
+                    ArgNamed($subject, "resolvedTo")
                   ),
-                  If(
-                    And(Or(Equals(Head($category), "My"), Equals(Head($category), "Your")), IsCall(Arg($category, 0))),
-                    Bind($owner,
-                      If(
-                        Equals(Head($category), "My"),
-                        First(Subjects("IsA", "User")),
-                        MakeCall("Self", List())
-                      ),
-                      If(
-                        Includes(Closure($what, JoinText(Head(Arg($category, 0)), "Of")), $owner),
-                        Answer(True()),
-                        Answer(UnknownTruth())
-                      )
+                  Bind($what,
+                    If(
+                      Not(Equals($resolved, Undefined())),
+                      MakeCall(Head($resolved), List()),
+                      Singular($subject)
                     ),
-                    Bind($learned,
-                      If(
-                        Or(Known($what), Not(Equals($resolved, Undefined()))),
-                        Nothing(),
-                        Evaluate($what)
+                    If(
+                      And(Or(Equals(Head($kind0), "My"), Equals(Head($kind0), "Your")), IsCall(Arg($kind0, 0))),
+                      Bind($owner,
+                        If(
+                          Equals(Head($kind0), "My"),
+                          First(Subjects("IsA", "User")),
+                          MakeCall("Self", List())
+                        ),
+                        If(
+                          Includes(Closure($what, JoinText(Head(Arg($kind0, 0)), "Of")), $owner),
+                          Answer(True()),
+                          Answer(UnknownTruth())
+                        )
                       ),
-                      Bind($kind,
-                        Singular($category),
-                        Bind($truth,
-                          TruthOf($what, "IsA", $kind),
-                          If(
-                            Equals($truth, True()),
-                            Answer(True()),
+                      Bind($learned,
+                        If(
+                          Or(Known($what), Not(Equals($resolved, Undefined()))),
+                          Nothing(),
+                          Evaluate($what)
+                        ),
+                        Bind($kind,
+                          Singular($kind0),
+                          Bind($truth,
+                            TruthOf($what, "IsA", $kind),
                             If(
-                              Equals(TruthOf($what, "SubclassOf", $kind), True()),
+                              Equals($truth, True()),
                               Answer(True()),
                               If(
-                                GreaterThan(
-                                  Length(
-                                    Filter(
-                                      Closure($what, "IsA"),
-                                      Lambda(List($k), Equals(TruthOf($k, "SubclassOf", $kind), True()))
-                                    )
-                                  ),
-                                  0
-                                ),
+                                Equals(TruthOf($what, "SubclassOf", $kind), True()),
                                 Answer(True()),
                                 If(
-                                  Includes(Holds($what, "DistinctFrom"), $kind),
-                                  Answer(False()),
+                                  GreaterThan(
+                                    Length(
+                                      Filter(
+                                        Closure($what, "IsA"),
+                                        Lambda(List($k), Equals(TruthOf($k, "SubclassOf", $kind), True()))
+                                      )
+                                    ),
+                                    0
+                                  ),
+                                  Answer(True()),
                                   If(
-                                    Claimed($what, Head($kind)),
-                                    Answer(True()),
+                                    Includes(Holds($what, "DistinctFrom"), $kind),
+                                    Answer(False()),
                                     If(
-                                      Equals($truth, False()),
-                                      Answer(False()),
-                                      Answer(UnknownTruth())
+                                      Claimed($what, Head($kind)),
+                                      Answer(True()),
+                                      If(
+                                        Equals($truth, False()),
+                                        Answer(False()),
+                                        Answer(UnknownTruth())
+                                      )
                                     )
                                   )
                                 )

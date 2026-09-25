@@ -709,7 +709,9 @@ function helperQuestion(r: Reader): Expr {
   // "could you please summarize this": the polite word stays, around what it asks.
   const polite = r.word() === "please";
   if (polite) r.next();
-  const rest = r.is("Verb") && !r.is("Noun") ? [verbPhrase(r)] : complements(r);
+  // "is napkin a work in progress": after a copula, a kind keeps its phrase.
+  const kind = COPULA.has(aux.word) && DET.has(r.word()) && !r.is("Verb", 1) ? [attach(nounPhrase(r), prepositions(r))] : [];
+  const rest = [...kind, ...(r.is("Verb") && !r.is("Noun") ? [verbPhrase(r)] : complements(r))];
   const asked = polite && rest.length === 1 ? [c("Please", rest[0])] : rest;
   return stressed(aux, c(name(aux.word), subject, ...asked));
 }
@@ -728,7 +730,9 @@ function claim(r: Reader): { e: Expr; fragment?: true } {
     const cop = r.next();
     if (r.word() === "a" || r.word() === "an") {
       r.next();
-      predicate = c("IsA", nounPhrase(r));
+      // "a work in progress": the kind keeps its phrase, as it does after "what is".
+      const kind = nounPhrase(r);
+      predicate = c("IsA", attach(kind, prepositions(r)));
     } else if (r.is("Adjective") && PREP.has(r.word(1))) {
       // "allergic to peanuts": a describing word and its preposition name one relation.
       const adj = r.next().word;
@@ -1320,6 +1324,39 @@ export function parseRules(message: string): { reading?: RuleReading; why?: stri
     return unread.length ? { reading: { lines }, unread } : { reading: { lines } };
   } catch (error) {
     if (error instanceof Unparsed) return { why: error.message };
+    throw error;
+  }
+}
+
+/**
+ * A phrase read the way it would be read inside a message, as a thing: "work in progress" is
+ * Work(In(Progress())). Undefined when the words do not read as one thing. The graph uses it
+ * to learn how its own multi-word names are said.
+ */
+export function readPhrase(text: string): Expr | undefined {
+  // As said first; then after "the", as a thing is named: alone, "work" in "work in
+  // progress" tags as a verb and the words do not read as one thing.
+  return readThing(text, false) ?? readThing(text, true);
+}
+
+function readThing(text: string, named: boolean): Expr | undefined {
+  spans = [];
+  unread = [];
+  pointAt = undefined;
+  mentions = [];
+  bindings = [];
+  inCondition = false;
+  bindMentions = false;
+  typed = new Map();
+  trailing = [];
+  const toks = tokens(named ? `the ${text}` : text);
+  if (!toks.length) return undefined;
+  const r = new Reader(toks);
+  try {
+    const e = attach(nounPhrase(r), prepositions(r));
+    return r.done() ? e : undefined;
+  } catch (error) {
+    if (error instanceof Unparsed) return undefined;
     throw error;
   }
 }

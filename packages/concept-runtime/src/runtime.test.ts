@@ -556,3 +556,21 @@ test("arithmetic in symbols answers, and division by zero is undefined", async (
   assert.equal(await run("Mood(Interrogative(), What(Is(Negative(Power(2, 2)))))"), "Answer(-4)");
   assert.equal(await run("Mood(Interrogative(), What(Is(Over(1, 0))))"), "Answer(Undefined())");
 });
+
+test("a multi-word name folds its own phrase, and only while reading", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  store.addRelation("IceCream", parse("IsA(Food())"));
+  seed(store);
+  const rt = new Runtime(store);
+  // Nobody wrote these folds: each is derived from the name, as the Ears reads its words.
+  assert.equal(format(await rt.evaluate(parse("Read(Cream(Ice()))"), c("Execution"))), "IceCream()");
+  assert.equal(format(await rt.evaluate(parse("Read(Work(In(Progress())))"), c("Execution"))), "WorkInProgress()");
+  // Outside reading the phrase is what was said.
+  assert.equal(format(await rt.evaluate(parse("Cream(Ice())"), c("Execution"))), "Cream(Ice())");
+  assert.equal(await run("Mood(Interrogative(), Is(Self(), Work(In(Progress()))))"), "Answer(True())");
+  // A fold goes when its Concept does.
+  store.forgetConcept("IceCream");
+  seed(store);
+  assert.equal(format(await rt.evaluate(parse("Read(Cream(Ice()))"), c("Execution"))), "Cream(Ice())");
+});
