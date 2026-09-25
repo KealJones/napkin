@@ -77,13 +77,14 @@ export function lemma(word: string): string {
  * is (CodeApi.words). A contraction is its words: "there's" is "there" and "is", each kept
  * with what was typed. Proposals, not facts: hearing weighs them (design/prompt-hearing.md).
  */
-export function words(text: string): { text: string; typed: string; tags: string[]; sentence: number }[] {
-  const out: { text: string; typed: string; tags: string[]; sentence: number }[] = [];
-  const sentences = nlp(text).sentences().json() as { terms: { text: string; implicit?: string; tags: string[] }[] }[];
+export function words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string }[] {
+  const out: { text: string; typed: string; tags: string[]; sentence: number; after: string }[] = [];
+  const sentences = nlp(text).sentences().json() as { terms: { text: string; implicit?: string; post?: string; tags: string[] }[] }[];
   sentences.forEach((s, sentence) => {
     for (const term of s.terms) {
       const said = term.implicit || term.text;
-      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence });
+      // What was typed after the word, punctuation included: a "?" asks.
+      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence, after: (term.post ?? "").trim() });
     }
   });
   return out;

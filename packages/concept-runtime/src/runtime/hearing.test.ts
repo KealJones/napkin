@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { c, call, format } from "../concept/expression.js";
+import { type Expr, c, call, format, isCall } from "../concept/expression.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
 import { Runtime } from "./evaluator.js";
 
 const store = new ConceptStore();
 seed(store);
-const hear = async (text: string) => format(await new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Execution")));
+const heard = async (text: string) => format(await new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Execution")));
+/** The structure alone: each line's mood is its own test. */
+const unmood = (e: Expr): Expr =>
+  isCall(e) ? (e.head === "Mood" && e.args.length === 2 ? unmood(e.args[1].value) : call(e.head, e.args.map((a) => ({ ...a, value: unmood(a.value) })))) : e;
+const hear = async (text: string) => format(unmood(await new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Execution"))));
 
 test("things: describers and nouns before a thing are its arguments, and the thing is the head", async () => {
   assert.equal(await hear("my old car"), "Phrases(Car(My(), Old()))");
@@ -47,4 +51,15 @@ test("a word nobody knows hears as what the tagger says it looks like", async ()
 test("under Hearing a word only hears: nothing it does elsewhere runs", async () => {
   // Add and Delete have behaviour; heard, they are words.
   assert.equal(await hear("add 2 and 3 then delete everything"), "Phrases(Add(), And(2, 3), Then(), Delete(Everything()))");
+});
+
+test("questions: the question word leads, a helper first asks, and each line says how it was said", async () => {
+  assert.equal(await heard("what is chess"), "Phrases(Mood(Interrogative(), What(Is(Chess()))))");
+  assert.equal(await heard("who wrote hamlet"), "Phrases(Mood(Interrogative(), Who(Wrote(Hamlet()))))");
+  assert.equal(await heard("is chess a sport"), "Phrases(Mood(Interrogative(), Is(Chess(), Sport())))");
+  assert.equal(await heard("could you close the door?"), "Phrases(Mood(Interrogative(), Could(You(), Close(Door()))))");
+  assert.equal(await heard("what do i like"), "Phrases(Mood(Interrogative(), What(Do(I(), Like()))))");
+  assert.equal(await heard("what is the capital of france?"), "Phrases(Mood(Interrogative(), What(Is(Capital(Of(France()))))))");
+  assert.equal(await heard("close the door"), "Phrases(Mood(Imperative(), Close(Door())))");
+  assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), I(Like(Pie()))))");
 });

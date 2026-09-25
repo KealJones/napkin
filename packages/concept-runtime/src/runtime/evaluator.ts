@@ -133,7 +133,7 @@ export interface CodeApi {
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
   properNoun(word: string): boolean;
   /** A text's words in order, with their sentence and the tags the tagger proposes. */
-  words(text: string): { text: string; typed: string; tags: string[]; sentence: number }[];
+  words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string }[];
 }
 
 export class Runtime {

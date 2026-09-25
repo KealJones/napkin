@@ -31,8 +31,6 @@ function messages(): string[] {
   return [...found].filter((m) => m.trim() && !m.includes("```"));
 }
 
-const unmood = (e: Expr): Expr => (isCall(e) && e.head === "Mood" && e.args.length === 2 ? e.args[1].value : e);
-
 /** A reading's links: each head with each argument's head, as "Parent>Child". */
 function links(roots: readonly Expr[]): string[] {
   const out: string[] = [];
@@ -70,7 +68,8 @@ async function main(): Promise<void> {
     const ruled = parseRules(message).reading?.lines ?? [];
     let rules: Expr[];
     try {
-      rules = ruled.filter((l) => !l.startsWith("$")).map((l) => unmood(parse(l)));
+      // Both readings carry each line's Mood, so how a line was said is scored too.
+      rules = ruled.filter((l) => !l.startsWith("$")).map((l) => parse(l));
     } catch {
       continue;
     }
