@@ -34,6 +34,12 @@ test("doings: a verb takes what follows and belongs to the thing before; after a
   );
 });
 
+test("rambling: sentences stay apart, contractions are their words, filler is set aside", async () => {
+  assert.equal(await hear("red light, speed camera ahead. work in progress."), "Phrases(Camera(Red(), Light(), Speed()), Ahead(), Work(In(Progress())))");
+  assert.equal(await hear("there's a way"), "Phrases(Is(There(), Way()))");
+  assert.equal(await hear("i like uh pie"), "Phrases(I(Like(Pie())), MarkAside(\"uh\"))");
+});
+
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
   assert.equal(await hear("the americanpie"), "Phrases(Americanpie())");
 });

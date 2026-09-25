@@ -73,15 +73,19 @@ export function lemma(word: string): string {
 }
 
 /**
- * A text's words in order, each as typed and with what the tagger proposes it is
- * (CodeApi.words). Proposals, not facts: hearing weighs them (design/prompt-hearing.md).
+ * A text's words in order, each with the sentence it is in and what the tagger proposes it
+ * is (CodeApi.words). A contraction is its words: "there's" is "there" and "is", each kept
+ * with what was typed. Proposals, not facts: hearing weighs them (design/prompt-hearing.md).
  */
-export function words(text: string): { text: string; tags: string[] }[] {
-  const out: { text: string; tags: string[] }[] = [];
-  for (const t of nlp(text).terms().json() as { terms: { text: string; tags: string[] }[] }[]) {
-    const term = t.terms[0];
-    if (term?.text) out.push({ text: term.text, tags: [...term.tags] });
-  }
+export function words(text: string): { text: string; typed: string; tags: string[]; sentence: number }[] {
+  const out: { text: string; typed: string; tags: string[]; sentence: number }[] = [];
+  const sentences = nlp(text).sentences().json() as { terms: { text: string; implicit?: string; tags: string[] }[] }[];
+  sentences.forEach((s, sentence) => {
+    for (const term of s.terms) {
+      const said = term.implicit || term.text;
+      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence });
+    }
+  });
   return out;
 }
 

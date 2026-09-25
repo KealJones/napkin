@@ -132,8 +132,8 @@ export interface CodeApi {
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
   properNoun(word: string): boolean;
-  /** A text's words in order, as typed, with the tags the tagger proposes. */
-  words(text: string): { text: string; tags: string[] }[];
+  /** A text's words in order, with their sentence and the tags the tagger proposes. */
+  words(text: string): { text: string; typed: string; tags: string[]; sentence: number }[];
 }
 
 export class Runtime {
