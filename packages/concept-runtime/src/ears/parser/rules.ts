@@ -61,6 +61,7 @@ const name = (w: string): string =>
 const WH = new Set(["what", "who", "when", "where", "why", "how", "which"]);
 const AUX = new Set(["is", "are", "was", "were", "am", "do", "does", "did", "can", "could", "will", "would", "should", "has", "have", "had", "be"]);
 const COPULA = new Set(["is", "are", "was", "were", "am", "be", "'s", "'re", "'m"]);
+const CONTRACTED: Record<string, string> = { "'s": "is", "'re": "are", "'m": "am" };
 const DET = new Set(["the", "a", "an", "some", "this", "that", "these", "those"]);
 const POSSESSIVE: Record<string, string> = { my: "My", your: "Your", our: "Our", his: "His", her: "Her", their: "Their", its: "Its" };
 const PERSON: Record<string, string> = { i: "Me", me: "Me", you: "You", we: "We", us: "We", they: "They", he: "He", she: "She" };
@@ -647,24 +648,27 @@ function whQuestion(r: Reader): Expr {
   if (r.done()) return c(head);
   if (wh === "how" && (r.word() === "many" || r.word() === "much")) head = r.next().word === "many" ? "HowMany" : "HowMuch";
 
-  // "what's", "what is", "who did", "where will": a helper right after fuses with it.
+  // "what's", "what is", "who did", "where will": the helper right after is said, so it is
+  // kept, holding the rest of the question: "what is chess" is What(Is(Chess())). What it
+  // adds (a tense, a modality) is the graph's to read, not the parser's to drop or fuse.
   // HowMany and HowMuch already name what they ask, so a helper after them stays its own.
   if ((AUX.has(r.word()) || COPULA.has(r.word())) && head !== "HowMany" && head !== "HowMuch") {
     const aux = r.next();
-    const fused = head + name(aux.word === "'s" ? "is" : aux.word);
-    if (r.done()) return c(fused);
-    if (r.word() === "be" || (r.is("Verb") && !r.is("Noun") && !PERSON[r.word()] && !DET.has(r.word()))) return c(fused, verbPhrase(r));
+    const helper = name(CONTRACTED[aux.word] ?? aux.word);
+    const ask = (...rest: Expr[]): Expr => c(head, c(helper, ...rest));
+    if (r.done()) return ask();
+    if (r.word() === "be" || (r.is("Verb") && !r.is("Noun") && !PERSON[r.word()] && !DET.has(r.word()))) return ask(verbPhrase(r));
     const subject = nounPhrase(r, true, true);
     // "what is the weather in pittsburgh": with no verb, a phrase after the subject is part of it.
     if (COPULA.has(aux.word) && PREP.has(r.word())) {
       const pps = prepositions(r);
-      return c(fused, attach(subject, pps), ...complements(r));
+      return ask(attach(subject, pps), ...complements(r));
     }
     // "what do i like": one word left is the verb, whatever else the tagger thought it
     // could be ("like" is also a preposition, and read as one it had no object).
-    if (r.i === r.toks.length - 1 && /^[a-z]+$/.test(r.word())) return c(fused, subject, c(name(r.next().word)));
+    if (r.i === r.toks.length - 1 && /^[a-z]+$/.test(r.word())) return ask(subject, c(name(r.next().word)));
     const rest = complements(r);
-    return c(fused, subject, ...rest);
+    return ask(subject, ...rest);
   }
   // "what time will it be", "which file did you open": a word before a helper is what is
   // asked about, whatever the tagger thought ("time" is not an order here).
@@ -904,7 +908,7 @@ function clauses(text: string): { e: Expr; kind?: Kind }[] {
 /**
  * "figure out what 17 times 3 is", "tell me where the station is": inside a sentence the
  * question keeps statement order, and means what "what is 17 times 3" means, so it is
- * written the same way, WhatIs(Times(17, 3)).
+ * written the same way, What(Is(Times(17, 3))).
  */
 function embeddedQuestion(r: Reader, q: Tok): Expr | undefined {
   if (!WH.has(q.word)) return undefined;
@@ -913,7 +917,7 @@ function embeddedQuestion(r: Reader, q: Tok): Expr | undefined {
     const subject = nounPhrase(r, true);
     if (COPULA.has(r.word()) && (r.i + 1 >= r.toks.length || clauseBoundary(new Reader(r.toks.slice(r.i + 1))))) {
       const cop = r.next().word;
-      return c(name(q.word) + name(cop === "'s" ? "is" : cop), subject);
+      return c(name(q.word), c(name(CONTRACTED[cop] ?? cop), subject));
     }
   } catch (error) {
     if (!(error instanceof Unparsed)) throw error;

@@ -166,8 +166,8 @@ test("a question about Greg mints nothing", async () => {
   const runtime = createRuntime();
   runtime.store.seed({ identity: "Greg_1", relations: [{ claim: parse('Named("Greg")') }], realizations: [] });
   const before = runtime.store.size();
-  const { expression } = resolveNames(runtime.store, parse("WhoIs(Greg())"), runtime.ambiguities);
-  assert.equal(format(expression), "WhoIs(Greg(resolvedTo=Greg_1()))");
+  const { expression } = resolveNames(runtime.store, parse("Who(Is(Greg()))"), runtime.ambiguities);
+  assert.equal(format(expression), "Who(Is(Greg(resolvedTo=Greg_1())))");
   assert.equal(runtime.store.size(), before);
 });
 

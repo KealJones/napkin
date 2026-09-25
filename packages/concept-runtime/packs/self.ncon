@@ -65,8 +65,8 @@ Concept(ForgetWhatYouAsk(), IsA(Capability()))
 Concept(Capability(), IsA(Category()))
 
 // "what can you do": what `Self` holds `CanDo`.
-Concept(WhatCan(),
-  Realization(WhatCan(You(), Do()),
+Concept(What(),
+  Realization(What(Can(You(), Do())),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Program()),
@@ -81,14 +81,14 @@ Concept(WhatCan(),
 )
 
 // "how are you", "how are you doing": asked to be polite, answered the same way.
-Concept(HowAre(),
-  Realization(HowAre(You()),
+Concept(How(),
+  Realization(How(Are(You())),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Program()),
     body = MakeCall("Answer", List(MakeCall("DoingWell", List())))
   ),
-  Realization(HowAre(You(), $doing),
+  Realization(How(Are(You(), $doing)),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Program()),

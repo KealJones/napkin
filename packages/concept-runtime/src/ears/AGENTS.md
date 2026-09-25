@@ -16,7 +16,8 @@ as faithfully as it can, in a form the evaluator can act on:
   (`Who(Wrote(Hamlet()))`), a yes/no question with its helper word
   (`Could(You(), Close(Door()))`), a claim about a thing with the thing
   (`Me(AllergicTo(Peanuts()))`), an order with its verb. Numbers and `Ref`s are never heads.
-  Fixed combinations fuse (`WhoDid`, `WhatIs`, `IsA`, `DoNot`). Full rules:
+  A helper after a question word holds the rest (`Who(Did(Hamlet(), Kill()))`); only a few
+  fixed combinations fuse (`IsA`, `DoNot`). Full rules:
   `design/reading-spec.md`; worked cases: `eval/ears/gold.md`.
 - **Mood, not use, and not the Ears' job.** `mood.ts` adds `Mood(kind, line)` after the
   Ears (`Imperative`, `Declarative`, `Interrogative`, `Checking`), plus `Emphasis` for a

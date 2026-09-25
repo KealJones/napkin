@@ -19,7 +19,7 @@ import { earsPrompt } from "./prompt.js";
 let graphNamesAt = -1;
 
 const INTERROGATIVES = new Set([
-  "What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf", "Whether", "WhatIs",
+  "What", "Who", "When", "Where", "Why", "How", "HowMany", "WhichOf", "Whether",
 ]);
 
 /**

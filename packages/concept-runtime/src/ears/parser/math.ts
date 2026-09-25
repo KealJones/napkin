@@ -4,7 +4,7 @@
  * "(2 + 3) * 4" is not English, and the tagger treats it as punctuation: "*" vanished,
  * "(10)" became a stray token and "2^8" became `28()`. A span of numbers, operators and
  * parentheses is parsed here by precedence and put back as one verbatim token, so the
- * grammar only sees a thing: "what is (2 + 3) * 4" is WhatIs(Times(Plus(2, 3), 4)).
+ * grammar only sees a thing: "what is (2 + 3) * 4" is What(Is(Times(Plus(2, 3), 4))).
  *
  * The names are the words the operators are read aloud as, the way "5 times 3" is
  * Times(5, 3); the graph realizes them (Times is a synonym of Multiply).

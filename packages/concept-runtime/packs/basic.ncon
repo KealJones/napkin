@@ -1188,6 +1188,53 @@ Concept(Interrogative(),
               Undefined()
             ),
             Var($subject, Member(Index($args, 0), "value")),
+            // "what is chess" is What(Is(Chess())): a helper said after the question word
+            // carries the question, so the question asks what it holds, What(Chess()).
+            Bind($kinds,
+              If(
+                And(Equals(Length($args), 1), And($subject, Member($subject, "head"))),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Closure",
+                      Member($subject, "head"),
+                      "IsA"
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              And(
+                And($kinds, Equals(Member($kinds, "head"), "List")),
+                Call(
+                  Member(Member($kinds, "args"), "some"),
+                  Lambda(List($k), Equals(Member(Member($k, "value"), "head"), "Helper"))
+                )
+              ),
+              Sequence(
+                If(
+                  Not(Length(Member($subject, "args"))),
+                  Return(Call(Member($api, "call"), "Unknown")),
+                  Undefined()
+                ),
+                Return(
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Object(
+                        head = Member(Call(Member($bindings, "get"), "question"), "head"),
+                        args = Member($subject, "args")
+                      )
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($WHEN,
               List(
                 "Tomorrow",
@@ -1580,122 +1627,44 @@ Concept(HowMuch(), IsA(Interrogative()), Asks(Amount()))
 
 Concept(WhichOf(), IsA(Interrogative()))
 
-// "who is", "where are", "what do": the Ears fuses a helper onto the question word
-// (reading-spec P4), and a present-tense one adds nothing the question word does not
-// already ask, so each is a plain synonym. A tensed one ("who did") is not: it realizes
-// through tense and inverse (reading-spec Part 5.3).
-Concept(WhatIs(), SynonymOf(What()))
+// The helpers ("is", "did", "will"): said after a question word, they carry the question
+// ("what is chess", "who did it"), and what they hold is what is asked. A closed class of
+// English, like the pointing words.
+Concept(Helper(), IsA(Category()))
 
-Concept(WhatAre(), SynonymOf(What()))
+Concept(Is(), IsA(Helper()))
 
-Concept(WhatAm(), SynonymOf(What()))
+Concept(Are(), IsA(Helper()))
 
-Concept(WhatDo(), SynonymOf(What()))
+Concept(Was(), IsA(Helper()))
 
-Concept(WhatDoes(), SynonymOf(What()))
+Concept(Were(), IsA(Helper()))
 
-Concept(WhoIs(), SynonymOf(Who()))
+Concept(Am(), IsA(Helper()))
 
-Concept(WhoAre(), SynonymOf(Who()))
+Concept(Do(), IsA(Helper()))
 
-Concept(WhoAm(), SynonymOf(Who()))
+Concept(Does(), IsA(Helper()))
 
-Concept(WhoDo(), SynonymOf(Who()))
+Concept(Did(), IsA(Helper()))
 
-Concept(WhoDoes(), SynonymOf(Who()))
+Concept(Can(), IsA(Helper()))
 
-Concept(WhenIs(), SynonymOf(When()))
+Concept(Could(), IsA(Helper()))
 
-Concept(WhenAre(), SynonymOf(When()))
+Concept(Will(), IsA(Helper()))
 
-Concept(WhenAm(), SynonymOf(When()))
+Concept(Would(), IsA(Helper()))
 
-Concept(WhenDo(), SynonymOf(When()))
+Concept(Should(), IsA(Helper()))
 
-Concept(WhenDoes(), SynonymOf(When()))
+Concept(Has(), IsA(Helper()))
 
-Concept(WhereIs(), SynonymOf(Where()))
+Concept(Have(), IsA(Helper()))
 
-Concept(WhereAre(), SynonymOf(Where()))
+Concept(Had(), IsA(Helper()))
 
-Concept(WhereAm(), SynonymOf(Where()))
-
-Concept(WhereDo(), SynonymOf(Where()))
-
-Concept(WhereDoes(), SynonymOf(Where()))
-
-Concept(WhyIs(), SynonymOf(Why()))
-
-Concept(WhyAre(), SynonymOf(Why()))
-
-Concept(WhyAm(), SynonymOf(Why()))
-
-Concept(WhyDo(), SynonymOf(Why()))
-
-Concept(WhyDoes(), SynonymOf(Why()))
-
-Concept(HowIs(), SynonymOf(How()))
-
-Concept(HowAre(), SynonymOf(How()))
-
-Concept(HowAm(), SynonymOf(How()))
-
-Concept(HowDo(), SynonymOf(How()))
-
-Concept(HowDoes(), SynonymOf(How()))
-
-Concept(WhichIs(), SynonymOf(Which()))
-
-Concept(WhichAre(), SynonymOf(Which()))
-
-Concept(WhichAm(), SynonymOf(Which()))
-
-Concept(WhichDo(), SynonymOf(Which()))
-
-Concept(WhichDoes(), SynonymOf(Which()))
-
-// Asked about the past, the same question word.
-Concept(WhatDid(), SynonymOf(What()))
-
-Concept(WhatWas(), SynonymOf(What()))
-
-Concept(WhatWere(), SynonymOf(What()))
-
-Concept(WhoDid(), SynonymOf(Who()))
-
-Concept(WhoWas(), SynonymOf(Who()))
-
-Concept(WhoWere(), SynonymOf(Who()))
-
-Concept(WhenDid(), SynonymOf(When()))
-
-Concept(WhenWas(), SynonymOf(When()))
-
-Concept(WhenWere(), SynonymOf(When()))
-
-Concept(WhereDid(), SynonymOf(Where()))
-
-Concept(WhereWas(), SynonymOf(Where()))
-
-Concept(WhereWere(), SynonymOf(Where()))
-
-Concept(WhyDid(), SynonymOf(Why()))
-
-Concept(WhyWas(), SynonymOf(Why()))
-
-Concept(WhyWere(), SynonymOf(Why()))
-
-Concept(HowDid(), SynonymOf(How()))
-
-Concept(HowWas(), SynonymOf(How()))
-
-Concept(HowWere(), SynonymOf(How()))
-
-Concept(WhichDid(), SynonymOf(Which()))
-
-Concept(WhichWas(), SynonymOf(Which()))
-
-Concept(WhichWere(), SynonymOf(Which()))
+Concept(Be(), IsA(Helper()))
 
 // A yes/no question wants a truth value, not a subject, so it declares its own
 // realization locally, which beats the inherited one on distance.

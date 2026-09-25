@@ -16,7 +16,7 @@ import { check, looksLikeQuestion } from "../ears.js";
 import { lift, type Lifted } from "../lift.js";
 
 export const INTERROGATIVES = new Set([
-  "What", "Who", "When", "Where", "Why", "How", "HowMany", "HowMuch", "WhichOf", "Whether", "WhatIs",
+  "What", "Who", "When", "Where", "Why", "How", "HowMany", "HowMuch", "WhichOf", "Whether",
 ]);
 
 /** Moods `mood.ts` adds; a question in either of the last two is asked even with no question word. */

@@ -57,7 +57,7 @@ Eight principles. Each decision in the review is a consequence of one or more of
 | P1 Said order | interrogative first, subject first, verb first for orders, possessives and describing words wrap, arguments in order |
 | P2 A head is a name | numbers, strings, variables and `Ref`s never head; their sentences go verb first |
 | P3 Head position says data or call | subject first for claims and questions, verb first for orders and computation, inverses |
-| P4 One meaning, one name | `WhoDid`, `WhatIs`, `IsA`, `DoNot`, `HeyThere`, `CoverLetter`; never a compositional phrase |
+| P4 One meaning, one name | `IsA`, `DoNot`, `HeyThere`, `CoverLetter`; never a compositional phrase |
 | P5 Form, not use | no `Whether`, no `Greeting`, no `Do` for politeness; mood added mechanically |
 | P6 Keep everything, mark what the message did | `Aside`, `Correction`, `Emphasis`, `Checking`, `No` stays `No` |
 | P7 Understood things are structure | `Time(7, Am())`, `Hours(3)`, strings only for the verbatim |
@@ -152,14 +152,17 @@ Words whose parts mean themselves never fuse.
 
 | Fuses | Because | Does not fuse |
 |---|---|---|
-| "who did" `WhoDid` | one question shape | "who ... hamlet" |
-| "what's" `WhatIs` | contraction | |
 | "is a" `IsA` (a category claim) | one relation | "why is a raven": "a" belongs to "raven" |
 | "don't" `DoNot` | contraction | |
 | "have been" `HaveBeen` | adjacent auxiliaries | "will i have": `Will(Me(), Have(...))` |
 | "hey there", "thank you" | parts do not mean themselves | "a typescript function" |
 | "cover letter", "pull request" | a lexicalized compound | "jam business" (Part 7, T6) |
 | "allergic to", "coworker of" | a relation with its governed preposition | "look at" in an order (Part 7, T7) |
+
+**Superseded 2026-09-25: question words no longer fuse with helpers.** "who did hamlet
+kill" is `Who(Did(Hamlet(), Kill()))` and "what's" is `What(Is(...))`. The helpers (`Is`,
+`Did`, `Will`, ...) are `IsA(Helper())`, and a question word reads through a helper, so no
+`WhatIs` family is listed anywhere. The text below records the earlier design.
 
 A fused interrogative is one of two things, and the difference matters:
 

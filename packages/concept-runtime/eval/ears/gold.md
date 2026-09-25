@@ -22,8 +22,8 @@ Rules for this file:
 2. **The first thing said is the head.** The question word first; the subject first for a
    claim about a thing; the verb first for an order or for computation over values. A
    number or a `Ref` is never a head.
-3. **Fixed combinations fuse** when they carry one meaning: `WhatIs`, `WhoDid`, `IsA`,
-   `DoNot`, `HeyThere`. A fused interrogative is its own Concept.
+3. **Fixed combinations fuse** when they carry one meaning: `IsA`, `DoNot`, `HeyThere`. A
+   helper after a question word is kept and holds the rest: `Who(Did(Hamlet(), Kill()))`.
 4. **Mood is added after the Ears** as `Mood(kind, line)`: `Imperative`, `Declarative`,
    `Interrogative`, `Checking` (a question marked only by "?" or a tag). A trailing "!" is
    `MarkEmphasis("!", line)`. No `Whether`: a fronted auxiliary marks a yes/no question.
@@ -76,10 +76,11 @@ what's the capital of france?
 ```
 
 ```reading
-Mood(Interrogative(), WhatIs(Capital(France())))
+Mood(Interrogative(), What(Is(Capital(France()))))
 ```
 
-Why: "what's" is a fixed combination, so it fuses: `WhatIs` is `SynonymOf(What())`.
+Why: "what's" is "what is", so the helper is kept and holds what is asked. `Is` is a
+`Helper`, and a question word reads through one.
 
 ## simple-question-who
 category: question
@@ -503,7 +504,7 @@ what did i say my sister's name was?
 ```
 
 ```reading
-Mood(Interrogative(), WhatDid(Me(), Say(My(Sister(Name(Was()))))))
+Mood(Interrogative(), What(Did(Me(), Say(My(Sister(Name(Was())))))))
 ```
 
 Why: "what did" fuses. Memory answers from `Said`.
@@ -601,7 +602,7 @@ thanks! also what's the weather tomorrow and can you remind me to bring an umbre
 
 ```reading
 MarkEmphasis("!", Thanks())
-Mood(Interrogative(), Also(WhatIs(Weather(Tomorrow()))))
+Mood(Interrogative(), Also(What(Is(Weather(Tomorrow())))))
 Mood(Interrogative(), Can(You(), Remind(Me(), Bring(Umbrella()), If(It(Rains())))))
 ```
 
@@ -668,7 +669,7 @@ whats the wether in pittsburgh
 ```
 
 ```reading
-Mood(Interrogative(), WhatIs(MarkMisspelling("wether", Weather(In(Pittsburgh())))))
+Mood(Interrogative(), What(Is(MarkMisspelling("wether", Weather(In(Pittsburgh()))))))
 ```
 
 Why: "wether" names what is asked about, so both forms are kept.

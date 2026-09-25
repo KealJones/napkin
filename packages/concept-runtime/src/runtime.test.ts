@@ -529,13 +529,18 @@ test("a facet named in the message is lifted out of the expression", async () =>
 });
 
 test("a synonym forwards to behaviour its target inherits", async () => {
-  // What has no realization of its own; it answers through Interrogative.
-  assert.equal(await run("WhatIs(Times(17, 3))"), "Answer(51)");
+  // What has no realization of its own; it answers through Interrogative, and Define is What.
+  assert.equal(await run("Define(Times(17, 3))"), "Answer(51)");
+});
+
+test("a helper after a question word holds what is asked", async () => {
+  assert.equal(await run("What(Is(Times(17, 3)))"), "Answer(51)");
+  assert.equal(await run("Mood(Interrogative(), What(Is()))"), "Unknown()");
 });
 
 test("delivery frames do what they deliver, whoever it is for", async () => {
   assert.equal(await run("Tell(Me(), What(Times(17, 3)))"), "Answer(51)");
-  assert.equal(await run("Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(WhatIs(Times(17, 3))))))"), "Answer(51)");
+  assert.equal(await run("Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(What(Is(Times(17, 3)))))))"), "Answer(51)");
   assert.equal(await run("Show(Me(), Times(2, 3))"), "6");
   assert.equal(await run("Tell(Me())"), "Tell(Me())", "a recipient and nothing to tell stays residual");
 });
@@ -547,7 +552,7 @@ test("greetings and thanks are answered", async () => {
 });
 
 test("arithmetic in symbols answers, and division by zero is undefined", async () => {
-  assert.equal(await run("Mood(Interrogative(), WhatIs(Over(Times(Plus(1, 2), Plus(3, 4)), 7)))"), "Answer(3)");
-  assert.equal(await run("Mood(Interrogative(), WhatIs(Negative(Power(2, 2))))"), "Answer(-4)");
-  assert.equal(await run("Mood(Interrogative(), WhatIs(Over(1, 0)))"), "Answer(Undefined())");
+  assert.equal(await run("Mood(Interrogative(), What(Is(Over(Times(Plus(1, 2), Plus(3, 4)), 7))))"), "Answer(3)");
+  assert.equal(await run("Mood(Interrogative(), What(Is(Negative(Power(2, 2)))))"), "Answer(-4)");
+  assert.equal(await run("Mood(Interrogative(), What(Is(Over(1, 0))))"), "Answer(Undefined())");
 });

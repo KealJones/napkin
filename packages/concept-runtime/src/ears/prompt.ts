@@ -38,7 +38,7 @@ An order starts with its verb: "close the door" is Close(Door()).
 A number or a Ref is never a head: "5 times 3" is Times(5, 3).
 Words that describe or own a thing wrap it: "my old car" is My(Old(Car())).
 Things said side by side are side by side; several go in List(...).
-A few words that always go together become one name: "is a" is IsA, "what's" is WhatIs,
+A few words that always go together become one name: "is a" is IsA,
 "don't" is DoNot. A phrase whose words each mean themselves is never folded into one name.`;
 
 const MARK = `Markers always start with Mark, so they never look like the user's own words.
@@ -76,8 +76,8 @@ const RULES = `TWO RULES YOU MUST NOT BREAK
 
 const QUESTIONS = `A question starts with its question word, and the rest follows in the order said:
 "who wrote this" is Who(Wrote(Ref("this"))).
-A helper word right after the question word joins it: "who did hamlet kill" is
-WhoDid(Hamlet(), Kill()), and "where is my phone" is WhereIs(My(Phone())).
+A helper word right after the question word holds the rest: "who did hamlet kill" is
+Who(Did(Hamlet(), Kill())), and "where is my phone" is Where(Is(My(Phone()))).
 A yes/no question starts with its helper word, as said: "is chess a sport" is
 Is(Chess(), Sport()), and "could you close the door" is Could(You(), Close(Door())).
 Put a question word only where the message asks something. A request or a statement asks
@@ -93,10 +93,10 @@ const EXAMPLES = `EXAMPLES
 Who(Ate(What(), At(Party())))
 
 "what do we need to finish this?"
-WhatDo(We(), Need(Finish(Ref("this"))))
+What(Do(We(), Need(Finish(Ref("this")))))
 
 "how was the movie?"
-HowWas(Movie())
+How(Was(Movie()))
 
 "could you close the window please"
 Could(You(), Please(Close(Window())))

@@ -13,10 +13,10 @@ test("the same message always reads the same way", () => {
   assert.equal(read(m), "What(Day(), Will(It(), Be(In(Days(5)))))");
 });
 
-test("questions lead with their question word, helpers fuse, yes/no leads with the helper", () => {
+test("questions lead with their question word, a helper holds the rest, yes/no leads with the helper", () => {
   assert.equal(read("who wrote hamlet"), "Who(Wrote(Hamlet()))");
-  assert.equal(read("where did i put my keys"), "WhereDid(Me(), Put(My(Keys())))");
-  assert.equal(read("how did the build go?"), "HowDid(Build(), Go())");
+  assert.equal(read("where did i put my keys"), "Where(Did(Me(), Put(My(Keys()))))");
+  assert.equal(read("how did the build go?"), "How(Did(Build(), Go()))");
   assert.equal(read("could you close the door please"), "Could(You(), Close(Door()))");
   assert.equal(read("how many angels can dance on the head of a pin"), "HowMany(Angels(), Can(Dance(On(Head(Of(Pin()))))))");
 });
@@ -36,7 +36,7 @@ test("orders are verb first, and clauses split into lines", () => {
 
 test("amounts, clock times, arithmetic and pointing phrases", () => {
   assert.equal(read("set a timer for 10 minutes"), "Set(Timer(), For(Minutes(10)))");
-  assert.equal(read("what is 17 times 4"), "WhatIs(Times(17, 4))");
+  assert.equal(read("what is 17 times 4"), "What(Is(Times(17, 4)))");
   assert.equal(read("open the second one"), 'Open(Ref("the second one"))');
 });
 
@@ -59,14 +59,14 @@ test("markup and verbatim spans are structure before any grammar", () => {
 });
 
 test("misspellings are corrected before tagging and kept as said", () => {
-  assert.equal(read("whats the wether in pittsburgh"), 'WhatIs(MarkMisspelling("wether", Weather(In(Pittsburgh()))))');
+  assert.equal(read("whats the wether in pittsburgh"), 'What(Is(MarkMisspelling("wether", Weather(In(Pittsburgh())))))');
   assert.equal(read("book a flight to pheonix"), 'Book(Flight(), To(MarkMisspelling("pheonix", Phoenix())))');
   assert.equal(read("colorless green ideas sleep furiously"), "Colorless(Green(Ideas(Sleep(Furiously()))))", "a spelling variant is not a typo");
   assert.equal(lines("asdkjh qwe zzz"), 'Unclear("asdkjh qwe zzz")');
 });
 
 test("pointing words are references, except the ambient it", () => {
-  assert.equal(read("what is it?"), 'WhatIs(Ref("it"))');
+  assert.equal(read("what is it?"), 'What(Is(Ref("it")))');
   assert.equal(read("what time is it?"), "What(Time(), Is(It()))");
   assert.equal(read("grab those logs from yesterday"), 'Grab(Ref("those logs"), From(Yesterday()))');
 });
@@ -119,9 +119,9 @@ test("words the rules cannot read are kept as typed, and the rest is still read"
 test("who is spoken to is an aside, and a typo between numbers is an operator", () => {
   assert.equal(
     lines("yo homie can you help me figure out what 5 time 17 is?"),
-    'MarkAside("yo homie") | Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(WhatIs(MarkMisspelling("time", Times(5, 17)))))))',
+    'MarkAside("yo homie") | Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(What(Is(MarkMisspelling("time", Times(5, 17))))))))',
   );
-  assert.equal(lines("dude where is my car"), 'MarkAside("dude") | Mood(Interrogative(), WhereIs(My(Car())))');
+  assert.equal(lines("dude where is my car"), 'MarkAside("dude") | Mood(Interrogative(), Where(Is(My(Car()))))');
 });
 
 test("two swapped letters are the commonest typo, at any length", () => {
@@ -135,8 +135,8 @@ test("an invented word is not corrected to a rare one", () => {
 });
 
 test("symbols in a sentence: arithmetic, amounts and codes", () => {
-  assert.equal(read("what is 5 * 3?"), "WhatIs(Times(5, 3))");
-  assert.equal(read("what is (2 + 3) * 4"), "WhatIs(Times(Plus(2, 3), 4))");
+  assert.equal(read("what is 5 * 3?"), "What(Is(Times(5, 3)))");
+  assert.equal(read("what is (2 + 3) * 4"), "What(Is(Times(Plus(2, 3), 4)))");
   assert.equal(read("is 5 > 3?"), "Is(GreaterThan(5, 3))");
   assert.equal(read("it costs $5"), "Costs(Ref(\"it\"), Dollars(5))");
   assert.equal(read("call me at 555-1234"), 'Call(Me(), At("555-1234"))');
@@ -145,8 +145,8 @@ test("symbols in a sentence: arithmetic, amounts and codes", () => {
 
 test("a phrasal verb is one verb, and an embedded question reads like a plain one", () => {
   assert.equal(read("look up the word"), "LookUp(Word())");
-  assert.equal(read("tell me where the station is"), "Tell(Me(), WhereIs(Station()))");
-  assert.equal(read("what 17 times 3 is?"), "WhatIs(Times(17, 3))");
+  assert.equal(read("tell me where the station is"), "Tell(Me(), Where(Is(Station())))");
+  assert.equal(read("what 17 times 3 is?"), "What(Is(Times(17, 3)))");
   assert.equal(lines("hi"), "Hi()", "a greeting alone is said, not filler");
 });
 
@@ -154,6 +154,6 @@ test("an operator with nothing before it works on the last answer, and one after
   assert.equal(lines("and plus 3?"), 'Mood(Interrogative(), Plus(Ref(""), 3))');
   assert.equal(lines("and minus 1"), 'Mood(Interrogative(), Minus(Ref(""), 1))');
   assert.equal(read("times that by 2"), 'Times(Ref("that"), 2)');
-  assert.equal(read("what is that plus 3"), 'WhatIs(Plus(Ref("that"), 3))');
+  assert.equal(read("what is that plus 3"), 'What(Is(Plus(Ref("that"), 3)))');
   assert.equal(read("5 plus 3"), "Plus(5, 3)", "two values are unchanged");
 });
