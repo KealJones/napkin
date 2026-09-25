@@ -45,12 +45,333 @@ Concept(Adds(), IsA(LinkRole()))
 // "it", "that bug": something said before, or known.
 Concept(PointsAt(), IsA(LinkRole()))
 
-// Every word hears, known or not: a word with no hearing of its own proposes nothing yet.
+// Every word hears, known or not. A word with no hearing of its own hears as its tags do:
+// "americanpie", tagged Noun, hears as a noun (design/prompt-hearing.md, 2.5).
 Concept(Concept(),
   Realization($word,
     context = Hearing(),
     evaluateArguments = false,
-    body = List()
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            If(
+              Or(Not(Call($isCall, $self)), LessThan(Length(Member($self, "args")), 3)),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($prompt, Member(Index(Member($self, "args"), 0), "value")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($word,
+              If(
+                Index(Member($prompt, "args"), $at),
+                Member(Index(Member($prompt, "args"), $at), "value"),
+                Undefined()
+              )
+            ),
+            If(
+              Not(Call($isCall, $word)),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($text, Call($String, Member(Index(Member($word, "args"), 0), "value"))),
+            Bind($name,
+              Call(
+                Member(
+                  Map(
+                    Filter(
+                      Call(Member($text, "split"), Regex("[^A-Za-z0-9]+", "")),
+                      Lambda(List($p), GreaterThan(Length($p), 0))
+                    ),
+                    Lambda(List($p),
+                      Add(
+                        Call(Member(Index($p, 0), "toUpperCase")),
+                        Call(Member(Call(Member($p, "slice"), 1), "toLowerCase"))
+                      )
+                    )
+                  ),
+                  "join"
+                ),
+                ""
+              )
+            ),
+            If(
+              NotEquals(Member($self, "head"), $name),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($tags, Member(Index(Member($word, "args"), 2), "value")),
+            Bind($out, List()),
+            ForOf(
+              $t,
+              If(Call($isCall, $tags), Member($tags, "args"), List()),
+              Sequence(
+                If(
+                  Not(Call($isCall, Member($t, "value"))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($proposed,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        Member(Member($t, "value"), "head"),
+                        $prompt,
+                        $at,
+                        Member(Index(Member($self, "args"), 2), "value")
+                      ),
+                      Call(Member($api, "call"), "Hearing")
+                    )
+                  )
+                ),
+                If(
+                  And(Call($isCall, $proposed), Equals(Member($proposed, "head"), "List")),
+                  ForOf(
+                    $p,
+                    Member($proposed, "args"),
+                    Call(Member($out, "push"), Member($p, "value"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// The tagger's proposals for what a word is, as Concepts with hearing of their own.
+Concept(Determiner(), IsA(WordClass()))
+
+Concept(Value(), IsA(WordClass()))
+
+// A word that says something about the thing after it: "old", "1999", "my".
+Concept(Describer(), IsA(Category()))
+
+Concept(Adjective(), IsA(Describer()))
+
+Concept(Value(), IsA(Describer()))
+
+Concept(Possessive(), IsA(Describer()))
+
+// The thing a phrase starting after a word is about: the last noun of what follows.
+Concept(ThingAfter(),
+  Realization(ThingAfter($prompt, $at),
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($has,
+              Lambda(List($i, $tag),
+                Sequence(
+                  Bind($w,
+                    If(
+                      Index(Member($prompt, "args"), $i),
+                      Member(Index(Member($prompt, "args"), $i), "value"),
+                      Undefined()
+                    )
+                  ),
+                  Return(
+                    And(
+                      And(Call($isCall, $w), Call($isCall, Member(Index(Member($w, "args"), 2), "value"))),
+                      Call(
+                        Member(Member(Member(Index(Member($w, "args"), 2), "value"), "args"), "some"),
+                        Lambda(List($t),
+                          And(Call($isCall, Member($t, "value")), Equals(Member(Member($t, "value"), "head"), $tag))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($inPhrase,
+              Lambda(List($i),
+                And(
+                  Call(
+                    Member(
+                      List(
+                        "Determiner",
+                        "Adjective",
+                        "Value",
+                        "Possessive",
+                        "Noun"
+                      ),
+                      "some"
+                    ),
+                    Lambda(List($t), Call($has, $i, $t))
+                  ),
+                  Not(Call($has, $i, "Pronoun"))
+                )
+              )
+            ),
+            Var($thing, Negate(1)),
+            For(
+              Var($j, Add($at, 1)),
+              And(LessThan($j, Length(Member($prompt, "args"))), Call($inPhrase, $j)),
+              PostIncrement($j),
+              If(Call($has, $j, "Noun"), Assign($thing, $j), Undefined())
+            ),
+            Return($thing)
+          )
+        )
+      )
+    )
+  )
+)
+
+// "the", "a": part of how the next thing is said.
+Concept(Determiner(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ThingAfter",
+                    Member(Index($args, 0), "value"),
+                    $at
+                  ),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    $at,
+                    $thing,
+                    Call(Member($api, "call"), "Absorbs")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+Concept(Describer(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ThingAfter",
+                    Member(Index($args, 0), "value"),
+                    $at
+                  ),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    $at,
+                    $thing,
+                    Call(Member($api, "call"), "Modifies")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "comedy" in "comedy film": a noun before the thing describes it; the last is the thing.
+Concept(Noun(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ThingAfter",
+                    Member(Index($args, 0), "value"),
+                    $at
+                  ),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    $at,
+                    $thing,
+                    Call(Member($api, "call"), "Modifies")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
   )
 )
 
@@ -145,35 +466,47 @@ Concept(Hear(),
                   LessThan($i, Length($said)),
                   PostIncrement($i),
                   Sequence(
-                    Bind($head, Call($name, Member(Index($said, $i), "text"))),
                     If(
-                      Or(Call(Member($placed, "has"), $i), Not(Call(Member(Regex("^[A-Za-z]", ""), "test"), $head))),
+                      Call(Member($placed, "has"), $i),
                       Continue(),
                       Undefined()
                     ),
-                    Bind($proposed,
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "call"),
-                            $head,
-                            $prompt,
-                            $i,
-                            Call($linked)
+                    Bind($head, Call($name, Member(Index($said, $i), "text"))),
+                    Bind($asked,
+                      If(
+                        Call(Member(Regex("^[A-Za-z]", ""), "test"), $head),
+                        List($head),
+                        Member(Index($said, $i), "tags")
+                      )
+                    ),
+                    Bind($heard, List()),
+                    ForOf(
+                      $h,
+                      $asked,
+                      Sequence(
+                        Bind($proposed,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(Member($api, "call"), $h, $prompt, $i, Call($linked)),
+                              $hearing
+                            )
+                          )
+                        ),
+                        If(
+                          And(Call($isCall, $proposed), Equals(Member($proposed, "head"), "List")),
+                          ForOf(
+                            $a,
+                            Member($proposed, "args"),
+                            Call(Member($heard, "push"), $a)
                           ),
-                          $hearing
+                          Undefined()
                         )
                       )
                     ),
-                    If(
-                      Or(Not(Call($isCall, $proposed)), NotEquals(Member($proposed, "head"), "List")),
-                      Continue(),
-                      Undefined()
-                    ),
                     ForOf(
                       $a,
-                      Member($proposed, "args"),
+                      $heard,
                       Sequence(
                         Bind($p, Member($a, "value")),
                         If(

@@ -41,12 +41,31 @@ function links(roots: readonly Expr[]): string[] {
   return out;
 }
 
+/**
+ * A reading's groups: the words under each call of two or more words, as a set. Which word
+ * heads a group is a convention (`My(Old(Car()))` or `Car(My(), Old())`); which words go
+ * together is not, so this is the measure that survives changing the convention.
+ */
+function groups(roots: readonly Expr[]): string[] {
+  const out: string[] = [];
+  const wordsOf = (e: Expr): string[] =>
+    isCall(e) ? [e.head.toLowerCase(), ...e.args.flatMap((a) => wordsOf(a.value))] : typeof e === "object" && e !== null ? [] : [String(e).toLowerCase()];
+  for (const root of roots) {
+    for (const node of walk(root)) {
+      if (!isCall(node)) continue;
+      const w = wordsOf(node);
+      if (w.length > 1) out.push([...w].sort().join(" "));
+    }
+  }
+  return out;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const label = args.includes("--label") ? args[args.indexOf("--label") + 1] : new Date().toISOString().replace(/[:.]/g, "-");
   const store = new ConceptStore();
   seed(store);
-  const rows: { message: string; rules: string; prompt: string; same: boolean; recall: number }[] = [];
+  const rows: { message: string; rules: string; prompt: string; same: boolean; recall: number; grouped: number }[] = [];
   for (const message of messages()) {
     const ruled = parseRules(message).reading?.lines ?? [];
     let rules: Expr[];
@@ -61,15 +80,22 @@ async function main(): Promise<void> {
     const have = new Set(links(prompt));
     const recall = want.length ? want.filter((l) => have.has(l)).length / want.length : 1;
     const same = rules.map(format).join(" | ") === prompt.map(format).join(" | ");
-    rows.push({ message, rules: rules.map(format).join(" | "), prompt: prompt.map(format).join(" | "), same, recall });
+    const wanted = groups(rules);
+    const found = new Set(groups(prompt));
+    const grouped = wanted.length ? wanted.filter((g) => found.has(g)).length / wanted.length : 1;
+    rows.push({ message, rules: rules.map(format).join(" | "), prompt: prompt.map(format).join(" | "), same, recall, grouped });
     if (args.includes("--show")) console.log(`${same ? "=" : " "} ${recall.toFixed(2)}  ${message}\n    rules:  ${rows.at(-1)!.rules}\n    prompt: ${rows.at(-1)!.prompt}`);
   }
   const same = rows.filter((r) => r.same).length;
   const recall = rows.reduce((n, r) => n + r.recall, 0) / (rows.length || 1);
-  console.log(`${rows.length} messages: ${same} read the same (${((100 * same) / (rows.length || 1)).toFixed(1)}%), link recall ${(100 * recall).toFixed(1)}%`);
+  const grouped = rows.reduce((n, r) => n + r.grouped, 0) / (rows.length || 1);
+  console.log(
+    `${rows.length} messages: ${same} read the same (${((100 * same) / (rows.length || 1)).toFixed(1)}%), ` +
+      `link recall ${(100 * recall).toFixed(1)}%, groups found ${(100 * grouped).toFixed(1)}%`,
+  );
   const out = join(ROOT, "eval/ears/results");
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, `hearing-${label}.json`), JSON.stringify({ label, same, recall, rows }, null, 2));
+  writeFileSync(join(out, `hearing-${label}.json`), JSON.stringify({ label, same, recall, grouped, rows }, null, 2));
 }
 
 await main();
