@@ -170,6 +170,9 @@ Concept(Value(), IsA(Describer()))
 
 Concept(Possessive(), IsA(Describer()))
 
+// "hello world": an interjection before a thing is said of it.
+Concept(Expression(), IsA(Describer()))
+
 // The closed classes, known by the graph whatever the tagger guesses in context: "in" in
 // "work in progress" is a preposition, though the tagger calls it a noun there.
 Concept(In(), IsA(Preposition()))
@@ -332,7 +335,8 @@ Concept(ThingAfter(),
                         "Adjective",
                         "Value",
                         "Possessive",
-                        "Noun"
+                        "Noun",
+                        "Expression"
                       ),
                       "some"
                     ),
@@ -340,7 +344,16 @@ Concept(ThingAfter(),
                   ),
                   Not(
                     Call(
-                      Member(List("Pronoun", "Preposition", "Conjunction", "Copula"), "some"),
+                      Member(
+                        List(
+                          "Pronoun",
+                          "Preposition",
+                          "Conjunction",
+                          "Copula",
+                          "Negative"
+                        ),
+                        "some"
+                      ),
                       Lambda(List($t), Call($has, $i, $t))
                     )
                   )
@@ -357,26 +370,29 @@ Concept(ThingAfter(),
               )
             ),
             Var($thing, Negate(1)),
+            Var($value, Negate(1)),
             For(
               Var($j, Add($at, 1)),
               And(
                 And(LessThan($j, Length(Member($prompt, "args"))), Equals(Call($sentence, $j), Call($sentence, $at))),
-                Or(Call($inPhrase, $j), Call($has, $j, "Expression"))
+                Or(Call($inPhrase, $j), Call($has, $j, "Filler"))
               ),
               PostIncrement($j),
               Sequence(
                 If(
-                  And(AtLeast($thing, 0), Call($has, $j, "Determiner")),
+                  And(Or(AtLeast($thing, 0), AtLeast($value, 0)), Call($has, $j, "Determiner")),
                   Break(),
                   Undefined()
                 ),
+                If(Call($has, $j, "Filler"), Continue(), Undefined()),
                 If(
-                  And(Call($has, $j, "Noun"), Not(Call($has, $j, "Expression"))),
+                  Call($has, $j, "Noun"),
                   Assign($thing, $j),
-                  Undefined()
+                  If(Call($has, $j, "Value"), Assign($value, $j), Undefined())
                 )
               )
             ),
+            If(LessThan($thing, 0), Assign($thing, $value), Undefined()),
             Return($thing)
           )
         )
@@ -395,6 +411,87 @@ Concept(Determiner(),
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($at, Member(Index($args, 1), "value")),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($has,
+              Lambda(List($i, $tag),
+                Sequence(
+                  Bind($w,
+                    If(
+                      Index(Member($prompt, "args"), $i),
+                      Member(Index(Member($prompt, "args"), $i), "value"),
+                      Undefined()
+                    )
+                  ),
+                  Return(
+                    And(
+                      And(Call($isCall, $w), Call($isCall, Member(Index(Member($w, "args"), 2), "value"))),
+                      Call(
+                        Member(Member(Member(Index(Member($w, "args"), 2), "value"), "args"), "some"),
+                        Lambda(List($t),
+                          And(Call($isCall, Member($t, "value")), Equals(Member(Member($t, "value"), "head"), $tag))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            If(
+              And(
+                And(And(GreaterThan($at, 0), Call($has, Subtract($at, 1), "Noun")), Call($has, Add($at, 1), "Verb")),
+                Not(Call($has, Add($at, 1), "Noun"))
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    Call($root, Add($at, 1)),
+                    $at,
+                    Call(Member($api, "call"), "Takes")
+                  ),
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    $at,
+                    Call($root, Subtract($at, 1)),
+                    Call(Member($api, "call"), "Modifies")
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($thing,
               Await(
                 Call(
@@ -714,6 +811,26 @@ Concept(Preposition(),
                   Negate(1)
                 )
               )
+            ),
+            If(
+              And(
+                And(Call($has, Add($at, 1), "Verb"), Not(Call($has, Add($at, 1), "Noun"))),
+                Equals(Call($sentence, Add($at, 1)), Call($sentence, $at))
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    $at,
+                    Add($at, 1),
+                    Call(Member($api, "call"), "Absorbs")
+                  )
+                )
+              ),
+              Undefined()
             ),
             If(
               LessThan($taken, 0),
@@ -1050,40 +1167,6 @@ Concept(Verb(),
               Undefined()
             ),
             Bind($out, List()),
-            Bind($thing,
-              Await(
-                Call(
-                  Member($api, "evaluate"),
-                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
-                  Call(Member($api, "call"), "Hearing")
-                )
-              )
-            ),
-            Bind($object,
-              If(
-                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
-                Call($root, $thing),
-                If(
-                  Call($has, Add($at, 1), "Pronoun"),
-                  Add($at, 1),
-                  Negate(1)
-                )
-              )
-            ),
-            If(
-              GreaterThan($object, $at),
-              Call(
-                Member($out, "push"),
-                Call(
-                  Member($api, "call"),
-                  "Link",
-                  $object,
-                  $at,
-                  Call(Member($api, "call"), "Takes")
-                )
-              ),
-              Undefined()
-            ),
             Bind($sentence,
               Lambda(List($i),
                 If(
@@ -1092,6 +1175,86 @@ Concept(Verb(),
                   Negate(1)
                 )
               )
+            ),
+            Var($from, $at),
+            For(
+              Var($n, 0),
+              And(
+                And(LessThan($n, 2), LessThan(Add($from, 1), Length(Member($prompt, "args")))),
+                Equals(Call($sentence, Add($from, 1)), Call($sentence, $at))
+              ),
+              PostIncrement($n),
+              Sequence(
+                If(
+                  And(Call($has, Add($from, 1), "Pronoun"), Not(Call($has, Add($from, 1), "QuestionWord"))),
+                  Sequence(
+                    Call(
+                      Member($out, "push"),
+                      Call(
+                        Member($api, "call"),
+                        "Link",
+                        Call($root, Add($from, 1)),
+                        $at,
+                        Call(Member($api, "call"), "Takes")
+                      )
+                    ),
+                    Assign($from, Add($from, 1)),
+                    Continue()
+                  ),
+                  Undefined()
+                ),
+                Bind($thing,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "ThingAfter", $prompt, $from),
+                      Call(Member($api, "call"), "Hearing")
+                    )
+                  )
+                ),
+                If(
+                  Or(NotEquals(TypeOf($thing), "number"), AtMost($thing, $from)),
+                  Break(),
+                  Undefined()
+                ),
+                Call(
+                  Member($out, "push"),
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    Call($root, $thing),
+                    $at,
+                    Call(Member($api, "call"), "Takes")
+                  )
+                ),
+                Assign($from, $thing)
+              )
+            ),
+            If(
+              And(GreaterThan($at, 1), Call($has, Subtract($at, 1), "Preposition")),
+              For(
+                Var($i, Subtract($at, 2)),
+                And(AtLeast($i, 0), Equals(Call($sentence, $i), Call($sentence, $at))),
+                PostDecrement($i),
+                If(
+                  And(Call($has, $i, "Verb"), Not(Call($has, $i, "Helper"))),
+                  Sequence(
+                    Call(
+                      Member($out, "push"),
+                      Call(
+                        Member($api, "call"),
+                        "Link",
+                        $at,
+                        $i,
+                        Call(Member($api, "call"), "Takes")
+                      )
+                    ),
+                    Break()
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
             ),
             Var($earlier, false),
             For(
@@ -1217,7 +1380,10 @@ Concept(QuestionWord(),
             Bind($out, List()),
             If(
               And(
-                And(Call($has, Add($at, 1), "Noun"), Not(Call($has, Add($at, 1), "Pronoun"))),
+                And(
+                  Or(Call($has, Add($at, 1), "Noun"), Call($has, Add($at, 1), "Adjective")),
+                  Not(Call($has, Add($at, 1), "Pronoun"))
+                ),
                 Equals(Call($sentence, Add($at, 1)), Call($sentence, $at))
               ),
               Call(
@@ -1509,6 +1675,11 @@ Concept(Helper(),
               )
             ),
             Bind($next, Add($subject, 1)),
+            If(
+              Call($has, $subject, "Negative"),
+              Return(Call(Member($api, "call"), "List", Spread($out))),
+              Undefined()
+            ),
             Bind($takes,
               And(
                 And(Call($has, $next, "Preposition"), LessThan(Add($next, 1), Length(Member($prompt, "args")))),
@@ -1555,6 +1726,262 @@ Concept(Helper(),
     )
   )
 )
+
+// "not a mammal": "not" holds what it denies.
+Concept(Negator(), IsA(WordClass()))
+
+Concept(Not(), IsA(Negator()))
+
+Concept(Negator(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($has,
+              Lambda(List($i, $tag),
+                Sequence(
+                  Bind($w,
+                    If(
+                      Index(Member($prompt, "args"), $i),
+                      Member(Index(Member($prompt, "args"), $i), "value"),
+                      Undefined()
+                    )
+                  ),
+                  Return(
+                    And(
+                      And(Call($isCall, $w), Call($isCall, Member(Index(Member($w, "args"), 2), "value"))),
+                      Call(
+                        Member(Member(Member(Index(Member($w, "args"), 2), "value"), "args"), "some"),
+                        Lambda(List($t),
+                          And(Call($isCall, Member($t, "value")), Equals(Member(Member($t, "value"), "head"), $tag))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($sentence,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 3), "value"),
+                  Negate(1)
+                )
+              )
+            ),
+            If(
+              Or(
+                AtLeast(Add($at, 1), Length(Member($prompt, "args"))),
+                NotEquals(Call($sentence, Add($at, 1)), Call($sentence, $at))
+              ),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Bind($denied,
+              If(
+                Call($has, Add($at, 1), "Verb"),
+                Add($at, 1),
+                If(
+                  And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                  $thing,
+                  Add($at, 1)
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Call($root, $denied),
+                  $at,
+                  Call(Member($api, "call"), "Takes")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "please add 2 and 2": asked politely, around what it asks.
+Concept(Please(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($sentence,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 3), "value"),
+                  Negate(1)
+                )
+              )
+            ),
+            Bind($asked,
+              If(
+                And(
+                  LessThan(Add($at, 1), Length(Member($prompt, "args"))),
+                  Equals(Call($sentence, Add($at, 1)), Call($sentence, $at))
+                ),
+                Add($at, 1),
+                If(
+                  And(GreaterThan($at, 0), Equals(Call($sentence, Subtract($at, 1)), Call($sentence, $at))),
+                  Subtract($at, 1),
+                  Negate(1)
+                )
+              )
+            ),
+            Return(
+              If(
+                LessThan($asked, 0),
+                Call(Member($api, "call"), "List"),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    Call($root, $asked),
+                    $at,
+                    Call(Member($api, "call"), "Takes")
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Hesitation, said beside what is meant and set aside: "so like uh".
+Concept(Filler(), IsA(WordClass()))
+
+Concept(Uh(), IsA(Filler()))
+
+Concept(Um(), IsA(Filler()))
+
+Concept(Er(), IsA(Filler()))
+
+Concept(Erm(), IsA(Filler()))
+
+Concept(Uhm(), IsA(Filler()))
+
+Concept(Uhh(), IsA(Filler()))
+
+Concept(Umm(), IsA(Filler()))
+
+Concept(Hmm(), IsA(Filler()))
+
+Concept(Ah(), IsA(Filler()))
+
+// Determiners, known whatever the tagger guesses ("the" is a noun in "what's the average").
+Concept(The(), IsA(Determiner()))
+
+Concept(A(), IsA(Determiner()))
+
+Concept(An(), IsA(Determiner()))
+
+Concept(This(), IsA(Determiner()))
+
+Concept(That(), IsA(Determiner()))
+
+Concept(These(), IsA(Determiner()))
+
+Concept(Those(), IsA(Determiner()))
+
+Concept(Some(), IsA(Determiner()))
+
+Concept(Any(), IsA(Determiner()))
+
+Concept(Every(), IsA(Determiner()))
+
+Concept(Each(), IsA(Determiner()))
 
 // A message heard: its words, the rounds in which they propose links until nothing changes,
 // and each word written as its Concept with the words linked to it as arguments.
@@ -1643,6 +2070,35 @@ Concept(Hear(),
                 )
               )
             ),
+            Var($clause, 0),
+            Bind($sentences, Map($said, Lambda(List($w), Member($w, "sentence")))),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind($breaks,
+                  And(
+                    GreaterThan($i, 0),
+                    Or(
+                      NotEquals(Index($sentences, $i), Index($sentences, Subtract($i, 1))),
+                      And(
+                        And(
+                          And(
+                            Includes(Member(Index($said, Subtract($i, 1)), "after"), ","),
+                            Includes(Member(Index($said, $i), "tags"), "Verb")
+                          ),
+                          Not(Includes(Member(Index($said, $i), "tags"), "Noun"))
+                        ),
+                        Not(Includes(Member(Index($said, $i), "tags"), "PastTense"))
+                      )
+                    )
+                  )
+                ),
+                If($breaks, Assign($clause, Add($clause, 1)), Undefined()),
+                Assign(Member(Index($said, $i), "sentence"), $clause)
+              )
+            ),
             Bind($words, List()),
             For(
               Var($i, 0),
@@ -1671,7 +2127,8 @@ Concept(Hear(),
                       Member($api, "call"),
                       "List",
                       Spread(Map(Member(Index($said, $i), "could"), Lambda(List($t), Call(Member($api, "call"), $t))))
-                    )
+                    ),
+                    Member(Index($said, $i), "after")
                   )
                 )
               )
@@ -1912,7 +2369,7 @@ Concept(Hear(),
                     If(
                       And(
                         Index($said, Member($p, "from")),
-                        Includes(Member(Index($said, Member($p, "from")), "tags"), "Expression")
+                        Includes(Member(Index($said, Member($p, "from")), "tags"), "Filler")
                       ),
                       Continue(),
                       Undefined()
@@ -2008,12 +2465,26 @@ Concept(Hear(),
                     Undefined()
                   ),
                   If(
+                    And(
+                      And(Includes($first, "Helper"), GreaterThan(Length($in_), 1)),
+                      Includes(Member(Index($said, Index($in_, 1)), "tags"), "Negative")
+                    ),
+                    Return("Imperative"),
+                    Undefined()
+                  ),
+                  If(
                     Or(Includes($first, "QuestionWord"), Includes($first, "Helper")),
                     Return("Interrogative"),
                     Undefined()
                   ),
                   If(
-                    Includes($first, "Imperative"),
+                    Or(
+                      Includes($first, "Imperative"),
+                      And(
+                        And(Includes($first, "Verb"), Includes($first, "Infinitive")),
+                        Not(Includes($first, "Helper"))
+                      )
+                    ),
                     Return("Imperative"),
                     Undefined()
                   ),
@@ -2042,7 +2513,7 @@ Concept(Hear(),
                 )
               )
             ),
-            Bind($filler, Lambda(List($i), Includes(Member(Index($said, $i), "tags"), "Expression"))),
+            Bind($filler, Lambda(List($i), Includes(Member(Index($said, $i), "tags"), "Filler"))),
             Bind($roots, List()),
             Var($aside, List()),
             Bind($flush,

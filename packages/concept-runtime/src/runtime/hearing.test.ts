@@ -50,7 +50,7 @@ test("a word nobody knows hears as what the tagger says it looks like", async ()
 
 test("under Hearing a word only hears: nothing it does elsewhere runs", async () => {
   // Add and Delete have behaviour; heard, they are words.
-  assert.equal(await hear("add 2 and 3 then delete everything"), "Phrases(Add(), And(2, 3), Then(), Delete(Everything()))");
+  assert.equal(await hear("add 2 and 3 then delete everything"), "Phrases(Add(And(2, 3)), Then(), Delete(Everything()))");
 });
 
 test("questions: the question word leads, a helper first asks, and each line says how it was said", async () => {
@@ -66,4 +66,14 @@ test("questions: the question word leads, a helper first asks, and each line say
   assert.equal(await heard("what time is it"), "Phrases(Mood(Interrogative(), What(Time(), Is(It()))))");
   assert.equal(await heard("which file did you open"), "Phrases(Mood(Interrogative(), Which(File(), Did(You(), Open()))))");
   assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), I(Like(Pie()))))");
+});
+
+test("orders, negation, politeness and several objects", async () => {
+  assert.equal(await heard("please add 2 and 2"), "Phrases(Mood(Imperative(), Please(Add(And(2, 2)))))");
+  assert.equal(await heard("define recursion"), "Phrases(Mood(Imperative(), Define(Recursion())))");
+  assert.equal(await heard("what is not a mammal"), "Phrases(Mood(Interrogative(), What(Is(Not(Mammal())))))");
+  assert.equal(await hear("write me a typescript function that says hello world"), "Phrases(Write(Me(), Function(Typescript(), That(Says(World(Hello()))))))");
+  // A comma before a doing starts another clause.
+  assert.equal(await hear("take 10, double it, then subtract 5"), "Phrases(Take(10), Double(It()), Then(), Subtract(5))");
+  assert.equal(await hear("remind me to call mum tomorrow"), "Phrases(Remind(Me(), Call(Mum())), Tomorrow())");
 });
