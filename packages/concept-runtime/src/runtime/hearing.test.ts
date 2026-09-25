@@ -29,7 +29,7 @@ test("the closed class: prepositions take the thing after them, and joins, is ho
 });
 
 test("doings: a verb takes what follows and belongs to the thing before; after a verb, a doing is said about the thing", async () => {
-  assert.equal(await hear("i need toilet paper and cheese sticks"), "Phrases(I(Need(And(Paper(Toilet()), Sticks(Cheese())))))");
+  assert.equal(await hear("i need toilet paper and cheese sticks"), "Phrases(Me(Need(And(Paper(Toilet()), Sticks(Cheese())))))");
   assert.equal(await hear("the old dog barked at the mailman"), "Phrases(Dog(Old(), Barked(At(Mailman()))))");
   // design/prompt-hearing.md section 5, word for word.
   assert.equal(
@@ -41,7 +41,7 @@ test("doings: a verb takes what follows and belongs to the thing before; after a
 test("rambling: sentences stay apart, contractions are their words, filler is set aside", async () => {
   assert.equal(await hear("red light, speed camera ahead. work in progress."), "Phrases(Camera(Red(), Light(), Speed()), Ahead(), Work(In(Progress())))");
   assert.equal(await hear("there's a way"), "Phrases(Is(There(), Way()))");
-  assert.equal(await hear("i like uh pie"), "Phrases(I(Like(Pie())), MarkAside(\"uh\"))");
+  assert.equal(await hear("i like uh pie"), "Phrases(Me(Like(Pie())), MarkAside(\"uh\"))");
 });
 
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
@@ -58,14 +58,14 @@ test("questions: the question word leads, a helper first asks, and each line say
   assert.equal(await heard("who wrote hamlet"), "Phrases(Mood(Interrogative(), Who(Wrote(Hamlet()))))");
   assert.equal(await heard("is chess a sport"), "Phrases(Mood(Interrogative(), Is(Chess(), Sport())))");
   assert.equal(await heard("could you close the door?"), "Phrases(Mood(Interrogative(), Could(You(), Close(Door()))))");
-  assert.equal(await heard("what do i like"), "Phrases(Mood(Interrogative(), What(Do(I(), Like()))))");
+  assert.equal(await heard("what do i like"), "Phrases(Mood(Interrogative(), What(Do(Me(), Like()))))");
   assert.equal(await heard("what is the capital of france?"), "Phrases(Mood(Interrogative(), What(Is(Capital(Of(France()))))))");
   assert.equal(await heard("close the door"), "Phrases(Mood(Imperative(), Close(Door())))");
   // A helper carries a doing, whatever the tagger made of the word in this sentence.
   assert.equal(await heard("who did hamlet kill"), "Phrases(Mood(Interrogative(), Who(Did(Hamlet(), Kill()))))");
   assert.equal(await heard("what time is it"), "Phrases(Mood(Interrogative(), What(Time(), Is(It()))))");
   assert.equal(await heard("which file did you open"), "Phrases(Mood(Interrogative(), Which(File(), Did(You(), Open()))))");
-  assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), I(Like(Pie()))))");
+  assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), Me(Like(Pie()))))");
 });
 
 test("orders, negation, politeness and several objects", async () => {
@@ -74,6 +74,14 @@ test("orders, negation, politeness and several objects", async () => {
   assert.equal(await heard("what is not a mammal"), "Phrases(Mood(Interrogative(), What(Is(Not(Mammal())))))");
   assert.equal(await hear("write me a typescript function that says hello world"), "Phrases(Write(Me(), Function(Typescript(), That(Says(World(Hello()))))))");
   // A comma before a doing starts another clause.
-  assert.equal(await hear("take 10, double it, then subtract 5"), "Phrases(Take(10), Double(It()), Then(), Subtract(5))");
-  assert.equal(await hear("remind me to call mum tomorrow"), "Phrases(Remind(Me(), Call(Mum())), Tomorrow())");
+  assert.equal(await hear("take 10, double it, then subtract 5"), "Phrases(Take(10), Double(Ref(\"it\")), Then(), Subtract(5))");
+  assert.equal(await hear("remind me to call mum tomorrow"), "Phrases(Remind(Me(), Call(Mum(), Tomorrow())))");
+});
+
+test("pointing words are Refs for memory, a hesitation between two takes the first back, and a word said twice is said once", async () => {
+  assert.equal(await hear("fix that bug"), 'Phrases(Fix(Ref("that bug")))');
+  assert.equal(await hear("open the second one"), 'Phrases(Open(Ref("the second one")))');
+  assert.equal(await hear("what is it"), 'Phrases(What(Is(Ref("it"))))');
+  assert.equal(await hear("i need the report by 3, er, 4pm"), 'Phrases(Me(Need(Report(By(MarkCorrection(3, Time(4, Pm())))))), MarkAside("er"))');
+  assert.equal(await hear("if if that works"), 'Phrases(MarkAside("if"), If(Ref("that works")))');
 });
