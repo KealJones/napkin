@@ -207,10 +207,12 @@ export async function learn(
       // Research before asking. The Teacher is a last resort, and grounding it in
       // source-attributed evidence is the difference between learning and inventing.
       let evidence = "";
+      let read: string[] = [];
       if (options.research !== false) {
         try {
           const findings = await research(readable(gap.identity));
           evidence = evidenceText(findings);
+          read = findings.map((f) => f.url).filter(Boolean);
           if (evidence) {
             steps.push({
               identity: gap.identity,
@@ -269,7 +271,26 @@ export async function learn(
       }
       const before = size(runtime, gap.identity);
       try {
-        const saved = await runtime.evaluate(taught.declaration, c("Execution"));
+        // What the Teacher says is sourced from the Teacher, with the pages it was shown, so
+        // what it taught can be counted against every other source and deleted as one.
+        const taughtBy = runtime.store.addRelation(
+          "Teacher",
+          call("Taught", [
+            { value: gap.identity },
+            { name: "model", value: options.model ?? "default" },
+            ...(read.length ? [{ name: "from", value: call("List", read.map((url) => ({ value: call("Web", [{ value: url }]) }))) }] : []),
+          ]),
+          undefined,
+          runtime.trace.cause,
+        );
+        const saved = await runtime.trace.sourcedFrom(taughtBy.seq, () => runtime.evaluate(taught.declaration!, c("Execution")));
+        // "americanpie" taught as AmericanPie: the same word written another way is the same
+        // Concept, so what was asked about finds what was learned.
+        const declared = isCall(taught.declaration) ? taught.declaration.args.find((a) => a.name === "identity")?.value : undefined;
+        const spelled = (id: string) => id.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (typeof declared === "string" && declared !== gap.identity && spelled(declared) === spelled(gap.identity) && runtime.store.has(declared)) {
+          runtime.store.addRelation(gap.identity, c("SynonymOf", c(declared)), undefined, taughtBy.seq);
+        }
         // A refused realization names what it needed; queue those for the next pass.
         for (const node of walk(saved)) {
           if (!isCall(node) || node.head !== "NeedsFirst") continue;

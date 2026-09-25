@@ -224,7 +224,10 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
       const rest = e.args.length === 1 ? phrase(e.args[0].value) : "";
       return [OWN[e.head] ?? words(e.head), rest].filter(Boolean).join(" ");
     };
-    const said = phrase(what);
+    // A chain says itself ("your cat name"); a question of several parts does not, and
+    // "how me make pie apple" is worse than saying so plainly.
+    const chain = (e: Expr | undefined): boolean => e === undefined || !isCall(e) || (e.args.length <= 1 && chain(e.args[0]?.value));
+    const said = chain(what) ? phrase(what) : "";
     return said ? `I don't know ${said} yet.` : "I don't know that yet.";
   }
   if (answered !== undefined && isCall(answered) && answered.head === "Forgotten") {

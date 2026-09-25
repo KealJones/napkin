@@ -625,8 +625,19 @@ Concept(Talk(),
               )
             ),
             Await(Call($look, $asked)),
+            // "how do you make apple pie": a "you" doing something to a thing is anyone, and the
+            // question is about the thing. "how you doin" asks about the one spoken to.
+            Bind($doing,
+              And(
+                Call($isCall, $asked),
+                Call(
+                  Member(Member($asked, "args"), "some"),
+                  Lambda(List($a), And(Call($isCall, Member($a, "value")), Length(Member(Member($a, "value"), "args"))))
+                )
+              )
+            ),
             If(
-              And($aboutUs, Equals(TypeOf($message), "string")),
+              And(And($aboutUs, Not($doing)), Equals(TypeOf($message), "string")),
               Sequence(
                 Bind($reply, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message)))),
                 If(

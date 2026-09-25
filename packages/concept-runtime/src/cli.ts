@@ -100,6 +100,14 @@ if (flag("--ground")) {
   process.exit(0);
 }
 
+if (flag("--sources")) {
+  const { factsBySource } = await import("./store/provenance.js");
+  for (const [source, n] of [...factsBySource(store)].sort((a, b) => b[1].facts - a[1].facts)) {
+    console.log(`${source.padEnd(12)} ${String(n.facts).padStart(6)} facts, ${n.retracted} retracted`);
+  }
+  process.exit(0);
+}
+
 if (flag("--agenda")) {
   console.log(describeAgenda(runtime));
   process.exit(0);
@@ -360,6 +368,7 @@ if (expr) {
   napkin --study --track napkin --from .agents/planning/2026-09-16-concept-ai-system/design
                                          learn its own vocabulary from its own specs
   napkin --import src/thing.ts          read TypeScript as Concept expressions
+  napkin --sources                      learned facts by where they came from: Wikidata, Wiktionary, Teacher, said
   napkin --agenda                       what it would work on next, unprompted
   napkin --evidence Multiply            counts by context, from the persisted trace
   napkin --activate Jam Sell            what lights up from these, ranked, with paths

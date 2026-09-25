@@ -231,7 +231,8 @@ export function answerToWhich(
   const ORDINALS = ["first", "second", "third", "fourth"];
   const candidates = ids.args.map((a, i) => ({ id: isCall(a.value) ? a.value.head : "", text: String(described.args[i]?.value ?? "") }));
   const byOrder = candidates.findIndex((_, i) => words.has(ORDINALS[i]));
-  const byWords = candidates.filter((cand) => cand.text.split(" ").some((w) => w.length > 3 && words.has(w)));
+  // "the pie" picks the sweet pie: any word of three letters or more that only one option has.
+  const byWords = candidates.filter((cand) => cand.text.split(" ").some((w) => w.length > 2 && words.has(w)));
   const pick = byOrder >= 0 ? candidates[byOrder] : byWords.length === 1 ? byWords[0] : undefined;
   const sense = asked.args.some((a) => a.name === "sense");
   return pick ? { name: name.head, chosen: pick.id, said, sense } : undefined;

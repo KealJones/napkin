@@ -100,9 +100,23 @@ export class Trace {
     this.saidSeq = seq;
   }
 
+  /** Where what is asserted now came from, when that is not the turn itself: a Teacher. */
+  private sourced: number | undefined;
+
   /** The `Said` stamp this turn answers, as the `source` for anything it asserts. */
   get cause(): number | undefined {
-    return this.saidSeq ?? undefined;
+    return this.sourced ?? this.saidSeq ?? undefined;
+  }
+
+  /** Assert what `run` asserts as sourced from this stamp, then source from the turn again. */
+  async sourcedFrom<T>(seq: number, run: () => Promise<T>): Promise<T> {
+    const before = this.sourced;
+    this.sourced = seq;
+    try {
+      return await run();
+    } finally {
+      this.sourced = before;
+    }
   }
 
   /** Live observation, for the studio. */

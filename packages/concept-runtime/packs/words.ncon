@@ -167,12 +167,34 @@ Concept(Meaning(),
             Bind($keep,
               Lambda(List($meaning, $as, $from),
                 Sequence(
+                  // Looked up, a meaning is sourced from the page it was read on, the way a
+                  // Wikidata fact is from its item: Wiktionary Imported(url), from this turn.
+                  Bind($source,
+                    If(
+                      And(Call($isCall, $from), Equals(Member($from, "head"), "Wiktionary")),
+                      Member(
+                        Call(
+                          Member(Member($api, "store"), "addRelation"),
+                          "Wiktionary",
+                          Call(
+                            Member($api, "call"),
+                            "Imported",
+                            Member(Index(Member($from, "args"), 0), "value")
+                          ),
+                          Undefined(),
+                          Member(Member($api, "trace"), "cause")
+                        ),
+                        "seq"
+                      ),
+                      Member(Member($api, "trace"), "cause")
+                    )
+                  ),
                   Call(
                     Member(Member($api, "store"), "addRelation"),
                     $head,
                     Call(Member($api, "call"), "Means", $meaning),
                     Undefined(),
-                    Member(Member($api, "trace"), "cause")
+                    $source
                   ),
                   If(
                     Equals($as, "Interjection"),
@@ -185,7 +207,7 @@ Concept(Meaning(),
                         Call(Member($api, "call"), "Interjection")
                       ),
                       Undefined(),
-                      Member(Member($api, "trace"), "cause")
+                      $source
                     ),
                     Undefined()
                   ),

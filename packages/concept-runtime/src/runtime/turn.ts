@@ -427,7 +427,14 @@ export async function turn(
   runtime.reset();
   // "the coworker one", answering "which Greg do you mean": the words asked about are read
   // again, with the name taken to mean the one picked.
-  const answering = answerToWhich(options.history?.[options.history.length - 1]?.result, message, parse);
+  // The question may be a few turns back: "the pie" missed, "sweet pie" still answers it.
+  // Only while it is still open: once something was answered, the question has moved on.
+  let asked: string | undefined;
+  for (const h of (options.history ?? []).slice(-3).reverse()) {
+    if (h.result?.startsWith("Which(")) asked = h.result;
+    if (asked || /^(Answer|Describes)\(/.test(h.result ?? "")) break;
+  }
+  const answering = answerToWhich(asked, message, parse);
   // A name picks a person; a sense picks what a word is taken to mean ("the dessert").
   const chosen = new Map(answering && !answering.sense ? [[answering.name, answering.chosen]] : []);
   const pickedSense = answering?.sense ? answering.chosen : undefined;
