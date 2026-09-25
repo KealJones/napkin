@@ -574,3 +574,14 @@ test("a multi-word name folds its own phrase, and only while reading", async () 
   seed(store);
   assert.equal(format(await rt.evaluate(parse("Read(Cream(Ice()))"), c("Execution"))), "Cream(Ice())");
 });
+
+test("a thing known in several senses is asked about, unless what was said picks one", async () => {
+  const { pickSense } = await import("./runtime/individuals.js");
+  const described = parse(
+    'Describes(IceCream(), List(In(Means("frozen dessert made from milk"), FrozenDessert()), In(IsA(FrozenDessert()), FrozenDessert()), In(Means("2020 single by Blackpink"), Single())))',
+  );
+  const asked = pickSense(described, "what is ice cream", "what is ice cream");
+  assert.match(format(asked!), /^Which\(IceCream\(\), List\(FrozenDessert\(\), Single\(\)\), .*sense=True\(\)\)$/);
+  assert.equal(format(pickSense(described, "i love that blackpink song. what is ice cream", "what is ice cream")!), 'Describes(IceCream(), List(Means("2020 single by Blackpink")))');
+  assert.equal(format(pickSense(described, "the dessert", "what is ice cream", "FrozenDessert")!), 'Describes(IceCream(), List(Means("frozen dessert made from milk"), IsA(FrozenDessert())))');
+});

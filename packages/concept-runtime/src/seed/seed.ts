@@ -125,7 +125,7 @@ const foldTarget = (r: Realization): string | undefined => {
  * (`MakeCall`) folds a phrase nobody says. Nobody writes a fold: a Concept learned tomorrow folds the next time the graph is seeded,
  * and a fold goes when its Concept does.
  */
-function deriveFolds(store: ConceptStore): number {
+export function deriveFolds(store: ConceptStore): number {
   const folds = (store.get(UNIVERSAL)?.realizations ?? []).filter((r) => !r.retired && foldTarget(r) !== undefined);
   const lapsed = (to: string) => !store.has(to);
   if (folds.some((r) => lapsed(foldTarget(r)!))) {

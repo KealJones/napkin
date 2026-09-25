@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseRules, readPhrase } from "./rules.js";
-import { format } from "../../concept/expression.js";
+import { parseRules, readPhrase, sayPhrase } from "./rules.js";
+import { format, parse } from "../../concept/expression.js";
 
 /** The reading without its mood, for the shape tests; mood has its own test below. */
 const unmood = (line: string) => line.replace(/^Mood\((Imperative|Declarative|Interrogative|Checking)\(\), (.*)\)$/, "$2");
@@ -169,4 +169,10 @@ test("a phrase reads as one thing, the way it reads inside a message", () => {
   assert.equal(read("what is a work in progress"), "What(Is(Work(In(Progress()))))");
   assert.equal(read("is napkin a work in progress"), "Is(Napkin(), Work(In(Progress())))");
   assert.equal(read("napkin is a work in progress"), "Napkin(IsA(Work(In(Progress()))))");
+});
+
+test("the words a thing was said in are found by reading them back", () => {
+  assert.equal(sayPhrase(parse("Cream(Ice())")), "ice cream");
+  assert.equal(sayPhrase(parse("Work(In(Progress()))")), "work in progress");
+  assert.equal(sayPhrase(parse("Like(Cream(Ice()))")), undefined);
 });

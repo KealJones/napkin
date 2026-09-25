@@ -18,8 +18,8 @@ import type { ModelOptions } from "./ollama.js";
 function unresolved(message: string, result: Expr, gaps: readonly Unrealized[]): string {
   // Not knowing a Concept and not knowing how to DO one are different admissions, and
   // saying "I do not know Choose" about a Concept it had just learned was the wrong one.
-  const absent = gaps.filter((g) => g.kind === "unknown").map((g) => words(g.identity));
-  const inert = gaps.filter((g) => g.kind !== "unknown").map((g) => words(g.identity));
+  const absent = gaps.filter((g) => g.kind === "unknown" || g.kind === "empty").map((g) => words(g.identity));
+  const inert = gaps.filter((g) => g.kind === "inert" || g.kind === "reference").map((g) => words(g.identity));
   const parts: string[] = [];
   if (absent.length) parts.push(`I don't know what ${list(absent)} ${absent.length > 1 ? "are" : "is"} yet.`);
   if (inert.length) parts.push(`I don't know how to ${list(inert)} yet.`);
@@ -117,7 +117,7 @@ function question(result: Expr): string | undefined {
 
 export interface Unrealized {
   readonly identity: string;
-  readonly kind: "unknown" | "inert" | "reference";
+  readonly kind: "unknown" | "inert" | "reference" | "empty";
 }
 
 export interface SayOptions extends ModelOptions {
@@ -207,8 +207,11 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
     const described = result.args.find((a) => a.name === "described")?.value ?? result.args[1]?.value;
     const options = described !== undefined && isCall(described) ? described.args.map((a) => String(a.value)) : [];
     const person = result.args.some((a) => a.name === "described");
-    const who = person && name !== undefined && isCall(name) ? name.head : "game";
-    return `Which ${who} do you mean: ${options.slice(0, -1).join(", ")}${options.length > 1 ? ", or " : ""}${options[options.length - 1] ?? ""}?`;
+    // A word's senses are said as the kinds they are: "the frozen dessert, or the single".
+    const sense = result.args.some((a) => a.name === "sense");
+    const who = sense && name !== undefined && isCall(name) ? words(name.head) : person && name !== undefined && isCall(name) ? name.head : "game";
+    const said = sense ? options.map((o) => `the ${o}`) : options;
+    return `Which ${who} do you mean: ${said.slice(0, -1).join(", ")}${said.length > 1 ? ", or " : ""}${said[said.length - 1] ?? ""}?`;
   }
   const answered = isCall(result) && result.head === "Answer" ? result.args[0]?.value : result;
   if (answered !== undefined && isCall(answered) && answered.args.length === 0 && SOCIAL[answered.head]) return SOCIAL[answered.head];

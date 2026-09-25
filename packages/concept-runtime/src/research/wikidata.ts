@@ -79,21 +79,6 @@ interface Entity {
   lastrevid?: number;
 }
 
-/** The item a word most commonly names: the first search hit whose label is the word. */
-async function findItem(word: string, get: Fetch): Promise<string | undefined> {
-  const body = (await get(
-    API + new URLSearchParams({ action: "wbsearchentities", search: word, language: "en", limit: "7", format: "json" }),
-  )) as { search?: { id: string; label?: string; match?: { type?: string; text?: string } }[] };
-  const want = word.toLowerCase();
-  const hits = body.search ?? [];
-  // A common noun's label is lowercase on Wikidata; the capitalised one is a name. "smiley"
-  // first found Smiley the surname, where the face is labelled in lowercase.
-  return (
-    hits.find((hit) => hit.label === want) ??
-    hits.find((hit) => hit.label?.toLowerCase() === want || (hit.match?.type === "alias" && hit.match.text?.toLowerCase() === want))
-  )?.id;
-}
-
 async function entities(ids: readonly string[], props: string, get: Fetch): Promise<Record<string, Entity>> {
   if (!ids.length) return {};
   const body = (await get(
@@ -120,22 +105,112 @@ export interface Grounded {
 
 const readable = (identity: string): string => identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
 
+interface Sense {
+  readonly id: string;
+  readonly description: string;
+  readonly sitelinks: number;
+  /** What it is an instance or subclass of, as labels: "frozen dessert", "single". */
+  readonly kinds: readonly string[];
+}
+
+interface Described extends Entity {
+  descriptions?: Record<string, { value: string }>;
+  sitelinks?: Record<string, unknown>;
+}
+
+/**
+ * Every item the word is the exact label or alias of. Wikidata's own pages (disambiguation
+ * pages, deprecation reasons) are records about Wikidata, not things a word names.
+ */
+async function findSenses(word: string, get: Fetch): Promise<Sense[]> {
+  const body = (await get(
+    API + new URLSearchParams({ action: "wbsearchentities", search: word, language: "en", limit: "10", format: "json" }),
+  )) as { search?: { id: string; label?: string; match?: { type?: string; text?: string } }[] };
+  const want = word.toLowerCase();
+  const ids = (body.search ?? [])
+    .filter((hit) => hit.label?.toLowerCase() === want || (hit.match?.type === "alias" && hit.match.text?.toLowerCase() === want))
+    .map((hit) => hit.id);
+  const found = (await entities(ids, "claims|descriptions|sitelinks", get)) as Record<string, Described>;
+  const kindsOf = (e: Described) =>
+    ["P31", "P279"].flatMap((p) => (e.claims?.[p] ?? []).map((snak) => snak.mainsnak?.datavalue?.value?.id).filter((q): q is string => !!q));
+  const labels = await entities([...new Set(Object.values(found).flatMap(kindsOf))], "labels", get);
+  return ids
+    .map((id) => found[id])
+    .filter((e): e is Described => !!e)
+    .map((e) => ({
+      id: e.id,
+      description: e.descriptions?.en?.value ?? "",
+      sitelinks: Object.keys(e.sitelinks ?? {}).length,
+      kinds: kindsOf(e).map((q) => labels[q]?.labels?.en?.value).filter((l): l is string => !!l),
+    }))
+    .filter((sense) => !sense.kinds.some((k) => /^(Wikimedia|Wikibase) /.test(k)));
+}
+
+/**
+ * The senses that fit what was said: those whose description or kind shares a word with
+ * the message and the conversation around it ("i'd love a bowl of ice cream" shares
+ * nothing with a single and "dessert" with the food only when it is said). One sense fits,
+ * or none does and every sense is kept, each in its own context, to ask about.
+ */
+function fitting(senses: readonly Sense[], word: string, said: string): readonly Sense[] {
+  const own = new Set(word.toLowerCase().split(/\s+/));
+  const words = new Set((said.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 3 && !own.has(w)));
+  const score = (sense: Sense) =>
+    [...new Set([sense.description, ...sense.kinds].join(" ").toLowerCase().match(/[a-z]+/g) ?? [])].filter((w) => words.has(w)).length;
+  const scored = senses.map((sense) => ({ sense, score: score(sense) }));
+  const best = Math.max(0, ...scored.map((x) => x.score));
+  const top = scored.filter((x) => x.score === best);
+  if (best > 0 && top.length === 1) return [top[0].sense];
+  return senses;
+}
+
+/** A handful of senses, the ones most of the world writes about first. */
+const SENSES = 3;
+
 /**
  * Tie a Concept to its Wikidata item and take its classifying relations. Undefined when
  * Wikidata has no item for the word. A personal individual is never looked up: the world
  * does not know who the user's friend is (memory-spec Part 6.6).
+ *
+ * The item is the sense that fits what was said, never the first label: "ice cream" once
+ * became the Blackpink single. When nothing said picks one, each sense is learned in its own
+ * context, named by its kind (`In(FrozenDessert())`, `In(Single())`), with what it is, so
+ * the one meant can be asked about.
  */
 export async function groundInWikidata(
   store: ConceptStore,
   identity: string,
-  options: { fetch?: Fetch; cause?: number } = {},
+  options: { fetch?: Fetch; cause?: number; said?: string } = {},
 ): Promise<Grounded | undefined> {
   if (/_\d+$/.test(identity)) return undefined;
   const get = options.fetch ?? defaultFetch;
-  const item = wikidataItem(store, identity) ?? (await findItem(readable(identity), get));
-  if (!item) return undefined;
+  const tied = wikidataItem(store, identity);
+  const senses = tied ? [{ id: tied, description: "", sitelinks: 0, kinds: [] }] : fitting(await findSenses(readable(identity), get), readable(identity), options.said ?? "");
+  if (!senses.length) return undefined;
+  const one = senses.length === 1;
+  // A sense's context is named by its kind, unless that name already means something here:
+  // the kind "concept" is not the universal parent.
+  const kind = (sense: Sense) => sense.kinds.map(nameOf).find((k) => /^[A-Z]/.test(k) && !(store.get(k)?.realizations.length ?? 0));
+  const chosen = one ? senses : [...senses].sort((a, b) => b.sitelinks - a.sitelinks).filter((x) => kind(x)).slice(0, SENSES);
+  const relations: Expr[] = [];
+  for (const sense of chosen) {
+    const context = one ? undefined : c(kind(sense)!);
+    relations.push(...(await groundSense(store, identity, sense, context, get, options.cause)));
+  }
+  return { item: chosen.map((x) => x.id).join(", "), relations };
+}
+
+async function groundSense(
+  store: ConceptStore,
+  identity: string,
+  sense: Sense,
+  context: Expr | undefined,
+  get: Fetch,
+  cause: number | undefined,
+): Promise<Expr[]> {
+  const item = sense.id;
   const entity = (await entities([item], "claims", get))[item];
-  if (!entity) return undefined;
+  if (!entity) return [];
 
   const pairs: { relation: string; target: string }[] = [];
   for (const [property, relation] of Object.entries(PROPERTIES)) {
@@ -152,12 +227,19 @@ export async function groundInWikidata(
     "Wikidata",
     call("Imported", [{ value: item }, { name: "revision", value: entity.lastrevid ?? 0 }, { name: "license", value: "CC0" }]),
     undefined,
-    options.cause,
+    cause,
   );
-  const sameAs = (id: string, q: string) => store.addRelation(id, c("SameAs", call("Wikidata", [{ value: q }])), undefined, imported.seq);
-  if (!wikidataItem(store, identity)) sameAs(identity, item);
+  const sameAs = (id: string, q: string, within?: Expr) => store.addRelation(id, c("SameAs", call("Wikidata", [{ value: q }])), within, imported.seq);
+  if (context !== undefined) sameAs(identity, item, context);
+  else if (!wikidataItem(store, identity)) sameAs(identity, item);
 
   const relations: Expr[] = [];
+  const keep = (claim: Expr) => {
+    store.addRelation(identity, claim, context, imported.seq);
+    relations.push(context === undefined ? claim : call("In", [{ value: claim }, { value: context }]));
+  };
+  // Told apart, a sense says what it is in words, so the one meant can be asked about.
+  if (context !== undefined && sense.description) keep(call("Means", [{ value: sense.description }]));
   for (const { relation, target } of pairs) {
     const label = labelled[target]?.labels?.en?.value;
     if (!label) continue;
@@ -171,9 +253,7 @@ export async function groundInWikidata(
     const known = wikidataItem(store, name);
     if (!known) sameAs(name, target);
     else if (known !== target) continue;
-    const claim = c(relation, c(name));
-    store.addRelation(identity, claim, undefined, imported.seq);
-    relations.push(claim);
+    keep(c(relation, c(name)));
   }
-  return { item, relations };
+  return relations;
 }

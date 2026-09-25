@@ -17,12 +17,14 @@ import type { Runtime } from "../runtime/evaluator.js";
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
 import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
-import { forwardSynonym } from "../seed/seed.js";
+import { deriveFolds, forwardSynonym } from "../seed/seed.js";
+import { nameOf } from "../ears/parser/names.js";
+import { sayPhrase } from "../ears/parser/rules.js";
 import { teach } from "./teacher.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "research" | "wikidata" | "dictionary" | "teacher" | "unresolved";
+  readonly how: "graph" | "research" | "wikidata" | "dictionary" | "phrase" | "teacher" | "unresolved";
   readonly detail: string;
 }
 
@@ -80,6 +82,8 @@ export async function learn(
     research?: boolean;
     /** Identities already asked about, shared across re-readings of one message. */
     asked?: Set<string>;
+    /** The conversation so far, whose words help say which sense of a word is meant. */
+    history?: readonly { message: string }[];
   } = {},
 ): Promise<LearnResult> {
   const maxPasses = options.maxPasses ?? 3;
@@ -119,6 +123,33 @@ export async function learn(
     if (!gaps.length) return { steps, result, passes, remaining: [] };
 
     let learnedSomething = false;
+    // "ice cream" read as Cream(Ice()): the words may name one thing, so the phrase is looked
+    // up whole before either word is. Found, it is a Concept with its own fold, and the next
+    // pass reads the phrase as it.
+    if (options.research !== false) {
+      for (const gap of gaps) {
+        const phrase = isCall(gap.input) && gap.input.args.length ? sayPhrase(gap.input) : undefined;
+        const name = phrase === undefined ? undefined : nameOf(phrase);
+        if (name === undefined || runtime.store.has(name) || attempted.has(name)) continue;
+        attempted.add(name);
+        const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+        try {
+          const grounded = await groundInWikidata(runtime.store, name, { cause: runtime.trace.cause, said });
+          let detail = grounded?.relations.length ? `${grounded.item}: ${grounded.relations.map(format).join(", ")}` : undefined;
+          if (!detail) {
+            const meaning = await runtime.evaluate(call("Meaning", [{ value: c(name) }]), c("Execution"));
+            if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") detail = meaning.args[1].value;
+          }
+          if (!detail || !runtime.store.has(name)) continue;
+          deriveFolds(runtime.store);
+          steps.push({ identity: name, how: "phrase", detail: `"${phrase}" is one thing. ${detail}` });
+          learnedSomething = true;
+        } catch {
+          // Unreachable is not an answer: the words are still looked up one at a time.
+        }
+      }
+      if (learnedSomething) continue;
+    }
     for (const gap of gaps) {
       const viaGraph = fromGraph(runtime, gap.identity);
       if (viaGraph) {
@@ -128,7 +159,7 @@ export async function learn(
       }
       // Teaching a Concept it already knows would pollute it; teaching a REALIZATION it
       // is missing is exactly the point, so only the former is refused.
-      if (runtime.store.has(gap.identity) && gap.kind !== "inert") continue;
+      if (runtime.store.has(gap.identity) && gap.kind !== "inert" && gap.kind !== "empty") continue;
       if (options.teacher === false) continue;
       if (attempted.has(gap.identity)) continue;
       attempted.add(gap.identity);
@@ -141,9 +172,12 @@ export async function learn(
       // Keep a castle keep and "lol means laugh out loud" made Means a family name, because a
       // word used on arguments is a doing, and the nearest thing sharing its label is not it.
       const named = !isCall(gap.input) || gap.input.args.length === 0;
-      if (gap.kind === "unknown" && named && options.research !== false) {
+      const looked = gap.kind === "unknown" || gap.kind === "empty";
+      if (looked && named && options.research !== false) {
         try {
-          const grounded = await groundInWikidata(runtime.store, gap.identity, { cause: runtime.trace.cause });
+          // The sense is the one what was said fits, this message and the ones before it.
+          const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+          const grounded = await groundInWikidata(runtime.store, gap.identity, { cause: runtime.trace.cause, said });
           if (grounded?.relations.length) {
             steps.push({ identity: gap.identity, how: "wikidata", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
             learnedSomething = true;
@@ -157,7 +191,7 @@ export async function learn(
       // A word's meaning, worked out like a question (packs/words.ncon): what was said about
       // it, then the dictionary sense that fits how it was used. Applied to something, it is
       // a verb. Only meaning is learned here; behaviour is still the Teacher's to teach.
-      if (gap.kind === "unknown" && options.research !== false) {
+      if (looked && options.research !== false) {
         try {
           const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, ...(named ? [] : [{ value: c("Verb") }])]), c("Execution"));
           if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {

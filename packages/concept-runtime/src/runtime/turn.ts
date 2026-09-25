@@ -13,7 +13,7 @@ import { say } from "../ears/say.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
-import { answerToConflict, answerToWhich, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
+import { answerToConflict, answerToWhich, pickSense, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
 import { ConceptError } from "./errors.js";
 import { Runtime } from "./evaluator.js";
 import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
@@ -26,8 +26,10 @@ export interface Gap {
    * `inert`     — the identity exists and simply has no applicable realization here.
    *               Normal and not a gap: markers, relations and pure data behave this way.
    * `reference` — an unresolved Ref, needing history rather than teaching.
+   * `empty`     — the identity exists and holds nothing saying what it is, only that it is
+   *               a kind of thing. Asked about, it is looked up like an unknown.
    */
-  readonly kind: "unknown" | "inert" | "reference";
+  readonly kind: "unknown" | "inert" | "reference" | "empty";
   readonly identity: string;
   readonly expression: string;
   /** The call itself, so a gap can be judged structurally rather than by its text. */
@@ -158,7 +160,24 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
     for (const a of e.args) markReferences(a.value);
   };
   if (result) markReferences(result);
+  // "what is a work in progress": described, and all there is to say is that it is a kind.
+  if (result !== undefined && isCall(result) && result.head === "Describes") {
+    const about = result.args[0]?.value;
+    if (isCall(about) && !about.args.length && meaningless(runtime, about.head)) {
+      gaps.set(about.head, { kind: "empty", identity: about.head, expression: format(about), input: about });
+    }
+  }
   return [...gaps.values()];
+}
+
+/**
+ * A Concept put in a relation and never taught holds its category and nothing else:
+ * `WorkInProgress IsA(Category())`. Nothing says what it is, so it is still to be learned.
+ */
+export function meaningless(runtime: Runtime, identity: string): boolean {
+  const unit = runtime.store.get(identity);
+  if (!unit || reachesBehaviour(runtime.store, identity)) return false;
+  return unit.relations.every((r) => isCall(r.claim) && r.claim.head === "IsA" && format(r.claim) === "IsA(Category())");
 }
 
 /**
@@ -262,6 +281,7 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
   return gaps.filter(
     (g) =>
       g.kind === "unknown" ||
+      g.kind === "empty" ||
       (g.kind === "inert" && (isOrphan(runtime, g.identity) || wantsBehaviour(runtime, g))),
   );
 }
@@ -408,7 +428,9 @@ export async function turn(
   // "the coworker one", answering "which Greg do you mean": the words asked about are read
   // again, with the name taken to mean the one picked.
   const answering = answerToWhich(options.history?.[options.history.length - 1]?.result, message, parse);
-  const chosen = new Map(answering ? [[answering.name, answering.chosen]] : []);
+  // A name picks a person; a sense picks what a word is taken to mean ("the dessert").
+  const chosen = new Map(answering && !answering.sense ? [[answering.name, answering.chosen]] : []);
+  const pickedSense = answering?.sense ? answering.chosen : undefined;
   if (answering) message = answering.said;
   // "yes, she moved", answering "has that changed?": the words are read again, replacing.
   const changed = answerToConflict(options.history?.[options.history.length - 1]?.result, message, parse);
@@ -537,6 +559,9 @@ export async function turn(
     }
   }
 
+  // Several senses and nothing said to pick one: asked, not guessed.
+  const conversation = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+  result = pickSense(result, conversation, message, pickedSense);
   const rendered = result !== undefined ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
   // Anything still learnable after learning has run means the result is not an answer.

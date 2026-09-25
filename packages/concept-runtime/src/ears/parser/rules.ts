@@ -1354,3 +1354,30 @@ function readThing(text: string, named: boolean): Expr | undefined {
     throw error;
   }
 }
+
+/**
+ * The words a thing's reading was said in, the inverse of readPhrase: Cream(Ice()) is "ice
+ * cream" and Work(In(Progress())) is "work in progress". Undefined unless reading the words
+ * gives the same thing back, so a phrase is never guessed.
+ */
+export function sayPhrase(e: Expr): string | undefined {
+  // Every way the words could have been said; the reading decides which one it was.
+  const ways = (x: Expr): string[][] => {
+    if (!isCall(x) || x.args.some((a) => a.name !== undefined)) return [];
+    const said = x.head.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    if (!x.args.length) return [[said]];
+    const out: string[][] = [];
+    // Describers first, then the thing: "ice cream".
+    if (x.args.every((a) => isCall(a.value) && !a.value.args.length)) out.push([...x.args.flatMap((a) => ways(a.value)[0] ?? []), said]);
+    // A thing and what follows it: "work in progress".
+    if (x.args.length === 1) for (const after of ways(x.args[0].value)) out.push([said, ...after]);
+    return out;
+  };
+  for (const words of ways(e)) {
+    const said = words.join(" ");
+    if (!said.includes(" ")) continue;
+    const back = readPhrase(said);
+    if (back !== undefined && format(back) === format(e)) return said;
+  }
+  return undefined;
+}

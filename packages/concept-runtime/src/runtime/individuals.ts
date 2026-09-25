@@ -213,7 +213,7 @@ export function answerToWhich(
   lastResult: string | undefined,
   message: string,
   parse: (s: string) => Expr,
-): { name: string; chosen: string; said: string } | undefined {
+): { name: string; chosen: string; said: string; sense: boolean } | undefined {
   if (!lastResult?.startsWith("Which(")) return undefined;
   let asked: Expr;
   try {
@@ -233,7 +233,54 @@ export function answerToWhich(
   const byOrder = candidates.findIndex((_, i) => words.has(ORDINALS[i]));
   const byWords = candidates.filter((cand) => cand.text.split(" ").some((w) => w.length > 3 && words.has(w)));
   const pick = byOrder >= 0 ? candidates[byOrder] : byWords.length === 1 ? byWords[0] : undefined;
-  return pick ? { name: name.head, chosen: pick.id, said } : undefined;
+  const sense = asked.args.some((a) => a.name === "sense");
+  return pick ? { name: name.head, chosen: pick.id, said, sense } : undefined;
+}
+
+/** The words of a Concept's name: `FrozenDessert` is "frozen dessert". */
+const spoken = (identity: string): string => identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+
+/**
+ * A thing known in several senses, described with none of them picked: "what is ice cream"
+ * when ice cream is a frozen dessert and also a single. The sense is the one the
+ * conversation's words fit (what each sense holds, and the name of its context); with no
+ * fit, or two, the user is asked which, never guessed. `picked` is the sense a reply chose.
+ */
+export function pickSense(result: Expr | undefined, said: string, message: string, picked?: string): Expr | undefined {
+  if (result === undefined || !isCall(result) || result.head !== "Describes") return result;
+  const about = result.args[0]?.value;
+  const listed = result.args[1]?.value;
+  if (about === undefined || listed === undefined || !isCall(listed)) return result;
+  const general: Expr[] = [];
+  const senses = new Map<string, Expr[]>();
+  for (const { value } of listed.args) {
+    const within = isCall(value) && value.head === "In" ? value.args[1]?.value : undefined;
+    if (!isCall(value) || within === undefined || !isCall(within)) general.push(value);
+    else senses.set(within.head, [...(senses.get(within.head) ?? []), value.args[0].value]);
+  }
+  if (senses.size < 2) return result;
+  const only = (context: string): Expr =>
+    call("Describes", [{ value: about }, { value: call("List", [...general, ...senses.get(context)!].map((v) => ({ value: v }))) }]);
+  if (picked !== undefined && senses.has(picked)) return only(picked);
+  // The word asked about is in every sense of it, so it picks none.
+  const own = new Set(isCall(about) ? spoken(about.head).split(" ") : []);
+  const words = new Set((said.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 3 && !own.has(w)));
+  const text = (context: string) =>
+    [spoken(context), ...senses.get(context)!.flatMap((v) => [...walk(v)].filter((x): x is string => typeof x === "string"))].join(" ").toLowerCase();
+  const fit = [...senses.keys()].map((context) => ({
+    context,
+    score: new Set((text(context).match(/[a-z]+/g) ?? []).filter((w) => words.has(w))).size,
+  }));
+  const best = Math.max(0, ...fit.map((f) => f.score));
+  const top = fit.filter((f) => f.score === best);
+  if (best > 0 && top.length === 1) return only(top[0].context);
+  return call("Which", [
+    { value: about },
+    { value: call("List", [...senses.keys()].map((k) => ({ value: c(k) }))) },
+    { name: "described", value: call("List", [...senses.keys()].map((k) => ({ value: spoken(k) }))) },
+    { name: "said", value: message },
+    { name: "sense", value: c("True") },
+  ]);
 }
 
 /**
