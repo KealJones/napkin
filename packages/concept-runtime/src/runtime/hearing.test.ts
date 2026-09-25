@@ -61,5 +61,9 @@ test("questions: the question word leads, a helper first asks, and each line say
   assert.equal(await heard("what do i like"), "Phrases(Mood(Interrogative(), What(Do(I(), Like()))))");
   assert.equal(await heard("what is the capital of france?"), "Phrases(Mood(Interrogative(), What(Is(Capital(Of(France()))))))");
   assert.equal(await heard("close the door"), "Phrases(Mood(Imperative(), Close(Door())))");
+  // A helper carries a doing, whatever the tagger made of the word in this sentence.
+  assert.equal(await heard("who did hamlet kill"), "Phrases(Mood(Interrogative(), Who(Did(Hamlet(), Kill()))))");
+  assert.equal(await heard("what time is it"), "Phrases(Mood(Interrogative(), What(Time(), Is(It()))))");
+  assert.equal(await heard("which file did you open"), "Phrases(Mood(Interrogative(), Which(File(), Did(You(), Open()))))");
   assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), I(Like(Pie()))))");
 });

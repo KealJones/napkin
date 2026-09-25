@@ -74,17 +74,27 @@ export function lemma(word: string): string {
 
 /**
  * A text's words in order, each with the sentence it is in and what the tagger proposes it
- * is (CodeApi.words). A contraction is its words: "there's" is "there" and "is", each kept
+ * is (CodeApi.words), and what it could be alone. A contraction is its words: "there's" is "there" and "is", each kept
  * with what was typed. Proposals, not facts: hearing weighs them (design/prompt-hearing.md).
  */
-export function words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string }[] {
-  const out: { text: string; typed: string; tags: string[]; sentence: number; after: string }[] = [];
+/** What a word is taken to be alone, out of any sentence: "kill" is a verb. */
+const alone = new Map<string, string[]>();
+function aloneTags(word: string): string[] {
+  const w = word.toLowerCase();
+  if (!alone.has(w)) alone.set(w, [...((nlp(w).terms().json() as { terms: { tags: string[] }[] }[])[0]?.terms[0]?.tags ?? [])]);
+  return alone.get(w)!;
+}
+
+export function words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string; could: string[] }[] {
+  const out: { text: string; typed: string; tags: string[]; sentence: number; after: string; could: string[] }[] = [];
   const sentences = nlp(text).sentences().json() as { terms: { text: string; implicit?: string; post?: string; tags: string[] }[] }[];
   sentences.forEach((s, sentence) => {
     for (const term of s.terms) {
       const said = term.implicit || term.text;
       // What was typed after the word, punctuation included: a "?" asks.
-      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence, after: (term.post ?? "").trim() });
+      // `could`: what the word is alone, which the sentence may have tagged away ("did hamlet
+      // kill" tags kill a noun; alone it is a verb).
+      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence, after: (term.post ?? "").trim(), could: aloneTags(said) });
     }
   });
   return out;

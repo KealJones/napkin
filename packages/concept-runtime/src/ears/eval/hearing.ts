@@ -6,13 +6,14 @@
  * (a head and one of its arguments) the Prompt reading also has, so progress shows long
  * before readings match exactly.
  *
- *   node dist/ears/eval/hearing.js [--label name] [--show]
+ *   node dist/ears/eval/hearing.js [--label name] [--show] [--graph ~/.napkin/store.ncon]
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Expr, c, call, format, isCall, parse, walk } from "../../concept/expression.js";
 import { seed } from "../../seed/seed.js";
+import { openNapkinGraph } from "../../store/journal.js";
 import { ConceptStore } from "../../store/store.js";
 import { Runtime } from "../../runtime/evaluator.js";
 import { parseRules } from "../parser/rules.js";
@@ -61,8 +62,10 @@ function groups(roots: readonly Expr[]): string[] {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const label = args.includes("--label") ? args[args.indexOf("--label") + 1] : new Date().toISOString().replace(/[:.]/g, "-");
+  // --graph: hear with what the real graph has heard before (Predict's evidence), read only.
   const store = new ConceptStore();
-  seed(store);
+  if (args.includes("--graph")) await openNapkinGraph(store, args[args.indexOf("--graph") + 1] ?? `${process.env.HOME}/.napkin/store.ncon`);
+  else seed(store);
   const rows: { message: string; rules: string; prompt: string; same: boolean; recall: number; grouped: number }[] = [];
   for (const message of messages()) {
     const ruled = parseRules(message).reading?.lines ?? [];
