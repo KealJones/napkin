@@ -711,6 +711,90 @@ Concept(Pursue(),
               ),
               Undefined()
             ),
+            Bind($data, List()),
+            Bind($carry,
+              Lambda(List($e),
+                Sequence(
+                  If(
+                    Not(Call($isCall, $e)),
+                    Sequence(
+                      If(
+                        Or(Equals(TypeOf($e), "number"), Equals(TypeOf($e), "string")),
+                        Call(Member($data, "push"), $e),
+                        Undefined()
+                      ),
+                      Return()
+                    ),
+                    Undefined()
+                  ),
+                  If(
+                    Equals(Member($e, "head"), "List"),
+                    Return(Void(Call(Member($data, "push"), $e))),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    If(
+                      Equals(Member($a, "name"), Undefined()),
+                      Call($carry, Member($a, "value")),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($carry, $goal),
+            Bind($hypothetical,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Hypothetical")
+              )
+            ),
+            ForOf(
+              $h,
+              $heads,
+              Sequence(
+                Bind($unit, Call(Member(Member($api, "store"), "get"), $h)),
+                If(
+                  Or(
+                    Or(Or(Equals($h, Member($goal, "head")), Equals($h, "List")), Not($unit)),
+                    Not(
+                      Call(Member(Member($unit, "realizations"), "some"), Lambda(List($r), Not(Member($r, "retired"))))
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                ForOf(
+                  $d,
+                  $data,
+                  Sequence(
+                    Bind($attempt, Call(Member($api, "call"), $h, $d)),
+                    Var($r, Undefined()),
+                    Try(
+                      Assign($r, Await(Call(Member($api, "evaluate"), $attempt, $hypothetical))),
+                      Catch($error, Continue())
+                    ),
+                    If(
+                      Or(
+                        Equals(Call(Member($api, "format"), $r), Call(Member($api, "format"), $attempt)),
+                        And(
+                          Call($isCall, $r),
+                          Includes(List("ExecutionFailed", "Failed", "NotFound", "Unknown"), Member($r, "head"))
+                        )
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Return(Call(Member($api, "call"), "Found", $r, $attempt))
+                  )
+                )
+              )
+            ),
             Bind($kinds,
               Async(
                 Lambda(List($h),

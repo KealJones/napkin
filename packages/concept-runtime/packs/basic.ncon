@@ -59,6 +59,13 @@ Concept(Describe(),
   Suppresses(Lossy())
 )
 
+// Trying something without doing it: what would this give? Nothing Effectful runs, so an
+// attempt can be made and thrown away (design/pursue-predict.md).
+Concept(Hypothetical(),
+  IsA(ContextFacet()),
+  Suppresses(Effectful())
+)
+
 Concept(Saved(), IsA(Result()))
 
 Concept(Rejected())

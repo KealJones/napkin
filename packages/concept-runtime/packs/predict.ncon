@@ -1,0 +1,548 @@
+Requires(Basic())
+
+// ================================================================
+// Predict: what fills a place in a sequence, from what is around it
+// (design/pursue-predict.md).
+//
+// A rule is not written here. The graph's own two-argument behaviour is tried on the items,
+// under Hypothetical() so nothing it touches is changed, and the first rule that holds for
+// every known neighbour fills the place. Doubling is found as Multiply because Multiply is
+// in the graph, not because anything here knows about doubling.
+
+// What Predict came back with: the value, and the rule that gave it.
+Concept(Predicted(), IsA(Result()))
+
+// Where a rule reads from: the item just before, and the one before that.
+Concept(Previous(), IsA(Marker()))
+
+Concept(BeforePrevious(), IsA(Marker()))
+
+// Where the item stands in the sequence, counting from 1.
+Concept(Position(), IsA(Marker()))
+
+// Fill a List's one hole, What() or Hole(), or the place after its end. Tried in order,
+// simplest first: next = op(previous, k), with k drawn from what the graph's operations make
+// of the first pair; then next = op(before previous, previous); then item = op(position, k). A rule has to hold for every
+// known pair, and a hole in the middle has to lead on to the item after it.
+Concept(Predict(),
+  IsA(Category()),
+  Realization(Predict($items),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($list, Member(Index($args, 0), "value")),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            If(
+              Or(Not(Call($isCall, $list)), NotEquals(Member($list, "head"), "List")),
+              Return(Call(Member($api, "call"), "Predict", $list)),
+              Undefined()
+            ),
+            Bind($items, Map(Member($list, "args"), Lambda(List($a), Member($a, "value")))),
+            Bind($isHole,
+              Lambda(List($v),
+                And(
+                  And(Call($isCall, $v), Or(Equals(Member($v, "head"), "What"), Equals(Member($v, "head"), "Hole"))),
+                  Not(Length(Member($v, "args")))
+                )
+              )
+            ),
+            Bind($holes,
+              Filter(
+                Call(Member($items, "map"), Lambda(List($v, $i), If(Call($isHole, $v), $i, Negate(1)))),
+                Lambda(List($i), AtLeast($i, 0))
+              )
+            ),
+            If(
+              GreaterThan(Length($holes), 1),
+              Return(Call(Member($api, "call"), "Predict", $list)),
+              Undefined()
+            ),
+            Bind($target, If(Length($holes), Index($holes, 0), Length($items))),
+            Bind($known,
+              Lambda(List($i),
+                And(And(AtLeast($i, 0), LessThan($i, Length($items))), Not(Call($isHole, Index($items, $i))))
+              )
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Bind($kind, Lambda(List($v), If(Call($isCall, $v), "call", TypeOf($v)))),
+            Bind($ctx,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Hypothetical")
+              )
+            ),
+            Bind($tried, New($Map)),
+            Bind($run,
+              Async(
+                Lambda(List($head, $a, $b),
+                  Sequence(
+                    Bind($e, Call(Member($api, "call"), $head, $a, $b)),
+                    Bind($key, Call(Member($api, "format"), $e)),
+                    If(
+                      Not(Call(Member($tried, "has"), $key)),
+                      Sequence(
+                        Var($r, Undefined()),
+                        Try(Assign($r, Await(Call(Member($api, "evaluate"), $e, $ctx))), Catch($error, Assign($r, $e))),
+                        Call(
+                          Member($tried, "set"),
+                          $key,
+                          If(
+                            Or(
+                              Call($same, $r, $e),
+                              And(Call($isCall, $r), Equals(Member($r, "head"), "ExecutionFailed"))
+                            ),
+                            Undefined(),
+                            $r
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Return(Call(Member($tried, "get"), $key))
+                  )
+                )
+              )
+            ),
+            Bind($pairs, List()),
+            For(
+              Var($i, 0),
+              LessThan(Add($i, 1), Length($items)),
+              PostIncrement($i),
+              If(
+                And(Call($known, $i), Call($known, Add($i, 1))),
+                Call(Member($pairs, "push"), $i),
+                Undefined()
+              )
+            ),
+            Bind($between, And(And(Length($holes), Call($known, Subtract($target, 1))), Call($known, Add($target, 1)))),
+            If(
+              LessThan(Length($pairs), If($between, 1, 2)),
+              Return(Call(Member($api, "call"), "Predict", $list)),
+              Undefined()
+            ),
+            Bind(List($a0, $a1), List(Index($items, Index($pairs, 0)), Index($items, Add(Index($pairs, 0), 1)))),
+            Bind($binary,
+              Map(
+                Filter(
+                  Call(Member(Member($api, "store"), "all")),
+                  Lambda(List($u),
+                    Call(
+                      Member(Member($u, "realizations"), "some"),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(
+                              And(
+                                And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                                Equals(Member(Member($r, "pattern"), "head"), Member($u, "identity"))
+                              ),
+                              Equals(Length(Member(Member($r, "pattern"), "args")), 2)
+                            ),
+                            Call(
+                              Member(Member(Member($r, "pattern"), "args"), "every"),
+                              Lambda(List($p),
+                                And(
+                                  And(Member($p, "value"), Equals(TypeOf(Member($p, "value")), "object")),
+                                  In("variable", Member($p, "value"))
+                                )
+                              )
+                            )
+                          ),
+                          Not(
+                            Call(
+                              Member(Member($r, "properties"), "some"),
+                              Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Effectful")))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Lambda(List($u), Member($u, "identity"))
+              )
+            ),
+            Bind($ops, List()),
+            Bind($constants, List()),
+            ForOf(
+              $op,
+              $binary,
+              Sequence(
+                Bind($r, Await(Call($run, $op, $a1, $a0))),
+                If(
+                  Or(Equals($r, Undefined()), NotEquals(Call($kind, $r), Call($kind, $a0))),
+                  Continue(),
+                  Undefined()
+                ),
+                Call(Member($ops, "push"), $op),
+                If(
+                  Not(Call(Member($constants, "some"), Lambda(List($c), Call($same, $c, $r)))),
+                  Call(Member($constants, "push"), $r),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($fits,
+              Async(
+                Lambda(List($step),
+                  Sequence(
+                    ForOf(
+                      $i,
+                      $pairs,
+                      Sequence(
+                        Bind($r, Await(Call($step, $i))),
+                        If(
+                          Or(Equals($r, Undefined()), Not(Call($same, $r, Index($items, Add($i, 1))))),
+                          Return(false),
+                          Undefined()
+                        )
+                      )
+                    ),
+                    Return(true)
+                  )
+                )
+              )
+            ),
+            Bind($fill,
+              Async(
+                Lambda(List($step, $check),
+                  Sequence(
+                    If(
+                      Not(Call($known, Subtract($target, 1))),
+                      Return(Undefined()),
+                      Undefined()
+                    ),
+                    Bind($v, Await(Call($step, Subtract($target, 1)))),
+                    If(
+                      Equals($v, Undefined()),
+                      Return(Undefined()),
+                      Undefined()
+                    ),
+                    If(
+                      And(
+                        Call($known, Add($target, 1)),
+                        Not(
+                          Call(
+                            $same,
+                            Await(Call($check, $v)),
+                            Index($items, Add($target, 1))
+                          )
+                        )
+                      ),
+                      Return(Undefined()),
+                      Undefined()
+                    ),
+                    Return($v)
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $op,
+              $ops,
+              ForOf(
+                $k,
+                $constants,
+                Sequence(
+                  Bind($step, Lambda(List($i), Call($run, $op, Index($items, $i), $k))),
+                  If(Not(Await(Call($fits, $step))), Continue(), Undefined()),
+                  Bind($v,
+                    Await(
+                      Call(
+                        $fill,
+                        $step,
+                        Lambda(List($x), Call($run, $op, $x, $k))
+                      )
+                    )
+                  ),
+                  If(
+                    NotEquals($v, Undefined()),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Predicted",
+                        $v,
+                        Call(
+                          Member($api, "call"),
+                          $op,
+                          Call(Member($api, "call"), "Previous"),
+                          $k
+                        )
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Bind($triples, Filter($pairs, Lambda(List($i), Call($known, Subtract($i, 1))))),
+            If(
+              And(
+                And(AtLeast(Length($triples), 2), Call($known, Subtract($target, 1))),
+                Call($known, Subtract($target, 2))
+              ),
+              ForOf(
+                $op,
+                $ops,
+                Sequence(
+                  Var($ok, true),
+                  ForOf(
+                    $i,
+                    $triples,
+                    Sequence(
+                      Bind($r,
+                        Await(
+                          Call(
+                            $run,
+                            $op,
+                            Index($items, Subtract($i, 1)),
+                            Index($items, $i)
+                          )
+                        )
+                      ),
+                      If(
+                        Or(Equals($r, Undefined()), Not(Call($same, $r, Index($items, Add($i, 1))))),
+                        Sequence(Assign($ok, false), Break()),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  If(Not($ok), Continue(), Undefined()),
+                  Bind($v,
+                    Await(
+                      Call(
+                        $run,
+                        $op,
+                        Index($items, Subtract($target, 2)),
+                        Index($items, Subtract($target, 1))
+                      )
+                    )
+                  ),
+                  If(
+                    NotEquals($v, Undefined()),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Predicted",
+                        $v,
+                        Call(
+                          Member($api, "call"),
+                          $op,
+                          Call(Member($api, "call"), "BeforePrevious"),
+                          Call(Member($api, "call"), "Previous")
+                        )
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($places,
+              Filter(Call(Member($items, "map"), Lambda(List($v, $i), $i)), Lambda(List($i), Call($known, $i)))
+            ),
+            Bind($first, Call(Member($places, "find"), Lambda(List($i), GreaterThan($i, 0)))),
+            If(
+              NotEquals($first, Undefined()),
+              ForOf(
+                $op,
+                $ops,
+                Sequence(
+                  Bind($r, Await(Call($run, $op, Index($items, $first), Add($first, 1)))),
+                  If(
+                    And(
+                      And(NotEquals($r, Undefined()), Equals(Call($kind, $r), Call($kind, $a0))),
+                      Not(Call(Member($constants, "some"), Lambda(List($c), Call($same, $c, $r))))
+                    ),
+                    Call(Member($constants, "push"), $r),
+                    Undefined()
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            ForOf(
+              $op,
+              $ops,
+              ForOf(
+                $k,
+                $constants,
+                Sequence(
+                  Var($ok, true),
+                  ForOf(
+                    $i,
+                    $places,
+                    Sequence(
+                      Bind($r, Await(Call($run, $op, Add($i, 1), $k))),
+                      If(
+                        Or(Equals($r, Undefined()), Not(Call($same, $r, Index($items, $i)))),
+                        Sequence(Assign($ok, false), Break()),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  If(Not($ok), Continue(), Undefined()),
+                  Bind($v, Await(Call($run, $op, Add($target, 1), $k))),
+                  If(
+                    NotEquals($v, Undefined()),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Predicted",
+                        $v,
+                        Call(
+                          Member($api, "call"),
+                          $op,
+                          Call(Member($api, "call"), "Position"),
+                          $k
+                        )
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "Predict", $list))
+          )
+        )
+      )
+    )
+  )
+)
+
+// The item that follows. A List in what is said is a sequence to continue; anything else
+// (next friday) is not this realization's, and stays as said.
+Concept(Next(),
+  Realization(Next(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($find,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(Undefined()), Undefined()),
+                  If(
+                    Equals(Member($e, "head"), "List"),
+                    Return($e),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Sequence(Bind($f, Call($find, Member($a, "value"))), If($f, Return($f), Undefined()))
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Var($list, Undefined()),
+            ForOf(
+              $a,
+              $args,
+              Assign($list, Or($list, Call($find, Member($a, "value"))))
+            ),
+            If(
+              Not($list),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Next",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($p, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Predict", $list)))),
+            Return(
+              If(
+                And(Call($isCall, $p), Equals(Member($p, "head"), "Predicted")),
+                $p,
+                Call(
+                  Member($api, "call"),
+                  "Next",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+Concept(After(),
+  Realization(After(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($find,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(Undefined()), Undefined()),
+                  If(
+                    Equals(Member($e, "head"), "List"),
+                    Return($e),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Sequence(Bind($f, Call($find, Member($a, "value"))), If($f, Return($f), Undefined()))
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Var($list, Undefined()),
+            ForOf(
+              $a,
+              $args,
+              Assign($list, Or($list, Call($find, Member($a, "value"))))
+            ),
+            If(
+              Not($list),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "After",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($p, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Predict", $list)))),
+            Return(
+              If(
+                And(Call($isCall, $p), Equals(Member($p, "head"), "Predicted")),
+                $p,
+                Call(
+                  Member($api, "call"),
+                  "After",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
