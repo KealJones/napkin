@@ -1,0 +1,489 @@
+Requires(Basic())
+
+// ================================================================
+// Replying to what is not a question: talk, jokes, encouragement, a bad day
+// (design/pursue-predict.md, section 4.6).
+//
+// What to say back is a prediction of the next turn. The corpus is DailyDialog: 11,118
+// everyday conversations, every utterance labelled with its act and its feeling. The
+// utterances nearest to what was said are found. Their labels, counted against how common
+// each is anywhere, say how it was heard, and how they were answered says how to answer. Nothing is stored; everything is read from the corpus every time.
+//
+// DailyDialog (Li et al., 2017, https://aclanthology.org/I17-1099/) is CC BY-NC-SA 4.0 and
+// is not in this repository. `sh src/seed/dialogue/fetch.sh` downloads it into data/dialog.
+
+// The corpus: its files, and what its labels mean.
+Concept(DailyDialog(),
+  IsA(Corpus()),
+  Utterances("data/dialog/dumps/train/dialogues_train.txt"),
+  Acts("data/dialog/dumps/train/dialogues_act_train.txt"),
+  Emotions("data/dialog/dumps/train/dialogues_emotion_train.txt"),
+  License("CC BY-NC-SA 4.0"),
+  ActLabel(1, Inform()),
+  ActLabel(2, Question()),
+  ActLabel(3, Directive()),
+  ActLabel(4, Commissive()),
+  EmotionLabel(0, NoEmotion()),
+  EmotionLabel(1, Anger()),
+  EmotionLabel(2, Disgust()),
+  EmotionLabel(3, Fear()),
+  EmotionLabel(4, Happiness()),
+  EmotionLabel(5, Sadness()),
+  EmotionLabel(6, Surprise())
+)
+
+Concept(Corpus(), IsA(Category()))
+
+// What is done by saying something (the corpus's four acts).
+Concept(DialogueAct(), IsA(Category()))
+
+Concept(Inform(), IsA(DialogueAct()))
+
+Concept(Question(), IsA(DialogueAct()))
+
+Concept(Directive(), IsA(DialogueAct()))
+
+Concept(Commissive(), IsA(DialogueAct()))
+
+Concept(Emotion(), IsA(Category()))
+
+Concept(NoEmotion(), IsA(Emotion()))
+
+Concept(Anger(), IsA(Emotion()))
+
+Concept(Disgust(), IsA(Emotion()))
+
+Concept(Fear(), IsA(Emotion()))
+
+Concept(Happiness(), IsA(Emotion()))
+
+Concept(Sadness(), IsA(Emotion()))
+
+Concept(Surprise(), IsA(Emotion()))
+
+// What was heard: the act and feeling of what was said, by the same vote.
+Concept(Heard(), IsA(Data()))
+
+// How to answer what was said: the act of the likely reply, how what was said was heard (its
+// act and feeling), one real reply of that act (like=), and the utterance it answered (near=).
+Concept(Reply(),
+  IsA(Result()),
+  Realization(Reply($said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
+        Sequence(
+          Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+          Bind($said, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+          If(
+            Or(NotEquals(TypeOf($said), "string"), Not(Call(Member($said, "trim")))),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Reply",
+                Member(Index($args, 0), "value")
+              )
+            ),
+            Undefined()
+          ),
+          Bind($unit, Call(Member(Member($api, "store"), "get"), "DailyDialog")),
+          Bind($held,
+            Lambda(List($head),
+              Sequence(
+                Bind($r,
+                  If(
+                    $unit,
+                    Call(
+                      Member(Member($unit, "relations"), "find"),
+                      Lambda(List($x),
+                        And(Call($isCall, Member($x, "claim")), Equals(Member(Member($x, "claim"), "head"), $head))
+                      )
+                    ),
+                    Undefined()
+                  )
+                ),
+                Return(
+                  If(
+                    $r,
+                    Map(Member(Member($r, "claim"), "args"), Lambda(List($a), Member($a, "value"))),
+                    List()
+                  )
+                )
+              )
+            )
+          ),
+          Bind(List($textPath), Call($held, "Utterances")),
+          Bind(List($actPath), Call($held, "Acts")),
+          Bind(List($feelPath), Call($held, "Emotions")),
+          Bind($label,
+            Lambda(List($head, $n),
+              Sequence(
+                Bind($r,
+                  Call(
+                    Member(Member($unit, "relations"), "find"),
+                    Lambda(List($x),
+                      And(
+                        And(Call($isCall, Member($x, "claim")), Equals(Member(Member($x, "claim"), "head"), $head)),
+                        Equals(Member(Index(Member(Member($x, "claim"), "args"), 0), "value"), $n)
+                      )
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    $r,
+                    Member(Index(Member(Member($r, "claim"), "args"), 1), "value"),
+                    Call(Member($api, "call"), "Unlabelled")
+                  )
+                )
+              )
+            )
+          ),
+          Bind($text,
+            If(
+              Equals(TypeOf($textPath), "string"),
+              Call(Member($api, "readText"), $textPath),
+              Undefined()
+            )
+          ),
+          Bind($acts,
+            If(
+              Equals(TypeOf($actPath), "string"),
+              Call(Member($api, "readText"), $actPath),
+              Undefined()
+            )
+          ),
+          Bind($feels,
+            If(
+              Equals(TypeOf($feelPath), "string"),
+              Call(Member($api, "readText"), $feelPath),
+              Undefined()
+            )
+          ),
+          If(
+            Or(Or(Not($text), Not($acts)), Not($feels)),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Reply",
+                Member(Index($args, 0), "value")
+              )
+            ),
+            Undefined()
+          ),
+          Bind($words,
+            Lambda(List($s),
+              Sequence(
+                Bind($out, List()),
+                Var($w, ""),
+                ForOf(
+                  $ch,
+                  Call(Member($s, "toLowerCase")),
+                  If(
+                    Or(And(AtLeast($ch, "a"), AtMost($ch, "z")), Equals($ch, "'")),
+                    Assign($w, Add($w, $ch)),
+                    Sequence(If($w, Call(Member($out, "push"), $w), Undefined()), Assign($w, ""))
+                  )
+                ),
+                If($w, Call(Member($out, "push"), $w), Undefined()),
+                Return($out)
+              )
+            )
+          ),
+          Bind($turns, List()),
+          Bind($textLines,
+            Call(
+              Member($text, "split"),
+              """
+  """
+            )
+          ),
+          Bind($actLines,
+            Call(
+              Member($acts, "split"),
+              """
+  """
+            )
+          ),
+          Bind($feelLines,
+            Call(
+              Member($feels, "split"),
+              """
+  """
+            )
+          ),
+          For(
+            Var($d, 0),
+            LessThan($d, Length($textLines)),
+            PostIncrement($d),
+            Sequence(
+              Bind($parts,
+                Filter(
+                  Map(
+                    Call(Member(Index($textLines, $d), "split"), "__eou__"),
+                    Lambda(List($p), Call(Member($p, "trim")))
+                  ),
+                  $Boolean
+                )
+              ),
+              Bind($a,
+                If(
+                  Index($actLines, $d),
+                  Map(Call(Member(Call(Member(Index($actLines, $d), "trim")), "split"), " "), $Number),
+                  List()
+                )
+              ),
+              Bind($f,
+                If(
+                  Index($feelLines, $d),
+                  Map(Call(Member(Call(Member(Index($feelLines, $d), "trim")), "split"), " "), $Number),
+                  List()
+                )
+              ),
+              For(
+                Var($i, 0),
+                LessThan($i, Length($parts)),
+                PostIncrement($i),
+                Call(
+                  Member($turns, "push"),
+                  Object(
+                    text = Index($parts, $i),
+                    act = Index($a, $i),
+                    feel = Index($f, $i),
+                    next = If(
+                      LessThan(Add($i, 1), Length($parts)),
+                      Add(Length($turns), 1),
+                      Negate(1)
+                    )
+                  )
+                )
+              )
+            )
+          ),
+          Bind($bags, Map($turns, Lambda(List($t), New($Set, Call($words, Member($t, "text")))))),
+          Bind($df, New($Map)),
+          ForOf(
+            $b,
+            $bags,
+            ForOf(
+              $w,
+              $b,
+              Call(
+                Member($df, "set"),
+                $w,
+                Add(Or(Call(Member($df, "get"), $w), 0), 1)
+              )
+            )
+          ),
+          Bind($idf,
+            Lambda(List($w),
+              Call(Member($Math, "log"), Divide(Length($turns), Add(1, Or(Call(Member($df, "get"), $w), 0))))
+            )
+          ),
+          Bind($query, New($Set, Call($words, $said))),
+          If(
+            Not(Member($query, "size")),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Reply",
+                Member(Index($args, 0), "value")
+              )
+            ),
+            Undefined()
+          ),
+          Bind($scored, List()),
+          For(
+            Var($i, 0),
+            LessThan($i, Length($turns)),
+            PostIncrement($i),
+            Sequence(
+              Var($s, 0),
+              ForOf(
+                $w,
+                $query,
+                If(
+                  Call(Member(Index($bags, $i), "has"), $w),
+                  Assign($s, Add($s, Call($idf, $w))),
+                  Undefined()
+                )
+              ),
+              If(
+                GreaterThan($s, 0),
+                Call(
+                  Member($scored, "push"),
+                  Object(
+                    i = $i,
+                    s = Divide(
+                      $s,
+                      Call(Member($Math, "sqrt"), Add(Member(Index($bags, $i), "size"), Member($query, "size")))
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            )
+          ),
+          Call(Member($scored, "sort"), Lambda(List($x, $y), Subtract(Member($y, "s"), Member($x, "s")))),
+          Bind($near, Call(Member($scored, "slice"), 0, 25)),
+          If(
+            Not(Length($near)),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Reply",
+                Member(Index($args, 0), "value")
+              )
+            ),
+            Undefined()
+          ),
+          Bind($vote,
+            Lambda(List($pick, $againstBase),
+              Sequence(
+                Bind($prior, New($Map)),
+                Var($all, 0),
+                For(
+                  Var($i, 0),
+                  LessThan($i, Length($turns)),
+                  PostIncrement($i),
+                  Sequence(
+                    Bind($v, Call($pick, $i)),
+                    If(
+                      Or(Equals($v, Undefined()), Call(Member($Number, "isNaN"), $v)),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Call(
+                      Member($prior, "set"),
+                      $v,
+                      Add(Or(Call(Member($prior, "get"), $v), 0), 1)
+                    ),
+                    Assign($all, Add($all, 1))
+                  )
+                ),
+                Bind($tally, New($Map)),
+                Var($total, 0),
+                ForOf(
+                  $n,
+                  $near,
+                  Sequence(
+                    Bind($v, Call($pick, Member($n, "i"))),
+                    If(
+                      Or(Equals($v, Undefined()), Call(Member($Number, "isNaN"), $v)),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Call(
+                      Member($tally, "set"),
+                      $v,
+                      Add(Or(Call(Member($tally, "get"), $v), 0), Member($n, "s"))
+                    ),
+                    Assign($total, Add($total, Member($n, "s")))
+                  )
+                ),
+                Bind($smoothing, Multiply(3, If(Length($near), Member(Index($near, 0), "s"), 1))),
+                Var($best, Undefined()),
+                Var($bestLift, 0),
+                ForOf(
+                  List($v, $count),
+                  $prior,
+                  Sequence(
+                    Bind($p, Divide($count, $all)),
+                    Bind($lift,
+                      If(
+                        $againstBase,
+                        Divide(
+                          Add(Or(Call(Member($tally, "get"), $v), 0), Multiply($smoothing, $p)),
+                          Multiply(Add($total, $smoothing), $p)
+                        ),
+                        Or(Call(Member($tally, "get"), $v), 0)
+                      )
+                    ),
+                    If(
+                      GreaterThan($lift, $bestLift),
+                      Sequence(Assign($best, $v), Assign($bestLift, $lift)),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return($best)
+              )
+            )
+          ),
+          Bind($heardAct,
+            Call(
+              $vote,
+              Lambda(List($i), Member(Index($turns, $i), "act")),
+              false
+            )
+          ),
+          Bind($heardFeel,
+            Call(
+              $vote,
+              Lambda(List($i), Member(Index($turns, $i), "feel")),
+              true
+            )
+          ),
+          Bind($replyAct,
+            Call(
+              $vote,
+              Lambda(List($i),
+                If(
+                  AtLeast(Member(Index($turns, $i), "next"), 0),
+                  Member(Index($turns, Member(Index($turns, $i), "next")), "act"),
+                  Undefined()
+                )
+              ),
+              false
+            )
+          ),
+          Bind($example,
+            Call(
+              Member($near, "find"),
+              Lambda(List($n),
+                And(
+                  AtLeast(Member(Index($turns, Member($n, "i")), "next"), 0),
+                  Equals(Member(Index($turns, Member(Index($turns, Member($n, "i")), "next")), "act"), $replyAct)
+                )
+              )
+            )
+          ),
+          Return(
+            Object(
+              head = "Reply",
+              args = List(
+                Object(value = Call($label, "ActLabel", $replyAct)),
+                Object(
+                  name = "heard",
+                  value = Call(
+                    Member($api, "call"),
+                    "Heard",
+                    Call($label, "ActLabel", $heardAct),
+                    Call($label, "EmotionLabel", $heardFeel)
+                  )
+                ),
+                Object(
+                  name = "like",
+                  value = If(
+                    $example,
+                    Member(Index($turns, Member(Index($turns, Member($example, "i")), "next")), "text"),
+                    ""
+                  )
+                ),
+                Object(
+                  name = "near",
+                  value = If(
+                    $example,
+                    Member(Index($turns, Member($example, "i")), "text"),
+                    ""
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

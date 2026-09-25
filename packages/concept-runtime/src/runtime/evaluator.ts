@@ -25,7 +25,7 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
-import { fromHost, toHost } from "./host.js";
+import { fromHost, readText, toHost } from "./host.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -120,6 +120,12 @@ export interface CodeApi {
   rank(candidates: readonly string[], sources?: readonly string[]): string[];
   /** Remove these turns from the persisted trace, for explicit forgetting. */
   forgetTurns(saidSeqs: readonly number[]): void;
+  /**
+   * A local text file's contents, for data a realization reads rather than holds: a corpus
+   * too large to be Concepts. Only under the package's data directory or ~/.napkin, and
+   * cached until the file changes. Undefined when it is not there.
+   */
+  readText(path: string): string | undefined;
 }
 
 export class Runtime {
@@ -545,6 +551,7 @@ export class Runtime {
       events: this.evidence?.all() ?? [],
       rank: (candidates, sources = []) =>
         activation(this.store, sources, { among: candidates, events: this.evidence?.all() ?? [] }).map((a) => a.identity),
+      readText,
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;
         dropTurns(this.tracePath, new Set(saidSeqs));

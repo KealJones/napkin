@@ -102,6 +102,9 @@ export function holdsResidual(runtime: Runtime, result: Expr | undefined): boole
     // Inert data is the answer's structure. Keep walking its children: a data wrapper
     // must never hide an unresolved computation or reference inside it.
     if (isCall(node) && isPureData(runtime, node.head)) continue;
+    // A marker is meant to survive into the answer as said ("haha" set aside), not run, and
+    // so is a word for someone in the conversation: "me" in a statement is the speaker.
+    if (isCall(node) && (isMarker(runtime, node.head) || lineage(runtime.store, node.head).some((u) => u.identity === "Deictic"))) continue;
     if (unevaluated.some((r) => equal(r, node))) return true;
   }
   return false;

@@ -30,8 +30,22 @@ If the result is Sequence(...), each part answers the next part of the message, 
 If the result is Conflict(x, List(before), List(now)), say what you were told before about
 x and ask whether it has changed to what they just said.
 If the result is Believed(x, List(...)), say briefly that you will remember it, saying the
-facts back in plain words. If the result is Noted(x), acknowledge it in a few words and
+facts back in plain words. If the result is Noted(x) with no reply=, acknowledge it in a few words and
 say it back to them, for example "Got it, you ate an apple."
+If the result is Noted(x, reply=Reply(Act(), heard=Heard(Act(), Feeling()))),
+do not say "Got it" or repeat their words back; answer the way the Reply says: Heard is how their words came across
+(its feeling matters most: meet happiness with warmth, sadness or fear with care, anger with
+calm), and the first Act is what your reply does (Question: ask them something back; Inform:
+say something; Directive: suggest something; Commissive: offer or agree). Reply to what they
+said, in one or two short sentences, adding no facts of your own.
+If the result is Answer(Predicted(x, rule)), say x, and in a few words the rule that gives it.
+If the result is Answer(Judged(List(a, b), Kind(...), Senses(...), List(Differs(p, av, bv), ...), lean)),
+do not pick for them unless lean is Leans(...). Say they are both that kind, then for the
+most telling differences say which way each goes as "if you want ..., a; if ..., b". If lean
+is Leans(x, Recognition(...)), add that x is the better known of the two.
+If the result is Answer(Judged(List(a, b), NoCommonKind())), say you could not find a and b
+as two options of the same kind, so you cannot compare them yet.
+If the result is Answer(Unknown(x)), say you do not know x yet.
 
 Reply with the sentence only. No preamble, no markdown, no quotes around it.`;
 
@@ -264,6 +278,17 @@ function plainly(result: Expr, options: SayOptions): string | undefined {
   return direct(result, tense(options.asked)) ?? question(result);
 }
 
+/**
+ * A Reply's example is a real person's answer to a different conversation. Shown it, the model
+ * repeated it ("the pilot knows what he's doing" to someone scared about tomorrow), so it
+ * sees the act and the feeling the graph decided, and not the words.
+ */
+function withoutExamples(e: Expr): Expr {
+  if (!isCall(e)) return e;
+  const args = e.args.filter((a) => !(e.head === "Reply" && (a.name === "like" || a.name === "near")));
+  return { head: e.head, args: args.map((a) => ({ ...a, value: withoutExamples(a.value) })) };
+}
+
 export async function say(
   message: string,
   result: Expr,
@@ -281,7 +306,7 @@ export async function say(
     return unresolved(message, result, options.unrealized ?? []);
   }
 
-  const prompt = `The message was: ${message}\n\nThe result is: ${format(result)}\n\nSay it.`;
+  const prompt = `The message was: ${message}\n\nThe result is: ${format(withoutExamples(result))}\n\nSay it.`;
   try {
     const text = await generate(SYSTEM, prompt, options);
     return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim() || format(result);

@@ -11,6 +11,9 @@
  *   MutableMap(ref)                 a Map of what its cell holds, Pairs
  * Any other Concept is itself: an expression passes through as the object it is.
  */
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
 
@@ -33,6 +36,25 @@ export function toHost(v: unknown, cells?: CellStore): unknown {
   if (e.head === "MutableSet" && cells && held) return new Set(toHost(cells.read(ref as Expr), cells) as unknown[]);
   if (e.head === "MutableMap" && cells && held) return new Map((toHost(cells.read(ref as Expr), cells) as Call[]).map((p) => [toHost(p.args[0]?.value, cells), toHost(p.args[1]?.value, cells)]));
   return e;
+}
+
+const READABLE = [
+  resolve(dirname(fileURLToPath(import.meta.url)), "../../data"),
+  resolve(process.env.HOME ?? "", ".napkin"),
+];
+const texts = new Map<string, { at: number; text: string }>();
+
+/** A text file under the data directory or ~/.napkin, cached until it changes (CodeApi.readText). */
+export function readText(path: string): string | undefined {
+  const full = resolve(READABLE[0], "..", path);
+  const at = [full, resolve(path)].find((p) => READABLE.some((root) => p.startsWith(root + "/")) && existsSync(p));
+  if (at === undefined) return undefined;
+  const changed = statSync(at).mtimeMs;
+  const held = texts.get(at);
+  if (held && held.at === changed) return held.text;
+  const text = readFileSync(at, "utf8");
+  texts.set(at, { at: changed, text });
+  return text;
 }
 
 export function fromHost(v: unknown): Expr {

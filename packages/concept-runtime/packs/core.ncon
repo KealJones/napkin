@@ -675,9 +675,27 @@ Concept(Mood(),
             // A statement is a claim, not a request: it is kept as said (the conversation's
             // Said), and read back when something asks after it (Pursue). Running it would
             // turn every word of it into missing behaviour.
+            // It is answered the way people answer such a thing (Reply), when the graph knows
+            // how: a joke, a compliment and a bad day are all statements.
             If(
               And($kind, Equals(Member($kind, "head"), "Declarative")),
-              Return(Call(Member($api, "call"), "Noted", $line)),
+              Sequence(
+                Bind($message, Call(Member($api, "ambient"), "message")),
+                Bind($reply,
+                  If(
+                    $message,
+                    Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
+                    Undefined()
+                  )
+                ),
+                Return(
+                  If(
+                    And(And($reply, Equals(Member($reply, "head"), "Reply")), Length(Member($reply, "args"))),
+                    Object(head = "Noted", args = List(Object(value = $line), Object(name = "reply", value = $reply))),
+                    Call(Member($api, "call"), "Noted", $line)
+                  )
+                )
+              ),
               Undefined()
             ),
             Bind($context,
