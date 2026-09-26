@@ -62,11 +62,37 @@ export function readSource(text: string, fileName = "input.ts"): Read {
     for (const [name, value] of Object.entries(n)) {
       if (SKIP.has(name) || value === undefined) continue;
       if (KIND_FIELDS.has(name) && typeof value === "number") args.push({ name, value: node(value) });
+      else if (name === "statements" && isNodeArray(value)) args.push({ name, value: call("List", withComments(n, value)) });
       else if (isNodeArray(value)) args.push({ name, value: call("List", value.map((c) => ({ value: read(c) }))) });
       else if (isNode(value)) args.push({ name, value: read(value) });
     }
     const out = node(n.kind, args);
     source.set(out, n.getText(file).slice(0, 120));
+    return out;
+  };
+
+  /**
+   * A comment is where the writer said in words what the code does or is still to do, so it
+   * is kept where it was written: `JsComment(text="loop over args here")` among the statements
+   * it sits between, and after the last one when it closes a block.
+   */
+  const withComments = (owner: ts.Node, statements: ts.NodeArray<ts.Node>): Argument[] => {
+    const out: Argument[] = [];
+    // Between two statements there is only trivia, so every comment in the gap is one said
+    // there: before the first statement, between each two, and before the closing brace.
+    const gap = (from: number, to: number) => {
+      for (const m of text.slice(from, to).matchAll(/\/\/([^\n]*)|\/\*([\s\S]*?)\*\//g)) {
+        out.push({ value: call("JsComment", [{ name: "text", value: (m[1] ?? m[2] ?? "").trim() }]) });
+      }
+    };
+    let at = statements.pos;
+    for (const s of statements) {
+      gap(at, s.getStart(file));
+      out.push({ value: read(s) });
+      at = s.end;
+    }
+    const braced = ts.isBlock(owner) || ts.isModuleBlock(owner);
+    gap(at, ts.isSourceFile(owner) ? text.length : braced ? owner.end - 1 : owner.end);
     return out;
   };
 

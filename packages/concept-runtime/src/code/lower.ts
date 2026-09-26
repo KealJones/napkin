@@ -372,7 +372,8 @@ function hoistLateFunctions(input: Expr[]): Expr[] {
 }
 
 function lowerBlock(input: Expr[], scope: Scope): Expr {
-  const steps = hoistLateFunctions(flatten(input));
+  // A comment says what the code does; it is kept in the reading and does not run.
+  const steps = hoistLateFunctions(flatten(input)).filter((s) => !isHead(s, "Comment"));
   if (!steps.length) return U;
   // Function declarations are bound before the block runs, so a call above one reaches it.
   const functions = steps.filter((s) => declaredFunction(s) !== undefined);

@@ -119,6 +119,9 @@ Compiled(LessThan($a, $b), "(await N(\"LessThan\", $a, $b, (x, y) => B(x < y)))"
 // itself, none is Undefined().
 From(JsSourceFile(statements = List(Rest($ss))), Module(Sequence(Rest($ss))))
 From(JsBlock(statements = List(Rest($ss))), Sequence(Rest($ss)))
+
+// A comment is kept where it was written, as the words it says.
+From(JsComment(text = $t), Comment($t))
 From(Sequence($x), $x)
 From(Sequence(), Undefined())
 
@@ -1112,6 +1115,9 @@ To(Case($v, $b), Statement(), "case $v: %b")
 To(Default($b), Statement(), "default: %b")
 To(Continue(), Statement(), "continue")
 To(Break(), Statement(), "break")
+
+// A comment is written back where it was.
+To(Comment($t), Statement(), "/* #t */")
 
 // Modules.
 To(

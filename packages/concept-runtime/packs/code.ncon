@@ -2259,6 +2259,10 @@ Concept(Holds(),
 )
 
 // The IR's structure, the operations of any program that uses it.
+// What the writer said in words, where they said it (a // or /* */ comment). Read and kept,
+// never run.
+Concept(Comment(), IsA(Data()))
+
 Concept(If(), IsA(CodePrimitive()))
 
 Concept(Sequence(), IsA(CodePrimitive()))

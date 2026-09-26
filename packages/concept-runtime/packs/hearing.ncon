@@ -56,6 +56,8 @@ Concept(Concept(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("Every word hears, known or not. A word with no hearing of its own hears as its tags do:"),
+            Comment("\"americanpie\", tagged Noun, hears as a noun. A tag with no hearing of its own proposes nothing."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($self, Call(Member($bindings, "get"), "word")),
             If(
@@ -298,6 +300,8 @@ Concept(ThingAfter(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("The thing a phrase starting after `at` is about: the last noun of the describers and"),
+            Comment("nouns that follow, before anything else. \"a 1999 American teen comedy film\": film."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -375,6 +379,7 @@ Concept(ThingAfter(),
               )
             ),
             Var($thing, Negate(1)),
+            Comment("Filler is passed over: \"like uh pie\" likes pie."),
             Var($value, Negate(1)),
             Bind($after,
               Lambda(List($i),
@@ -388,6 +393,7 @@ Concept(ThingAfter(),
                 )
               )
             ),
+            Comment("A comma or colon ends a phrase: \"2, 4, 8\" are three things, \"next: 2\" two."),
             If(
               And(Call(Member(Regex("[,:;]", ""), "test"), Call($after, $at)), Not(Call($has, $at, "Filler"))),
               Return(Negate(1)),
@@ -412,17 +418,20 @@ Concept(ThingAfter(),
                   Break(),
                   Undefined()
                 ),
+                Comment("A determiner after a thing starts the next one: \"chess a sport\"."),
                 If(
                   And(Or(AtLeast($thing, 0), AtLeast($value, 0)), Call($has, $j, "Determiner")),
                   Break(),
                   Undefined()
                 ),
                 If(Call($has, $j, "Filler"), Continue(), Undefined()),
+                Comment("\"the date tomorrow\": a when after a thing is a thing of its own."),
                 If(
                   And(And(AtLeast($thing, 0), Call($has, $j, "Date")), Not(Call($has, $thing, "Date"))),
                   Break(),
                   Undefined()
                 ),
+                Comment("\"is your name keal\": a name after a common thing is a thing of its own."),
                 If(
                   And(And(AtLeast($thing, 0), Call($has, $j, "ProperNoun")), Not(Call($has, $thing, "ProperNoun"))),
                   Break(),
@@ -439,6 +448,7 @@ Concept(ThingAfter(),
                 )
               )
             ),
+            Comment("\"take 10\", \"the second one\": with no noun, the last number is the thing."),
             If(LessThan($thing, 0), Assign($thing, $value), Undefined()),
             Return($thing)
           )
@@ -457,6 +467,7 @@ Concept(Determiner(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"the\", \"a\": part of how the next thing is said."),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
@@ -512,6 +523,8 @@ Concept(Determiner(),
                 )
               )
             ),
+            Comment("\"a function that says hello world\": after a thing and before a doing, it holds the doing,"),
+            Comment("and belongs to the thing."),
             If(
               And(
                 And(And(GreaterThan($at, 0), Call($has, Subtract($at, 1), "Noun")), Call($has, Add($at, 1), "Verb")),
@@ -585,6 +598,7 @@ Concept(Describer(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"old\", \"1999\", \"my\": says something about the thing after it."),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($thing,
               Await(
@@ -634,6 +648,7 @@ Concept(Noun(),
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Comment("\"comedy\" in \"comedy film\": a noun before the thing describes it; the last noun is the thing."),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($thing,
               Await(
@@ -664,6 +679,8 @@ Concept(Noun(),
               ),
               Undefined()
             ),
+            Comment("\"a film directed by Paul Weitz\": after a verb already said, a doing right after a thing is"),
+            Comment("said about it, and the thing takes it, with whatever that doing was grouped into."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($parent,
               New(
@@ -771,6 +788,7 @@ Concept(Preposition(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"by Paul Weitz\": a preposition takes the thing after it, and belongs to the word before it."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($parent,
@@ -859,6 +877,7 @@ Concept(Preposition(),
                 )
               )
             ),
+            Comment("\"to call\": before a doing, it is part of how the doing is said."),
             If(
               And(
                 And(Call($has, Add($at, 1), "Verb"), Not(Call($has, Add($at, 1), "Noun"))),
@@ -879,6 +898,7 @@ Concept(Preposition(),
               ),
               Undefined()
             ),
+            Comment("Nothing after it to take: not a preposition here. \"what do i like\" likes."),
             If(
               LessThan($taken, 0),
               Return(
@@ -914,6 +934,7 @@ Concept(Preposition(),
               ),
               Undefined()
             ),
+            Comment("\"in 1, 1, 2, 3\": numbers written one after another with commas are all taken."),
             Bind($after,
               Lambda(List($i),
                 If(
@@ -944,6 +965,7 @@ Concept(Preposition(),
                 )
               )
             ),
+            Comment("\"tell me about yourself\": after a person, a preposition belongs to the doing before them."),
             Var(
               $owner,
               If(
@@ -952,6 +974,7 @@ Concept(Preposition(),
                 Negate(1)
               )
             ),
+            Comment("Nor does kept text own anything: 'say \"hello world\" to me' says it to me."),
             If(
               And(AtLeast($owner, 0), Or(Call($has, $owner, "Pronoun"), Call($has, $owner, "Verbatim"))),
               For(
@@ -997,6 +1020,7 @@ Concept(Conjunction(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"toilet paper and cheese sticks\": the words either side of \"and\" are one group."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($parent,
@@ -1084,6 +1108,7 @@ Concept(Copula(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"napkin is a work in progress\": \"is\" holds what is before it and what is after it."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($parent,
@@ -1140,6 +1165,7 @@ Concept(Copula(),
               )
             ),
             Bind($out, List()),
+            Comment("\"will be\": after a helper, \"be\" is what the helper carries, not what it is said of."),
             If(
               And(
                 And(
@@ -1211,6 +1237,9 @@ Concept(Verb(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"i like pie\": a doing takes the thing after it, and belongs to the thing before it. After"),
+            Comment("a verb already said (\"... is a film directed by\"), a doing is said about the thing before"),
+            Comment("it, and that thing takes it (see Noun)."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -1266,12 +1295,14 @@ Concept(Verb(),
                 )
               )
             ),
+            Comment("\"is\" holds both sides itself (Copula)."),
             If(
               Call($has, $at, "Copula"),
               Return(Call(Member($api, "call"), "List")),
               Undefined()
             ),
             Bind($out, List()),
+            Comment("\"write me a function\", \"give me three examples\": whom for, then what, each taken."),
             Bind($sentence,
               Lambda(List($i),
                 If(
@@ -1338,6 +1369,7 @@ Concept(Verb(),
                 Assign($from, $thing)
               )
             ),
+            Comment("\"remind me to call mum\": a doing after \"to\" is what the doing before it is about."),
             If(
               And(GreaterThan($at, 1), Call($has, Subtract($at, 1), "Preposition")),
               For(
@@ -1435,6 +1467,8 @@ Concept(QuestionWord(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"what is chess\", \"who wrote hamlet\": the question word leads, holding what follows it."),
+            Comment("It asks last (AskedAbout settles after every other role), so it holds what nothing else took."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -1486,6 +1520,7 @@ Concept(QuestionWord(),
               )
             ),
             Bind($out, List()),
+            Comment("\"what time\", \"which file\": a thing right after the question word is what it asks about."),
             If(
               And(
                 And(
@@ -1544,6 +1579,9 @@ Concept(Helper(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"could you close the door\", \"is chess a sport\", \"what do i like\": a helper first, or"),
+            Comment("right after the question word, asks, and holds what it asks about and what is asked of it."),
+            Comment("Anywhere else a copula holds both sides (Copula), and other helpers wait for stage 3."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -1609,6 +1647,8 @@ Concept(Helper(),
                 )
               )
             ),
+            Comment("First, or right after the question (\"what do\", \"which file did\": the word before is the"),
+            Comment("question word, or what the question word asks about)."),
             Bind($asking,
               And(
                 GreaterThan($at, 0),
@@ -1628,6 +1668,8 @@ Concept(Helper(),
             Bind($starts,
               Or(Or(Equals($at, 0), NotEquals(Call($sentence, Subtract($at, 1)), Call($sentence, $at))), $asking)
             ),
+            Comment("Anywhere else a copula holds both sides, and another helper (\"be\" after \"will\") takes"),
+            Comment("what follows it, as a doing does."),
             If(
               Not($starts),
               Sequence(
@@ -1736,6 +1778,7 @@ Concept(Helper(),
               )
             ),
             Bind($out, List()),
+            Comment("\"what will be the date\": a doing right after the helper is what it carries, and does the rest."),
             If(
               And(
                 And(
@@ -1765,6 +1808,9 @@ Concept(Helper(),
               Return(Call(Member($api, "call"), "List")),
               Undefined()
             ),
+            Comment("A helper that is not a copula carries a doing (\"did hamlet kill\"): with no verb after the"),
+            Comment("subject, the subject's last word is the doing when it could be one, whatever the tagger"),
+            Comment("made of it in this sentence."),
             Var($carried, Negate(1)),
             If(
               And(
@@ -1828,7 +1874,10 @@ Concept(Helper(),
                 Call(Member($api, "call"), "Takes")
               )
             ),
+            Comment("What is asked of it: the doing or the thing after the subject's phrase."),
             Bind($next, Add($subject, 1)),
+            Comment("A preposition after the subject belongs to it (\"the capital of france\"), not to the question."),
+            Comment("\"is not a mammal\": \"not\" holds what it denies itself."),
             If(
               Call($has, $subject, "Negative"),
               Return(Call(Member($api, "call"), "List", Spread($out))),
@@ -1894,6 +1943,7 @@ Concept(Negator(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"not a mammal\", \"do not tell me\": \"not\" holds what it denies, the thing or doing after it."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -2015,6 +2065,7 @@ Concept(Please(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"please add 2 and 2\", \"close it please\": asked politely, around what it asks."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -2105,6 +2156,8 @@ Concept(Filler(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"by 3, er, 4pm\": a hesitation between two words of one kind, the first ending in a comma,"),
+            Comment("takes the first back: the second corrects it."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
@@ -2267,6 +2320,7 @@ Concept(Operator(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"5 plus 2\": an operator takes the things either side of it."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($parent,
@@ -2373,6 +2427,7 @@ Concept(Postposition(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("\"two days ago\": a postposition takes the thing before it."),
             Bind($prompt, Member(Index($args, 0), "value")),
             Bind($at, Member(Index($args, 1), "value")),
             Bind($parent,
@@ -2447,12 +2502,15 @@ Concept(Hear(),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($text, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            Comment("Hear(text, \"rules\"): written in the rules parser's conventions, which the graph's"),
+            Comment("behaviour was built on, while that parser is the reference (design/prompt-hearing.md 4)."),
             Bind($asRules,
               And(
                 GreaterThan(Length($args), 1),
                 Equals(Call(Member($api, "toHost"), Member(Index($args, 1), "value")), "rules")
               )
             ),
+            Comment("Code, links and quotes are kept as typed, each one thing: \"fix `foo()`\" fixes InlineCode."),
             Bind($kept, Call(Member($api, "verbatim"), Call($String, $text))),
             Bind($said, Call(Member($api, "words"), Member($kept, "text"))),
             ForOf(
@@ -2464,6 +2522,7 @@ Concept(Hear(),
                 Undefined()
               )
             ),
+            Comment("A comment in the code is words: heard, and kept beside its text at its place in the code."),
             Bind($heardComments,
               Async(
                 Lambda(List($e),
@@ -2529,6 +2588,7 @@ Concept(Hear(),
               PostIncrement($n),
               Assign(Index(Member($kept, "spans"), $n), Await(Call($heardComments, Index(Member($kept, "spans"), $n))))
             ),
+            Comment("A word's Concept is its name: \"co-produced\" is CoProduced, as the Ears names words."),
             Bind($name,
               Lambda(List($t),
                 Call(
@@ -2551,6 +2611,8 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("What the graph knows a word is comes first: \"in\" is a preposition, whatever the tagger"),
+            Comment("guessed in \"work in progress\" (it said noun)."),
             Bind($classOf,
               Lambda(List($w),
                 Sequence(
@@ -2604,6 +2666,7 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("Arithmetic in symbols is said in words: \"5 + 2\" is \"5 plus 2\"."),
             Bind($SYMBOL,
               Object(
                 Pair("+", "plus"),
@@ -2635,6 +2698,7 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("\"dog's\": the owner is the word; the possessive stays in its tags."),
             ForOf(
               $w,
               $said,
@@ -2647,6 +2711,7 @@ Concept(Hear(),
                 Undefined()
               )
             ),
+            Comment("A comma before a doing starts another clause: \"take 10, double it, then subtract 5\"."),
             Var($clause, 0),
             Bind($sentences, Map($said, Lambda(List($w), Member($w, "sentence")))),
             For(
@@ -2676,6 +2741,7 @@ Concept(Hear(),
                 Assign(Member(Index($said, $i), "sentence"), $clause)
               )
             ),
+            Comment("A word said twice running (\"if if\") was said once: the first is set aside like filler."),
             For(
               Var($i, 0),
               LessThan(Add($i, 1), Length($said)),
@@ -2701,6 +2767,8 @@ Concept(Hear(),
               LessThan($i, Length($said)),
               PostIncrement($i),
               Sequence(
+                Comment("What the graph knows comes first, and the tagger's guesses stay beside it: \"like\" is a"),
+                Comment("preposition, and a verb when nothing follows it to take."),
                 Bind($known, Call($classOf, Member(Index($said, $i), "text"))),
                 Bind($tags,
                   Concat(
@@ -2738,6 +2806,9 @@ Concept(Hear(),
               )
             ),
             Bind($prompt, Call(Member($api, "call"), "Prompt", Spread($words))),
+            Comment("What has been heard before (Predict's evidence): how often one word has held another in"),
+            Comment("what people said to Napkin, counted from the conversations' Said. Ties between proposals"),
+            Comment("of the same kind go to the link heard more often."),
             Bind($seen, New($Map)),
             Bind($count,
               Lambda(List($e),
@@ -2851,6 +2922,11 @@ Concept(Hear(),
                   LessThan($i, Length($said)),
                   PostIncrement($i),
                   Sequence(
+                    Comment("Every word hears every round: one already placed may still take others (\"film\","),
+                    Comment("taken by \"is\", then takes \"directed ...\" once \"and\" has grouped it)."),
+                    Comment(
+                      "A word hears as its Concept; one that cannot be a Concept name (\"1999\") hears as its tags."
+                    ),
                     Bind($head, Call($name, Member(Index($said, $i), "text"))),
                     Bind($asked,
                       If(
@@ -2914,6 +2990,9 @@ Concept(Hear(),
                     )
                   )
                 ),
+                Comment("One parent per word, and never itself. Where two want the same word, grouping comes"),
+                Comment("first (\"and\" before a verb's own attachment), then what is part of how a thing is said,"),
+                Comment("then what takes it, then what modifies it."),
                 Bind($rank,
                   Object(
                     Corrects = 0,
@@ -2939,6 +3018,7 @@ Concept(Hear(),
                 ),
                 Bind($accepted, List()),
                 Bind($taken, New($Set, $placed)),
+                Comment("Never a loop: a word cannot come under what already comes under it."),
                 Bind($up, New($Map, Map($links, Lambda(List($l), List(Member($l, "from"), Member($l, "to")))))),
                 Bind($above,
                   Lambda(List($i, $j),
@@ -2953,6 +3033,7 @@ Concept(Hear(),
                     )
                   )
                 ),
+                Comment("A question word asks last: it holds what is left only once nothing else is still settling."),
                 Var($settling, false),
                 ForOf(
                   $p,
@@ -2963,6 +3044,7 @@ Concept(Hear(),
                       Continue(),
                       Undefined()
                     ),
+                    Comment("A word links only inside its own sentence; what reaches back further is PointsAt's."),
                     Bind($within,
                       And(
                         And(Index($said, Member($p, "from")), Index($said, Member($p, "to"))),
@@ -2972,6 +3054,7 @@ Concept(Hear(),
                         )
                       )
                     ),
+                    Comment("Filler is said beside things, never taken by them: \"like uh\" is not liking \"uh\"."),
                     If(
                       And(
                         Index($said, Member($p, "from")),
@@ -3009,6 +3092,7 @@ Concept(Hear(),
                 Assign($links, Call(Member($links, "concat"), $accepted))
               )
             ),
+            Comment("Each word is its Concept, with the words that link to it as its arguments, in the order said."),
             Bind($parentOf, New($Map, Map($links, Lambda(List($l), List(Member($l, "from"), $l))))),
             Bind($under,
               Lambda(List($i, $role),
@@ -3035,6 +3119,7 @@ Concept(Hear(),
               )
             ),
             Bind($tagged, Lambda(List($i, $tag), Includes(Member(Index($said, $i), "tags"), $tag))),
+            Comment("How a word is written out, when the graph says: \"i\" is Me, \"us\" is We."),
             Bind($heardAs,
               Lambda(List($w),
                 Sequence(
@@ -3065,6 +3150,8 @@ Concept(Hear(),
               )
             ),
             Bind($CLOCK, Regex("^([0-9]{1,2})(?::([0-9]{2}))?(am|pm)$", "i")),
+            Comment("In the rules' conventions a describer wraps the thing (\"my old car\" is My(Old(Car()))), and"),
+            Comment("a thing is only its nouns and numbers."),
             Bind($wraps,
               Lambda(List($j),
                 And(
@@ -3106,6 +3193,7 @@ Concept(Hear(),
                       )
                     )
                   ),
+                  Comment("\"2, 4, 8, 16\": numbers written one after another with commas are a list."),
                   If(
                     $asRules,
                     For(
@@ -3200,6 +3288,10 @@ Concept(Hear(),
                           )
                         ),
                         Sequence(
+                          Comment(
+                            "A pointing word, or a thing pointed at (\"that bug\", \"the second one\"), is a Ref for"
+                          ),
+                          Comment("memory to resolve, holding the words used, and whatever else it takes."),
                           Bind($span,
                             Call(
                               Member(
@@ -3234,8 +3326,17 @@ Concept(Hear(),
                               Lambda(List($j), Or(Equals($j, $i), Equals(Length(Call($under, $j, "Modifies")), 0)))
                             )
                           ),
+                          Comment(
+                            "\"a function that says\": a pointing word that takes a doing starts a clause, not a Ref."
+                          ),
                           Bind($relative,
                             And(Call($tagged, $i, "Pointing"), GreaterThan(Length(Call($under, $i, "Takes")), 0))
+                          ),
+                          Comment(
+                            "\"what time is it\": in a sentence about the moment (a date or time, or a word the graph"
+                          ),
+                          Comment(
+                            "knows points at the situation, like Time), \"it\" is the situation, not something said."
                           ),
                           Bind($deictic,
                             Lambda(List($j),
@@ -3322,6 +3423,10 @@ Concept(Hear(),
                             ),
                             Undefined()
                           ),
+                          Comment(
+                            "A symbol (\"+\") or a code (\"1st\", \"a1\") has no name to be a Concept by: a Concept name"
+                          ),
+                          Comment("starts with a letter. It is kept as it was typed."),
                           Bind($called, Or(Call($heardAs, $t), Call($name, $t))),
                           If(
                             Equals($e, Undefined()),
@@ -3343,6 +3448,7 @@ Concept(Hear(),
                       )
                     )
                   ),
+                  Comment("\"by 3, er, 4pm\": what the speaker took back, beside what they meant."),
                   ForOf(
                     $j,
                     Call($under, $i, "Corrects"),
@@ -3398,6 +3504,8 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("How each sentence was said (mood.ts, read off the words): a \"?\" or a question word or"),
+            Comment("helper first asks, a doing first orders, anything else states."),
             Bind($moodOf,
               Lambda(List($sentence),
                 Sequence(
@@ -3422,6 +3530,7 @@ Concept(Hear(),
                     Return("Interrogative"),
                     Undefined()
                   ),
+                  Comment("\"don't tell me\": a helper and \"not\" first orders."),
                   If(
                     And(
                       And(Includes($first, "Helper"), GreaterThan(Length($in_), 1)),
@@ -3450,6 +3559,8 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("\"my name is keal\": in the rules' conventions a statement's claim goes inside its subject,"),
+            Comment("through what describes it: My(Name(Is(Keal()))); \"is a\" is IsA. A Ref cannot hold one."),
             Bind($inside,
               Lambda(List($subject, $claim),
                 Sequence(
@@ -3571,6 +3682,7 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("Filler (\"uh\", \"um\") is set aside as said, beside what it came between."),
             Bind($filler, Lambda(List($i), Includes(Member(Index($said, $i), "tags"), "Filler"))),
             Bind($roots, List()),
             Var($aside, List()),
@@ -3618,6 +3730,8 @@ Concept(Hear(),
                 ),
                 Call($flush),
                 Bind($e, Call($build, $i)),
+                Comment("\"hi\", \"thanks!\": an interjection alone is said as itself, not as a statement."),
+                Comment("A word alone that does something by itself (\"hi\", \"thanks\") is said as itself."),
                 Bind($acts,
                   Lambda(List($w),
                     Sequence(
