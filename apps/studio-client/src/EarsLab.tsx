@@ -6,6 +6,7 @@
  * looked back at here.
  */
 import { useEffect, useState } from "react";
+import { request, useHost, type Reader } from "./transport";
 
 type Summary = {
   headline: number;
@@ -17,7 +18,7 @@ type Summary = {
   bySource: Record<string, number>;
   byCheck: Record<string, number>;
 };
-type Backend = "model" | "rules" | "hybrid" | "prompt";
+type Backend = Reader;
 const READERS: { value: Backend; label: string; title: string }[] = [
   { value: "model", label: "LLM", title: "The model reads every message, with the prompt on the left." },
   { value: "rules", label: "Rules", title: "The deterministic parser reads every message. The prompt is not used." },
@@ -140,7 +141,11 @@ function CaseList({ cases = [] }: { cases?: CaseView[] | undefined }) {
 }
 
 export function EarsLab() {
-  const [backend, setBackend] = useState<Backend>(() => (localStorage.getItem("ears-lab-backend") as Backend | null) ?? "model");
+  const host = useHost();
+  const offered = READERS.filter((x) => host.readers.includes(x.value));
+  const [chosen, setBackend] = useState<Backend>(() => (localStorage.getItem("ears-lab-backend") as Backend | null) ?? "model");
+  // A reader this host does not offer (the model, in a browser) falls back to the host's own.
+  const backend = host.readers.includes(chosen) ? chosen : host.defaultReader;
   const [defaultPrompt, setDefaultPrompt] = useState("");
   const [prompt, setPrompt] = useState("");
   const [message, setMessage] = useState("what day will it be in 5 days?");
@@ -158,18 +163,18 @@ export function EarsLab() {
   const [error, setError] = useState("");
 
   const refreshRuns = () =>
-    void fetch("/api/ears/runs")
+    void request("/api/ears/runs")
       .then((r) => r.json())
       .then((d: { runs?: RunRow[] }) => setRuns(d.runs ?? []))
       .catch(() => setRuns([]));
   const refreshConversions = () =>
-    void fetch("/api/ears/conversions")
+    void request("/api/ears/conversions")
       .then((r) => r.json())
       .then((d: { conversions?: Conversion[] }) => setConversions(d.conversions ?? []))
       .catch(() => setConversions([]));
 
   useEffect(() => {
-    void fetch("/api/ears/prompt")
+    void request("/api/ears/prompt")
       .then((r) => r.json())
       .then((d: { prompt: string }) => {
         setDefaultPrompt(d.prompt);
@@ -191,7 +196,7 @@ export function EarsLab() {
     setConverting(true);
     setError("");
     try {
-      const r = await fetch("/api/ears/convert", {
+      const r = await request("/api/ears/convert", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ message, system, backend }),
@@ -215,7 +220,7 @@ export function EarsLab() {
     try {
       const questions = scope === "questions";
       const only = scope && !questions ? scope : undefined;
-      const r = await fetch("/api/ears/eval", {
+      const r = await request("/api/ears/eval", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ system, samples: backend === "rules" || backend === "prompt" ? 1 : samples, only, questions, unfused, backend }),
@@ -255,7 +260,7 @@ export function EarsLab() {
 
   async function openRun(file: string, asUnfused?: boolean) {
     const q = asUnfused === undefined ? "" : `?unfused=${asUnfused ? 1 : 0}`;
-    const r = await fetch(`/api/ears/runs/${encodeURIComponent(file)}${q}`);
+    const r = await request(`/api/ears/runs/${encodeURIComponent(file)}${q}`);
     const d = (await r.json()) as RunDetail;
     setViewing({ ...d, file });
   }
@@ -271,11 +276,11 @@ export function EarsLab() {
 
   return (
     <section className="page active lab">
-      <div className="lab-grid">
+      <div className={host.models ? "lab-grid" : "lab-grid lab-grid-single"}>
         <div className="lab-head lab-reader">
         <strong>Reader</strong>
         <div className="lab-toggle" role="radiogroup" aria-label="Reader">
-          {READERS.map((x) => (
+          {offered.map((x) => (
             <button
               key={x.value}
               role="radio"
@@ -291,19 +296,22 @@ export function EarsLab() {
         </div>
         <span className="lab-muted">{READERS.find((x) => x.value === backend)?.title}</span>
         </div>
-        <div className={backend === "rules" || backend === "prompt" ? "lab-col lab-unused" : "lab-col"}>
-          <div className="lab-head">
-            <strong>System prompt</strong>
-            <span className="lab-muted">
-              {prompt.length} chars {edited ? "· edited (not saved anywhere)" : "· current prompt.ts"}
-              {backend === "rules" ? " · not used by the rules" : backend === "prompt" ? " · not used by hearing" : backend === "hybrid" ? " · used only when the rules refuse" : ""}
-            </span>
-            <button className="ghost" disabled={!edited} onClick={() => setPrompt(defaultPrompt)}>
-              Reset
-            </button>
+        {/* The system prompt is the model's: where no model reads, there is nothing to edit. */}
+        {host.models && (
+          <div className={backend === "rules" || backend === "prompt" ? "lab-col lab-unused" : "lab-col"}>
+            <div className="lab-head">
+              <strong>System prompt</strong>
+              <span className="lab-muted">
+                {prompt.length} chars {edited ? "· edited (not saved anywhere)" : "· current prompt.ts"}
+                {backend === "rules" ? " · not used by the rules" : backend === "prompt" ? " · not used by hearing" : backend === "hybrid" ? " · used only when the rules refuse" : ""}
+              </span>
+              <button className="ghost" disabled={!edited} onClick={() => setPrompt(defaultPrompt)}>
+                Reset
+              </button>
+            </div>
+            <textarea className="lab-prompt" spellCheck={false} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           </div>
-          <textarea className="lab-prompt" spellCheck={false} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-        </div>
+        )}
 
         <div className="lab-col">
           <div className="lab-card">

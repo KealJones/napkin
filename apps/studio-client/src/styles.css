@@ -1201,6 +1201,7 @@ button.ghost {
 
 /* Ears lab */
 .lab-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; padding: 16px; height: 100%; overflow: auto; }
+.lab-grid-single { grid-template-columns: minmax(0, 1fr); }
 .lab-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .lab-head { display: flex; align-items: center; gap: 10px; }
 .lab-head .ghost { margin-left: auto; }

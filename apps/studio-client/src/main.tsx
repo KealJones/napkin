@@ -10,6 +10,7 @@ import {
 import type { TraceEvent } from "@napkin/concept-runtime";
 import "./styles.css";
 import { EarsLab } from "./EarsLab";
+import { request, useHost, type Reader } from "./transport";
 
 type Page = "chat" | "concepts" | "traces" | "ears";
 type ConversationSummary = {
@@ -38,7 +39,6 @@ type ConceptUnit = {
   updatedAt?: string;
   usage?: { selected: number; residual: number };
 };
-type Reader = "model" | "rules" | "hybrid" | "prompt";
 
 type Activity = {
   id: string;
@@ -93,8 +93,15 @@ type TraceSummary = {
 
 const initialPrompt = "";
 
+const READER_OPTIONS: { value: Reader; label: string }[] = [
+  { value: "hybrid", label: "Hybrid" },
+  { value: "rules", label: "Rules" },
+  { value: "prompt", label: "Hearing" },
+  { value: "model", label: "LLM" },
+];
+
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await request(path, {
     ...options,
     headers: { "content-type": "application/json", ...options?.headers },
   });
@@ -305,7 +312,8 @@ function App() {
   const [persistentTurn, setPersistentTurn] = useState(true);
   const [model, setModel] = useState("qwen3.5:4b");
   // Who reads a message: the rules first and the model for what they cannot (hybrid), or one alone.
-  const [readBy, setReadBy] = useState<Reader>(() => {
+  const host = useHost();
+  const [chosenReader, setReadBy] = useState<Reader>(() => {
     try {
       const saved = localStorage.getItem("napkin-reader");
       return saved === "model" || saved === "rules" || saved === "hybrid" || saved === "prompt" ? saved : "hybrid";
@@ -313,6 +321,8 @@ function App() {
       return "hybrid";
     }
   });
+  // A reader this host does not offer (the model or hybrid, in a browser) falls back to its own.
+  const readBy = host.readers.includes(chosenReader) ? chosenReader : host.defaultReader;
   const [endpoint, setEndpoint] = useState("http://127.0.0.1:11434");
   const [title, setTitle] = useState("New conversation");
   const [concepts, setConcepts] = useState<ConceptUnit[]>([]);
@@ -572,14 +582,13 @@ function App() {
         { role: "User", content: source, activity },
       ]);
       setPrompt("");
-      const response = await fetch("/api/chat/turn", {
+      const response = await request("/api/chat/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: id,
           text: source,
-          model,
-          endpoint,
+          ...(host.models ? { model, endpoint } : {}),
           backend: readBy,
         }),
       });
@@ -818,7 +827,7 @@ function App() {
           <span className="runtime-dot" />
           Local runtime
           <br />
-          <span className="side-indent">Concept graph · Ollama</span>
+          <span className="side-indent">{host.models ? "Concept graph · Ollama" : "Concept graph · in this browser"}</span>
         </div>
       </aside>
       <main className="main">
@@ -979,7 +988,7 @@ function App() {
                       <select
                         className="model-input reader-select"
                         value={readBy}
-                        title="Who reads the message: the rules, the model, or the rules with the model for what they cannot read"
+                        title={host.models ? "Who reads the message: the rules, the model, or the rules with the model for what they cannot read" : "Who reads the message: the rules, or hearing"}
                         onChange={(event) => {
                           const next = event.target.value as Reader;
                           setReadBy(next);
@@ -991,23 +1000,28 @@ function App() {
                         }}
                         aria-label="Reader"
                       >
-                        <option value="hybrid">Hybrid</option>
-                        <option value="rules">Rules</option>
-                        <option value="prompt">Hearing</option>
-                        <option value="model">LLM</option>
+                        {READER_OPTIONS.filter((o) => host.readers.includes(o.value)).map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
                       </select>
-                      <input
-                        className="model-input"
-                        value={model}
-                        onChange={(event) => setModel(event.target.value)}
-                        aria-label="Ollama model"
-                      />
-                      <input
-                        className="model-input endpoint-input"
-                        value={endpoint}
-                        onChange={(event) => setEndpoint(event.target.value)}
-                        aria-label="Ollama endpoint"
-                      />
+                      {host.models && (
+                        <>
+                          <input
+                            className="model-input"
+                            value={model}
+                            onChange={(event) => setModel(event.target.value)}
+                            aria-label="Ollama model"
+                          />
+                          <input
+                            className="model-input endpoint-input"
+                            value={endpoint}
+                            onChange={(event) => setEndpoint(event.target.value)}
+                            aria-label="Ollama endpoint"
+                          />
+                        </>
+                      )}
                       <button
                         className="primary"
                         disabled={sending || !prompt.trim()}

@@ -5,3 +5,6 @@ packages:
 allowBuilds:
   core-js: false
   esbuild: true
+
+patchedDependencies:
+  difflib@0.2.4: patches/difflib@0.2.4.patch

@@ -4,3 +4,5 @@ dist/
 **/dist/
 .DS_Store
 packages/concept-runtime/data/
+apps/studio-client/public-pages/
+apps/studio-client/dist-pages/

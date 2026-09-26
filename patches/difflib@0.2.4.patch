@@ -1,0 +1,20 @@
+diff --git a/lib/difflib.js b/lib/difflib.js
+index 80d250e7e18bdc972df3621ee5c05ffff0e3659f..b8dc52bf9f07f7856dcbf0523c85ded377279c3e 100644
+--- a/lib/difflib.js
++++ b/lib/difflib.js
+@@ -75,7 +75,6 @@ Class Differ:
+ 
+   SequenceMatcher = (function() {
+ 
+-    SequenceMatcher.name = 'SequenceMatcher';
+ 
+     /*
+       SequenceMatcher is a flexible class for comparing pairs of sequences of
+@@ -737,7 +736,6 @@ Class Differ:
+ 
+   Differ = (function() {
+ 
+-    Differ.name = 'Differ';
+ 
+     /*
+       Differ is a class for comparing sequences of lines of text, and
