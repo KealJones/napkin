@@ -357,7 +357,7 @@ Concept(WikidataSenses(),
               Return(Call(Member($api, "call"), "List")),
               Undefined()
             ),
-            Bind($base, "https://www.wikidata.org/w/api.php?format=json&"),
+            Bind($base, "https://www.wikidata.org/w/api.php?format=json&origin=*&"),
             Bind($search,
               Call(
                 Member($api, "toHost"),
@@ -590,7 +590,7 @@ Concept(WikidataFind(),
               Add(
                 Add(
                   Add(
-                    "https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&limit=7&type=",
+                    "https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&limit=7&type=",
                     $kind
                   ),
                   "&search="
@@ -677,7 +677,7 @@ Concept(LookUp(),
               Return(Call(Member($api, "call"), "List")),
               Undefined()
             ),
-            Bind($api_, "https://www.wikidata.org/w/api.php?format=json&"),
+            Bind($api_, "https://www.wikidata.org/w/api.php?format=json&origin=*&"),
             Bind($got,
               Call(
                 Member($api, "toHost"),

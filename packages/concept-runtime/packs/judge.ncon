@@ -204,7 +204,7 @@ Concept(Judge(),
               Undefined()
             ),
             Bind($ids, Map($chosen, Lambda(List($e), Member(Index(Member($e, "args"), 0), "value")))),
-            Bind($base, "https://www.wikidata.org/w/api.php?format=json&"),
+            Bind($base, "https://www.wikidata.org/w/api.php?format=json&origin=*&"),
             Bind($got,
               Call(
                 Member($api, "toHost"),

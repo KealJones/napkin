@@ -40,7 +40,8 @@ const PER_PROPERTY = 4;
 
 type Fetch = (url: string) => Promise<unknown>;
 
-const API = "https://www.wikidata.org/w/api.php?";
+// `origin=*`: an anonymous CORS request, so a browser host can read the answer too.
+const API = "https://www.wikidata.org/w/api.php?origin=*&";
 
 /**
  * Politely: one call at a time with a gap between, a User-Agent that says who is asking
