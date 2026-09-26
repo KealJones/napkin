@@ -1,7 +1,12 @@
 # Prompt hearing: words that find each other
 
-Status: spec and plan, not built. First written 2026-09-25 as an idea; this version says
-how it would work.
+Status (2026-09-25): stages 0 to 3 built in packs/hearing.ncon, and stage 4's backend
+exists (`napkin --hear prompt`, `Hear(text, "rules")` for the rules parser's conventions).
+The rules parser is still the default: replaying the 108 saved prompts, the prompt backend
+answers from the graph as often (77 against 71) but still differs on 34, including lone
+codes ("a1") heard as statements, fixed phrases ("sup", "brb"), and a few clause shapes.
+Not built: same-shape grouping and the scoped resolver (section 7), and stage 5. Score with
+`node dist/ears/eval/hearing.js --rules`.
 
 ## 1. Why
 
