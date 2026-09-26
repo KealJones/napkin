@@ -12,13 +12,11 @@
  * probable misspelling ("wether" for weather), unless it is only an inflection of a known
  * word. Everything else is left exactly as typed.
  */
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname } from "node:path";
 import nlp from "compromise";
+import SymSpell from "node-symspell";
+import { moduleFile, read } from "#platform";
 
-const require = createRequire(import.meta.url);
-const ENGLISH: ReadonlySet<string> = new Set(require("an-array-of-english-words") as string[]);
+const ENGLISH: ReadonlySet<string> = new Set(JSON.parse(read(moduleFile("an-array-of-english-words/index.json")) ?? "[]") as string[]);
 const LEXICON = (nlp.model() as { one: { lexicon: Record<string, string | string[]> } }).one.lexicon;
 const COMMON: ReadonlySet<string> = new Set(Object.keys(LEXICON).filter((w) => /^[a-z]+$/.test(w) && w.length > 2));
 
@@ -107,13 +105,7 @@ function swapped(w: string, prev: string): string | undefined {
   return options[0];
 }
 
-interface Suggestion { term: string; distance: number; count: number }
-interface SymSpellIndex {
-  createDictionaryEntry(key: string, count: number): void;
-  lookup(input: string, verbosity: number, maxEditDistance: number): Suggestion[];
-  words: Map<string, number>;
-  bigrams: Map<string, number>;
-}
+type SymSpellIndex = SymSpell;
 
 /**
  * SymSpell (Wolf Garbe's symmetric-delete algorithm, via node-symspell) with its English
@@ -124,14 +116,13 @@ interface SymSpellIndex {
 let index: SymSpellIndex | undefined;
 function symspell(): SymSpellIndex {
   if (index) return index;
-  const SymSpell = require("node-symspell") as { new (maxEdit: number, prefix: number): SymSpellIndex; Verbosity: { ALL: number } };
-  const dir = dirname(require.resolve("node-symspell/package.json")) + "/dictionaries/";
+  const dictionary = (name: string) => read(moduleFile(`node-symspell/dictionaries/${name}`)) ?? "";
   const built = new SymSpell(2, 7);
-  for (const line of readFileSync(dir + "frequency_dictionary_en_82_765.txt", "utf8").split("\n")) {
+  for (const line of dictionary("frequency_dictionary_en_82_765.txt").split("\n")) {
     const [word, count] = line.trim().split(" ");
     if (word && count) built.createDictionaryEntry(word, Number(count));
   }
-  for (const line of readFileSync(dir + "frequency_bigramdictionary_en_243_342.txt", "utf8").split("\n")) {
+  for (const line of dictionary("frequency_bigramdictionary_en_243_342.txt").split("\n")) {
     const [a, b, count] = line.trim().split(" ");
     if (a && b && count) built.bigrams.set(a + " " + b, Number(count));
   }

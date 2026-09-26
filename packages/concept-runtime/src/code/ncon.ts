@@ -18,9 +18,7 @@
  * retires what it no longer has, and never touches what anyone else added.
  */
 import { formatNcon } from "./format.js";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, exists, join, list, read, runtimeRoot } from "#platform";
 import { type Argument, type Call, type Expr, call, format, isCall, parseMany } from "../concept/expression.js";
 import type { ConceptUnit, Realization, Relation } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
@@ -278,17 +276,17 @@ export function formatPack(
  * ------------------------------------------------------------------ */
 
 /** The packs that ship with the runtime. */
-export const BUILT_IN_PACKS = fileURLToPath(new URL("../../packs/", import.meta.url));
+export const BUILT_IN_PACKS = join(runtimeRoot, "packs");
 
 /** Every `.ncon` in these directories, each after the packs it requires. */
 export function loadPacks(dirs: readonly string[]): Pack[] {
   const found = new Map<string, Pack>();
   for (const dir of dirs) {
-    if (!existsSync(dir)) continue;
-    for (const file of readdirSync(dir).filter((f) => f.endsWith(".ncon")).sort()) {
+    if (!exists(dir)) continue;
+    for (const file of list(dir).filter((f) => f.endsWith(".ncon")).sort()) {
       const name = packName(basename(file, ".ncon"));
       if (found.has(name)) throw new PackError(name, `defined twice, the second in ${dir}`);
-      found.set(name, parsePack(readFileSync(join(dir, file), "utf8"), name));
+      found.set(name, parsePack(read(join(dir, file)) ?? "", name));
     }
   }
   const ordered: Pack[] = [];

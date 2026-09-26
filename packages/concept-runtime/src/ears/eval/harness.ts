@@ -3,10 +3,7 @@
  * compare. The CLI (`run.ts`) and the studio's Ears lab both drive this, so a score in the
  * lab and a score from `pnpm eval:ears` mean the same thing.
  */
-import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { append, join, list, read, runtimeRoot, digest, write } from "#platform";
 import { type Expr, call, format, parse } from "../../concept/expression.js";
 import { seed } from "../../seed/seed.js";
 import { ConceptStore } from "../../store/store.js";
@@ -16,7 +13,7 @@ import { earsPrompt } from "../prompt.js";
 import { loadGold } from "./gold.js";
 import { type EvalCase, type Score, family, namesIn, passed, score } from "./score.js";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = runtimeRoot;
 const CASES = join(ROOT, "eval/ears/cases.json");
 const GOLD = join(ROOT, "eval/ears/gold.md");
 export const RESULTS = join(ROOT, "eval/ears/results");
@@ -94,7 +91,7 @@ export function compare(before: Run, after: Run) {
   };
 }
 
-export const load = (path: string): Run => JSON.parse(readFileSync(path, "utf8")) as Run;
+export const load = (path: string): Run => JSON.parse(read(path) ?? "") as Run;
 
 const FUSED = /^(What|Who|When|Where|Why|How|Which)(Is|Are|Was|Were|Did|Do|Does|Will|Would|Can|Could|Should|Has|Have|Had)$/;
 
@@ -137,12 +134,11 @@ const readFor = (raw: string, message: string, unfused: boolean, backend?: "rule
 const withGold = (cases: EvalCase[], unfused: boolean): EvalCase[] =>
   unfused ? cases.map((c) => (c.target === undefined ? c : { ...c, target: unfuse(c.target) })) : cases;
 
-export const currentCases = (): EvalCase[] => [...(JSON.parse(readFileSync(CASES, "utf8")) as EvalCase[]), ...loadGold(GOLD)];
+export const currentCases = (): EvalCase[] => [...(JSON.parse(read(CASES) ?? "[]") as EvalCase[]), ...loadGold(GOLD)];
 
 export function save(run: Run): string {
-  mkdirSync(RESULTS, { recursive: true });
   const out = join(RESULTS, `${run.date.replace(/[:.]/g, "-")}-${run.label}-${run.promptHash}.json`);
-  writeFileSync(out, JSON.stringify(run, null, 2));
+  write(out, JSON.stringify(run, null, 2));
   return out;
 }
 
@@ -172,12 +168,7 @@ export function rescore(old: Run, unfused = old.unfused === true): Run {
 
 /** The newest saved run, optionally only one whose label passes the filter. */
 export function latestRun(keep: (label: string) => boolean = () => true): Run | undefined {
-  let files: string[];
-  try {
-    files = readdirSync(RESULTS).filter((f) => f.endsWith(".json")).sort().reverse();
-  } catch {
-    return undefined;
-  }
+  const files = list(RESULTS).filter((f) => f.endsWith(".json")).sort().reverse();
   for (const f of files) {
     const run = load(join(RESULTS, f));
     if (keep(run.label)) return run;
@@ -221,7 +212,7 @@ export async function runEars(options: EarsRunOptions = {}): Promise<Run> {
     date: new Date().toISOString(),
     model,
     samples,
-    promptHash: createHash("sha256").update(prompt).digest("hex").slice(0, 10),
+    promptHash: digest(prompt).slice(0, 10),
     promptChars: prompt.length,
     prompt,
     ...(options.unfused ? { unfused: true } : {}),
@@ -265,12 +256,7 @@ export async function runEars(options: EarsRunOptions = {}): Promise<Run> {
 
 /** Every saved run, newest first, with its file name. */
 export function listRuns(): { file: string; run: Run }[] {
-  let files: string[];
-  try {
-    files = readdirSync(RESULTS).filter((f) => f.endsWith(".json") && !f.includes("rescored")).sort().reverse();
-  } catch {
-    return [];
-  }
+  const files = list(RESULTS).filter((f) => f.endsWith(".json") && !f.includes("rescored")).sort().reverse();
   return files.map((file) => ({ file, run: load(join(RESULTS, file)) }));
 }
 
@@ -296,17 +282,16 @@ export interface Conversion {
 }
 
 export function logConversion(entry: Conversion): void {
-  mkdirSync(RESULTS, { recursive: true });
-  writeFileSync(CONVERSIONS, JSON.stringify(entry) + "\n", { flag: "a" });
+  append(CONVERSIONS, JSON.stringify(entry) + "\n");
 }
 
 export function recentConversions(limit = 30): Conversion[] {
   try {
-    return readFileSync(CONVERSIONS, "utf8").trim().split("\n").filter(Boolean).slice(-limit).reverse()
+    return (read(CONVERSIONS) ?? "").trim().split("\n").filter(Boolean).slice(-limit).reverse()
       .map((l) => JSON.parse(l) as Conversion);
   } catch {
     return [];
   }
 }
 
-export const hashPrompt = (prompt: string): string => createHash("sha256").update(prompt).digest("hex").slice(0, 10);
+export const hashPrompt = (prompt: string): string => digest(prompt).slice(0, 10);

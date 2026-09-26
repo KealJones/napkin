@@ -14,7 +14,7 @@
  *
  * A fence may be longer than three backticks, so a message can itself contain a fence.
  */
-import { readFileSync } from "node:fs";
+import { read } from "#platform";
 import { lift } from "../lift.js";
 import type { EvalCase } from "./score.js";
 
@@ -91,4 +91,4 @@ export function parseGold(markdown: string): GoldCase[] {
   return cases;
 }
 
-export const loadGold = (path: string): GoldCase[] => parseGold(readFileSync(path, "utf8"));
+export const loadGold = (path: string): GoldCase[] => parseGold(read(path) ?? "");

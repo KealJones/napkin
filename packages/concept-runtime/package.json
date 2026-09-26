@@ -4,6 +4,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "imports": {
+    "#platform": {
+      "types": "./dist/platform/node.d.ts",
+      "browser": "./dist/platform/browser.js",
+      "default": "./dist/platform/node.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

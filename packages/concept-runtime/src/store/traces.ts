@@ -9,9 +9,7 @@
  * One JSON line per event, appended, never rewritten. Expressions are stored as text, the
  * same way the graph stores them.
  */
-import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
-import { dirname } from "node:path";
+import { append, read, digest, write } from "#platform";
 import { format, type Expr } from "../concept/expression.js";
 import type { TraceEvent } from "../runtime/trace.js";
 
@@ -44,7 +42,7 @@ export interface StoredTraceEvent {
   tieBroken: boolean;
 }
 
-export const realizationHash = (r: Expr): string => createHash("sha256").update(format(r)).digest("hex").slice(0, 16);
+export const realizationHash = (r: Expr): string => digest(format(r)).slice(0, 16);
 
 /** Shared with the evidence cache (`runtime/evidence.ts`), so a freshly written event is
  * indexed the same way a reloaded one is. */
@@ -76,19 +74,14 @@ export const toStored = (e: TraceEvent): StoredTraceEvent => ({
 
 export function appendTrace(path: string, events: readonly TraceEvent[]): number {
   if (!events.length) return 0;
-  mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, events.map((e) => JSON.stringify(toStored(e))).join("\n") + "\n", "utf8");
+  append(path, events.map((e) => JSON.stringify(toStored(e))).join("\n") + "\n");
   return events.length;
 }
 
 /** Every stored event, oldest first. A torn last line from an interrupted write is skipped. */
 export function readTrace(path: string): StoredTraceEvent[] {
-  let text: string;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch {
-    return [];
-  }
+  const text = read(path);
+  if (text === undefined) return [];
   const out: StoredTraceEvent[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
@@ -110,8 +103,6 @@ export function dropTurns(path: string, saidSeqs: ReadonlySet<number>): number {
   const events = readTrace(path);
   const kept = events.filter((e) => e.saidSeq === null || !saidSeqs.has(e.saidSeq));
   if (kept.length === events.length) return 0;
-  const temporary = `${path}.tmp`;
-  writeFileSync(temporary, kept.map((e) => JSON.stringify(e)).join("\n") + (kept.length ? "\n" : ""), "utf8");
-  renameSync(temporary, path);
+  write(path, kept.map((e) => JSON.stringify(e)).join("\n") + (kept.length ? "\n" : ""));
   return events.length - kept.length;
 }

@@ -8,8 +8,7 @@
  * Stored as readable JSON rather than an opaque format, because a Concept graph you cannot
  * inspect by hand is one you cannot debug.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { read, write } from "#platform";
 import { type Expr, format, parse } from "../concept/expression.js";
 import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
 import { ConceptStore } from "./store.js";
@@ -146,21 +145,14 @@ export function save(store: ConceptStore, path: string): number {
     sequence: store.sequence,
     units: store.all().map(toStored),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  // Write and rename, so an interrupted save cannot leave a truncated graph behind.
-  const temporary = `${path}.tmp`;
-  writeFileSync(temporary, JSON.stringify(snapshot, null, 2), "utf8");
-  renameSync(temporary, path);
+  // Written whole (beside it and renamed on Node), so an interrupted save cannot leave a truncated graph.
+  write(path, JSON.stringify(snapshot, null, 2));
   return snapshot.units.length;
 }
 
 export function load(store: ConceptStore, path: string): number {
-  let text: string;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch {
-    return 0;
-  }
+  const text = read(path);
+  if (text === undefined) return 0;
   const snapshot = JSON.parse(text) as Snapshot;
   if (snapshot.version !== 1) throw new Error(`Unknown graph version ${snapshot.version}`);
   let loaded = 0;

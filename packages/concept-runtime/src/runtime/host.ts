@@ -11,11 +11,8 @@
  *   MutableMap(ref)                 a Map of what its cell holds, Pairs
  * Any other Concept is itself: an expression passes through as the object it is.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import nlp from "compromise";
-import { createRequire } from "node:module";
+import { exists, home, moduleFile, mtime, read, resolve, runtimeRoot } from "#platform";
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
 
@@ -40,21 +37,19 @@ export function toHost(v: unknown, cells?: CellStore): unknown {
   return e;
 }
 
-const READABLE = [
-  resolve(dirname(fileURLToPath(import.meta.url)), "../../data"),
-  resolve(process.env.HOME ?? "", ".napkin"),
-];
+const READABLE = [resolve(runtimeRoot, "data"), resolve(home(), ".napkin")];
 const texts = new Map<string, { at: number; text: string }>();
 
 /** A text file under the data directory or ~/.napkin, cached until it changes (CodeApi.readText). */
 export function readText(path: string): string | undefined {
   const full = resolve(READABLE[0], "..", path);
-  const at = [full, resolve(path)].find((p) => READABLE.some((root) => p.startsWith(root + "/")) && existsSync(p));
+  const at = [full, resolve(path)].find((p) => READABLE.some((root) => p.startsWith(root + "/")) && exists(p));
   if (at === undefined) return undefined;
-  const changed = statSync(at).mtimeMs;
+  const changed = mtime(at);
   const held = texts.get(at);
   if (held && held.at === changed) return held.text;
-  const text = readFileSync(at, "utf8");
+  const text = read(at);
+  if (text === undefined) return undefined;
   texts.set(at, { at: changed, text });
   return text;
 }
@@ -105,7 +100,7 @@ let english: Set<string> | undefined;
 /** A name, as opposed to a word: Berlin, Greg, Keal, but not bolt or apple (CodeApi.properNoun). */
 export function properNoun(word: string): boolean {
   const w = word.toLowerCase();
-  english ??= new Set(createRequire(import.meta.url)("an-array-of-english-words") as string[]);
+  english ??= new Set(JSON.parse(read(moduleFile("an-array-of-english-words/index.json")) ?? "[]") as string[]);
   return nlp(w).has("#ProperNoun") || !english.has(w);
 }
 

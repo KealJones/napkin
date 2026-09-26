@@ -17,8 +17,7 @@
  * The lines are one per change and never formatted (code/format.ts leaves a journal alone):
  * a machine writes them, and the journal is the file that grows.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { append, claim, dirname, exists, read, release, rename, write } from "#platform";
 import { type Call, type Expr, call, format, isCall, parse } from "../concept/expression.js";
 import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.js";
 import { readRealization, realizationExpr } from "../code/ncon.js";
@@ -310,22 +309,9 @@ export function compactEntries(store: ConceptStore): Expr[] {
 /** Rewrite the journal as the fewest lines that rebuild the graph now. */
 export function compact(store: ConceptStore, path: string): number {
   const entries = compactEntries(store);
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.tmp`;
-  writeFileSync(temporary, HEADER(store.sequence) + entries.map((e) => `${format(e)}\n`).join(""), "utf8");
-  renameSync(temporary, path);
+  write(path, HEADER(store.sequence) + entries.map((e) => `${format(e)}\n`).join(""));
   return entries.length;
 }
-
-/** Whether a process id is running. */
-const alive = (pid: number): boolean => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 /**
  * Open the graph at `path` (`~/.napkin/store.ncon`): seed the packs, replay the journal over
@@ -336,25 +322,22 @@ const alive = (pid: number): boolean => {
  */
 export function openGraph(store: ConceptStore, path: string, seedPacks: (store: ConceptStore) => readonly string[]): GraphReport {
   const report: GraphReport = { path, replayed: 0, skipped: [], overMissing: {}, readOnly: false };
-  const lock = `${path}.lock`;
-  if (existsSync(lock)) {
-    const pid = Number(readFileSync(lock, "utf8").trim());
-    if (pid && pid !== process.pid && alive(pid)) report.readOnly = true;
-  }
+  // One writer: another running process (or browser tab) holding the graph makes this one a reader.
+  if (!claim(path)) report.readOnly = true;
 
   const legacy = path.replace(/store\.ncon$/, "graph.json");
-  if (!existsSync(path) && legacy !== path && existsSync(legacy) && !report.readOnly) {
+  if (!exists(path) && legacy !== path && exists(legacy) && !report.readOnly) {
     // The old graph, read as it always was (loaded, then the packs seeded over it), and
     // written as the journal. What runs is then what the journal holds, read back below.
     const old = new ConceptStore();
     loadJson(old, legacy);
     seedPacks(old);
     compact(old, path);
-    renameSync(legacy, `${legacy}.migrated`);
+    rename(legacy, `${legacy}.migrated`);
     report.migratedFrom = legacy;
   }
 
-  const text = existsSync(path) ? readFileSync(path, "utf8") : "";
+  const text = read(path) ?? "";
   const lines = text.split("\n").filter((l) => l.trim() && !l.trimStart().startsWith("//"));
   const entries: Expr[] = [];
   let sequence = 0;
@@ -386,22 +369,12 @@ export function openGraph(store: ConceptStore, path: string, seedPacks: (store: 
   report.overMissing = Object.fromEntries(missing);
 
   if (!report.readOnly) {
-    mkdirSync(dirname(path), { recursive: true });
-    if (!existsSync(path)) writeFileSync(path, HEADER(store.sequence), "utf8");
-    writeFileSync(lock, String(process.pid), "utf8");
-    const release = () => {
-      try {
-        if (existsSync(lock) && readFileSync(lock, "utf8").trim() === String(process.pid)) unlinkSync(lock);
-      } catch {
-        // Leaving a stale lock is harmless: the next process sees its pid is not running.
-      }
-    };
-    process.once("exit", release);
+    if (!read(path)) write(path, HEADER(store.sequence));
     store.onChange = (change) => {
       // What is deleted leaves the file: forgetting that stayed as lines a later line undoes
       // would not be forgetting.
       if (change.kind === "collect" || change.kind === "forget") compact(store, path);
-      else appendFileSync(path, `${format(entryFor(store, change))}\n`, "utf8");
+      else append(path, `${format(entryFor(store, change))}\n`);
     };
   }
   return report;
@@ -410,12 +383,7 @@ export function openGraph(store: ConceptStore, path: string, seedPacks: (store: 
 /** Stop appending to the journal (a test's store, or a process handing the graph over). */
 export function closeGraph(store: ConceptStore, path: string): void {
   store.onChange = undefined;
-  const lock = `${path}.lock`;
-  try {
-    if (existsSync(lock) && readFileSync(lock, "utf8").trim() === String(process.pid)) unlinkSync(lock);
-  } catch {
-    // As above.
-  }
+  release(path);
 }
 
 
