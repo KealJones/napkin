@@ -5,7 +5,8 @@
  * together with the prompt rules they took validity from 67% to 100% and fidelity from
  * 65% to 86%.
  */
-import { type Expr, heads, isCall, walk } from "../concept/expression.js";
+import { type Expr, c, call, format, heads, isCall, walk } from "../concept/expression.js";
+import { Runtime } from "../runtime/evaluator.js";
 import type { ConceptStore } from "../store/store.js";
 import { dropArticles, lift as liftLines, mendDates, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
 import { frame } from "./mood.js";
@@ -43,7 +44,7 @@ export interface EarsResult {
   readonly rejected: Lifted["rejected"];
   readonly attempts: number;
   /** Which reader produced it: the grammar rules, or the model. */
-  readonly backend?: "rules" | "model";
+  readonly backend?: "rules" | "model" | "prompt";
   /** When the rules were tried and gave up, why: the next rule to write. */
   readonly fallback?: string;
 }
@@ -83,7 +84,7 @@ export interface HearOptions extends ModelOptions {
    * parser alone (`parser/rules.ts`). `hybrid` tries the rules first and falls back to the
    * model, recording why, so every fallback names a rule not written yet.
    */
-  backend?: "model" | "rules" | "hybrid";
+  backend?: "model" | "rules" | "hybrid" | "prompt";
   /**
    * Recent turns, so a back-reference can be marked rather than invented.
    *
@@ -133,7 +134,18 @@ export async function hear(
   options: HearOptions = {},
 ): Promise<EarsResult> {
   let fallback: string | undefined;
-  if (options.backend === "rules" || options.backend === "hybrid") {
+  // Prompt hearing (design/prompt-hearing.md): the words find each other in the graph. Each
+  // line it hears is read the way a rules reading is; nothing heard falls back to the rules.
+  if (options.backend === "prompt") {
+    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: message }, { value: "rules" }]), c("Execution"));
+    const lines = isCall(heard) && heard.head === "Phrases" ? heard.args.map((a) => format(a.value)) : [];
+    if (lines.length) {
+      const raw = lines.join("\n");
+      const lifted = read(raw, message, true);
+      return { message, raw, expression: lifted.expression, problems: check(message, lifted.expression), rejected: lifted.rejected, attempts: 0, backend: "prompt" };
+    }
+  }
+  if (options.backend === "rules" || options.backend === "hybrid" || options.backend === "prompt") {
     // The speller knows the graph's words, so a name it holds is not "corrected" away.
     if (store.size() !== graphNamesAt) {
       useGraphNames(store.all().map((u) => u.identity));
@@ -148,7 +160,7 @@ export async function hear(
       return { message, raw, expression: lifted.expression, problems: [...unread, ...check(message, lifted.expression)], rejected: lifted.rejected, attempts: 0, backend: "rules" };
     }
     fallback = ruled.unread ? `could not read "${ruled.unread.join('", "')}"` : ruled.why ?? "no reading";
-    if (options.backend === "rules") {
+    if (options.backend === "rules" || options.backend === "prompt") {
       return { message, raw: "", expression: undefined, problems: [`rules: ${fallback}`], rejected: [], attempts: 0, backend: "rules", fallback };
     }
   }

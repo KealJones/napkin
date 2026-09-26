@@ -6,7 +6,7 @@
  * (a head and one of its arguments) the Prompt reading also has, so progress shows long
  * before readings match exactly.
  *
- *   node dist/ears/eval/hearing.js [--label name] [--show] [--graph ~/.napkin/store.ncon]
+ *   node dist/ears/eval/hearing.js [--label name] [--show] [--rules] [--graph ~/.napkin/store.ncon]
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -76,7 +76,9 @@ async function main(): Promise<void> {
     } catch {
       continue;
     }
-    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: message }]), c("Execution"));
+    // --rules: written in the rules parser's conventions, as the prompt backend writes it.
+    const asRules = args.includes("--rules") ? [{ value: "rules" }] : [];
+    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: message }, ...asRules]), c("Execution"));
     const prompt = isCall(heard) && heard.head === "Phrases" ? heard.args.map((a) => a.value) : [heard];
     const want = links(rules);
     const have = new Set(links(prompt));

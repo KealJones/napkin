@@ -249,7 +249,9 @@ if (importing) {
   process.exit(0);
 }
 
-const message = args.filter((a) => !a.startsWith("--") && a !== expr).join(" ");
+// A flag's value is not part of the message: `--hear prompt "hi"` says "hi".
+const VALUED = new Set(["--model", "--endpoint", "--hear", "--graph", "--expr"]);
+const message = args.filter((a, i) => !a.startsWith("--") && a !== expr && !VALUED.has(args[i - 1] ?? "")).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
 
@@ -327,6 +329,7 @@ if (expr) {
     history,
     conversation: conversationId,
     learn: !flag("--no-learn"),
+    ...(value("--hear") === "prompt" ? { backend: "prompt" as const } : {}),
     ...(value("--model") === undefined ? {} : { model: value("--model")! }),
     ...(value("--endpoint") === undefined ? {} : { endpoint: value("--endpoint")! }),
   });
@@ -360,6 +363,7 @@ if (expr) {
   napkin --expr 'Add(2, 3)'             realize an expression directly
   napkin "what is chess?"               learning is on; --no-learn to answer from the graph alone
   napkin --model qwen3.5:9b "..."       parse with a different local model
+  napkin --hear prompt "..."            hear with prompt hearing instead of the rules parser
   napkin --study money debt             learn topics, and whatever they turn out to need
   napkin --study --track economics      learn a whole curriculum track
   napkin --study --everyday             the whole everyday world, foundations first

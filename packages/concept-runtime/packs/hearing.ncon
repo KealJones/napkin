@@ -328,31 +328,34 @@ Concept(ThingAfter(),
             Bind($inPhrase,
               Lambda(List($i),
                 And(
-                  Call(
-                    Member(
-                      List(
-                        "Determiner",
-                        "Adjective",
-                        "Value",
-                        "Possessive",
-                        "Noun",
-                        "Expression",
-                        "Time",
-                        "Date"
+                  And(
+                    Call(
+                      Member(
+                        List(
+                          "Determiner",
+                          "Adjective",
+                          "Value",
+                          "Possessive",
+                          "Noun",
+                          "Expression",
+                          "Time",
+                          "Date"
+                        ),
+                        "some"
                       ),
-                      "some"
+                      Lambda(List($t), Call($has, $i, $t))
                     ),
-                    Lambda(List($t), Call($has, $i, $t))
+                    Not(And(Call($has, $i, "Pronoun"), Not(Call($has, $i, "Possessive"))))
                   ),
                   Not(
                     Call(
                       Member(
                         List(
-                          "Pronoun",
                           "Preposition",
                           "Conjunction",
                           "Copula",
-                          "Negative"
+                          "Negative",
+                          "Operator"
                         ),
                         "some"
                       ),
@@ -373,6 +376,23 @@ Concept(ThingAfter(),
             ),
             Var($thing, Negate(1)),
             Var($value, Negate(1)),
+            Bind($after,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Call(
+                    $String,
+                    Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 5), "value")
+                  ),
+                  ""
+                )
+              )
+            ),
+            If(
+              And(Call(Member(Regex("[,:;]", ""), "test"), Call($after, $at)), Not(Call($has, $at, "Filler"))),
+              Return(Negate(1)),
+              Undefined()
+            ),
             For(
               Var($j, Add($at, 1)),
               And(
@@ -382,11 +402,27 @@ Concept(ThingAfter(),
               PostIncrement($j),
               Sequence(
                 If(
+                  And(
+                    And(
+                      GreaterThan($j, Add($at, 1)),
+                      Call(Member(Regex("[,:;]", ""), "test"), Call($after, Subtract($j, 1)))
+                    ),
+                    Not(Call($has, Subtract($j, 1), "Filler"))
+                  ),
+                  Break(),
+                  Undefined()
+                ),
+                If(
                   And(Or(AtLeast($thing, 0), AtLeast($value, 0)), Call($has, $j, "Determiner")),
                   Break(),
                   Undefined()
                 ),
                 If(Call($has, $j, "Filler"), Continue(), Undefined()),
+                If(
+                  And(And(AtLeast($thing, 0), Call($has, $j, "ProperNoun")), Not(Call($has, $thing, "ProperNoun"))),
+                  Break(),
+                  Undefined()
+                ),
                 If(
                   Call($has, $j, "Noun"),
                   Assign($thing, $j),
@@ -873,15 +909,37 @@ Concept(Preposition(),
               ),
               Undefined()
             ),
+            Var(
+              $owner,
+              If(
+                GreaterThan($at, 0),
+                Call($root, Subtract($at, 1)),
+                Negate(1)
+              )
+            ),
             If(
-              GreaterThan($at, 0),
+              And(AtLeast($owner, 0), Call($has, $owner, "Pronoun")),
+              For(
+                Var($i, Subtract($at, 2)),
+                And(AtLeast($i, 0), Equals(Call($sentence, $i), Call($sentence, $at))),
+                PostDecrement($i),
+                If(
+                  And(Call($has, $i, "Verb"), Not(Call($has, $i, "Copula"))),
+                  Sequence(Assign($owner, Call($root, $i)), Break()),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              AtLeast($owner, 0),
               Call(
                 Member($out, "push"),
                 Call(
                   Member($api, "call"),
                   "Link",
                   $at,
-                  Call($root, Subtract($at, 1)),
+                  $owner,
                   Call(Member($api, "call"), "Takes")
                 )
               ),
@@ -1192,7 +1250,10 @@ Concept(Verb(),
               PostIncrement($n),
               Sequence(
                 If(
-                  And(Call($has, Add($from, 1), "Pronoun"), Not(Call($has, Add($from, 1), "QuestionWord"))),
+                  And(
+                    And(Call($has, Add($from, 1), "Pronoun"), Not(Call($has, Add($from, 1), "Possessive"))),
+                    Not(Call($has, Add($from, 1), "QuestionWord"))
+                  ),
                   Sequence(
                     Call(
                       Member($out, "push"),
@@ -2098,10 +2159,124 @@ Concept(Every(), IsA(Determiner()))
 
 Concept(Each(), IsA(Determiner()))
 
+// "5 plus 2", "17 times 4": an operator takes the things either side of it.
+Concept(Operator(), IsA(WordClass()))
+
+Concept(Operand(), IsA(LinkRole()))
+
+Concept(Plus(), IsA(Operator()))
+
+Concept(Minus(), IsA(Operator()))
+
+Concept(Times(), IsA(Operator()))
+
+Concept(Divided(), IsA(Operator()), HeardAs(Over()))
+
+Concept(Operator(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($sentence,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 3), "value"),
+                  Negate(1)
+                )
+              )
+            ),
+            If(
+              Or(
+                Or(
+                  Or(Equals($at, 0), AtLeast(Add($at, 1), Length(Member($prompt, "args")))),
+                  NotEquals(Call($sentence, Subtract($at, 1)), Call($sentence, $at))
+                ),
+                NotEquals(Call($sentence, Add($at, 1)), Call($sentence, $at))
+              ),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ThingAfter", $prompt, $at),
+                  Call(Member($api, "call"), "Hearing")
+                )
+              )
+            ),
+            Bind($right,
+              If(
+                And(Equals(TypeOf($thing), "number"), GreaterThan($thing, $at)),
+                $thing,
+                Add($at, 1)
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Call($root, Subtract($at, 1)),
+                  $at,
+                  Call(Member($api, "call"), "Operand")
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Call($root, $right),
+                  $at,
+                  Call(Member($api, "call"), "Operand")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A message heard: its words, the rounds in which they propose links until nothing changes,
 // and each word written as its Concept with the words linked to it as arguments.
 Concept(Hear(),
-  Realization(Hear($text),
+  Realization(Hear(Rest($text)),
     context = Execution(),
     body = Code(
       ir = Async(
@@ -2109,6 +2284,12 @@ Concept(Hear(),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($text, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+            Bind($asRules,
+              And(
+                GreaterThan(Length($args), 1),
+                Equals(Call(Member($api, "toHost"), Member(Index($args, 1), "value")), "rules")
+              )
+            ),
             Bind($said, Call(Member($api, "words"), Call($String, $text))),
             Bind($name,
               Lambda(List($t),
@@ -2183,6 +2364,49 @@ Concept(Hear(),
                   ),
                   Return($kinds)
                 )
+              )
+            ),
+            Bind($SYMBOL,
+              Object(
+                Pair("+", "plus"),
+                Pair("-", "minus"),
+                Pair("*", "times"),
+                Pair("×", "times"),
+                Pair("/", "divided")
+              )
+            ),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind($sym, Index($SYMBOL, Member(Index($said, $i), "text"))),
+                Bind($between,
+                  And(
+                    And(
+                      And(GreaterThan($i, 0), LessThan(Add($i, 1), Length($said))),
+                      Includes(Member(Index($said, Subtract($i, 1)), "tags"), "Value")
+                    ),
+                    Includes(Member(Index($said, Add($i, 1)), "tags"), "Value")
+                  )
+                ),
+                If(
+                  And($sym, Or(NotEquals(Member(Index($said, $i), "text"), "-"), $between)),
+                  Assign(Member(Index($said, $i), "text"), $sym),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf(
+              $w,
+              $said,
+              If(
+                And(
+                  Call(Member(Regex("'s$", "i"), "test"), Member($w, "text")),
+                  Includes(Member($w, "tags"), "Possessive")
+                ),
+                Assign(Member($w, "text"), Call(Member(Member($w, "text"), "slice"), 0, Negate(2))),
+                Undefined()
               )
             ),
             Var($clause, 0),
@@ -2456,6 +2680,7 @@ Concept(Hear(),
                   Object(
                     Corrects = 0,
                     Joins = 0,
+                    Operand = 0,
                     Absorbs = 1,
                     Takes = 2,
                     Modifies = 3,
@@ -2602,10 +2827,25 @@ Concept(Hear(),
               )
             ),
             Bind($CLOCK, Regex("^([0-9]{1,2})(?::([0-9]{2}))?(am|pm)$", "i")),
+            Bind($wraps,
+              Lambda(List($j),
+                And(
+                  And(
+                    And(
+                      And($asRules, Call(Member($parentOf, "get"), $j)),
+                      Equals(Member(Call(Member($parentOf, "get"), $j), "role"), "Modifies")
+                    ),
+                    Or(Call($tagged, $j, "Adjective"), Call($tagged, $j, "Possessive"))
+                  ),
+                  Not(Call($tagged, $j, "Value"))
+                )
+              )
+            ),
             Bind($build,
               Lambda(List($i),
                 Sequence(
                   Bind($kids, List()),
+                  Bind($kidAt, List()),
                   For(
                     Var($j, 0),
                     LessThan($j, Length($said)),
@@ -2615,15 +2855,62 @@ Concept(Hear(),
                       If(
                         And(
                           And(
-                            And(NotEquals($l, Undefined()), Equals(Member($l, "to"), $i)),
-                            NotEquals(Member($l, "role"), "Absorbs")
+                            And(
+                              And(NotEquals($l, Undefined()), Equals(Member($l, "to"), $i)),
+                              NotEquals(Member($l, "role"), "Absorbs")
+                            ),
+                            NotEquals(Member($l, "role"), "Corrects")
                           ),
-                          NotEquals(Member($l, "role"), "Corrects")
+                          Not(Call($wraps, $j))
                         ),
-                        Call(Member($kids, "push"), Call($build, $j)),
+                        Sequence(Call(Member($kids, "push"), Call($build, $j)), Call(Member($kidAt, "push"), $j)),
                         Undefined()
                       )
                     )
+                  ),
+                  If(
+                    $asRules,
+                    For(
+                      Var($k, 0),
+                      LessThan($k, Length($kids)),
+                      PostIncrement($k),
+                      Sequence(
+                        Var($end, $k),
+                        While(
+                          And(
+                            And(
+                              And(LessThan(Add($end, 1), Length($kids)), Equals(TypeOf(Index($kids, $end)), "number")),
+                              Equals(TypeOf(Index($kids, Add($end, 1))), "number")
+                            ),
+                            Includes(Member(Index($said, Index($kidAt, $end)), "after"), ",")
+                          ),
+                          PostIncrement($end)
+                        ),
+                        If(
+                          GreaterThan($end, $k),
+                          Sequence(
+                            Call(
+                              Member($kids, "splice"),
+                              $k,
+                              Add(Subtract($end, $k), 1),
+                              Call(
+                                Member($api, "call"),
+                                "List",
+                                Spread(Call(Member($kids, "slice"), $k, Add($end, 1)))
+                              )
+                            ),
+                            Call(
+                              Member($kidAt, "splice"),
+                              $k,
+                              Add(Subtract($end, $k), 1),
+                              Index($kidAt, $k)
+                            )
+                          ),
+                          Undefined()
+                        )
+                      )
+                    ),
+                    Undefined()
                   ),
                   Bind($t, Member(Index($said, $i), "text")),
                   Var($e, Undefined()),
@@ -2632,95 +2919,111 @@ Concept(Hear(),
                     And(Call(Member(Regex("^[0-9]+([.][0-9]+)?$", ""), "test"), $t), Equals(Length($kids), 0)),
                     Assign($e, Call($Number, $t)),
                     If(
-                      And($clock, Equals(Length($kids), 0)),
-                      Sequence(
-                        Bind($at, List(Call($Number, Index($clock, 1)))),
-                        If(
-                          Index($clock, 2),
-                          Call(Member($at, "push"), Call($Number, Index($clock, 2))),
-                          Undefined()
+                      And(
+                        And(
+                          And(Call($tagged, $i, "TextValue"), Call($tagged, $i, "Cardinal")),
+                          Equals(Length($kids), 0)
                         ),
-                        Assign(
-                          $e,
-                          Call(
-                            Member($api, "call"),
-                            "Time",
-                            Spread($at),
+                        Not(Call(Member(Regex("^ones?$", "i"), "test"), $t))
+                      ),
+                      Assign($e, Call(Member($api, "call"), "Number", $t)),
+                      If(
+                        And($clock, Equals(Length($kids), 0)),
+                        Sequence(
+                          Bind($at, List(Call($Number, Index($clock, 1)))),
+                          If(
+                            Index($clock, 2),
+                            Call(Member($at, "push"), Call($Number, Index($clock, 2))),
+                            Undefined()
+                          ),
+                          Assign(
+                            $e,
                             Call(
                               Member($api, "call"),
-                              If(
-                                Equals(Call(Member(Index($clock, 3), "toLowerCase")), "am"),
-                                "Am",
-                                "Pm"
-                              )
-                            )
-                          )
-                        )
-                      ),
-                      Sequence(
-                        Bind($span,
-                          Call(
-                            Member(
-                              Concat(
-                                Call($under, $i, "Absorbs"),
-                                Call($under, $i, "Modifies"),
-                                List($i)
-                              ),
-                              "sort"
-                            ),
-                            Lambda(List($a, $b), Subtract($a, $b))
-                          )
-                        ),
-                        Bind($points,
-                          Or(
-                            Or(
-                              Call($tagged, $i, "Pointing"),
+                              "Time",
+                              Spread($at),
                               Call(
-                                Member(Call($under, $i, "Absorbs"), "some"),
-                                Lambda(List($j), Call($tagged, $j, "Pointing"))
+                                Member($api, "call"),
+                                If(
+                                  Equals(Call(Member(Index($clock, 3), "toLowerCase")), "am"),
+                                  "Am",
+                                  "Pm"
+                                )
                               )
-                            ),
-                            And(
-                              Call(Member(Regex("^ones?$", "i"), "test"), $t),
-                              GreaterThan(Length(Call($under, $i, "Modifies")), 0)
                             )
                           )
                         ),
-                        Bind($simple,
-                          Call(
-                            Member($span, "every"),
-                            Lambda(List($j), Or(Equals($j, $i), Equals(Length(Call($under, $j, "Modifies")), 0)))
-                          )
-                        ),
-                        Bind($relative,
-                          And(Call($tagged, $i, "Pointing"), GreaterThan(Length(Call($under, $i, "Takes")), 0))
-                        ),
-                        Bind($deictic,
-                          Lambda(List($j),
-                            Sequence(
-                              Bind($unit,
+                        Sequence(
+                          Bind($span,
+                            Call(
+                              Member(
+                                Concat(
+                                  Call($under, $i, "Absorbs"),
+                                  Call($under, $i, "Modifies"),
+                                  List($i)
+                                ),
+                                "sort"
+                              ),
+                              Lambda(List($a, $b), Subtract($a, $b))
+                            )
+                          ),
+                          Bind($points,
+                            Or(
+                              Or(
+                                Call($tagged, $i, "Pointing"),
                                 Call(
-                                  Member(Member($api, "store"), "get"),
-                                  Call($name, Member(Index($said, $j), "text"))
+                                  Member(Call($under, $i, "Absorbs"), "some"),
+                                  Lambda(List($j), Call($tagged, $j, "Pointing"))
                                 )
                               ),
-                              Return(
-                                And(
-                                  And(Not(Call($tagged, $j, "Pronoun")), Not(Not($unit))),
+                              And(
+                                Call(Member(Regex("^ones?$", "i"), "test"), $t),
+                                GreaterThan(Length(Call($under, $i, "Modifies")), 0)
+                              )
+                            )
+                          ),
+                          Bind($simple,
+                            Call(
+                              Member($span, "every"),
+                              Lambda(List($j), Or(Equals($j, $i), Equals(Length(Call($under, $j, "Modifies")), 0)))
+                            )
+                          ),
+                          Bind($relative,
+                            And(Call($tagged, $i, "Pointing"), GreaterThan(Length(Call($under, $i, "Takes")), 0))
+                          ),
+                          Bind($deictic,
+                            Lambda(List($j),
+                              Sequence(
+                                Bind($unit,
                                   Call(
-                                    Member(Member($unit, "relations"), "some"),
-                                    Lambda(List($r),
-                                      And(
+                                    Member(Member($api, "store"), "get"),
+                                    Call($name, Member(Index($said, $j), "text"))
+                                  )
+                                ),
+                                Return(
+                                  And(
+                                    And(Not(Call($tagged, $j, "Pronoun")), Not(Not($unit))),
+                                    Call(
+                                      Member(Member($unit, "relations"), "some"),
+                                      Lambda(List($r),
                                         And(
                                           And(
-                                            Call($isCall, Member($r, "claim")),
-                                            Equals(Member(Member($r, "claim"), "head"), "IsA")
+                                            And(
+                                              Call($isCall, Member($r, "claim")),
+                                              Equals(Member(Member($r, "claim"), "head"), "IsA")
+                                            ),
+                                            Call(
+                                              $isCall,
+                                              Member(Index(Member(Member($r, "claim"), "args"), 0), "value")
+                                            )
                                           ),
-                                          Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
-                                        ),
-                                        Equals(
-                                          Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
-                                          "Deictic"
+                                          Equals(
+                                            Member(
+                                              Member(Index(Member(Member($r, "claim"), "args"), 0), "value"),
+                                              "head"
+                                            ),
+                                            "Deictic"
+                                          )
                                         )
                                       )
                                     )
@@ -2728,63 +3031,68 @@ Concept(Hear(),
                                 )
                               )
                             )
-                          )
-                        ),
-                        Bind($ambient,
-                          And(
-                            Call(Member(Regex("^it$", "i"), "test"), $t),
-                            Call(
-                              Member($said, "some"),
-                              Lambda(List($w, $j),
-                                And(
-                                  Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence")),
-                                  Or(
-                                    Call(
-                                      Member(List("Date", "Time", "Duration"), "some"),
-                                      Lambda(List($x), Includes(Member($w, "tags"), $x))
-                                    ),
-                                    Call($deictic, $j)
+                          ),
+                          Bind($ambient,
+                            And(
+                              Call(Member(Regex("^it$", "i"), "test"), $t),
+                              Call(
+                                Member($said, "some"),
+                                Lambda(List($w, $j),
+                                  And(
+                                    Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence")),
+                                    Or(
+                                      Call(
+                                        Member(List("Date", "Time", "Duration"), "some"),
+                                        Lambda(List($x), Includes(Member($w, "tags"), $x))
+                                      ),
+                                      Call($deictic, $j)
+                                    )
                                   )
                                 )
                               )
                             )
-                          )
-                        ),
-                        If(
-                          And(And(And($points, $simple), Not($relative)), Not($ambient)),
-                          Assign(
-                            $e,
-                            Call(
-                              Member($api, "call"),
-                              "Ref",
+                          ),
+                          If(
+                            And(And(And($points, $simple), Not($relative)), Not($ambient)),
+                            Assign(
+                              $e,
                               Call(
-                                Member(
-                                  Map(
-                                    $span,
-                                    Lambda(List($j),
-                                      Or(Member(Index($said, $j), "typed"), Member(Index($said, $j), "text"))
-                                    )
+                                Member($api, "call"),
+                                "Ref",
+                                Call(
+                                  Member(
+                                    Map(
+                                      $span,
+                                      Lambda(List($j),
+                                        Or(Member(Index($said, $j), "typed"), Member(Index($said, $j), "text"))
+                                      )
+                                    ),
+                                    "join"
                                   ),
-                                  "join"
+                                  " "
                                 ),
-                                " "
-                              ),
-                              Spread(Map(Call($under, $i, "Takes"), $build))
-                            )
+                                Spread(Map(Call($under, $i, "Takes"), $build))
+                              )
+                            ),
+                            Undefined()
                           ),
-                          Undefined()
-                        ),
-                        If(
-                          Equals($e, Undefined()),
-                          Assign(
-                            $e,
-                            Call(
-                              Member($api, "call"),
-                              Or(Or(Call($heardAs, $t), Call($name, $t)), $t),
-                              Spread($kids)
-                            )
-                          ),
-                          Undefined()
+                          Bind($called, Or(Call($heardAs, $t), Call($name, $t))),
+                          If(
+                            Equals($e, Undefined()),
+                            Assign(
+                              $e,
+                              If(
+                                Call(Member(Regex("^[A-Za-z]", ""), "test"), $called),
+                                Call(Member($api, "call"), $called, Spread($kids)),
+                                If(
+                                  Length($kids),
+                                  Call(Member($api, "call"), "Typed", $t, Spread($kids)),
+                                  $t
+                                )
+                              )
+                            ),
+                            Undefined()
+                          )
                         )
                       )
                     )
@@ -2801,6 +3109,44 @@ Concept(Hear(),
                         $e
                       )
                     )
+                  ),
+                  If(
+                    $asRules,
+                    Sequence(
+                      Bind($describers, List()),
+                      For(
+                        Var($j, 0),
+                        LessThan($j, Length($said)),
+                        PostIncrement($j),
+                        If(
+                          And(
+                            And(
+                              Call(Member($parentOf, "get"), $j),
+                              Equals(Member(Call(Member($parentOf, "get"), $j), "to"), $i)
+                            ),
+                            Call($wraps, $j)
+                          ),
+                          Call(Member($describers, "push"), $j),
+                          Undefined()
+                        )
+                      ),
+                      ForOf(
+                        $j,
+                        Call(Member($describers, "reverse")),
+                        Assign(
+                          $e,
+                          Call(
+                            Member($api, "call"),
+                            Or(
+                              Call($heardAs, Member(Index($said, $j), "text")),
+                              Call($name, Member(Index($said, $j), "text"))
+                            ),
+                            $e
+                          )
+                        )
+                      )
+                    ),
+                    Undefined()
                   ),
                   Return($e)
                 )
@@ -2855,6 +3201,106 @@ Concept(Hear(),
                     Undefined()
                   ),
                   Return("Declarative")
+                )
+              )
+            ),
+            Bind($inside,
+              Lambda(List($subject, $claim),
+                Sequence(
+                  If(
+                    Or(Not(Call($isCall, $subject)), Equals(Member($subject, "head"), "Ref")),
+                    Return(Undefined()),
+                    Undefined()
+                  ),
+                  Bind($last, Index(Member($subject, "args"), Subtract(Length(Member($subject, "args")), 1))),
+                  Bind($wrapper,
+                    And(
+                      And(
+                        And(
+                          And(Equals(Length(Member($subject, "args")), 1), Call($isCall, Member($last, "value"))),
+                          NotEquals(Member(Member($last, "value"), "head"), "Ref")
+                        ),
+                        AtMost(Length(Member(Member($last, "value"), "args")), 1)
+                      ),
+                      Call(Member(Regex("^[A-Z]", ""), "test"), Member(Member($last, "value"), "head"))
+                    )
+                  ),
+                  Return(
+                    If(
+                      $wrapper,
+                      Call(
+                        Member($api, "call"),
+                        Member($subject, "head"),
+                        Otherwise(Call($inside, Member($last, "value"), $claim), Member($last, "value"))
+                      ),
+                      Object(
+                        head = Member($subject, "head"),
+                        args = Concat(Member($subject, "args"), List(Object(value = $claim)))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($claimed,
+              Lambda(List($i, $e),
+                Sequence(
+                  If(
+                    Or(
+                      Or(Or(Not($asRules), Not(Call($isCall, $e))), Not(Call($tagged, $i, "Copula"))),
+                      NotEquals(Length(Member($e, "args")), 2)
+                    ),
+                    Return($e),
+                    Undefined()
+                  ),
+                  Var($object, Undefined()),
+                  For(
+                    Var($j, Add($i, 1)),
+                    And(LessThan($j, Length($said)), Equals($object, Undefined())),
+                    PostIncrement($j),
+                    If(
+                      And(
+                        Call(Member($parentOf, "get"), $j),
+                        Equals(Member(Call(Member($parentOf, "get"), $j), "to"), $i)
+                      ),
+                      Assign($object, $j),
+                      Undefined()
+                    )
+                  ),
+                  Bind($a,
+                    And(
+                      NotEquals($object, Undefined()),
+                      Call(
+                        Member(Call($under, $object, "Absorbs"), "some"),
+                        Lambda(List($j), Call(Member(Regex("^an?$", "i"), "test"), Member(Index($said, $j), "text")))
+                      )
+                    )
+                  ),
+                  Bind($claim,
+                    If(
+                      $a,
+                      Call(
+                        Member($api, "call"),
+                        "IsA",
+                        Member(Index(Member($e, "args"), 1), "value")
+                      ),
+                      Call(
+                        Member($api, "call"),
+                        Member($e, "head"),
+                        Member(Index(Member($e, "args"), 1), "value")
+                      )
+                    )
+                  ),
+                  Return(
+                    Otherwise(
+                      Call(
+                        $inside,
+                        Member(Index(Member($e, "args"), 0), "value"),
+                        $claim
+                      ),
+                      $e
+                    )
+                  )
                 )
               )
             ),
@@ -2925,7 +3371,122 @@ Concept(Hear(),
                   Undefined()
                 ),
                 Call($flush),
-                Call(Member($roots, "push"), Call($said_, $i, Call($build, $i)))
+                Bind($e, Call($build, $i)),
+                Bind($acts,
+                  Lambda(List($w),
+                    Sequence(
+                      Bind($seen, New($Set)),
+                      Bind($walk,
+                        Lambda(List($id, $depth),
+                          Sequence(
+                            If(
+                              Or(Call(Member($seen, "has"), $id), GreaterThan($depth, 6)),
+                              Return(false),
+                              Undefined()
+                            ),
+                            Call(Member($seen, "add"), $id),
+                            Bind($unit, Call(Member(Member($api, "store"), "get"), $id)),
+                            If(Not($unit), Return(false), Undefined()),
+                            If(
+                              Call(
+                                Member(Member($unit, "realizations"), "some"),
+                                Lambda(List($r),
+                                  And(
+                                    And(Not(Member($r, "retired")), Call($isCall, Member($r, "context"))),
+                                    Or(
+                                      Equals(Member(Member($r, "context"), "head"), "Execution"),
+                                      Call(
+                                        Member(Member(Member($r, "context"), "args"), "some"),
+                                        Lambda(List($a),
+                                          And(
+                                            Call($isCall, Member($a, "value")),
+                                            Equals(Member(Member($a, "value"), "head"), "Execution")
+                                          )
+                                        )
+                                      )
+                                    )
+                                  )
+                                )
+                              ),
+                              Return(true),
+                              Undefined()
+                            ),
+                            Return(
+                              Call(
+                                Member(Member($unit, "relations"), "some"),
+                                Lambda(List($r),
+                                  And(
+                                    And(
+                                      And(
+                                        Call($isCall, Member($r, "claim")),
+                                        Equals(Member(Member($r, "claim"), "head"), "IsA")
+                                      ),
+                                      Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                                    ),
+                                    Call(
+                                      $walk,
+                                      Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                                      Add($depth, 1)
+                                    )
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Return(Call($walk, Call($name, $w), 0))
+                    )
+                  )
+                ),
+                Bind($one,
+                  Equals(
+                    Length(
+                      Filter(
+                        $said,
+                        Lambda(List($w),
+                          And(
+                            Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence")),
+                            Not(Includes(Member($w, "tags"), "Filler"))
+                          )
+                        )
+                      )
+                    ),
+                    1
+                  )
+                ),
+                Bind($alone,
+                  And(
+                    And(
+                      And($asRules, $one),
+                      Not(Call(Member($links, "some"), Lambda(List($l), Equals(Member($l, "to"), $i))))
+                    ),
+                    Or(Call($tagged, $i, "Expression"), Call($acts, Member(Index($said, $i), "text")))
+                  )
+                ),
+                Bind($said1,
+                  If(
+                    $alone,
+                    $e,
+                    Call(
+                      $said_,
+                      $i,
+                      If(
+                        Equals(Call($moodOf, Member(Index($said, $i), "sentence")), "Declarative"),
+                        Call($claimed, $i, $e),
+                        $e
+                      )
+                    )
+                  )
+                ),
+                Call(
+                  Member($roots, "push"),
+                  If(
+                    And(Includes(Member(Index($said, $i), "after"), "!"), $alone),
+                    Call(Member($api, "call"), "MarkEmphasis", "!", $said1),
+                    $said1
+                  )
+                )
               )
             ),
             Call($flush),

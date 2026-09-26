@@ -1,0 +1,1512 @@
+{
+  "label": "stage4",
+  "same": 39,
+  "recall": 0.6225938406626669,
+  "grouped": 0.4782102689315072,
+  "rows": [
+    {
+      "message": "write me a typescript function that says hello world",
+      "rules": "Mood(Imperative(), Write(Me(), Function(Typescript(), That(Says(\"hello world\")))))",
+      "prompt": "Mood(Imperative(), Write(Me(), Function(Typescript(), That(Says(World(Hello()))))))",
+      "same": false,
+      "recall": 0.875,
+      "grouped": 0
+    },
+    {
+      "message": "can you write me a typescript function that says hello world",
+      "rules": "Mood(Interrogative(), Can(You(), Write(Me(), Function(Typescript(), That(Says(\"hello world\"))))))",
+      "prompt": "Mood(Interrogative(), Can(You(), Write(Me(), Function(Typescript(), That(Says(World(Hello())))))))",
+      "same": false,
+      "recall": 0.9,
+      "grouped": 0
+    },
+    {
+      "message": "please add 2 and 2",
+      "rules": "Mood(Imperative(), Please(Add(2, 2)))",
+      "prompt": "Mood(Imperative(), Please(Add(And(2, 2))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0
+    },
+    {
+      "message": "show me what you know about money",
+      "rules": "Mood(Imperative(), Show(Me(), What(You(Know(About(Money()))))))",
+      "prompt": "Mood(Imperative(), Show(Me())) | Mood(Imperative(), What(You(), Know(About(Money()))))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.5
+    },
+    {
+      "message": "give me three examples of a bird",
+      "rules": "Mood(Imperative(), Give(Me(), Examples(Number(\"three\"), Of(Bird()))))",
+      "prompt": "Mood(Imperative(), Give(Me(), Examples(Number(\"three\"), Of(Bird()))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "remind me to call mum tomorrow",
+      "rules": "Mood(Imperative(), Remind(Me(), Call(Mum(), Tomorrow())))",
+      "prompt": "Mood(Imperative(), Remind(Me(), Call(Mum(), Tomorrow())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what is 17 times 4",
+      "rules": "Mood(Interrogative(), What(Is(Times(17, 4))))",
+      "prompt": "Mood(Interrogative(), What(Is(Times(17, 4))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how many days until christmas",
+      "rules": "Mood(Interrogative(), HowMany(Days(), Until(Christmas())))",
+      "prompt": "Mood(Interrogative(), How(Many(), Days(Until(Christmas()))))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "what is half of 90",
+      "rules": "Mood(Interrogative(), What(Is(Half(Of(90)))))",
+      "prompt": "Mood(Interrogative(), What(Is(Half(Of(90)))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "is 100 more than 99",
+      "rules": "Mood(Interrogative(), Is(100, MoreThan(99)))",
+      "prompt": "Mood(Interrogative(), Is(100, More(Than(99))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0
+    },
+    {
+      "message": "what's the average of 2, 4 and 9",
+      "rules": "Mood(Interrogative(), What(Is(Average(Of(List(2, 4, 9))))))",
+      "prompt": "Mood(Interrogative(), What(Is(The(), Average(Of(2))), And(4, 9)))",
+      "same": false,
+      "recall": 0.5555555555555556,
+      "grouped": 0
+    },
+    {
+      "message": "what is a promise",
+      "rules": "Mood(Interrogative(), What(Is(Promise())))",
+      "prompt": "Mood(Interrogative(), What(Is(Promise())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "define recursion",
+      "rules": "Mood(Imperative(), Define(Recursion()))",
+      "prompt": "Mood(Imperative(), Define(Recursion()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what's the difference between a list and a set",
+      "rules": "Mood(Interrogative(), What(Is(Difference(Between(List())), Set())))",
+      "prompt": "Mood(Interrogative(), What(Is(Difference(Between(And(List(), Set()))))))",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 0
+    },
+    {
+      "message": "is a tomato a fruit",
+      "rules": "Mood(Interrogative(), Is(Tomato(), Fruit()))",
+      "prompt": "Mood(Interrogative(), Is(Tomato(), Fruit()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "take 10, double it, then subtract 5",
+      "rules": "Mood(Imperative(), Take(10)) | Mood(Imperative(), Double(Ref(\"it\"))) | Mood(Imperative(), Subtract(5))",
+      "prompt": "Mood(Imperative(), Take(10)) | Mood(Imperative(), Double(Ref(\"it\"))) | Mood(Imperative(), Then()) | Mood(Imperative(), Subtract(5))",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what day is it and what time is it",
+      "rules": "Mood(Interrogative(), What(Day(), Is(It()))) | Mood(Interrogative(), What(Time(), Is(It())))",
+      "prompt": "Mood(Interrogative(), What(Day(), Is(And(It(), What(Time()))), Is(It())))",
+      "same": false,
+      "recall": 1,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "if it is after noon tell me the time otherwise tell me the date",
+      "rules": "Mood(Imperative(), If(It(Is(After(Noon()))), Tell(Me(), Time()), Otherwise(Tell(Me(), Date()))))",
+      "prompt": "Mood(Declarative(), If()) | Mood(Declarative(), Is(It(), After(Noon()))) | Mood(Declarative(), Tell(Me(), Otherwise(Time(), Tell(Me(), Date()))))",
+      "same": false,
+      "recall": 0.5384615384615384,
+      "grouped": 0.375
+    },
+    {
+      "message": "what would happen if i doubled my rent",
+      "rules": "Mood(Interrogative(), What(Would(Happen(If(Me(Doubled(My(Rent()))))))))",
+      "prompt": "Mood(Interrogative(), What(Would(If(Happen(), Me(Doubled(Rent(My())))))))",
+      "same": false,
+      "recall": 0.5555555555555556,
+      "grouped": 0.875
+    },
+    {
+      "message": "suppose x is 5, what is x plus 3",
+      "rules": "Mood(Imperative(), Suppose(\"x\", Is(5))) | Mood(Interrogative(), What(Is(\"x\", Plus(), 3)))",
+      "prompt": "Mood(Imperative(), Is(Suppose(X()), 5)) | Mood(Imperative(), What(Is(Plus(X(), 3))))",
+      "same": false,
+      "recall": 0.45454545454545453,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "if a train leaves at 3pm and takes 2 hours when does it arrive",
+      "rules": "Mood(Declarative(), If(Train(Leaves(At(Time(3, Pm())), Takes(Hours(2), When(Does(It(), Arrive())))))))",
+      "prompt": "Mood(Declarative(), If()) | Mood(Declarative(), Train(Leaves(At(And(Time(3, Pm()), Takes(Hours(2))))))) | Mood(Declarative(), When(Does(It(), Arrive())))",
+      "same": false,
+      "recall": 0.7333333333333333,
+      "grouped": 0.4
+    },
+    {
+      "message": "what is not a mammal",
+      "rules": "Mood(Interrogative(), What(Is(Not(Mammal()))))",
+      "prompt": "Mood(Interrogative(), What(Is(Not(Mammal()))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "dont tell me the time, tell me the date",
+      "rules": "Mood(Imperative(), DoNot(Tell(Me(), Time()))) | Mood(Imperative(), Tell(Me(), Date()))",
+      "prompt": "Mood(Imperative(), Do(Not(Tell(Me(), Time())))) | Mood(Imperative(), Tell(Me(), Date()))",
+      "same": false,
+      "recall": 0.7777777777777778,
+      "grouped": 0.6
+    },
+    {
+      "message": "i said the second one not the first",
+      "rules": "Mood(Declarative(), Me(Said(Ref(\"the second one\"), Not(Ordinal(\"first\")))))",
+      "prompt": "Mood(Declarative(), Me(Said(Ref(\"the second one\")))) | Mood(Declarative(), Not(First()))",
+      "same": false,
+      "recall": 0.625,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "what concepts do you know about time",
+      "rules": "Mood(Interrogative(), What(Concepts(), Do(You(), Know(About(Time())))))",
+      "prompt": "Mood(Interrogative(), What(Concepts(), Do(You(), Know(About(Time())))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what can you do",
+      "rules": "Mood(Interrogative(), What(Can(You(), Do())))",
+      "prompt": "Mood(Interrogative(), What(Can(You(), Do())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how did you work that out",
+      "rules": "Mood(Interrogative(), How(Did(You(), Work(Ref(\"that\"), Out()))))",
+      "prompt": "Mood(Interrogative(), How(Did(You(), Work()), Ref(\"that\"), Out()))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.6
+    },
+    {
+      "message": "forget what i said about money",
+      "rules": "Mood(Imperative(), Forget(What(Me(Said(About(Money()))))))",
+      "prompt": "Mood(Imperative(), Forget()) | Mood(Imperative(), What(Me(Said(About(Money())))))",
+      "same": false,
+      "recall": 0.8571428571428571,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "how much is a lot",
+      "rules": "Mood(Interrogative(), HowMuch(Is(A(), Lot())))",
+      "prompt": "Mood(Interrogative(), How(Is(Much(), A()), Lot()))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0
+    },
+    {
+      "message": "which is bigger, a mouse or an elephant",
+      "rules": "Mood(Interrogative(), Which(Is(Bigger(), Or(Mouse(), Elephant()))))",
+      "prompt": "Mood(Interrogative(), Which(Is(Bigger(), Or(Mouse(), Elephant()))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how heavy is a car",
+      "rules": "Mood(Interrogative(), How(Heavy(), Is(Car())))",
+      "prompt": "Mood(Interrogative(), How(Heavy(), Is(Car())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "thanks",
+      "rules": "Thanks()",
+      "prompt": "Mood(Declarative(), Thanks())",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "that was wrong",
+      "rules": "Mood(Declarative(), Was(Ref(\"that\"), Wrong()))",
+      "prompt": "Mood(Declarative(), Was(Ref(\"that\"), Wrong()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "no i meant the other one",
+      "rules": "No() | MarkCorrection(Ref(\"\"), Ref(\"the other one\"))",
+      "prompt": "Mood(Declarative(), No()) | Mood(Declarative(), Me(Meant(Ref(\"the other one\"))))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
+      "rules": "Mood(Declarative(), Today(Is(What()))) | Unclear(\"A Sept 20 B Noday C Sept 1st\", A(), Sept(), Sept(), St()) | Idk(D(1991))",
+      "prompt": "Mood(Declarative(), Is(Today(), \"____\")) | Mood(Declarative(), Typed(\"1st\", Sept(B(Sept(), 20), Noday(), C()))) | Mood(Declarative(), Idk(1991, D()))",
+      "same": false,
+      "recall": 0.18181818181818182,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "What is 5 times three?",
+      "rules": "Mood(Interrogative(), What(Is(Times(5, Number(\"three\")))))",
+      "prompt": "Mood(Interrogative(), What(Is(Times(5, Number(\"three\")))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "What is todays date?",
+      "rules": "Mood(Interrogative(), What(Is(Todays(), Date())))",
+      "prompt": "Mood(Interrogative(), What(Is(Todays(), Date())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "What is the date?",
+      "rules": "Mood(Interrogative(), What(Is(Date())))",
+      "prompt": "Mood(Interrogative(), What(Is(Date())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "What is today?",
+      "rules": "Mood(Interrogative(), What(Is(Today())))",
+      "prompt": "Mood(Interrogative(), What(Is(Today())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "What do we need?",
+      "rules": "Mood(Interrogative(), What(Do(We(), Need())))",
+      "prompt": "Mood(Interrogative(), What(Do(We(), Need())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "who ate what",
+      "rules": "Mood(Interrogative(), Who(Ate(What())))",
+      "prompt": "Mood(Interrogative(), Who(Ate(), What()))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "Is chess a sport?",
+      "rules": "Mood(Interrogative(), Is(Chess(), Sport()))",
+      "prompt": "Mood(Interrogative(), Is(Chess(), Sport()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how many r's are in strawberry",
+      "rules": "Mood(Interrogative(), HowMany(\"r\", Are(In(Strawberry()))))",
+      "prompt": "Mood(Interrogative(), How(Many(), Are(R(), In(Strawberry()))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.25
+    },
+    {
+      "message": "i went to virginya to visit my mom. She has lived there 5 years. I havent been there for 3 years. it was crazy.",
+      "rules": "Mood(Declarative(), Me(Went(To(MarkMisspelling(\"virginya\", Virginia())), Visit(My(Mom()))))) | Mood(Declarative(), She(Has(Lived(There(), Years(5))))) | Mood(Declarative(), Me(HaveNot(Been(There(), For(Years(3)))))) | Mood(Declarative(), Was(Ref(\"it\"), Crazy()))",
+      "prompt": "Mood(Declarative(), Me(Went(To(Virginya()), Visit(Mom(My()))))) | Mood(Declarative(), She()) | Mood(Declarative(), Has()) | Mood(Declarative(), Lived(Years(There(), 5))) | Mood(Declarative(), Havent(Me(), Been(There(For(Years(3)))))) | Mood(Declarative(), Was(Ref(\"it\"), Crazy()))",
+      "same": false,
+      "recall": 0.6333333333333333,
+      "grouped": 0.42857142857142855
+    },
+    {
+      "message": "grab the weights, er the scores or whatever, from those probe things i sent you. Not the first batch the second one and like add em up and tell me if its more than this time",
+      "rules": "Mood(Imperative(), Grab(MarkCorrection(Weights(), MarkFuzzy(\"or whatever\", Scores())), From($ref1))) | Not(Batch(Ordinal(\"first\"))) | Ref(\"the second one\") | Mood(Imperative(), MarkFuzzy(\"like\", Add(Ref(\"em\"), Up()))) | Mood(Imperative(), Tell(Me(), If(It(Is(MoreThan($ref2))))))",
+      "prompt": "Mood(Imperative(), Grab(Weights())) | MarkAside(\"er\") | Mood(Imperative(), Or(Scores(), Whatever(From(Ref(\"those probe things\"))))) | Mood(Imperative(), Me(Sent(You()))) | Mood(Declarative(), Not(Batch(First()))) | Mood(Declarative(), And(Ref(\"the second one\"), Like())) | Mood(Declarative(), Add(Em())) | Mood(Declarative(), And(Up(), Tell(If(Me(), Its())))) | Mood(Declarative(), More(Than(Ref(\"this time\"))))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.058823529411764705
+    },
+    {
+      "message": "get the size, sorry the length, of the files i sent, not the first one, the second, and total them and say if its bigger than before",
+      "rules": "Mood(Imperative(), Get(MarkCorrection(Size(), Length(Of(Files(Me(Sent()))))), Not(Ref(\"the first one\")), Ordinal(\"second\"))) | Mood(Imperative(), Total(Ref(\"them\"))) | Mood(Imperative(), Say(If(Is(Ref(\"it\"), BiggerThan(Before())))))",
+      "prompt": "Mood(Imperative(), Get(Size())) | Mood(Imperative(), Length(Sorry(), Of(Files()))) | Mood(Imperative(), Me(Sent())) | Mood(Imperative(), Not(Ref(\"the first one\"))) | Mood(Imperative(), And(Second(), Total(If(And(Ref(\"them\"), Say()), Its())))) | Mood(Imperative(), Bigger(Than(Before())))",
+      "same": false,
+      "recall": 0.38461538461538464,
+      "grouped": 0.21052631578947367
+    },
+    {
+      "message": "is that bigger than the other one?",
+      "rules": "Mood(Interrogative(), Is(Ref(\"that\"), BiggerThan(Ref(\"the other one\"))))",
+      "prompt": "Mood(Interrogative(), Is(Ref(\"that\"), Bigger(Than(Ref(\"the other one\")))))",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 0.4
+    },
+    {
+      "message": "how did the build go?",
+      "rules": "Mood(Interrogative(), How(Did(Build(), Go())))",
+      "prompt": "Mood(Interrogative(), How(Did(Build(), Go())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how you doing?",
+      "rules": "Mood(Interrogative(), How(You(), Doing()))",
+      "prompt": "Mood(Interrogative(), How(You(Doing())))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 1
+    },
+    {
+      "message": "what is double 21?",
+      "rules": "Mood(Interrogative(), What(Is(Double(), 21)))",
+      "prompt": "Mood(Interrogative(), What(Is(Typed(\"21\", Double()))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0
+    },
+    {
+      "message": "tell me the time",
+      "rules": "Mood(Imperative(), Tell(Me(), Time()))",
+      "prompt": "Mood(Imperative(), Tell(Me(), Time()))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "would you rather have a million dollars or owe a million dollars",
+      "rules": "Mood(Interrogative(), Would(You(), Rather(), Have(Or(Dollars(Number(\"million\")), Owe(Dollars(Number(\"million\")))))))",
+      "prompt": "Mood(Interrogative(), Would(You(), Rather())) | Mood(Interrogative(), Have()) | Mood(Interrogative(), Or(Dollars(Number(\"million\")), Owe(Dollars(Number(\"million\")))))",
+      "same": false,
+      "recall": 0.8461538461538461,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "uhmm soooo what is it?",
+      "rules": "MarkAside(\"uhmm soooo\") | Mood(Interrogative(), What(Is(Ref(\"it\"))))",
+      "prompt": "Mood(Interrogative(), Soooo(Uhmm())) | Mood(Interrogative(), What(Is(Ref(\"it\"))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0.8
+    },
+    {
+      "message": "and if we add 5 hours?",
+      "rules": "Mood(Checking(), If(We(Add(Hours(5)))))",
+      "prompt": "Mood(Interrogative(), If(And(), We(Add(Hours(5)))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0.6
+    },
+    {
+      "message": "open the second one",
+      "rules": "Mood(Imperative(), Open(Ref(\"the second one\")))",
+      "prompt": "Mood(Imperative(), Open(Ref(\"the second one\")))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "and germany?",
+      "rules": "Mood(Checking(), Germany())",
+      "prompt": "Mood(Interrogative(), And()) | Mood(Interrogative(), Germany())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "what is 9 times 9",
+      "rules": "Mood(Interrogative(), What(Is(Times(9, 9))))",
+      "prompt": "Mood(Interrogative(), What(Is(Times(9, 9))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "wait no, make it blue instead of red",
+      "rules": "MarkAside(\"wait\") | No() | Mood(Imperative(), Make(Ref(\"it\"), Blue(), Instead(), Of(Red())))",
+      "prompt": "Mood(Declarative(), Wait()) | Mood(Declarative(), No()) | Mood(Imperative(), Make(Ref(\"it\"))) | Mood(Imperative(), Blue()) | Mood(Imperative(), Instead(Of(Red())))",
+      "same": false,
+      "recall": 0.5555555555555556,
+      "grouped": 0.4
+    },
+    {
+      "message": "do NOT delete the backups",
+      "rules": "Mood(Imperative(), MarkEmphasis(\"NOT\", DoNot(Delete(Backups()))))",
+      "prompt": "Mood(Imperative(), Do(Not(Delete(Backups()))))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.25
+    },
+    {
+      "message": "book a flight to pheonix next friday",
+      "rules": "Mood(Imperative(), Book(Flight(), To(MarkMisspelling(\"pheonix\", Phoenix())), Next(Friday())))",
+      "prompt": "Mood(Imperative(), Book(Flight(To(Friday(Pheonix(), Next())))))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "grab those logs or whatever from yesterday",
+      "rules": "Mood(Imperative(), Grab(MarkFuzzy(\"or whatever\", Ref(\"those logs\")), From(Yesterday())))",
+      "prompt": "Mood(Imperative(), Grab(Or(Ref(\"those logs\"), Whatever(From(Yesterday())))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.4
+    },
+    {
+      "message": "who owns which service?",
+      "rules": "Mood(Interrogative(), Who(Owns(Which(Service()))))",
+      "prompt": "Mood(Interrogative(), Who(Owns(), Which(Service())))",
+      "same": false,
+      "recall": 0.8,
+      "grouped": 0.75
+    },
+    {
+      "message": "where did i put my keys",
+      "rules": "Mood(Interrogative(), Where(Did(Me(), Put(My(Keys())))))",
+      "prompt": "Mood(Interrogative(), Where(Did(Me(), Put(Keys(My())))))",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 1
+    },
+    {
+      "message": "why is the sky blue",
+      "rules": "Mood(Interrogative(), Why(Is(Sky(), Blue())))",
+      "prompt": "Mood(Interrogative(), Why(Is(Sky(), Blue())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "when does the store close tonight",
+      "rules": "Mood(Interrogative(), When(Does(Store(), Close(Tonight()))))",
+      "prompt": "Mood(Interrogative(), When(Does(Tonight(Store(), Close()))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.75
+    },
+    {
+      "message": "how many tests failed on linux and mac",
+      "rules": "Mood(Interrogative(), HowMany(Tests(), Failed(On(Linux()), Mac())))",
+      "prompt": "Mood(Interrogative(), How(Many(), Tests(Failed(On(And(Linux(), Mac()))))))",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0
+    },
+    {
+      "message": "my sister's birthday is on june 3rd",
+      "rules": "Mood(Declarative(), My(Sister(Birthday(Is(On(June()), Ordinal(3))))))",
+      "prompt": "Mood(Declarative(), Is(Birthday(My(), Sister()), On(June()))) | Mood(Declarative(), \"3rd\")",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.14285714285714285
+    },
+    {
+      "message": "i ate a very sweet granny smith on october 15th 2024",
+      "rules": "Mood(Declarative(), Me(Ate(Very(Sweet(Smith(Granny()))), On(October()), Ordinal(15), 2024)))",
+      "prompt": "Mood(Declarative(), Me(Ate())) | Mood(Declarative(), A()) | Mood(Declarative(), Very()) | Mood(Declarative(), Smith(Granny(Sweet()), On(October()))) | Mood(Declarative(), Typed(\"2024\", \"15th\"))",
+      "same": false,
+      "recall": 0.4166666666666667,
+      "grouped": 0.125
+    },
+    {
+      "message": "greg is my coworker and we share memes all the time",
+      "rules": "Mood(Declarative(), Greg(Is(My(Coworker())))) | Mood(Declarative(), We(Share(All(Memes()), Time())))",
+      "prompt": "Mood(Declarative(), Is(Greg(), And(Coworker(My()), We()))) | Mood(Declarative(), Share(All(Memes()), Time()))",
+      "same": false,
+      "recall": 0.45454545454545453,
+      "grouped": 0.375
+    },
+    {
+      "message": "could you please summarize this article, it's really long lol",
+      "rules": "Mood(Interrogative(), Could(You(), Please(Summarize(Ref(\"this article\"))))) | Mood(Declarative(), Is(Ref(\"it\"), Really(), Long())) | MarkAside(\"lol\")",
+      "prompt": "Mood(Interrogative(), Is(Could(You(), Please(Summarize(Ref(\"this article\"), Ref(\"it's\")))), Really())) | Mood(Interrogative(), Long()) | Mood(Interrogative(), Lol())",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.1111111111111111
+    },
+    {
+      "message": "let's play chess",
+      "rules": "Mood(Imperative(), Let(We(), Play(Chess())))",
+      "prompt": "Mood(Imperative(), Let(We())) | Mood(Imperative(), Play(Chess()))",
+      "same": false,
+      "recall": 0.8,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "knight to f3",
+      "rules": "Mood(Imperative(), Knight(To(F3())))",
+      "prompt": "Mood(Declarative(), Knight(To(F3())))",
+      "same": false,
+      "recall": 0.75,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "is it my move?",
+      "rules": "Mood(Interrogative(), Is(Ref(\"it\"), My(Move())))",
+      "prompt": "Mood(Interrogative(), Is(It(), Move(My())))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.25
+    },
+    {
+      "message": "set a timer for 10 minutes",
+      "rules": "Mood(Imperative(), Set(Timer(), For(Minutes(10))))",
+      "prompt": "Mood(Imperative(), Set(Timer(For(Minutes(10)))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 1
+    },
+    {
+      "message": "convert 72 fahrenheit to celsius",
+      "rules": "Mood(Imperative(), Convert(Fahrenheit(72), To(Celsius())))",
+      "prompt": "Mood(Imperative(), Convert(Fahrenheit(72, To(Celsius()))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0.75
+    },
+    {
+      "message": "what's 15% of 80",
+      "rules": "Mood(Interrogative(), What(Is(Percent(15, Of(80)))))",
+      "prompt": "Mood(Interrogative(), What(Is(Typed(\"15%\", Of(80)))))",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.2
+    },
+    {
+      "message": "i have 3 cats and 2 dogs, how many pets is that?",
+      "rules": "Mood(Checking(), Me(Have(Cats(3), Dogs(2)))) | Mood(Interrogative(), HowMany(Pets(), Is(Ref(\"that\"))))",
+      "prompt": "Mood(Interrogative(), Me()) | Mood(Interrogative(), Have()) | Mood(Interrogative(), And(Cats(3), Dogs(2))) | Mood(Interrogative(), How(Many(), Is(Pets(), Ref(\"that\"))))",
+      "same": false,
+      "recall": 0.46153846153846156,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "tell me whether it will rain tomorrow",
+      "rules": "Mood(Imperative(), Tell(Me(), Whether(It(Will(Rain(Tomorrow()))))))",
+      "prompt": "Mood(Imperative(), Tell(Whether(Me(), It()))) | Mood(Imperative(), Will()) | Mood(Imperative(), Rain(Tomorrow()))",
+      "same": false,
+      "recall": 0.625,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "remind me every monday to water the plants",
+      "rules": "Mood(Imperative(), Remind(Me(), Every(Monday()), Water(Plants())))",
+      "prompt": "Mood(Imperative(), Remind(Me(), Monday(To(Water())))) | Mood(Imperative(), Plants())",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0
+    },
+    {
+      "message": "the meeting is at 3, er, 4pm",
+      "rules": "Mood(Declarative(), Meeting(Is(At(MarkCorrection(3, Time(4, Pm()))))))",
+      "prompt": "Mood(Declarative(), Is(Meeting(), At(MarkCorrection(3, Time(4, Pm()))))) | MarkAside(\"er\")",
+      "same": false,
+      "recall": 0.7777777777777778,
+      "grouped": 0.8333333333333334
+    },
+    {
+      "message": "compare python and rust for web servers",
+      "rules": "Mood(Imperative(), Compare(Python(), Rust(For(Servers(Web())))))",
+      "prompt": "Mood(Declarative(), And(Python(Compare()), Rust(For(Servers(Web())))))",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0.6
+    },
+    {
+      "message": "hmm idk, maybe tuesday?",
+      "rules": "MarkAside(\"hmm idk\") | Mood(Checking(), MarkFuzzy(\"maybe\", Tuesday()))",
+      "prompt": "MarkAside(\"hmm\") | Mood(Interrogative(), Idk()) | Mood(Interrogative(), Maybe()) | Mood(Interrogative(), Tuesday())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "¿qué hora es?",
+      "rules": "Mood(Checking(), Hora(Que(), Es()))",
+      "prompt": "Mood(Interrogative(), Es(Qu(), Hora()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "what day will it be in 5 days?",
+      "rules": "Mood(Interrogative(), What(Day(), Will(It(), Be(In(Days(5))))))",
+      "prompt": "Mood(Interrogative(), What(Day(), Will(It(), Be(In(Days(5))))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what time will it be in 2 hours",
+      "rules": "Mood(Interrogative(), What(Time(), Will(It(), Be(In(Hours(2))))))",
+      "prompt": "Mood(Interrogative(), What(Time(), Will(), It(), Be(In(Hours(2)))))",
+      "same": false,
+      "recall": 0.7777777777777778,
+      "grouped": 0.8333333333333334
+    },
+    {
+      "message": "remind me tomorrow at 3pm to call greg",
+      "rules": "Mood(Imperative(), Remind(Me(), Tomorrow(), At(Time(3, Pm())), Call(Greg())))",
+      "prompt": "Mood(Imperative(), Remind(Me(), Tomorrow(At(Time(3, Pm()))), Call(Greg())))",
+      "same": false,
+      "recall": 0.9,
+      "grouped": 1
+    },
+    {
+      "message": "Ah hem, correction, that is a misspelling of my fuzzy bears name Ref, as an aside i dont mind too much.",
+      "rules": "MarkAside(\"Ah hem\") | Correction(That(Is(Misspelling(Of(My(Fuzzy(Bears())))), Name(Ref())))) | Mood(Declarative(), As(Aside(Me(DoNot(Mind(Too(), Much()))))))",
+      "prompt": "MarkAside(\"Ah\") | Mood(Declarative(), Hem()) | Mood(Declarative(), Correction(That(Is(Misspelling(Of(Bears(My(), Fuzzy()))))))) | Mood(Declarative(), Name(Ref(As(An())))) | Mood(Declarative(), Aside()) | Mood(Declarative(), Me()) | Mood(Declarative(), Do()) | Mood(Declarative(), Not(Mind())) | Mood(Declarative(), Too()) | Mood(Declarative(), Much())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.2
+    },
+    {
+      "message": "can you add emphasis to this",
+      "rules": "Mood(Interrogative(), Can(You(), Add(Emphasis(), To(Ref(\"this\")))))",
+      "prompt": "Mood(Interrogative(), Can(You(), Add(Emphasis(To(Ref(\"this\"))))))",
+      "same": false,
+      "recall": 0.875,
+      "grouped": 1
+    },
+    {
+      "message": "turn off the lights",
+      "rules": "Mood(Imperative(), TurnOff(Lights()))",
+      "prompt": "Mood(Imperative(), Turn()) | Mood(Imperative(), Off(Lights()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "set an alarm for 7am",
+      "rules": "Mood(Imperative(), Set(Alarm(), For(Time(7, Am()))))",
+      "prompt": "Mood(Imperative(), Set(Alarm(For(Time(7, Am())))))",
+      "same": false,
+      "recall": 0.8571428571428571,
+      "grouped": 1
+    },
+    {
+      "message": "what's the capital of france?",
+      "rules": "Mood(Interrogative(), What(Is(Capital(Of(France())))))",
+      "prompt": "Mood(Interrogative(), What(Is(Capital(Of(France())))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "who wrote hamlet",
+      "rules": "Mood(Interrogative(), Who(Wrote(Hamlet())))",
+      "prompt": "Mood(Interrogative(), Who(Wrote(Hamlet())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "could you help me write a cover letter for a barista job?",
+      "rules": "Mood(Interrogative(), Could(You(), Help(Me(), Write(Letter(Cover()), For(Job(Barista()))))))",
+      "prompt": "Mood(Interrogative(), Could(You(), Help(Me()))) | Mood(Interrogative(), Write(Letter(Cover(), For(Job(Barista())))))",
+      "same": false,
+      "recall": 0.8181818181818182,
+      "grouped": 0.42857142857142855
+    },
+    {
+      "message": "grab me the latest numbers please",
+      "rules": "Mood(Imperative(), Please(Grab(Me(), Latest(Numbers()))))",
+      "prompt": "Mood(Imperative(), Please(Grab(Me(), Numbers(Latest()))))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 1
+    },
+    {
+      "message": "i'm allergic to peanuts",
+      "rules": "Mood(Declarative(), Me(AllergicTo(Peanuts())))",
+      "prompt": "Mood(Declarative(), Am(Me(), Allergic(To(Peanuts()))))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0
+    },
+    {
+      "message": "my name is keal",
+      "rules": "Mood(Declarative(), My(Name(Is(Keal()))))",
+      "prompt": "Mood(Declarative(), Is(Name(My()), Keal()))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0.5
+    },
+    {
+      "message": "colorless green ideas sleep furiously",
+      "rules": "Mood(Declarative(), Colorless(Green(Ideas(Sleep(Furiously())))))",
+      "prompt": "Mood(Declarative(), Ideas(Colorless(), Green(), Sleep())) | Mood(Declarative(), Furiously())",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "asdkjh qwe zzz",
+      "rules": "Unclear(\"asdkjh qwe zzz\")",
+      "prompt": "Mood(Declarative(), Zzz(Asdkjh(), Qwe()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "why is a raven like a writing desk",
+      "rules": "Mood(Interrogative(), Why(Is(Raven(Like(Desk(Writing()))))))",
+      "prompt": "Mood(Interrogative(), Why(Is(Raven(Like(Desk(Writing()))))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "how many angels can dance on the head of a pin",
+      "rules": "Mood(Interrogative(), HowMany(Angels(), Can(Dance(On(Head(Of(Pin())))))))",
+      "prompt": "Mood(Interrogative(), How(Many(), Angels(), Can(), Dance(On(Head(Of(Pin()))))))",
+      "same": false,
+      "recall": 0.5555555555555556,
+      "grouped": 0.5714285714285714
+    },
+    {
+      "message": "banana",
+      "rules": "Banana()",
+      "prompt": "Mood(Declarative(), Banana())",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "hey there!",
+      "rules": "MarkEmphasis(\"!\", HeyThere())",
+      "prompt": "Mood(Declarative(), There(Hey()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "1. clone the repo\n2. install deps\n3. run the tests\n4. tell me what failed",
+      "rules": "Item(1, Mood(Imperative(), Clone(Repo()))) | Item(2, Mood(Imperative(), Install(Deps()))) | Item(3, Mood(Imperative(), Run(Tests()))) | Item(4, Mood(Imperative(), Tell(Me(), What(Failed()))))",
+      "prompt": "Mood(Declarative(), 1) | Mood(Declarative(), Clone(Repo())) | Mood(Declarative(), 2) | Mood(Declarative(), Install(Deps())) | Mood(Declarative(), 3) | Mood(Declarative(), Run(Tests())) | Mood(Declarative(), 4) | Mood(Declarative(), Tell(Me())) | Mood(Declarative(), What(Failed()))",
+      "same": false,
+      "recall": 0.4090909090909091,
+      "grouped": 0.3076923076923077
+    },
+    {
+      "message": "first check if the server is up, then if it is restart the worker, otherwise page me",
+      "rules": "Unclear(\"first check if the server is up\", First(), Check(), If(), The(), Server(), Is(), Up()) | Mood(Imperative(), If(Is(Ref(\"it\")), Restart(Worker()), Otherwise(Page(Me()))))",
+      "prompt": "Mood(Declarative(), Is(If(Check(First()), Server()), Up())) | Mood(Declarative(), Is(If(Then(), Ref(\"it\")), Restart(Otherwise(Worker(), Page(Me())))))",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0.25
+    },
+    {
+      "message": "## Task\nRefactor `parseConfig` in src/config.ts.\n\n### Requirements\n- keep the public API the same\n- add tests for the yaml path\n- don't touch the CLI\n\nThanks!",
+      "rules": "Heading(2, \"Task\") | Mood(Imperative(), Refactor(InlineCode(\"parseConfig\"), In(\"src/config.ts\"))) | Heading(3, \"Requirements\") | Item(Mood(Imperative(), Keep(Public(Same(Api(), The()))))) | Item(Mood(Imperative(), Add(Tests(), For(Path(Yaml()))))) | Item(Mood(Imperative(), DoNot(Touch(Number(\"cli\"))))) | MarkEmphasis(\"!\", Thanks())",
+      "prompt": "Mood(Declarative(), Task(\"##\")) | Mood(Imperative(), Refactor(Parseconfig(In(SrcConfigTs())))) | Mood(Declarative(), Requirements(\"###\")) | Mood(Imperative(), Keep(Api(Public()), Same())) | Mood(Imperative(), Add(Tests(For(Path(Yaml()))))) | Mood(Imperative(), Do(Not(Touch(Cli())))) | Mood(Declarative(), Thanks())",
+      "same": false,
+      "recall": 0.3125,
+      "grouped": 0.18181818181818182
+    },
+    {
+      "message": "I'm building a small web app for my jam business. It needs a product page, a cart, and checkout with Stripe. Keep it simple, no user accounts for now. Use Next.js and Tailwind.\n\nCan you give me a step by step plan and then the code for the product page?",
+      "rules": "Mood(Declarative(), Me(Am(Building(Small(App(Web())), For(My(Business(Jam()))))))) | Mood(Declarative(), Needs(Ref(\"it\"), Page(Product()), Cart(), Checkout(), With(Stripe()))) | Mood(Imperative(), Keep(It(MarkCorrection(Simple(), User()), Accounts(For(Now()))))) | Mood(Imperative(), Use(\"Next.js\", Tailwind())) | Mood(Interrogative(), Can(You(), Give(Me(), Step(), By(Plan(Step()))))) | Mood(Checking(), Unclear(\"the code for the product page\", The(), Code(), For(), The(), Product(), Page()))",
+      "prompt": "Mood(Declarative(), Am(Me(), Building(App(Small(), Web(), For(Business(My(), Jam())))))) | Mood(Declarative(), It(Needs(Page(Product())))) | Mood(Declarative(), And(Cart(), Checkout(With(Stripe())))) | Mood(Imperative(), Keep()) | Mood(Imperative(), It()) | Mood(Imperative(), Simple()) | Mood(Imperative(), User(No())) | Mood(Imperative(), Accounts()) | Mood(Imperative(), Now(For())) | Mood(Imperative(), Use(And(NextJs(), Tailwind()))) | Mood(Interrogative(), Can(You(), Give(Me(), Step(By(And(Plan(Step()), Then())))))) | Mood(Interrogative(), Code(For(Page(Product()))))",
+      "same": false,
+      "recall": 0.36538461538461536,
+      "grouped": 0.3103448275862069
+    },
+    {
+      "message": "write a python function that returns the nth fibonacci number, with memoization",
+      "rules": "Mood(Imperative(), Write(Function(Python(), That(Returns(Number(Nth(), Fibonacci())))), With(Memoization())))",
+      "prompt": "Mood(Imperative(), Write(Function(Python(), That(Returns(Number(Nth(), Fibonacci(), With(Memoization())))))))",
+      "same": false,
+      "recall": 0.9090909090909091,
+      "grouped": 0.42857142857142855
+    },
+    {
+      "message": "rename getUser to fetchUser everywhere in src/ and update the tests",
+      "rules": "Mood(Imperative(), Rename(\"getUser\", To(\"fetchUser\"), Everywhere(), In(Src()))) | Mood(Imperative(), Update(Tests()))",
+      "prompt": "Mood(Imperative(), Rename(Getuser(To(Fetchuser())))) | Mood(Imperative(), Everywhere(In(And(Src(), Update(Tests())))))",
+      "same": false,
+      "recall": 0.36363636363636365,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "run `pnpm test` and paste the failures",
+      "rules": "Mood(Imperative(), Run(InlineCode(\"pnpm test\"))) | Mood(Imperative(), Paste(Failures()))",
+      "prompt": "Mood(Declarative(), And(Test(Run(), Pnpm()), Paste(Failures())))",
+      "same": false,
+      "recall": 0.14285714285714285,
+      "grouped": 0.2
+    },
+    {
+      "message": "review PR #482 in cnocept, focus on the memory changes and leave comments but don't approve",
+      "rules": "Mood(Imperative(), Review(MarkEmphasis(\"PR\", Pr()), Number(\"#482\"), In(MarkMisspelling(\"cnocept\", Concept())))) | Mood(Imperative(), Focus(On(Memory()), Changes(Leave(Comments())))) | Mood(Imperative(), But(DoNot(Approve())))",
+      "prompt": "Mood(Imperative(), Review(Pr(), Typed(\"#482\", In(Cnocept())))) | Mood(Imperative(), Focus(On(Memory()))) | Mood(Imperative(), And(Changes(), Leave(But(Comments(), Do())))) | Mood(Imperative(), Not(Approve()))",
+      "same": false,
+      "recall": 0.3181818181818182,
+      "grouped": 0.07142857142857142
+    },
+    {
+      "message": "can you look at https://github.com/foo/bar/pull/12 and tell me if it's safe to merge",
+      "rules": "Mood(Interrogative(), Can(You(), Look(At(\"https://github.com/foo/bar/pull/12\")))) | Mood(Imperative(), Tell(Me(), If(SafeTo(Ref(\"it\"), Merge()))))",
+      "prompt": "Mood(Interrogative(), Can(You(), Look(At()))) | Mood(Interrogative(), Is(And(HttpsGithubComFooBarPull12(), Tell(If(Me(), Ref(\"it's\")), Merge())), Safe()))",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0
+    },
+    {
+      "message": "do the same thing for the other file",
+      "rules": "Mood(Interrogative(), Do(Ref(\"the same thing\"), For(Ref(\"the other file\"))))",
+      "prompt": "Mood(Interrogative(), Do(Thing(Same(), For(File(Other())))))",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0
+    },
+    {
+      "message": "send it to him",
+      "rules": "Mood(Imperative(), Send(Ref(\"it\"), To(Ref(\"him\"))))",
+      "prompt": "Mood(Imperative(), Send(Ref(\"it\"), To(Him())))",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 0.2
+    },
+    {
+      "message": "remember that bug we talked about last week? is it fixed yet",
+      "rules": "Mood(Checking(), Remember($ref1)) | Mood(Interrogative(), Is(Ref(\"it\", $ref1), Fixed(), Yet()))",
+      "prompt": "Mood(Interrogative(), Remember(Ref(\"that bug\"), We(Talked(About(Week(Last())))))) | Mood(Interrogative(), Is(Ref(\"it\"), Fixed())) | Mood(Interrogative(), Yet())",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.25
+    },
+    {
+      "message": "now make it handle unicode",
+      "rules": "MarkAside(\"now\") | Mood(Imperative(), Make(Ref(\"it\"), Handle(Unicode())))",
+      "prompt": "Mood(Imperative(), Now()) | Mood(Imperative(), Make(It())) | Mood(Imperative(), Handle(Unicode()))",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0.2
+    },
+    {
+      "message": "tell me more about the second one",
+      "rules": "Mood(Imperative(), Tell(Me(), More(), About(Ref(\"the second one\"))))",
+      "prompt": "Mood(Imperative(), Tell(Me())) | Mood(Imperative(), More(About(Ref(\"the second one\"))))",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 0.5
+    },
+    {
+      "message": "what did i say my sister's name was?",
+      "rules": "Mood(Interrogative(), What(Did(Me(), Say(\"my sister's name was\"))))",
+      "prompt": "Mood(Interrogative(), What(Did(Me(), Say(Name(My(), Sister(), Was())))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0
+    },
+    {
+      "message": "why?",
+      "rules": "Mood(Interrogative(), Why())",
+      "prompt": "Mood(Interrogative(), Why())",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "write a function that parses csv",
+      "rules": "Mood(Imperative(), Write(Function(That(Parses(Csv())))))",
+      "prompt": "Mood(Imperative(), Write(Function(That(Parses(Csv())))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "make it faster",
+      "rules": "Mood(Imperative(), Make(Ref(\"it\"), Faster()))",
+      "prompt": "Mood(Imperative(), Make(Ref(\"it\"))) | Mood(Imperative(), Faster())",
+      "same": false,
+      "recall": 0.8,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "run the usual",
+      "rules": "Mood(Imperative(), Run(Ref(\"the usual\")))",
+      "prompt": "Mood(Imperative(), Run(Usual()))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "book me a table for tonight",
+      "rules": "Mood(Imperative(), Book(Me(), Table(), For(Tonight())))",
+      "prompt": "Mood(Imperative(), Book(Me(), Table(For(Tonight()))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 1
+    },
+    {
+      "message": "convert this to celsius",
+      "rules": "Mood(Imperative(), Convert(Ref(\"this\"), To(Celsius())))",
+      "prompt": "Mood(Imperative(), Convert()) | Mood(Imperative(), This(To(Celsius())))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.25
+    },
+    {
+      "message": "thanks! also what's the weather tomorrow and can you remind me to bring an umbrella if it rains",
+      "rules": "MarkEmphasis(\"!\", Thanks()) | MarkAside(\"also\") | Mood(Interrogative(), What(Is(Weather(), Tomorrow()))) | Mood(Interrogative(), Can(You(), Remind(Me(), Bring(Umbrella(), If(It(Rains()))))))",
+      "prompt": "Mood(Declarative(), Thanks()) | Mood(Declarative(), Also()) | Mood(Declarative(), What(Is(Weather(), And(Tomorrow(), Can())), You(), Remind(Me(), Bring(If(Umbrella(), It()))), Rains()))",
+      "same": false,
+      "recall": 0.3888888888888889,
+      "grouped": 0
+    },
+    {
+      "message": "move the meeting to tuesday, no wait, wednesday",
+      "rules": "Mood(Imperative(), Move(Meeting(), MarkCorrection(To(Tuesday()), Wednesday())))",
+      "prompt": "Mood(Imperative(), Move(Meeting(To(Tuesday())))) | Mood(Imperative(), Wait(No())) | Mood(Imperative(), Wednesday())",
+      "same": false,
+      "recall": 0.5714285714285714,
+      "grouped": 0.25
+    },
+    {
+      "message": "not that one, the blue one",
+      "rules": "Not(Ref(\"that one\")) | Ref(\"the blue one\")",
+      "prompt": "Mood(Declarative(), Not(Ref(\"that one\"))) | Mood(Declarative(), Ref(\"the blue one\"))",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "please do NOT push to main",
+      "rules": "Mood(Imperative(), Please(MarkEmphasis(\"NOT\", DoNot(Push(To(Main()))))))",
+      "prompt": "Mood(Imperative(), Please(Do())) | Mood(Imperative(), Not(Push(To(Main()))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "give me like five-ish names for a cat",
+      "rules": "Mood(Imperative(), Give(Me(), Like(FiveIsh()), Names(For(Cat()))))",
+      "prompt": "Mood(Imperative(), Give(Me(), Like(FiveIsh()))) | Mood(Imperative(), Names(For(Cat())))",
+      "same": false,
+      "recall": 0.875,
+      "grouped": 0.6
+    },
+    {
+      "message": "whats the wether in pittsburgh",
+      "rules": "Mood(Interrogative(), What(Is(MarkMisspelling(\"wether\", Weather(In(Pittsburgh()))))))",
+      "prompt": "Mood(Declarative(), Wether(Whats(), In(Pittsburgh())))",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "which of these is a prime: 21, 27, 29, 33?",
+      "rules": "Unclear(\"which of these\", Which(), Of(), These()) | Mood(Interrogative(), Is(Prime(), List(21, 27, 29, 33)))",
+      "prompt": "Mood(Interrogative(), Which(Of(Ref(\"these\")), Is(A()), Prime(), 21, 27, 29, 33))",
+      "same": false,
+      "recall": 0.08333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "if i invest 1000 dollars at 5% a year, how much will i have in 10 years?",
+      "rules": "Mood(Interrogative(), If(Me(Invest(Dollars(1000), At(At(Percent(5), Per(Year()))))), HowMuch(Will(I(Have(In(Years(10))))))))",
+      "prompt": "Mood(Interrogative(), If()) | Mood(Interrogative(), Me(Invest(Dollars(1000, At(\"5%\"))))) | Mood(Interrogative(), Year()) | Mood(Interrogative(), How(Much(), Will(), Me(), Have(In(Years(10)))))",
+      "same": false,
+      "recall": 0.42105263157894735,
+      "grouped": 0.2
+    },
+    {
+      "message": "explain like i'm five how vaccines work",
+      "rules": "Mood(Imperative(), Explain(Like(Me()), Am(Number(\"five\"), How(Vaccines(Work())))))",
+      "prompt": "Mood(Imperative(), Am(Explain(Like(Me())), Number(\"five\"))) | Mood(Imperative(), How(Vaccines(), Work()))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.42857142857142855
+    },
+    {
+      "message": "draft an email to my landlord saying the heater is broken again and asking when they can fix it, keep it polite",
+      "rules": "Mood(Imperative(), Draft(Email(), To(My(Landlord())), Saying(Heater(), Is(Broken(), Again())))) | Mood(Imperative(), Asking(When(They(Can(Fix(Ref(\"it\"))))))) | Mood(Imperative(), Keep(It(Polite())))",
+      "prompt": "Mood(Imperative(), Draft(Email(To(Landlord(My()))))) | Mood(Imperative(), Is(Saying(Heater()), Broken())) | Mood(Imperative(), And(Again(), Asking())) | Mood(Imperative(), When(They(), Can(), Fix(It()))) | Mood(Imperative(), Keep()) | Mood(Imperative(), Ref(\"it\")) | Mood(Imperative(), Polite())",
+      "same": false,
+      "recall": 0.43478260869565216,
+      "grouped": 0.1875
+    },
+    {
+      "message": "forget everything i told you about my ex",
+      "rules": "Mood(Imperative(), Forget(Everything(Me(Told(You(), About(My(Ex())))))))",
+      "prompt": "Mood(Imperative(), Forget(Everything(), Me(Told(You(), About(My()))))) | Mood(Imperative(), Ex())",
+      "same": false,
+      "recall": 0.7777777777777778,
+      "grouped": 0
+    },
+    {
+      "message": "e4",
+      "rules": "Mood(Imperative(), E4())",
+      "prompt": "Mood(Declarative(), E4())",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "i saw the man with the telescope",
+      "rules": "Mood(Declarative(), Me(Saw(Man(), With(Telescope()))))",
+      "prompt": "Mood(Declarative(), Me(Saw(Man(With(Telescope())))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 1
+    },
+    {
+      "message": "it's tuesday, right?",
+      "rules": "Mood(Checking(), It(Is(Tuesday()))) | Right()",
+      "prompt": "Mood(Interrogative(), Is(It(), Tuesday())) | Mood(Interrogative(), Right())",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "ok so basically i've been trying to get my raspberry pi to connect to wifi for like 3 hours and it keeps dropping, i already tried rebooting it and changing the channel on the router, what else should i try?? its a pi 4 btw",
+      "rules": "MarkEmphasis(\"??\", MarkAside(\"ok so basically\")) | Mood(Checking(), MarkEmphasis(\"??\", Me(Have(Been(Trying(Get(My(Pi(Raspberry())), Connect(To(Wifi()), For(MarkFuzzy(\"like\", Hours(3))))))))))) | Mood(Checking(), MarkEmphasis(\"??\", It(Keeps(Dropping(Me(), Already(), Tried(Rebooting(Ref(\"it\")))))))) | Mood(Checking(), MarkEmphasis(\"??\", Changing(Channel(), On(Router())))) | Mood(Interrogative(), MarkEmphasis(\"??\", What(Else(), Should(Me(), Try())))) | Mood(Declarative(), IsA(Ref(\"it\"), Pi(4))) | Btw()",
+      "prompt": "Mood(Interrogative(), Ok()) | Mood(Interrogative(), So()) | Mood(Interrogative(), Basically()) | Mood(Interrogative(), Me()) | Mood(Interrogative(), Have()) | Mood(Interrogative(), Been()) | Mood(Interrogative(), Trying(Get(Pi(My(), Raspberry()), Connect(To(Wifi()))))) | Mood(Interrogative(), Like(And(Hours(3), It()))) | Mood(Interrogative(), Keeps()) | Mood(Interrogative(), Dropping(Me())) | Mood(Interrogative(), Already()) | Mood(Interrogative(), Tried()) | Mood(Interrogative(), Rebooting(And(It(), Changing(Channel(On(Router())))))) | Mood(Interrogative(), What(Else(), Should(), Me(), Try())) | Mood(Declarative(), Typed(\"4\", Pi(Its()))) | Mood(Declarative(), Btw())",
+      "same": false,
+      "recall": 0.23636363636363636,
+      "grouped": 0.16666666666666666
+    },
+    {
+      "message": "could you close the door please",
+      "rules": "Mood(Interrogative(), Could(You(), Close(Door())))",
+      "prompt": "Mood(Interrogative(), Please(Could(You(), Close(Door()))))",
+      "same": false,
+      "recall": 0.8,
+      "grouped": 0.6666666666666666
+    },
+    {
+      "message": "chess is a sport?",
+      "rules": "Mood(Checking(), Chess(IsA(Sport())))",
+      "prompt": "Mood(Interrogative(), Is(Chess(), Sport()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "thanks!",
+      "rules": "MarkEmphasis(\"!\", Thanks())",
+      "prompt": "Mood(Declarative(), Thanks())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "## Task\nRefactor `parseConfig`",
+      "rules": "Heading(2, \"Task\") | Mood(Imperative(), Refactor(InlineCode(\"parseConfig\")))",
+      "prompt": "Mood(Declarative(), Task(\"##\")) | Mood(Declarative(), Parseconfig(Refactor()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "1. clone the repo\n2. run the tests",
+      "rules": "Item(1, Mood(Imperative(), Clone(Repo()))) | Item(2, Mood(Imperative(), Run(Tests())))",
+      "prompt": "Mood(Declarative(), 1) | Mood(Declarative(), Clone(Repo())) | Mood(Declarative(), 2) | Mood(Declarative(), Run(Tests()))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "book a flight to pheonix",
+      "rules": "Mood(Imperative(), Book(Flight(), To(MarkMisspelling(\"pheonix\", Phoenix()))))",
+      "prompt": "Mood(Imperative(), Book(Flight(To(Pheonix()))))",
+      "same": false,
+      "recall": 0.42857142857142855,
+      "grouped": 0
+    },
+    {
+      "message": "what is it?",
+      "rules": "Mood(Interrogative(), What(Is(Ref(\"it\"))))",
+      "prompt": "Mood(Interrogative(), What(Is(Ref(\"it\"))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what time is it?",
+      "rules": "Mood(Interrogative(), What(Time(), Is(It())))",
+      "prompt": "Mood(Interrogative(), What(Time(), Is(It())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "grab those logs from yesterday",
+      "rules": "Mood(Imperative(), Grab(Ref(\"those logs\"), From(Yesterday())))",
+      "prompt": "Mood(Imperative(), Grab(Ref(\"those logs\", From(Yesterday()))))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0.75
+    },
+    {
+      "message": "put it on the shelf beside the lamp",
+      "rules": "Mood(Imperative(), Put(Ref(\"it\"), On(Shelf()), Beside(Lamp())))",
+      "prompt": "Mood(Imperative(), Put(Ref(\"it\"), On(Shelf(Beside(Lamp())))))",
+      "same": false,
+      "recall": 0.875,
+      "grouped": 0.8
+    },
+    {
+      "message": "i hid it behind the couch",
+      "rules": "Mood(Declarative(), Me(Hid(Ref(\"it\"), Behind(Couch()))))",
+      "prompt": "Mood(Declarative(), Me(Hid(Ref(\"it\"), Behind(Couch()))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "can you sort these by date",
+      "rules": "Mood(Interrogative(), Can(You(), Sort(Ref(\"these\"), By(Date()))))",
+      "prompt": "Mood(Interrogative(), Can(You(), Sort(Date()))) | Mood(Interrogative(), Ref(\"these\"))",
+      "same": false,
+      "recall": 0.625,
+      "grouped": 0.2
+    },
+    {
+      "message": "no, not that one",
+      "rules": "No() | Not(Ref(\"that one\"))",
+      "prompt": "Mood(Declarative(), No()) | Mood(Declarative(), Not(Ref(\"that one\")))",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "yeah keep going",
+      "rules": "Yeah() | Mood(Imperative(), Keep(Going()))",
+      "prompt": "Mood(Imperative(), Yeah()) | Mood(Imperative(), Keep()) | Mood(Imperative(), Going())",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "yes please",
+      "rules": "Please(Yes())",
+      "prompt": "Mood(Declarative(), Please(Yes()))",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "omg thank you",
+      "rules": "MarkAside(\"omg\") | ThankYou()",
+      "prompt": "Mood(Imperative(), Omg()) | Mood(Imperative(), Thank(You()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "lol ok do it",
+      "rules": "MarkAside(\"lol ok\") | Mood(Imperative(), Do(Ref(\"it\")))",
+      "prompt": "Mood(Declarative(), Lol()) | Mood(Declarative(), Ok()) | Mood(Declarative(), Do()) | Mood(Declarative(), Ref(\"it\"))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0.25
+    },
+    {
+      "message": "no problem",
+      "rules": "No(Problem())",
+      "prompt": "Mood(Declarative(), Problem(No()))",
+      "same": false,
+      "recall": 0,
+      "grouped": 1
+    },
+    {
+      "message": "maybe tuesday?",
+      "rules": "Mood(Checking(), MarkFuzzy(\"maybe\", Tuesday()))",
+      "prompt": "Mood(Interrogative(), Maybe()) | Mood(Interrogative(), Tuesday())",
+      "same": false,
+      "recall": 0,
+      "grouped": 0
+    },
+    {
+      "message": "we need to add a like checklist to this",
+      "rules": "Mood(Declarative(), We(Need(Add(MarkFuzzy(\"like\", Checklist()), To(Ref(\"this\"))))))",
+      "prompt": "Mood(Declarative(), We(Need(Add()))) | Mood(Declarative(), A(Like(Checklist(To(Ref(\"this\"))))))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0.2857142857142857
+    },
+    {
+      "message": "like isnt that obvious?",
+      "rules": "MarkAside(\"like\") | Mood(Interrogative(), Is(Not(Ref(\"that\")), Obvious()))",
+      "prompt": "Mood(Interrogative(), Is(Not(Ref(\"that\")))) | Mood(Interrogative(), Obvious())",
+      "same": false,
+      "recall": 0.7142857142857143,
+      "grouped": 0.4
+    },
+    {
+      "message": "not the first batch",
+      "rules": "Not(Batch(Ordinal(\"first\")))",
+      "prompt": "Mood(Declarative(), Not(Batch(First())))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "say if its bigger than before",
+      "rules": "Mood(Imperative(), Say(If(Is(Ref(\"it\"), BiggerThan(Before())))))",
+      "prompt": "Mood(Imperative(), If(Say(), Its())) | Mood(Imperative(), Bigger(Than(Before())))",
+      "same": false,
+      "recall": 0.125,
+      "grouped": 0
+    },
+    {
+      "message": "i bought apples, pears and plums",
+      "rules": "Mood(Declarative(), Me(Bought(Apples(), Pears(), Plums())))",
+      "prompt": "Mood(Declarative(), Me(Bought(Apples()))) | Mood(Declarative(), And(Pears(), Plums()))",
+      "same": false,
+      "recall": 0.6666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "every dog barks",
+      "rules": "Mood(Declarative(), Every(Dog(Barks())))",
+      "prompt": "Mood(Declarative(), Barks(Dog()))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "yo homie can you help me figure out what 5 time 17 is?",
+      "rules": "MarkAside(\"yo homie\") | Mood(Interrogative(), Can(You(), Help(Me(), FigureOut(What(Is(MarkMisspelling(\"time\", Times(5, 17))))))))",
+      "prompt": "Mood(Interrogative(), Homie(Yo())) | Mood(Interrogative(), Can()) | Mood(Interrogative(), You()) | Mood(Interrogative(), Help(Me())) | Mood(Interrogative(), Figure()) | Mood(Interrogative(), Out()) | Mood(Interrogative(), What(5, Is(Time(17))))",
+      "same": false,
+      "recall": 0.2857142857142857,
+      "grouped": 0
+    },
+    {
+      "message": "dude where is my car",
+      "rules": "MarkAside(\"dude\") | Mood(Interrogative(), Where(Is(My(Car()))))",
+      "prompt": "Mood(Declarative(), Dude()) | Mood(Declarative(), Where(Is(Car(My()))))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0.6
+    },
+    {
+      "message": "what ahppened to that hsit",
+      "rules": "Mood(Interrogative(), What(MarkMisspelling(\"ahppened\", Happened(To(Ref(\"that shit\"))))))",
+      "prompt": "Mood(Interrogative(), What(Ahppened(To(Ref(\"that hsit\")))))",
+      "same": false,
+      "recall": 0.375,
+      "grouped": 0
+    },
+    {
+      "message": "waht is teh time",
+      "rules": "Mood(Interrogative(), What(Is(Time())))",
+      "prompt": "Mood(Declarative(), Is(Waht(), Time(Teh())))",
+      "same": false,
+      "recall": 0.25,
+      "grouped": 0
+    },
+    {
+      "message": "what is the time",
+      "rules": "Mood(Interrogative(), What(Is(Time())))",
+      "prompt": "Mood(Interrogative(), What(Is(Time())))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "blorp zap the frobnicator",
+      "rules": "Mood(Imperative(), Blorp(Zap(), Frobnicator()))",
+      "prompt": "Mood(Declarative(), Frobnicator(Zap(Blorp())))",
+      "same": false,
+      "recall": 0,
+      "grouped": 0.5
+    },
+    {
+      "message": "you specificlly stated it",
+      "rules": "Mood(Declarative(), You(MarkMisspelling(\"specificlly\", Specifically(Stated(Ref(\"it\"))))))",
+      "prompt": "Mood(Declarative(), You()) | Mood(Declarative(), Specificlly()) | Mood(Declarative(), Stated(Ref(\"it\")))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.3333333333333333
+    },
+    {
+      "message": "what is 5 * 3?",
+      "rules": "Mood(Interrogative(), What(Is(Times(5, 3))))",
+      "prompt": "Mood(Interrogative(), What(Is(Typed(\"3\", 5))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0
+    },
+    {
+      "message": "what is (2 + 3) * 4",
+      "rules": "Mood(Interrogative(), What(Is(Times(Plus(2, 3), 4))))",
+      "prompt": "Mood(Interrogative(), What(Is(Plus(\"(2\", Typed(\"4\", 3)))))",
+      "same": false,
+      "recall": 0.375,
+      "grouped": 0
+    },
+    {
+      "message": "is 5 > 3?",
+      "rules": "Mood(Interrogative(), Is(GreaterThan(5, 3)))",
+      "prompt": "Mood(Interrogative(), Is(Typed(\">\", 5), 3))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0
+    },
+    {
+      "message": "it costs $5",
+      "rules": "Mood(Declarative(), Costs(Ref(\"it\"), Dollars(5)))",
+      "prompt": "Mood(Declarative(), It(Costs(\"$5\")))",
+      "same": false,
+      "recall": 0.16666666666666666,
+      "grouped": 0
+    },
+    {
+      "message": "call me at 555-1234",
+      "rules": "Mood(Imperative(), Call(Me(), At(\"555-1234\")))",
+      "prompt": "Mood(Imperative(), Call(Me(), At(\"555-1234\")))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "we are open 24/7",
+      "rules": "Mood(Declarative(), We(Are(Open(\"24/7\"))))",
+      "prompt": "Mood(Declarative(), Are(We(), Typed(\"24/7\", Open())))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "look up the word",
+      "rules": "Mood(Imperative(), LookUp(Word()))",
+      "prompt": "Mood(Imperative(), Look()) | Mood(Imperative(), Up(Word()))",
+      "same": false,
+      "recall": 0.3333333333333333,
+      "grouped": 0
+    },
+    {
+      "message": "tell me where the station is",
+      "rules": "Mood(Imperative(), Tell(Me(), Where(Is(Station()))))",
+      "prompt": "Mood(Imperative(), Tell(Me())) | Mood(Imperative(), Where(Is(Station())))",
+      "same": false,
+      "recall": 0.8333333333333334,
+      "grouped": 0.5
+    },
+    {
+      "message": "what 17 times 3 is?",
+      "rules": "Mood(Interrogative(), What(Is(Times(17, 3))))",
+      "prompt": "Mood(Interrogative(), What(Is(Times(17, 3))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "hi",
+      "rules": "Hi()",
+      "prompt": "Mood(Declarative(), Hi())",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "and plus 3?",
+      "rules": "Mood(Interrogative(), Plus(Ref(\"\"), 3))",
+      "prompt": "Mood(Interrogative(), Plus(And(), 3))",
+      "same": false,
+      "recall": 0.6,
+      "grouped": 0
+    },
+    {
+      "message": "and minus 1",
+      "rules": "Mood(Interrogative(), Minus(Ref(\"\"), 1))",
+      "prompt": "Mood(Declarative(), Minus(And(), 1))",
+      "same": false,
+      "recall": 0.4,
+      "grouped": 0
+    },
+    {
+      "message": "times that by 2",
+      "rules": "Mood(Interrogative(), Times(Ref(\"that\"), 2))",
+      "prompt": "Mood(Declarative(), Times()) | Mood(Declarative(), That(By(2)))",
+      "same": false,
+      "recall": 0.2,
+      "grouped": 0
+    },
+    {
+      "message": "what is that plus 3",
+      "rules": "Mood(Interrogative(), What(Is(Plus(Ref(\"that\"), 3))))",
+      "prompt": "Mood(Interrogative(), What(Is(Plus(Ref(\"that\"), 3))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "5 plus 3",
+      "rules": "Plus(5, 3)",
+      "prompt": "Mood(Declarative(), Plus(5, 3))",
+      "same": false,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "what is a work in progress",
+      "rules": "Mood(Interrogative(), What(Is(Work(In(Progress())))))",
+      "prompt": "Mood(Interrogative(), What(Is(Work(In(Progress())))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "is napkin a work in progress",
+      "rules": "Mood(Interrogative(), Is(Napkin(), Work(In(Progress()))))",
+      "prompt": "Mood(Interrogative(), Is(Napkin(), Work(In(Progress()))))",
+      "same": true,
+      "recall": 1,
+      "grouped": 1
+    },
+    {
+      "message": "napkin is a work in progress",
+      "rules": "Mood(Declarative(), Napkin(IsA(Work(In(Progress())))))",
+      "prompt": "Mood(Declarative(), Is(Napkin(), Work(In(Progress()))))",
+      "same": false,
+      "recall": 0.5,
+      "grouped": 0.4
+    }
+  ]
+}

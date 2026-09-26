@@ -25,7 +25,7 @@ export interface Sample extends Score {
   raw: string;
   reading: string | null;
   ms: number;
-  backend?: "rules" | "model";
+  backend?: "rules" | "model" | "prompt";
   fallback?: string;
 }
 
@@ -129,7 +129,7 @@ export function unfuse(target: string): string {
  * framed again; rules runs saved before they did carry no mood at all, and are framed like
  * the model's. In unfused scoring the reading is unfused too, so both sides are treated alike.
  */
-const readFor = (raw: string, message: string, unfused: boolean, backend?: "rules" | "model") => {
+const readFor = (raw: string, message: string, unfused: boolean, backend?: "rules" | "model" | "prompt") => {
   const read = readRaw(raw, message, backend === "rules" && /^Mood\(/m.test(raw));
   return unfused && read.expression !== undefined ? { ...read, expression: unfuseExpr(read.expression) } : read;
 };
