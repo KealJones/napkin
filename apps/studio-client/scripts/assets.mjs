@@ -3,6 +3,7 @@
  * into public-pages/napkin/files/ at the path the runtime reads them from, with a manifest.
  *
  *   /runtime/...   the runtime package: packs, the DailyDialog corpus if fetched, Ears eval cases
+ *   /seed/...      the graph a visitor starts from (seed/store.ncon, written by scripts/seed.mjs)
  *   /modules/...   files inside installed packages: word lists and spelling dictionaries
  */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -25,6 +26,7 @@ const addDir = (path, from, keep = () => true) => {
 
 addDir("/runtime/packs", join(runtime, "packs"), (f) => f.endsWith(".ncon"));
 addDir("/runtime/data/dialog/dumps/train", join(runtime, "data/dialog/dumps/train"), (f) => f.endsWith(".txt"));
+add("/seed/store.ncon", resolve(here, "../seed/store.ncon"));
 add("/runtime/eval/ears/cases.json", join(runtime, "eval/ears/cases.json"));
 add("/runtime/eval/ears/gold.md", join(runtime, "eval/ears/gold.md"));
 // The newest baseline run only, so the lab has something to compare against.

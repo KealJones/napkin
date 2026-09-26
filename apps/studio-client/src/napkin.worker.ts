@@ -8,7 +8,7 @@
  * Messages: the page sends { id, url, method, headers, body }; the worker answers
  * { id, status, headers }, then { id, chunk } per piece of the body, then { id, end }.
  */
-import { home, join, mount, restore } from "@napkin/concept-runtime/platform/browser";
+import { home, join, mount, read, restore, write } from "@napkin/concept-runtime/platform/browser";
 
 type Ask = { id: number; url: string; method: string; headers: [string, string][]; body?: string };
 
@@ -21,6 +21,10 @@ async function boot() {
   const graphPath = join(home(), ".napkin/store.ncon");
   const tracePath = join(home(), ".napkin/trace.jsonl");
   await restore([graphPath, tracePath]);
+  // A first visit starts from what was learned before, without anyone's talk (scripts/seed.mjs);
+  // from then on the journal is this browser's own.
+  const seed = read("/seed/store.ncon");
+  if (!read(graphPath) && seed) write(graphPath, seed);
   // The runtime reads its word lists as it loads, so it is imported only once they are mounted.
   const { createStudio } = await import("@napkin/studio-server/handler");
   return createStudio({ graphPath, tracePath, models: false });
