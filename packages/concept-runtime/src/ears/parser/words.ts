@@ -203,7 +203,9 @@ export function correct(text: string): { text: string; typed: Map<string, string
     // Filler and drawn-out words are said that way on purpose: "uhmm", "soooo", "hmmm".
     if (/(.)\1\1/i.test(raw) || /^(uhm+|umm+|hmm+|ahh+|lol|lmao|haha+|idk|btw)$/i.test(raw)) return raw;
     // Capitalised mid-sentence or camel-cased: a name or an identifier, typed on purpose.
-    if (at > 0 && /^[A-Z]/.test(raw) && /[a-z]/.test(raw) && raw.slice(1) !== raw.slice(1).toLowerCase()) return raw;
+    if (/[A-Z]/.test(raw.slice(1)) && /[a-z]/.test(raw)) return raw;
+    const starts = at === 0 || /[.!?]\s*$/.test(text.slice(0, at));
+    if (!starts && /^[A-Z][a-z]/.test(raw)) return raw;
     const prev = text.slice(0, at).trim().split(/\s+/).pop()?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
     const meant = spelling(raw, prev);
     if (!meant) return raw;
