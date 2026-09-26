@@ -39,20 +39,20 @@ test("learning closes a gap from the graph before reaching for a model", async (
   const rt = fresh();
   // Multiplication is a known synonym cluster member; nothing should need teaching.
   rt.store.seed(concept("Multiplication", { relations: ["SynonymOf(Multiply())"] }));
-  const out = await learn(rt, "multiply", parse("Multiplication(6, 7)"), EXEC, { teacher: false });
+  const out = await learn(rt, "multiply", parse("Multiplication(6, 7)"), EXEC, { teacher: false, research: false });
   assert.ok(out.steps.some((s) => s.how === "graph"), JSON.stringify(out.steps));
 });
 
 test("an unclosable gap stays a residual rather than being fabricated", async () => {
   const rt = fresh();
-  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false });
+  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false, research: false });
   assert.equal(format(out.result!), "Frobnicate(3)");
   assert.ok(out.remaining.some((g) => g.identity === "Frobnicate"));
 });
 
 test("the loop is bounded when nothing new can be learned", async () => {
   const rt = fresh();
-  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false, maxPasses: 5 });
+  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false, research: false, maxPasses: 5 });
   assert.equal(out.passes, 1, "it should stop as soon as a pass learns nothing");
 });
 

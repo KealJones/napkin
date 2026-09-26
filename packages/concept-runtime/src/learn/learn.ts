@@ -160,7 +160,6 @@ export async function learn(
       // Teaching a Concept it already knows would pollute it; teaching a REALIZATION it
       // is missing is exactly the point, so only the former is refused.
       if (runtime.store.has(gap.identity) && gap.kind !== "inert" && gap.kind !== "empty") continue;
-      if (options.teacher === false) continue;
       if (attempted.has(gap.identity)) continue;
       attempted.add(gap.identity);
 
@@ -203,6 +202,10 @@ export async function learn(
           // Unreachable is not an answer: fall through to research and the Teacher.
         }
       }
+
+      // The world above is sourced and deterministic; what follows is the Teacher, and the
+      // research that is only its evidence. Without a Teacher there is nothing to ground.
+      if (options.teacher === false) continue;
 
       // Research before asking. The Teacher is a last resort, and grounding it in
       // source-attributed evidence is the difference between learning and inventing.

@@ -299,7 +299,7 @@ export interface TurnOptions extends HearOptions {
   speak?: boolean;
   maxPasses?: number;
   research?: boolean;
-  /** Off runs the loop on the graph alone, with no model asked to teach anything. */
+  /** Off asks no model to teach: the graph and the world (Wikidata, Wiktionary) still answer. `research: false` keeps it to the graph. */
   teacher?: boolean;
   /**
    * The conversation this message is said in, as ambient state, so what it is focused on

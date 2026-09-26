@@ -30,7 +30,7 @@ test("a residual from a real turn becomes an intent", async () => {
 test("existing repairs what it can without asking a model", async () => {
   const rt = fresh();
   rt.store.seed(concept("Multiplication", { relations: ["SynonymOf(Multiply())"] }));
-  const done = await exist(rt, { budget: 2, teacher: false } as never);
+  const done = await exist(rt, { budget: 2, teacher: false, research: false } as never);
   assert.ok(done.length >= 1);
   assert.equal(format(await rt.evaluate(parse("Multiplication(6, 7)"), c("Execution"))), "42");
 });
@@ -38,7 +38,7 @@ test("existing repairs what it can without asking a model", async () => {
 test("unattended work is bounded by a budget", async () => {
   const rt = fresh();
   for (const id of ["A1", "B2", "C3", "D4", "E5"]) rt.store.seed(concept(id));
-  const done = await exist(rt, { budget: 2, teacher: false } as never);
+  const done = await exist(rt, { budget: 2, teacher: false, research: false } as never);
   assert.ok(done.length <= 2);
 });
 

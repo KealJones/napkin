@@ -57,19 +57,8 @@ export async function wikidata(query: string, limit = 5, timeoutMs = 10_000): Pr
     }));
 }
 
-/**
- * Where `web` searches: a URL the query is appended to, answering DuckDuckGo's HTML results
- * page. A browser cannot read DuckDuckGo directly (no CORS), so a browser host points this
- * at a proxy that returns the same page, or turns web search off with `undefined`.
- */
-let webEndpoint: string | undefined = "https://html.duckduckgo.com/html/?q=";
-export const useWebSearch = (endpoint: string | undefined): void => {
-  webEndpoint = endpoint;
-};
-
 export async function web(query: string, limit = 5, timeoutMs = 10_000): Promise<Finding[]> {
-  if (webEndpoint === undefined) return [];
-  const url = `${webEndpoint}${encodeURIComponent(query)}`;
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
   const response = await fetch(url, {
     headers: { "user-agent": "Mozilla/5.0 (compatible; napkin/0.1)" },
     signal: AbortSignal.timeout(timeoutMs),
