@@ -31,7 +31,9 @@ import { readSource } from "./read.js";
 
 const UNDEFINED = c("Undefined");
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const isSyntax = (head: string): boolean => /^Js[A-Z]/.test(head);
+/** A syntax node, as a reader names it: Js<Kind> from the TypeScript reader, Py<Type> from tree-sitter's Python. */
+let syntaxPrefix = /^Js[A-Z]/;
+const isSyntax = (head: string): boolean => syntaxPrefix.test(head);
 
 interface Rule {
   readonly pattern: Expr;
@@ -115,10 +117,20 @@ export interface Reading {
   readonly unsupported: { kind: string; source: string }[];
 }
 
-/** Source text read as Concepts by these rules. */
-export function readWith(rules: Map<string, Rule[]>, text: string, fileName = "input.ts"): Reading {
+/**
+ * Source text read as Concepts by these rules. `syntax` is the tree when another reader made
+ * it (tree-sitter, code/tree.ts), with the prefix its nodes are named by.
+ */
+export function readWith(
+  rules: Map<string, Rule[]>,
+  text: string,
+  fileName = "input.ts",
+  syntax?: { tree: Expr; prefix: string },
+): Reading {
   const unsupported: { kind: string; source: string }[] = [];
-  const { tree, source } = readSource(text, fileName);
+  const { tree, source } = syntax ? { tree: syntax.tree, source: new WeakMap<object, string>() } : readSource(text, fileName);
+  const before = syntaxPrefix;
+  syntaxPrefix = new RegExp(`^${syntax?.prefix ?? "Js"}[A-Z]`);
   let steps = 0;
 
   const apply = (e: Call): Expr | undefined => {
@@ -180,7 +192,11 @@ export function readWith(rules: Map<string, Rule[]>, text: string, fileName = "i
     return out;
   };
 
-  return { expression: rewrite(tree), unsupported };
+  try {
+    return { expression: rewrite(tree), unsupported };
+  } finally {
+    syntaxPrefix = before;
+  }
 }
 
 /**

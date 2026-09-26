@@ -1,0 +1,198 @@
+// Python, read by tree-sitter's grammar (src/code/tree.ts) and these rules into the same
+// Concepts JavaScript reads as: a loop is ForOf whichever language wrote it, so what is
+// learned about one program applies to another.
+Requires(Core(), Code())
+
+Concept(Python(),
+  IsA(TargetLanguage()),
+  Grammar("python"),
+  SyntaxPrefix("Py")
+)
+
+Language(Python())
+
+From(PyModule(Rest($ss)), Module(Sequence(Rest($ss))))
+
+// One step is itself, as JavaScript reads it: a lone return is the body.
+From(Sequence($s), $s)
+
+From(PyComment(text = $t), Comment($t))
+
+From(PyIdentifier(text = $n), Variable($n))
+
+From(PyExpressionStatement($e), $e)
+
+From(PyBlock(Rest($ss)), Sequence(Rest($ss)))
+
+From(PyPassStatement(text = $_), Erased())
+
+// A function's body says what it gives back: its return, or nothing.
+From(
+  PyFunctionDefinition(
+    name = $n,
+    parameters = PyParameters(Rest($ps)),
+    body = $b
+  ),
+  Func($n, List(Rest($ps)), PyBody($b))
+)
+
+From(PyBody(PyBlock(Rest($ss), Capture($last, PyReturnStatement()))), Sequence(Rest($ss), $last))
+
+From(PyBody(PyBlock(Rest($ss), Capture($last, PyReturnStatement($_)))), Sequence(Rest($ss), $last))
+
+From(PyBody(PyBlock(Rest($ss))), Sequence(Rest($ss), Undefined()))
+
+From(PyReturnStatement(Rest($e)), Return(Rest($e)))
+
+From(PyForStatement(left = $x, right = $xs, body = $b), ForOf($x, $xs, $b))
+
+From(PyWhileStatement(condition = $c, body = $b), While($c, $b))
+
+From(
+  PyIfStatement(
+    condition = $c,
+    consequence = $t,
+    alternative = PyElseClause(body = $e)
+  ),
+  If($c, $t, $e)
+)
+
+From(PyIfStatement(condition = $c, consequence = $t), If($c, $t))
+
+From(PyAssignment(left = $x, right = $v), Var($x, $v))
+
+From(PyCall(function = $f, arguments = PyArgumentList(Rest($a))), Call($f, Rest($a)))
+
+From(PyAttribute(object = $o, attribute = PyIdentifier(text = $t)), Member($o, $t))
+
+From(PyParenthesizedExpression($e), $e)
+
+From(PyList(Rest($es)), List(Rest($es)))
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "+"),
+    right = $b
+  ),
+  Add($a, $b)
+)
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "-"),
+    right = $b
+  ),
+  Subtract($a, $b)
+)
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "*"),
+    right = $b
+  ),
+  Multiply($a, $b)
+)
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "/"),
+    right = $b
+  ),
+  Divide($a, $b)
+)
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "%"),
+    right = $b
+  ),
+  Modulo($a, $b)
+)
+
+From(
+  PyBinaryOperator(
+    left = $a,
+    operator = PyToken(text = "**"),
+    right = $b
+  ),
+  Power($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = "<"),
+    $a,
+    $b
+  ),
+  LessThan($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = ">"),
+    $a,
+    $b
+  ),
+  GreaterThan($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = "<="),
+    $a,
+    $b
+  ),
+  AtMost($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = ">="),
+    $a,
+    $b
+  ),
+  AtLeast($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = "=="),
+    $a,
+    $b
+  ),
+  Equals($a, $b)
+)
+
+From(
+  PyComparisonOperator(
+    operators = PyToken(text = "!="),
+    $a,
+    $b
+  ),
+  NotEquals($a, $b)
+)
+
+From(
+  PyBooleanOperator(
+    left = $a,
+    operator = PyToken(text = "and"),
+    right = $b
+  ),
+  And($a, $b)
+)
+
+From(
+  PyBooleanOperator(
+    left = $a,
+    operator = PyToken(text = "or"),
+    right = $b
+  ),
+  Or($a, $b)
+)
+
+From(PyNotOperator(argument = $x), Not($x))

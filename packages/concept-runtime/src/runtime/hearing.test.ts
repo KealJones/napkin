@@ -87,14 +87,14 @@ test("pointing words are Refs for memory, a hesitation between two takes the fir
 });
 
 test("code, links and quotes are kept as typed, each one thing", async () => {
-  assert.equal(await heard("fix `foo()` please"), 'Phrases(Mood(Imperative(), Please(Fix(InlineCode("foo()", ir=Module(Call($foo)))))))');
+  assert.equal(await heard("fix `foo()` please"), 'Phrases(Mood(Imperative(), Please(Fix(InlineCode("foo()", ir=Module(Call($foo)), language=TypeScript())))))');
   assert.match(await hear("why does const x = items.map((i) => i * 2); fail"), /^Phrases\(Why\(Does\(InlineCode\("const x = items.map\(\(i\) => i \* 2\);", ir=Module\(Bind\(\$x, /);
   assert.equal(await hear('say "hello world" to me'), 'Phrases(Say("hello world", To(Me())))');
-  assert.equal(await hear("what does this do\nfunction add(a, b) {\n  return a + b;\n}"), 'Phrases(What(Does(Ref("this"), Do())), Block("function add(a, b) {\\n  return a + b;\\n}", ir=Module(Func($add, List($a, $b), Return(Add($a, $b))))))');
+  assert.equal(await hear("what does this do\nfunction add(a, b) {\n  return a + b;\n}"), 'Phrases(What(Does(Ref("this"), Do())), Block("function add(a, b) {\\n  return a + b;\\n}", ir=Module(Func($add, List($a, $b), Return(Add($a, $b)))), language=TypeScript()))');
 });
 
 test("code is also read as Concepts, and its comments are heard where they are", async () => {
-  assert.equal(await hear("fix `foo()` please"), 'Phrases(Please(Fix(InlineCode("foo()", ir=Module(Call($foo))))))');
+  assert.equal(await hear("fix `foo()` please"), 'Phrases(Please(Fix(InlineCode("foo()", ir=Module(Call($foo)), language=TypeScript()))))');
   const said = await hear("heres what i have `function whatever(args){\n// loop over args here\n}`");
   assert.match(said, /Block\("function whatever\(args\)\{\\n\/\/ loop over args here\\n\}", ir=Module\(Func\(\$whatever, List\(\$args\), Sequence\(Comment\("loop over args here", Loop\(/);
 });

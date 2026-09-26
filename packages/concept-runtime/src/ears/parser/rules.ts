@@ -1388,18 +1388,14 @@ export function sayPhrase(e: Expr): string | undefined {
  * cut out as one token, `verbatim0`, and returned in `spans` as the Concept it reads as
  * (Block, InlineCode, or the text itself), so hearing takes it as one thing.
  */
-export function verbatimSpans(message: string, read?: (code: string) => Expr | undefined): { text: string; spans: Expr[] } {
+export function verbatimSpans(message: string): { text: string; spans: Expr[]; tentative: Map<number, string> } {
   const found: Expr[] = [];
-  // Code is also read as Concepts, the way the TypeScript import reads it, beside the text:
-  // InlineCode("foo()", ir=Call($foo)). What cannot be read keeps only its text.
-  const withIr = (e: Expr): Expr => {
-    if (!read || !isCall(e) || (e.head !== "InlineCode" && e.head !== "Block")) return e;
-    const text = e.args[e.args.length - 1]?.value;
-    const ir = typeof text === "string" ? read(text) : undefined;
-    return ir === undefined ? e : { head: e.head, args: [...e.args, { name: "ir", value: ir }] };
-  };
-  const keep = (e: Expr) => ` verbatim${found.push(withIr(e)) - 1} `;
-  let text = message.replace(/^(`{3,})([\w+-]*)[ \t]*\n([\s\S]*?)\n\1[ \t]*$/gm, (_m, _f, lang: string, body: string) =>
+  // Kept as code only if some language reads it: "here is my plan:" over indented steps is
+  // prose shaped like Python. The caller puts these back as words when nothing reads them.
+  const tentative = new Map<number, string>();
+  const keep = (e: Expr) => ` verbatim${found.push(e) - 1} `;
+  // A fence may open anywhere on a line ("here's mine ```python").
+  let text = message.replace(/(`{3,})([\w+-]*)[ \t]*\n([\s\S]*?)\n?\1/g, (_m, _f, lang: string, body: string) =>
     keep(lang ? c("Block", lang, body) : c("Block", body)),
   );
   // Backticks around several lines hold a block, before any line is judged on its own.
@@ -1427,8 +1423,20 @@ export function verbatimSpans(message: string, read?: (code: string) => Expr | u
     const code = words.slice(first, last + 1).join("").trim();
     return code.length > 2 ? words.slice(0, first).join("") + keep(c("InlineCode", code)) + words.slice(last + 1).join("") : line;
   };
+  // An indented block under a line ending in ":" is code too (Python): "for a in items:".
+  const indent = (line: string) => line.length - line.trimStart().length;
+  const opensBlock = (i: number) => /:\s*$/.test(lines[i]) && i + 1 < lines.length && indent(lines[i + 1]) > indent(lines[i]) && lines[i + 1].trim() !== "";
   const out: string[] = [];
   for (let i = 0; i < lines.length; ) {
+    if (opensBlock(i)) {
+      let j = i + 1;
+      while (j < lines.length && (indent(lines[j]) > indent(lines[i]) || (lines[j].trim() === "" && j + 1 < lines.length && indent(lines[j + 1]) > indent(lines[i])))) j += 1;
+      const body = lines.slice(i, j).join("\n");
+      tentative.set(found.length, body);
+      out.push(keep(c("Block", body)));
+      i = j;
+      continue;
+    }
     if (!codeLine(lines[i])) {
       out.push(lines[i]);
       i += 1;
@@ -1444,5 +1452,5 @@ export function verbatimSpans(message: string, read?: (code: string) => Expr | u
   text = bareCode(text, (code) => keep(c("InlineCode", code)))
     .replace(/https?:\/\/[^\s)]+[^\s).,!?]/g, (url) => keep(url))
     .replace(/"([^"\n]+)"/g, (_m, q: string) => keep(q));
-  return { text, spans: found };
+  return { text, spans: found, tentative };
 }

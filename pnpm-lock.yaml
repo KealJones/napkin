@@ -76,9 +76,15 @@ importers:
       node-symspell:
         specifier: ^0.1.0
         version: 0.1.0
+      tree-sitter-wasms:
+        specifier: 0.1.13
+        version: 0.1.13
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
+      web-tree-sitter:
+        specifier: 0.22.6
+        version: 0.22.6
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -709,6 +715,9 @@ packages:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
 
+  tree-sitter-wasms@0.1.13:
+    resolution: {integrity: sha512-wT+cR6DwaIz80/vho3AvSF0N4txuNx/5bcRKoXouOfClpxh/qqrF4URNLQXbbt8MaAxeksZcZd1j8gcGjc+QxQ==}
+
   tsx@4.23.13:
     resolution: {integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==}
     engines: {node: '>=18.0.0'}
@@ -786,6 +795,9 @@ packages:
         optional: true
       yaml:
         optional: true
+
+  web-tree-sitter@0.22.6:
+    resolution: {integrity: sha512-hS87TH71Zd6mGAmYCvlgxeGDjqd9GTeqXNqTT+u0Gs51uIozNIaaq/kUAbV/Zf56jb2ZOyG8BxZs2GG9wbLi6Q==}
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
@@ -1321,6 +1333,8 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
 
+  tree-sitter-wasms@0.1.13: {}
+
   tsx@4.23.13:
     dependencies:
       esbuild: 0.28.2
@@ -1368,5 +1382,7 @@ snapshots:
       '@types/node': 24.13.5
       fsevents: 2.3.3
       tsx: 4.23.13
+
+  web-tree-sitter@0.22.6: {}
 
   yallist@3.1.1: {}

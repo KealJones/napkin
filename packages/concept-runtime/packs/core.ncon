@@ -870,6 +870,12 @@ Concept(Incidental(), IsA(RelationProperty()))
 
 Concept(TargetLanguage(), IsA(ContextFacet()))
 
+// How a language's source is read when tree-sitter reads it (src/code/tree.ts): the grammar's
+// name, and the prefix its syntax nodes are named by (Python's are Py<Type>).
+Concept(Grammar(), IsA(Relation()))
+
+Concept(SyntaxPrefix(), IsA(Relation()))
+
 // ------------------------------------------------------------------ *
 // Failure and outcome. Pure data.
 // ------------------------------------------------------------------

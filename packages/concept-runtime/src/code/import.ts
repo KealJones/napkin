@@ -17,6 +17,8 @@ import type { Expr } from "../concept/expression.js";
 import { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, seedPacks } from "./ncon.js";
 import { readingRules, readWith } from "./rewrite.js";
+import { readTree } from "./tree.js";
+import { isCall } from "../concept/expression.js";
 import { type Writing, writeWith, writingRules } from "./write.js";
 
 export interface ImportOptions {
@@ -38,7 +40,7 @@ let packsOnly: ConceptStore | undefined;
 export const languagePackStore = (): ConceptStore => {
   if (!packsOnly) {
     packsOnly = new ConceptStore();
-    const wanted = new Set(["core", "code", "javascript", "typescript"]);
+    const wanted = new Set(["core", "code", "javascript", "typescript", "python"]);
     seedPacks(packsOnly, loadPacks([BUILT_IN_PACKS]).filter((p) => wanted.has(p.name)));
   }
   return packsOnly;
@@ -53,4 +55,23 @@ export function writeJavaScript(expression: Expr, options: ImportOptions = {}): 
 export function importTypeScript(source: string, fileName = "input.ts", options: ImportOptions = {}): ImportResult {
   const rules = readingRules(options.store ?? languagePackStore(), "TypeScript");
   return readWith(rules, source, fileName);
+}
+
+/**
+ * Source in a language its pack reads through tree-sitter (`Grammar("python")`,
+ * `SyntaxPrefix("Py")` on the language's Concept) as one `Module(...)` expression. Undefined
+ * when no pack says how to read the language.
+ */
+export async function importSource(source: string, language: string, options: ImportOptions = {}): Promise<ImportResult | undefined> {
+  const store = options.store ?? languagePackStore();
+  const said = (relation: string): string | undefined => {
+    const r = store.get(language)?.relations.find((x) => isCall(x.claim) && x.claim.head === relation);
+    const v = r && isCall(r.claim) ? r.claim.args[0]?.value : undefined;
+    return typeof v === "string" ? v : undefined;
+  };
+  const grammar = said("Grammar");
+  const prefix = said("SyntaxPrefix");
+  if (grammar === undefined || prefix === undefined) return language === "TypeScript" || language === "JavaScript" ? importTypeScript(source, "input.ts", options) : undefined;
+  const tree = await readTree(source, grammar, prefix);
+  return readWith(readingRules(store, language), source, `input.${grammar}`, { tree, prefix });
 }

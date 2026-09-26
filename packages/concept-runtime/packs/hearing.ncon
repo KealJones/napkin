@@ -2511,7 +2511,7 @@ Concept(Hear(),
               )
             ),
             Comment("Code, links and quotes are kept as typed, each one thing: \"fix `foo()`\" fixes InlineCode."),
-            Bind($kept, Call(Member($api, "verbatim"), Call($String, $text))),
+            Bind($kept, Await(Call(Member($api, "verbatim"), Call($String, $text)))),
             Bind($said, Call(Member($api, "words"), Member($kept, "text"))),
             ForOf(
               $w,
