@@ -85,3 +85,10 @@ test("pointing words are Refs for memory, a hesitation between two takes the fir
   assert.equal(await hear("i need the report by 3, er, 4pm"), 'Phrases(Me(Need(Report(By(MarkCorrection(3, Time(4, Pm())))))), MarkAside("er"))');
   assert.equal(await hear("if if that works"), 'Phrases(MarkAside("if"), If(Ref("that works")))');
 });
+
+test("code, links and quotes are kept as typed, each one thing", async () => {
+  assert.equal(await heard("fix `foo()` please"), 'Phrases(Mood(Imperative(), Please(Fix(InlineCode("foo()")))))');
+  assert.equal(await hear("why does const x = items.map((i) => i * 2); fail"), 'Phrases(Why(Does(InlineCode("const x = items.map((i) => i * 2);"), Fail())))');
+  assert.equal(await hear('say "hello world" to me'), 'Phrases(Say("hello world", To(Me())))');
+  assert.equal(await hear("what does this do\nfunction add(a, b) {\n  return a + b;\n}"), 'Phrases(What(Does(Ref("this"), Do())), Block("function add(a, b) {\\n  return a + b;\\n}"))');
+});

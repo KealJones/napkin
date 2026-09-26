@@ -26,6 +26,7 @@ import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realizatio
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
 import { fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
+import { verbatimSpans } from "../ears/parser/rules.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -134,6 +135,8 @@ export interface CodeApi {
   properNoun(word: string): boolean;
   /** A text's words in order, with their sentence and the tags the tagger proposes. */
   words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string; could: string[] }[];
+  /** What in a text is kept as typed (code, links, quotes), cut out as `verbatim0` tokens. */
+  verbatim(text: string): { text: string; spans: Expr[] };
 }
 
 export class Runtime {
@@ -568,6 +571,7 @@ export class Runtime {
       readText,
       lemma,
       words,
+      verbatim: verbatimSpans,
       properNoun,
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;

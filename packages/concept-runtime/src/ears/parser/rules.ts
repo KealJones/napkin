@@ -1381,3 +1381,58 @@ export function sayPhrase(e: Expr): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * What in a message is not words to hear but text to keep as typed: fenced blocks, lines of
+ * code, backticked code, code pasted as a call ("Foo(Bar())"), links and quotes. Each is
+ * cut out as one token, `verbatim0`, and returned in `spans` as the Concept it reads as
+ * (Block, InlineCode, or the text itself), so hearing takes it as one thing.
+ */
+export function verbatimSpans(message: string): { text: string; spans: Expr[] } {
+  const found: Expr[] = [];
+  const keep = (e: Expr) => ` verbatim${found.push(e) - 1} `;
+  let text = message.replace(/^(`{3,})([\w+-]*)[ \t]*\n([\s\S]*?)\n\1[ \t]*$/gm, (_m, _f, lang: string, body: string) =>
+    keep(lang ? c("Block", lang, body) : c("Block", body)),
+  );
+  // Lines that are code by their form: they end the way statements do, or open a block, or
+  // are mostly the symbols code is written in. Consecutive ones are one block.
+  const codeLine = (line: string): boolean => {
+    const t = line.trim();
+    if (t.length < 3 || /^verbatim\d+$/.test(t)) return false;
+    const symbols = (t.match(/[{}()[\];=<>]/g) ?? []).length;
+    return /[;{}]$/.test(t) || /=>|===|!==|::|->/.test(t) || symbols / t.length > 0.15;
+  };
+  const lines = text.split("\n");
+  const closer = (line: string) => /^\s*[}\])]+[;,]?\s*$/.test(line);
+  // Inside a line of prose, the code is the stretch from its first symbol (or the name being
+  // assigned, "const x =") to its last: "why does const x = f(y); fail".
+  const within = (line: string): string => {
+    const words = line.split(/(\s+)/);
+    const symbolic = (w: string) => /[{}()[\];=<>*+]/.test(w);
+    const at = words.map((w, i) => (symbolic(w) ? i : -1)).filter((i) => i >= 0);
+    if (!at.length) return line;
+    let first = at[0];
+    if (words[first] === "=" || words[first].startsWith("=")) first = Math.max(0, first - 4);
+    const last = at[at.length - 1];
+    const code = words.slice(first, last + 1).join("").trim();
+    return code.length > 2 ? words.slice(0, first).join("") + keep(c("InlineCode", code)) + words.slice(last + 1).join("") : line;
+  };
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; ) {
+    if (!codeLine(lines[i])) {
+      out.push(lines[i]);
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < lines.length && (codeLine(lines[j]) || closer(lines[j]) || (lines[j].trim() === "" && j + 1 < lines.length && codeLine(lines[j + 1])))) j += 1;
+    out.push(j - i > 1 ? keep(c("Block", lines.slice(i, j).join("\n"))) : within(lines[i]));
+    i = j;
+  }
+  text = out.join("\n")
+    .replace(/`([^`\n]+)`/g, (_m, code: string) => keep(c("InlineCode", code)));
+  text = bareCode(text, (code) => keep(c("InlineCode", code)))
+    .replace(/https?:\/\/[^\s)]+[^\s).,!?]/g, (url) => keep(url))
+    .replace(/"([^"\n]+)"/g, (_m, q: string) => keep(q));
+  return { text, spans: found };
+}

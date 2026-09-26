@@ -953,7 +953,7 @@ Concept(Preposition(),
               )
             ),
             If(
-              And(AtLeast($owner, 0), Call($has, $owner, "Pronoun")),
+              And(AtLeast($owner, 0), Or(Call($has, $owner, "Pronoun"), Call($has, $owner, "Verbatim"))),
               For(
                 Var($i, Subtract($at, 2)),
                 And(AtLeast($i, 0), Equals(Call($sentence, $i), Call($sentence, $at))),
@@ -2453,7 +2453,17 @@ Concept(Hear(),
                 Equals(Call(Member($api, "toHost"), Member(Index($args, 1), "value")), "rules")
               )
             ),
-            Bind($said, Call(Member($api, "words"), Call($String, $text))),
+            Bind($kept, Call(Member($api, "verbatim"), Call($String, $text))),
+            Bind($said, Call(Member($api, "words"), Member($kept, "text"))),
+            ForOf(
+              $w,
+              $said,
+              If(
+                Call(Member(Regex("^verbatim[0-9]+$", ""), "test"), Member($w, "text")),
+                Assign(Member($w, "tags"), List("Noun", "Verbatim")),
+                Undefined()
+              )
+            ),
             Bind($name,
               Lambda(List($t),
                 Call(
@@ -3077,6 +3087,11 @@ Concept(Hear(),
                   ),
                   Bind($t, Member(Index($said, $i), "text")),
                   Var($e, Undefined()),
+                  If(
+                    Call($tagged, $i, "Verbatim"),
+                    Return(Index(Member($kept, "spans"), Call($Number, Call(Member($t, "slice"), 8)))),
+                    Undefined()
+                  ),
                   Bind($clock, Call(Member($CLOCK, "exec"), $t)),
                   If(
                     And(Call(Member(Regex("^[0-9]+([.][0-9]+)?$", ""), "test"), $t), Equals(Length($kids), 0)),
