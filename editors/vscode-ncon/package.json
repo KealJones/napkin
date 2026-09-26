@@ -132,6 +132,19 @@
           "type": "string",
           "default": "#4F4C41",
           "description": "The color of parameter-name hints. By default Monokai's comment hue, much darker."
+        },
+        "ncon.parameterNames.position": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "end"
+          ],
+          "default": "auto",
+          "enumDescriptions": [
+            "In the indentation to the left of the argument (`name = ...`) when it is wide enough, otherwise at the end of the line.",
+            "Always at the end of the line (`... = name`)."
+          ],
+          "description": "Where parameter-name hints go."
         }
       }
     },

@@ -35,13 +35,15 @@ let prefixGhosts = new Map();
 /** @type {vscode.TextEditorDecorationType | undefined} */
 let parameterHint;
 /** @type {vscode.TextEditorDecorationType | undefined} */
+let parameterHintLeft;
+/** @type {vscode.TextEditorDecorationType | undefined} */
 let broken;
 
 const config = () => vscode.workspace.getConfiguration("ncon");
 const syntaxStyle = () => config().get("style", "rainbow") === "syntax";
 
 function all() {
-  return [...heads, ...forms, ...parens, ...(formParens ? [formParens] : []), ...tokens.values(), ...roles.values(), ...ghosts.values(), ...prefixGhosts.values(), ...(parameterHint ? [parameterHint] : []), ...(broken ? [broken] : [])];
+  return [...heads, ...forms, ...parens, ...(formParens ? [formParens] : []), ...tokens.values(), ...roles.values(), ...ghosts.values(), ...prefixGhosts.values(), ...(parameterHint ? [parameterHint] : []), ...(parameterHintLeft ? [parameterHintLeft] : []), ...(broken ? [broken] : [])];
 }
 
 function build() {
@@ -76,7 +78,10 @@ function build() {
   prefixGhosts = ghost(PREFIX_GHOSTS, (op) => op);
   // What a positional argument is, at the end of its first line: `Undefined()  = otherwise`.
   // The comment hue, much darker, so it reads as a note behind the code.
-  parameterHint = vscode.window.createTextEditorDecorationType({ after: { color: String(config().get("parameterNames.color", "#4F4C41")), margin: "0 0 0 2ch" } });
+  const hintColor = String(config().get("parameterNames.color", "#4F4C41"));
+  parameterHint = vscode.window.createTextEditorDecorationType({ after: { color: hintColor, margin: "0 0 0 2ch" } });
+  // In the indentation to the left of the argument, when it is wide enough: `condition = If(...`.
+  parameterHintLeft = vscode.window.createTextEditorDecorationType({ before: { color: hintColor } });
   broken = vscode.window.createTextEditorDecorationType({
     color: "#FFFFFF",
     backgroundColor: "#F9267255",
@@ -112,7 +117,9 @@ function paint(editor) {
   }
   if (broken) ranges.set(broken, unbalanced.map((i) => at(i, i + 1)));
   for (const [type, list] of ranges) editor.setDecorations(type, list);
-  if (parameterHint) editor.setDecorations(parameterHint, config().get("parameterNames", true) ? parameterHints(doc, scanned(doc)) : []);
+  const hints = config().get("parameterNames", true) ? parameterHints(doc, scanned(doc)) : { end: [], left: [] };
+  if (parameterHint) editor.setDecorations(parameterHint, hints.end);
+  if (parameterHintLeft) editor.setDecorations(parameterHintLeft, hints.left);
 }
 
 /* ------------------------------------------------------------------ *
@@ -143,14 +150,18 @@ function parameterNamesOf(/** @type {string} */ head) {
 }
 
 /**
- * A faint parameter name at the end of the first line of every positional argument that
- * starts a line of its own. Inline arguments get none: the line would be all hints.
+ * A faint parameter name for every positional argument that starts a line of its own. Where
+ * the indentation to its left is wider than `name =`, the name sits there, right against the
+ * argument, like a named argument; otherwise at the end of the line as `= name`. Inline
+ * arguments get none: the line would be all hints.
  * @param {vscode.TextDocument} doc
  * @param {ReturnType<typeof scan>} scan
- * @returns {vscode.DecorationOptions[]}
+ * @returns {{ end: vscode.DecorationOptions[], left: vscode.DecorationOptions[] }}
  */
 function parameterHints(doc, { args }) {
-  const out = [];
+  const end = [];
+  const left = [];
+  const leftAllowed = config().get("parameterNames.position", "auto") === "auto";
   for (const a of args) {
     if (a.named || !a.head) continue;
     const name = parameterNamesOf(a.head)?.[a.index];
@@ -158,9 +169,16 @@ function parameterHints(doc, { args }) {
     const start = doc.positionAt(a.start);
     const line = doc.lineAt(start.line);
     if (line.firstNonWhitespaceCharacterIndex !== start.character) continue;
-    out.push({ range: new vscode.Range(line.range.end, line.range.end), renderOptions: { after: { contentText: `= ${name}` } } });
+    const label = `${name} =`;
+    if (leftAllowed && start.character >= label.length + 1) {
+      // Drawn over the indentation: its own width is taken back, so nothing moves.
+      const at = new vscode.Position(start.line, start.character - label.length - 1);
+      left.push({ range: new vscode.Range(at, at), renderOptions: { before: { contentText: label, margin: `0 -${label.length}ch 0 0` } } });
+    } else {
+      end.push({ range: new vscode.Range(line.range.end, line.range.end), renderOptions: { after: { contentText: `= ${name}` } } });
+    }
   }
-  return out;
+  return { end, left };
 }
 
 /** @type {Map<string, Map<string, import("./describe.js").Definition[]>>} every pack's Concepts, by file */

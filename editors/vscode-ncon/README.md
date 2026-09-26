@@ -32,7 +32,10 @@ A copy of the rainbow version as first built is kept in `snapshots/rainbow/`.
 - **Parameter names.** A positional argument that starts its own line gets its parameter name
   faintly at the end of that line (`= condition`), in a much darker shade of the comment color,
   taken from the callee's realization pattern: `If($condition, $then, $otherwise)` labels its
-  three lines `= condition`, `= then`, `= otherwise`. `ncon.parameterNames` turns them off.
+  three lines `= condition`, `= then`, `= otherwise`. Where the indentation to the left of the
+  argument is wide enough, the name sits there instead, right against it like a named
+  argument (`condition = Equals(...)`), without moving the code. `ncon.parameterNames.position`
+  set to `end` keeps them at the end; `ncon.parameterNames` turns them off.
 - **Hover.** Hovering a Concept shows what it is: the comment above its `Concept(...)` in the
   packs that define it, its relations, its realizations' patterns and contexts, and what the
   saved graph (its journal `~/.napkin/store.ncon`, or `ncon.graph`) has learned about it since, so a
