@@ -38,7 +38,7 @@ type ConceptUnit = {
   updatedAt?: string;
   usage?: { selected: number; residual: number };
 };
-type Reader = "model" | "rules" | "hybrid";
+type Reader = "model" | "rules" | "hybrid" | "prompt";
 
 type Activity = {
   id: string;
@@ -308,7 +308,7 @@ function App() {
   const [readBy, setReadBy] = useState<Reader>(() => {
     try {
       const saved = localStorage.getItem("napkin-reader");
-      return saved === "model" || saved === "rules" || saved === "hybrid" ? saved : "hybrid";
+      return saved === "model" || saved === "rules" || saved === "hybrid" || saved === "prompt" ? saved : "hybrid";
     } catch {
       return "hybrid";
     }
@@ -993,6 +993,7 @@ function App() {
                       >
                         <option value="hybrid">Hybrid</option>
                         <option value="rules">Rules</option>
+                        <option value="prompt">Hearing</option>
                         <option value="model">LLM</option>
                       </select>
                       <input
@@ -1175,7 +1176,7 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             {activity.reader ? (
               <span className="muted">
                 {" "}
-                · read by {activity.reader === "rules" ? "rules" : "LLM"}
+                · read by {activity.reader === "rules" ? "rules" : activity.reader === "prompt" ? "hearing" : "LLM"}
                 {activity.fallback && activity.reader !== "rules" ? ` (rules ${activity.fallback})` : ""}
               </span>
             ) : null}
