@@ -552,6 +552,9 @@ function caseView(run: EarsRun) {
   });
 }
 
+/** Who can read a message in the lab. */
+const READERS = new Set(["model", "rules", "hybrid", "prompt"]);
+
 async function handleEarsLab(path: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
   if (path === "/api/ears/prompt" && request.method === "GET") {
     sendJson(response, 200, { prompt: earsPrompt(store) });
@@ -597,6 +600,11 @@ async function handleEarsLab(path: string, request: IncomingMessage, response: S
     const system = typeof body.system === "string" && body.system.trim() ? body.system : undefined;
     const started = Date.now();
     // The lab always says who reads, so a change to the chat's default never changes the lab.
+    // A reader it does not know is refused, never quietly swapped for the model.
+    if (body.backend !== undefined && !READERS.has(String(body.backend))) {
+      sendJson(response, 400, { error: `Unknown reader "${String(body.backend)}"` });
+      return;
+    }
     const backend = body.backend === "rules" || body.backend === "hybrid" || body.backend === "prompt" ? body.backend : "model";
     const heard = await hear(store, body.message, {
       ...(system ? { system } : {}),
