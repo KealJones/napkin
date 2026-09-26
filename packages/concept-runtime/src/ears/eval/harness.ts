@@ -130,7 +130,7 @@ export function unfuse(target: string): string {
  * the model's. In unfused scoring the reading is unfused too, so both sides are treated alike.
  */
 const readFor = (raw: string, message: string, unfused: boolean, backend?: "rules" | "model" | "prompt") => {
-  const read = readRaw(raw, message, backend === "rules" && /^Mood\(/m.test(raw));
+  const read = readRaw(raw, message, (backend === "rules" || backend === "prompt") && /^Mood\(/m.test(raw));
   return unfused && read.expression !== undefined ? { ...read, expression: unfuseExpr(read.expression) } : read;
 };
 
@@ -198,7 +198,7 @@ export interface EarsRunOptions {
   /** Score against gold readings with fused names written out. */
   unfused?: boolean;
   /** Who reads: the model (default), the rules, or rules then model. */
-  backend?: "model" | "rules" | "hybrid";
+  backend?: "model" | "rules" | "hybrid" | "prompt";
   /** Called after each case, for progress. */
   onCase?: (result: CaseResult, done: number, total: number) => void;
 }

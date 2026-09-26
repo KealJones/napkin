@@ -17,18 +17,20 @@ type Summary = {
   bySource: Record<string, number>;
   byCheck: Record<string, number>;
 };
-type Backend = "model" | "rules" | "hybrid";
+type Backend = "model" | "rules" | "hybrid" | "prompt";
 const READERS: { value: Backend; label: string; title: string }[] = [
   { value: "model", label: "LLM", title: "The model reads every message, with the prompt on the left." },
   { value: "rules", label: "Rules", title: "The deterministic parser reads every message. The prompt is not used." },
   { value: "hybrid", label: "Hybrid", title: "The rules read first; the model reads only what the rules refuse." },
+  { value: "prompt", label: "Hearing", title: "Prompt hearing: each word finds the words it relates to, in the graph (design/prompt-hearing.md). The prompt is not used." },
 ];
 /** Who read a run, from the share of readings the rules produced. */
-const readerOf = (ruled: number | undefined) => (ruled === undefined || ruled === 0 ? "LLM" : ruled === 1 ? "Rules" : `Hybrid (${Math.round(ruled * 100)}% rules)`);
+const readerOf = (ruled: number | undefined, label = "") =>
+  label.startsWith("lab-prompt") ? "Hearing" : ruled === undefined || ruled === 0 ? "LLM" : ruled === 1 ? "Rules" : `Hybrid (${Math.round(ruled * 100)}% rules)`;
 
 type Converted = {
   raw: string;
-  backend: "model" | "rules";
+  backend: "model" | "rules" | "prompt";
   fallback: string | null;
   lifted: string | null;
   reading: string | null;
@@ -216,7 +218,7 @@ export function EarsLab() {
       const r = await fetch("/api/ears/eval", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ system, samples: backend === "rules" ? 1 : samples, only, questions, unfused, backend }),
+        body: JSON.stringify({ system, samples: backend === "rules" || backend === "prompt" ? 1 : samples, only, questions, unfused, backend }),
       });
       if (!r.ok || !r.body) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? r.statusText);
       const reader = r.body.getReader();
@@ -289,12 +291,12 @@ export function EarsLab() {
         </div>
         <span className="lab-muted">{READERS.find((x) => x.value === backend)?.title}</span>
         </div>
-        <div className={backend === "rules" ? "lab-col lab-unused" : "lab-col"}>
+        <div className={backend === "rules" || backend === "prompt" ? "lab-col lab-unused" : "lab-col"}>
           <div className="lab-head">
             <strong>System prompt</strong>
             <span className="lab-muted">
               {prompt.length} chars {edited ? "· edited (not saved anywhere)" : "· current prompt.ts"}
-              {backend === "rules" ? " · not used by the rules" : backend === "hybrid" ? " · used only when the rules refuse" : ""}
+              {backend === "rules" ? " · not used by the rules" : backend === "prompt" ? " · not used by hearing" : backend === "hybrid" ? " · used only when the rules refuse" : ""}
             </span>
             <button className="ghost" disabled={!edited} onClick={() => setPrompt(defaultPrompt)}>
               Reset
@@ -315,7 +317,7 @@ export function EarsLab() {
             {converted && (
               <div className="lab-out">
                 <label>
-                  {converted.backend === "rules" ? "Rules wrote" : "Model wrote"} ({converted.ms} ms)
+                  {converted.backend === "rules" ? "Rules wrote" : converted.backend === "prompt" ? "Hearing wrote" : "Model wrote"} ({converted.ms} ms)
                   {converted.fallback ? (converted.backend === "model" ? ` · rules refused (${converted.fallback}), so the model read it` : ` · rules refused (${converted.fallback})`) : ""}
                 </label>
                 <pre>{converted.raw || "(nothing)"}</pre>
@@ -354,7 +356,7 @@ export function EarsLab() {
             <div className="lab-row">
               <label>
                 Samples{" "}
-                <select value={backend === "rules" ? 1 : samples} disabled={backend === "rules"} title={backend === "rules" ? "The rules read the same way every time." : ""} onChange={(e) => setSamples(Number(e.target.value))}>
+                <select value={backend === "rules" || backend === "prompt" ? 1 : samples} disabled={backend === "rules" || backend === "prompt"} title={backend === "rules" || backend === "prompt" ? "Deterministic: it reads the same way every time." : ""} onChange={(e) => setSamples(Number(e.target.value))}>
                   <option value={1}>1 (fast, noisy)</option>
                   <option value={3}>3 (like the CLI)</option>
                 </select>
@@ -454,7 +456,7 @@ export function EarsLab() {
                       {r.label}
                       {r.unfused ? " (unfused)" : ""}
                     </td>
-                    <td>{readerOf(r.ruled)}</td>
+                    <td>{readerOf(r.ruled, r.label)}</td>
                     <td>{r.promptChars}</td>
                     <td>{pct(r.headline)}</td>
                     <td>{pct(r.retained)}</td>

@@ -362,7 +362,7 @@ async function runChatTurn(request: IncomingMessage, response: ServerResponse): 
       inputMode: body.inputMode === "expression" ? "expression" : "message",
       history,
       conversation: conversationId,
-      ...(body.backend === "model" || body.backend === "rules" || body.backend === "hybrid" ? { backend: body.backend } : {}),
+      ...(body.backend === "model" || body.backend === "rules" || body.backend === "hybrid" || body.backend === "prompt" ? { backend: body.backend } : {}),
     });
     const reader = { reader: result.heard.backend ?? "model", fallback: result.heard.fallback ?? null };
 
@@ -597,7 +597,7 @@ async function handleEarsLab(path: string, request: IncomingMessage, response: S
     const system = typeof body.system === "string" && body.system.trim() ? body.system : undefined;
     const started = Date.now();
     // The lab always says who reads, so a change to the chat's default never changes the lab.
-    const backend = body.backend === "rules" || body.backend === "hybrid" ? body.backend : "model";
+    const backend = body.backend === "rules" || body.backend === "hybrid" || body.backend === "prompt" ? body.backend : "model";
     const heard = await hear(store, body.message, {
       ...(system ? { system } : {}),
       backend,
@@ -642,7 +642,7 @@ async function handleEarsLab(path: string, request: IncomingMessage, response: S
       if (!response.writableEnded) response.write("data: " + JSON.stringify(event) + "\n\n");
     };
     earsEvalRunning = true;
-    const backend = options.backend === "rules" || options.backend === "hybrid" ? options.backend : "model";
+    const backend = options.backend === "rules" || options.backend === "hybrid" || options.backend === "prompt" ? options.backend : "model";
     try {
       const run = await runEars({
         label: backend === "model" ? "lab" : `lab-${backend}`,
