@@ -419,6 +419,11 @@ Concept(ThingAfter(),
                 ),
                 If(Call($has, $j, "Filler"), Continue(), Undefined()),
                 If(
+                  And(And(AtLeast($thing, 0), Call($has, $j, "Date")), Not(Call($has, $thing, "Date"))),
+                  Break(),
+                  Undefined()
+                ),
+                If(
                   And(And(AtLeast($thing, 0), Call($has, $j, "ProperNoun")), Not(Call($has, $thing, "ProperNoun"))),
                   Break(),
                   Undefined()
@@ -909,6 +914,36 @@ Concept(Preposition(),
               ),
               Undefined()
             ),
+            Bind($after,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Call(
+                    $String,
+                    Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 5), "value")
+                  ),
+                  ""
+                )
+              )
+            ),
+            For(
+              Var($j, $taken),
+              And(
+                And(And(GreaterThan($j, $at), Includes(Call($after, $j), ",")), Call($has, Add($j, 1), "Value")),
+                Equals(Call($sentence, Add($j, 1)), Call($sentence, $at))
+              ),
+              PostIncrement($j),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "Link",
+                  Add($j, 1),
+                  $at,
+                  Call(Member($api, "call"), "Takes")
+                )
+              )
+            ),
             Var(
               $owner,
               If(
@@ -1106,7 +1141,13 @@ Concept(Copula(),
             ),
             Bind($out, List()),
             If(
-              And(GreaterThan($at, 0), Not(Call($has, Call($root, Subtract($at, 1)), "QuestionWord"))),
+              And(
+                And(
+                  And(GreaterThan($at, 0), Not(Call($has, Call($root, Subtract($at, 1)), "QuestionWord"))),
+                  Not(Call($has, Subtract($at, 1), "Helper"))
+                ),
+                Not(Call($has, Subtract($at, 1), "Modal"))
+              ),
               Call(
                 Member($out, "push"),
                 Call(
@@ -1589,22 +1630,45 @@ Concept(Helper(),
             ),
             If(
               Not($starts),
-              Return(
+              Sequence(
                 If(
                   Call($has, $at, "Copula"),
-                  Call(
-                    Member($api, "evaluate"),
+                  Return(
                     Call(
-                      Member($api, "call"),
-                      "Copula",
-                      $prompt,
-                      $at,
-                      Member(Index($args, 2), "value")
-                    ),
-                    $hearing
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Copula",
+                        $prompt,
+                        $at,
+                        Member(Index($args, 2), "value")
+                      ),
+                      $hearing
+                    )
                   ),
-                  Call(Member($api, "call"), "List")
-                )
+                  Undefined()
+                ),
+                If(
+                  And(
+                    GreaterThan($at, 0),
+                    Or(Call($has, Subtract($at, 1), "Helper"), Call($has, Subtract($at, 1), "Modal"))
+                  ),
+                  Return(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Verb",
+                        $prompt,
+                        $at,
+                        Member(Index($args, 2), "value")
+                      ),
+                      $hearing
+                    )
+                  ),
+                  Undefined()
+                ),
+                Return(Call(Member($api, "call"), "List"))
               ),
               Undefined()
             ),
@@ -1672,6 +1736,29 @@ Concept(Helper(),
               )
             ),
             Bind($out, List()),
+            If(
+              And(
+                And(
+                  And(Call($has, Add($at, 1), "Verb"), Not(Call($has, Add($at, 1), "Noun"))),
+                  Not(Call($has, Add($at, 1), "Pronoun"))
+                ),
+                Equals(Call($sentence, Add($at, 1)), Call($sentence, $at))
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    Add($at, 1),
+                    $at,
+                    Call(Member($api, "call"), "Takes")
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Var($subject, Await(Call($thingAt, Add($at, 1)))),
             If(
               LessThan($subject, 0),
@@ -2264,6 +2351,82 @@ Concept(Operator(),
                   $at,
                   Call(Member($api, "call"), "Operand")
                 )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "two days ago": a postposition takes the thing before it.
+Concept(Postposition(), IsA(WordClass()))
+
+Concept(Ago(), IsA(Postposition()))
+
+Concept(Postposition(),
+  Realization($word,
+    context = Hearing(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($prompt, Member(Index($args, 0), "value")),
+            Bind($at, Member(Index($args, 1), "value")),
+            Bind($parent,
+              New(
+                $Map,
+                Map(
+                  Member(Member(Index($args, 2), "value"), "args"),
+                  Lambda(List($a),
+                    List(
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($root,
+              Lambda(List($i),
+                Sequence(
+                  Var($j, $i),
+                  For(
+                    Var($n, 0),
+                    And(Call(Member($parent, "has"), $j), LessThan($n, 64)),
+                    PostIncrement($n),
+                    Assign($j, Call(Member($parent, "get"), $j))
+                  ),
+                  Return($j)
+                )
+              )
+            ),
+            Bind($sentence,
+              Lambda(List($i),
+                If(
+                  Index(Member($prompt, "args"), $i),
+                  Member(Index(Member(Member(Index(Member($prompt, "args"), $i), "value"), "args"), 3), "value"),
+                  Negate(1)
+                )
+              )
+            ),
+            Return(
+              If(
+                And(GreaterThan($at, 0), Equals(Call($sentence, Subtract($at, 1)), Call($sentence, $at))),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Link",
+                    Call($root, Subtract($at, 1)),
+                    $at,
+                    Call(Member($api, "call"), "Operand")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
               )
             )
           )
@@ -2921,10 +3084,13 @@ Concept(Hear(),
                     If(
                       And(
                         And(
-                          And(Call($tagged, $i, "TextValue"), Call($tagged, $i, "Cardinal")),
-                          Equals(Length($kids), 0)
+                          And(
+                            And(Call($tagged, $i, "TextValue"), Call($tagged, $i, "Cardinal")),
+                            Equals(Length($kids), 0)
+                          ),
+                          Not(Length(Call($under, $i, "Absorbs")))
                         ),
-                        Not(Call(Member(Regex("^ones?$", "i"), "test"), $t))
+                        Not(Length(Call($under, $i, "Modifies")))
                       ),
                       Assign($e, Call(Member($api, "call"), "Number", $t)),
                       If(

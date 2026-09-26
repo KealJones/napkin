@@ -11,7 +11,7 @@ import type { ConceptStore } from "../store/store.js";
 import { dropArticles, lift as liftLines, mendDates, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
 import { frame } from "./mood.js";
 import { parseRules } from "./parser/rules.js";
-import { useGraphNames } from "./parser/words.js";
+import { correct, expandBare, useGraphNames } from "./parser/words.js";
 import { generate, type ModelOptions } from "./ollama.js";
 import { earsPrompt } from "./prompt.js";
 
@@ -134,10 +134,21 @@ export async function hear(
   options: HearOptions = {},
 ): Promise<EarsResult> {
   let fallback: string | undefined;
+  // The speller knows the graph's words, so a name it holds is not "corrected" away.
+  if (options.backend === "rules" || options.backend === "hybrid" || options.backend === "prompt") {
+    if (store.size() !== graphNamesAt) {
+      useGraphNames(store.all().map((u) => u.identity));
+      graphNamesAt = store.size();
+    }
+  }
   // Prompt hearing (design/prompt-hearing.md): the words find each other in the graph. Each
   // line it hears is read the way a rules reading is; nothing heard falls back to the rules.
   if (options.backend === "prompt") {
-    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: message }, { value: "rules" }]), c("Execution"));
+    // Spelling as the rules correct it ("waht" is what), for now: a correction should become a
+    // competing reading, both looked up (design/prompt-hearing.md 10), and the Said keeps what
+    // was typed either way.
+    const spelled = correct(expandBare(message)).text;
+    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: spelled }, { value: "rules" }]), c("Execution"));
     const lines = isCall(heard) && heard.head === "Phrases" ? heard.args.map((a) => format(a.value)) : [];
     if (lines.length) {
       const raw = lines.join("\n");
@@ -146,11 +157,6 @@ export async function hear(
     }
   }
   if (options.backend === "rules" || options.backend === "hybrid" || options.backend === "prompt") {
-    // The speller knows the graph's words, so a name it holds is not "corrected" away.
-    if (store.size() !== graphNamesAt) {
-      useGraphNames(store.all().map((u) => u.identity));
-      graphNamesAt = store.size();
-    }
     const ruled = parseRules(message);
     // In hybrid, a reading with words the rules could not read goes to the model instead.
     if (ruled.reading && !(options.backend === "hybrid" && ruled.unread)) {

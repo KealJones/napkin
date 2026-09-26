@@ -1,8 +1,8 @@
 {
   "label": "stage4-rules",
   "same": 46,
-  "recall": 0.6600328112986193,
-  "grouped": 0.5005051639565928,
+  "recall": 0.6602101162631583,
+  "grouped": 0.5011573929332899,
   "rows": [
     {
       "message": "write me a typescript function that says hello world",
@@ -151,10 +151,10 @@
     {
       "message": "what would happen if i doubled my rent",
       "rules": "Mood(Interrogative(), What(Would(Happen(If(Me(Doubled(My(Rent()))))))))",
-      "prompt": "Mood(Interrogative(), What(Would(If(Happen(), Me(Doubled(My(Rent())))))))",
+      "prompt": "Mood(Interrogative(), What(Would(), If(Happen(), Me(Doubled(My(Rent()))))))",
       "same": false,
       "recall": 0.7777777777777778,
-      "grouped": 0.875
+      "grouped": 0.75
     },
     {
       "message": "suppose x is 5, what is x plus 3",
@@ -279,7 +279,7 @@
     {
       "message": "today is ____. A. Sept 20 B. Noday C. Sept 1st, 1991 D. idk",
       "rules": "Mood(Declarative(), Today(Is(What()))) | Unclear(\"A Sept 20 B Noday C Sept 1st\", A(), Sept(), Sept(), St()) | Idk(D(1991))",
-      "prompt": "Mood(Declarative(), Today(Is(\"____\"))) | Mood(Declarative(), Typed(\"1st\", Sept(B(Sept(), 20), Noday(), C()))) | Mood(Declarative(), Idk(1991, D()))",
+      "prompt": "Mood(Declarative(), Today(Is(\"____\"))) | Mood(Declarative(), Typed(\"1st\", Sept(C(B(Sept(), 20), Noday())))) | Mood(Declarative(), Idk(1991, D()))",
       "same": false,
       "recall": 0.36363636363636365,
       "grouped": 0.16666666666666666
@@ -351,10 +351,10 @@
     {
       "message": "i went to virginya to visit my mom. She has lived there 5 years. I havent been there for 3 years. it was crazy.",
       "rules": "Mood(Declarative(), Me(Went(To(MarkMisspelling(\"virginya\", Virginia())), Visit(My(Mom()))))) | Mood(Declarative(), She(Has(Lived(There(), Years(5))))) | Mood(Declarative(), Me(HaveNot(Been(There(), For(Years(3)))))) | Mood(Declarative(), Was(Ref(\"it\"), Crazy()))",
-      "prompt": "Mood(Declarative(), Me(Went(To(Virginya()), Visit(My(Mom()))))) | Mood(Declarative(), She()) | Mood(Declarative(), Has()) | Mood(Declarative(), Lived(Years(There(), 5))) | Mood(Declarative(), Havent(Me(), Been(There(For(Years(3)))))) | Mood(Declarative(), Was(Ref(\"it\"), Crazy()))",
+      "prompt": "Mood(Declarative(), Me(Went(To(Virginya()), Visit(My(Mom()))))) | Mood(Declarative(), She()) | Mood(Declarative(), Has()) | Mood(Declarative(), Lived(There(), Years(5))) | Mood(Declarative(), Havent(Me(), Been(There(For(Years(3)))))) | Mood(Declarative(), Was(Ref(\"it\"), Crazy()))",
       "same": false,
-      "recall": 0.7,
-      "grouped": 0.42857142857142855
+      "recall": 0.7333333333333333,
+      "grouped": 0.47619047619047616
     },
     {
       "message": "grab the weights, er the scores or whatever, from those probe things i sent you. Not the first batch the second one and like add em up and tell me if its more than this time",
@@ -479,10 +479,10 @@
     {
       "message": "book a flight to pheonix next friday",
       "rules": "Mood(Imperative(), Book(Flight(), To(MarkMisspelling(\"pheonix\", Phoenix())), Next(Friday())))",
-      "prompt": "Mood(Imperative(), Book(Flight(To(Next(Friday(Pheonix()))))))",
+      "prompt": "Mood(Imperative(), Book(Flight(To(Pheonix())))) | Mood(Imperative(), Next(Friday()))",
       "same": false,
       "recall": 0.4444444444444444,
-      "grouped": 0
+      "grouped": 0.2
     },
     {
       "message": "grab those logs or whatever from yesterday",
