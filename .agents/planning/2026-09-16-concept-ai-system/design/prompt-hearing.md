@@ -202,6 +202,26 @@ the rules parser is still the reference, `Emit` can write the rules parser's cur
 conventions (`My(Old(Car()))`, a claim inside its subject), so nothing downstream changes.
 The thing-as-head form is a switch in `Emit`, made once and measured.
 
+### 4.1 One form, decided 2026-09-25
+
+The form hearing writes does not have to follow how a message was phrased. The words are the
+faithful record (the Said keeps them); the form is hearing's clarified reading, the same for
+every way of saying one thing, so the graph executes it with certainty. Hearing may
+clarify, disambiguate and consolidate. It may not add what was not said.
+
+- **Things:** the thing is the head and what describes it is its arguments:
+  `Film(1999, American(), Teen(), Comedy())`, `Car(My(), Old())`.
+- **Statements:** the subject first and the claim inside it, as the graph stores a fact:
+  `Me(Likes(Pie()))`, `Napkin(IsA(WorkInProgress()))`.
+- **Questions:** the question word or helper leads and holds the rest:
+  `What(Is(Capital(Of(France()))))`.
+- **Roles:** the preposition that marked them: `Directed(By(Weitz(Paul())))`. Active and
+  passive, "what's" and "what is", land on the same form.
+
+This replaces writing the rules parser's conventions (`Hear(text, "rules")`), which exists
+only until the graph's realizations are moved onto this form; each of the 34 replay
+differences is then either hearing to fix or a realization keyed to a rules quirk to update.
+
 ## 5. Worked example
 
 "American Pie is a 1999 American teen comedy film directed and co-produced by Paul Weitz"
