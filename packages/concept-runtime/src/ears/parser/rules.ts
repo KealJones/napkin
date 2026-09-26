@@ -1388,12 +1388,22 @@ export function sayPhrase(e: Expr): string | undefined {
  * cut out as one token, `verbatim0`, and returned in `spans` as the Concept it reads as
  * (Block, InlineCode, or the text itself), so hearing takes it as one thing.
  */
-export function verbatimSpans(message: string): { text: string; spans: Expr[] } {
+export function verbatimSpans(message: string, read?: (code: string) => Expr | undefined): { text: string; spans: Expr[] } {
   const found: Expr[] = [];
-  const keep = (e: Expr) => ` verbatim${found.push(e) - 1} `;
+  // Code is also read as Concepts, the way the TypeScript import reads it, beside the text:
+  // InlineCode("foo()", ir=Call($foo)). What cannot be read keeps only its text.
+  const withIr = (e: Expr): Expr => {
+    if (!read || !isCall(e) || (e.head !== "InlineCode" && e.head !== "Block")) return e;
+    const text = e.args[e.args.length - 1]?.value;
+    const ir = typeof text === "string" ? read(text) : undefined;
+    return ir === undefined ? e : { head: e.head, args: [...e.args, { name: "ir", value: ir }] };
+  };
+  const keep = (e: Expr) => ` verbatim${found.push(withIr(e)) - 1} `;
   let text = message.replace(/^(`{3,})([\w+-]*)[ \t]*\n([\s\S]*?)\n\1[ \t]*$/gm, (_m, _f, lang: string, body: string) =>
     keep(lang ? c("Block", lang, body) : c("Block", body)),
   );
+  // Backticks around several lines hold a block, before any line is judged on its own.
+  text = text.replace(/`([^`]*\n[^`]*)`/g, (_m, code: string) => keep(c("Block", code)));
   // Lines that are code by their form: they end the way statements do, or open a block, or
   // are mostly the symbols code is written in. Consecutive ones are one block.
   const codeLine = (line: string): boolean => {

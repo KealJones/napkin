@@ -2464,6 +2464,71 @@ Concept(Hear(),
                 Undefined()
               )
             ),
+            Bind($heardComments,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return($e), Undefined()),
+                    If(
+                      And(
+                        And(Equals(Member($e, "head"), "Comment"), Equals(Length(Member($e, "args")), 1)),
+                        Equals(TypeOf(Member(Index(Member($e, "args"), 0), "value")), "string")
+                      ),
+                      Sequence(
+                        Bind($h,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(
+                                Member($api, "call"),
+                                "Hear",
+                                Member(Index(Member($e, "args"), 0), "value")
+                              ),
+                              Call(Member($api, "call"), "Execution")
+                            )
+                          )
+                        ),
+                        Return(
+                          Call(
+                            Member($api, "call"),
+                            "Comment",
+                            Member(Index(Member($e, "args"), 0), "value"),
+                            Spread(
+                              If(
+                                Call($isCall, $h),
+                                Map(Member($h, "args"), Lambda(List($a), Member($a, "value"))),
+                                List()
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Bind($out, List()),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Call(
+                        Member($out, "push"),
+                        If(
+                          Equals(Member($a, "name"), Undefined()),
+                          Object(value = Await(Call($heardComments, Member($a, "value")))),
+                          Object(name = Member($a, "name"), value = Await(Call($heardComments, Member($a, "value"))))
+                        )
+                      )
+                    ),
+                    Return(Object(head = Member($e, "head"), args = $out))
+                  )
+                )
+              )
+            ),
+            For(
+              Var($n, 0),
+              LessThan($n, Length(Member($kept, "spans"))),
+              PostIncrement($n),
+              Assign(Index(Member($kept, "spans"), $n), Await(Call($heardComments, Index(Member($kept, "spans"), $n))))
+            ),
             Bind($name,
               Lambda(List($t),
                 Call(

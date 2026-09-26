@@ -27,6 +27,7 @@ import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
 import { fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
 import { verbatimSpans } from "../ears/parser/rules.js";
+import { readCode } from "./code-reading.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
@@ -571,7 +572,7 @@ export class Runtime {
       readText,
       lemma,
       words,
-      verbatim: verbatimSpans,
+      verbatim: (text: string) => verbatimSpans(text, readCode),
       properNoun,
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;
