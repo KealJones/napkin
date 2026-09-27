@@ -16,6 +16,13 @@ async (args, bindings, api) => {
     for (const a of e.args) find(a.value);
   };
   for (const a of args) find(a.value);
+  // A language said may have been lifted into the context the order runs in (TargetLanguage is a facet).
+  const inContext = (e) => {
+    if (target || !isCall(e)) return;
+    target = languages.find((l) => l === e.head);
+    for (const a of e.args) inContext(a.value);
+  };
+  inContext(api.context);
   target = target ?? "JavaScript";
   const written = api.writeCode(ir, target);
   if (written.unwritable.length) return api.call("CannotWrite", target, api.call("List", ...written.unwritable));

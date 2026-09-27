@@ -383,7 +383,7 @@ function withoutFacets(runtime: Runtime, e: Expr): Expr {
   const peers = e.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.args.length === 0).length >= 2;
   const kept = e.args.filter((a, i) => {
     if (e.head === "Mood" && i === 0) return true;
-    if (peers) return true;
+    if (peers || a.name !== undefined) return true;
     const v = a.value;
     return !(
       isCall(v) &&

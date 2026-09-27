@@ -64,3 +64,18 @@ test("a function is found from examples of what it gives, the simplest rule that
   assert.match((await ask("write f where f(1) is 7, f(2) is 1, f(3) is 100")).said, /^I couldn't find one rule for f/);
   assert.equal((await ask("run it with 21", [{ message: "write", result: f.result }])).said, "It gives 42.");
 });
+
+test("code is written as Python, in lines, and reads back as the same Concepts", async () => {
+  const { importTypeScript, writeSource } = await import("./import.js");
+  const { readCode } = await import("../ears/code-reading.js");
+  const { format } = await import("../concept/expression.js");
+  const js = "function f(x, ys) { if (x > 1 && !done) { return true } else { for (const y of ys) { print(y) } } return ys.length }";
+  const ir = importTypeScript(js).expression;
+  const py = writeSource(ir, "Python");
+  assert.deepEqual(py.unwritable, []);
+  assert.equal(py.text, "def f(x, ys):\n    if ((x > 1) and (not done)):\n        return True\n    else:\n        for y in ys:\n            print(y)\n    return len(ys)");
+  const back = await readCode(py.text + "\n", "python");
+  assert.equal(format(writeSource(back!.ir, "JavaScript").text), format(writeSource(ir, "JavaScript").text));
+  assert.match((await ask("write a python function where h(1) is 3, h(2) is 5, h(4) is 9")).said, /```python\ndef h\(x\):\n    return \(\(x \* 2\) \+ 1\)\n```/);
+  assert.equal((await ask("translate `let a = 1` into python")).said, "In Python:\n\n```python\na = 1\n```");
+});

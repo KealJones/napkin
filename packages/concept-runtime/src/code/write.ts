@@ -12,6 +12,14 @@
  * A part bound by `Rest(...)` is written once per element, expressions joined by ", " (a
  * named argument as `name: value`) and statements by "; ".
  *
+ * A block that a template starts on a line of its own ("def #n($ps):\n    %b") is written in
+ * lines: its statements one per line at that indentation, and a statement written over several
+ * lines keeps its own lines under it. A block hole a template starts with continues the lines it
+ * is written in. So a language whose blocks are indentation says so in its templates alone.
+ *
+ * A value is written as JavaScript writes it unless the language gives it a rule of its own,
+ * `To(Literal(null), "None")`.
+ *
  * `Either("a", "b")` offers templates in order, the first that can be used winning: a
  * concise arrow where its body is an expression, a block where it is not. (Two rules for
  * one pattern would be one shadowing the other, which the store collects.)
@@ -149,10 +157,12 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
     return ok;
   };
 
-  const render = (rule: Rule, b: Bindings): string =>
+  const render = (rule: Rule, b: Bindings, inLines: boolean): string =>
     (rule.parts ?? [])
-      .map((p) => {
+      .map((p, i, parts) => {
         if ("text" in p) return p.text;
+        const before = parts[i - 1];
+        const line = before === undefined ? (inLines ? "" : undefined) : "text" in before ? /\n([ \t]*)$/.exec(before.text)?.[1] : undefined;
         const items = values(rule, b, p.hole);
         if (p.as === "source") return items.map((a) => JSON.stringify(write(a.value, "expression"))).join(", ");
         if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : write(a.value, "expression"))).join(", ");
@@ -164,13 +174,17 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
           // reading added to say so is not written back.
           const last = steps[steps.length - 1]?.value;
           if (steps.length > 1 && isCall(last) && last.head === "Undefined" && !last.args.length) steps.pop();
+          if (line !== undefined) return steps.map((a) => write(a.value, "statement", true)).join("\n").split("\n").join("\n" + line);
           return steps.map((a) => write(a.value, "statement")).join("; ");
         }
         return items.map((a) => (a.name === undefined ? "" : `${a.name}: `) + write(a.value, "expression")).join(", ");
       })
       .join("");
 
-  const write = (e: Expr, position: "expression" | "statement"): string => {
+  const write = (e: Expr, position: "expression" | "statement", inLines = false): string => {
+    // A language that writes a value its own way says so: To(Literal(true), "True").
+    const own = isCall(e) || isVariable(e) ? undefined : (rules.get("Literal") ?? []).find((r) => isCall(r.pattern) && r.pattern.args[0]?.value === e);
+    if (own?.parts) return own.parts.map((p) => ("text" in p ? p.text : "")).join("");
     const lit = literal(e);
     if (lit !== undefined) return lit;
     const statement = position === "statement";
@@ -178,7 +192,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
       if (!statement && !usable(rule, b)) continue;
       if (statement && !rule.statement && !usable(rule, b)) continue;
       if (rule.instead) return write(expandEach(substitute(rule.instead, b)), position);
-      const text = render(rule, b);
+      const text = render(rule, b, inLines);
       // An expression standing as a statement must not read as a block or a declaration.
       return statement && !rule.statement && /^(\{|function\b|class\b)/.test(text) ? `(${text})` : text;
     }
@@ -186,5 +200,6 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
     return `undefined /* ${isCall(e) ? e.head : "?"} */`;
   };
 
-  return { text: write(e, as), unwritable };
+  // A template may start its lines with a newline; the writing does not.
+  return { text: write(e, as).replace(/^\n+/, ""), unwritable };
 }

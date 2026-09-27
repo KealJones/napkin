@@ -1325,6 +1325,28 @@ Concept(Convert(),
               )
             ),
             ForOf($a, $args, Call($find, Member($a, "value"))),
+            Comment(
+              "A language said may have been lifted into the context the order runs in (TargetLanguage is a facet)."
+            ),
+            Bind($inContext,
+              Lambda(List($e),
+                Sequence(
+                  If(
+                    Or($target, Not(Call($isCall, $e))),
+                    Return(),
+                    Undefined()
+                  ),
+                  Assign($target, Call(Member($languages, "find"), Lambda(List($l), Equals($l, Member($e, "head"))))),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($inContext, Member($a, "value"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($inContext, Member($api, "context")),
             Assign($target, Otherwise($target, "JavaScript")),
             Bind($written, Call(Member($api, "writeCode"), $ir, $target)),
             If(

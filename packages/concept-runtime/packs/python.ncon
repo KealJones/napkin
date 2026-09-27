@@ -61,6 +61,8 @@ From(PyIfStatement(condition = $c, consequence = $t), If($c, $t))
 
 From(PyAssignment(left = $x, right = $v), Var($x, $v))
 
+// len(x) is the Length every language's code has.
+From(PyCall(function = PyIdentifier(text = "len"), arguments = PyArgumentList($x)), Length($x))
 From(PyCall(function = $f, arguments = PyArgumentList(Rest($a))), Call($f, Rest($a)))
 
 From(PyAttribute(object = $o, attribute = PyIdentifier(text = $t)), Member($o, $t))
@@ -196,3 +198,73 @@ From(
 )
 
 From(PyNotOperator(argument = $x), Not($x))
+
+// ================================================================
+// Writing Python (code/write.ts). A block starts on a line of its own, so its statements are
+// written in lines at that indentation; every compound expression brings its own parentheses.
+To(Module($x), Statement(), "\n%x")
+To(Sequence(Rest($ss)), Statement(), "%ss")
+To(Literal(true), "True")
+To(Literal(false), "False")
+To(Literal(null), "None")
+To(Undefined(), "None")
+To(
+  Func($n, List(Rest($ps)), $b),
+  Statement(),
+  "def $n($ps):\n    %b"
+)
+To(Lambda(List(Rest($ps)), $b), "(lambda $ps: $b)")
+To(Return(), Statement(), "return")
+To(Return($x), Statement(), "return $x")
+To(Throw($x), Statement(), "raise $x")
+To(If($c, $t, $e), "($t if $c else $e)")
+To(If($c, $t), Statement(), "if $c:\n    %t")
+To(If($c, $t, Undefined()), Statement(), "if $c:\n    %t")
+To(
+  If($c, $t, $e),
+  Statement(),
+  "if $c:\n    %t\nelse:\n    %e"
+)
+To(While($c, $s), Statement(), "while $c:\n    %s")
+To(ForOf($n, $e, $s), Statement(), "for $n in $e:\n    %s")
+To(Continue(), Statement(), "continue")
+To(Break(), Statement(), "break")
+To(Comment($t), Statement(), "# #t")
+To(Bind($n, $v), Statement(), "$n = $v")
+To(Var($n, $v), Statement(), "$n = $v")
+To(Assign($t, $v), Statement(), "$t = $v")
+To(Assign($t, $v), "($t := $v)")
+To(Member($o, $k), "$o.#k")
+To(UnboundName($n), "#n")
+To(Index($o, $i), "$o[$i]")
+To(Length($o), "len($o)")
+To(Map($xs, $f), "list(map($f, $xs))")
+To(Filter($xs, $f), "list(filter($f, $xs))")
+To(Includes($xs, $x), "($x in $xs)")
+To(Call($f, Rest($a)), "$f($a)")
+To(Spread($e), "*$e")
+To(Not($x), "(not $x)")
+To(Negate($x), "(-$x)")
+To(Equals($l, $r), "($l == $r)")
+To(NotEquals($l, $r), "($l != $r)")
+To(LooseEquals($l, $r), "($l == $r)")
+To(LooseNotEquals($l, $r), "($l != $r)")
+To(Add($l, $r), "($l + $r)")
+To(Subtract($l, $r), "($l - $r)")
+To(Multiply($l, $r), "($l * $r)")
+To(Divide($l, $r), "($l / $r)")
+To(Modulo($l, $r), "($l % $r)")
+To(Power($l, $r), "($l ** $r)")
+To(GreaterThan($l, $r), "($l > $r)")
+To(LessThan($l, $r), "($l < $r)")
+To(AtLeast($l, $r), "($l >= $r)")
+To(AtMost($l, $r), "($l <= $r)")
+To(And($l, $r), "($l and $r)")
+To(Or($l, $r), "($l or $r)")
+To(In($l, $r), "($l in $r)")
+To(BitAnd($l, $r), "($l & $r)")
+To(BitOr($l, $r), "($l | $r)")
+To(BitXor($l, $r), "($l ^ $r)")
+To(ShiftLeft($l, $r), "($l << $r)")
+To(ShiftRight($l, $r), "($l >> $r)")
+To(List(Rest($xs)), "[$xs]")
