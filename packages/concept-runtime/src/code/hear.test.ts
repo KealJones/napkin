@@ -19,28 +19,34 @@ const hear = async (text: string, language: string) => {
   const e = await heard(text, language);
   return format(isCall(e) ? { head: e.head, args: e.args.filter((a) => a.name !== "rounds") } : e);
 };
+/**
+ * The IR with each name the code uses but does not bind written as the old readers write every
+ * name, $name, to compare with them (they tell a program's variables from free names nowhere).
+ */
+const asReaders = (e: Expr): Expr =>
+  !isCall(e) ? e : e.head === "UnboundName" && e.args.length === 1 && typeof e.args[0].value === "string" ? { variable: e.args[0].value } : { head: e.head, args: e.args.map((a) => ({ ...a, value: asReaders(a.value) })) };
 const both = async (ts: string, py: string) => {
-  const [a, b] = [format(await read(ts, "TypeScript")), format(await read(py, "Python"))];
+  const [a, b] = [format(asReaders(await read(ts, "TypeScript"))), format(asReaders(await read(py, "Python")))];
   assert.equal(a, b);
   return a;
 };
 
 test("operators: each word takes what is either side of it, as tightly as it binds, in either language", async () => {
   for (const language of ["TypeScript", "Python"]) {
-    assert.equal(await hear("a + b * c", language), "Phrases(Plus(A(), Times(B(), C())))");
-    assert.equal(await hear("f(x).y", language), "Phrases(Dot(F(X()), Y()))");
-    assert.equal(await hear("a - b - c", language), "Phrases(Minus(Minus(A(), B()), C()))");
+    assert.equal(await hear("a + b * c", language), 'Phrases(Plus(Identifier("a"), Times(Identifier("b"), Identifier("c"))))');
+    assert.equal(await hear("f(x).y", language), 'Phrases(Dot(Identifier("f", Identifier("x")), Identifier("y")))');
+    assert.equal(await hear("a - b - c", language), 'Phrases(Minus(Minus(Identifier("a"), Identifier("b")), Identifier("c")))');
   }
-  assert.equal(await hear("(a + b) * c", "TypeScript"), "Phrases(Times(Plus(A(), B()), C()))");
-  assert.equal(await hear("-a + b * -c", "TypeScript"), "Phrases(Plus(Minus(A()), Times(B(), Minus(C()))))");
+  assert.equal(await hear("(a + b) * c", "TypeScript"), 'Phrases(Times(Plus(Identifier("a"), Identifier("b")), Identifier("c")))');
+  assert.equal(await hear("-a + b * -c", "TypeScript"), 'Phrases(Plus(Minus(Identifier("a")), Times(Identifier("b"), Minus(Identifier("c")))))');
   for (const text of ["a + b * c", "f(x).y", "a - b - c", "(a + b) * c", "-a + b * -c", "x = f(a, b + 1).go(2)"]) {
-    assert.equal(format(await read(text, "TypeScript")), format(importTypeScript(text).expression));
+    assert.equal(format(asReaders(await read(text, "TypeScript"))), format(importTypeScript(text).expression));
   }
 });
 
 test("a loop is the same words in both languages, and reads as what the TypeScript reader reads", async () => {
-  assert.equal(await hear("for (const element of object) { print(element) }", "TypeScript"), "Phrases(For(Of(Const(Element()), Object()), Print(Element())))");
-  assert.equal(await hear("for element in object:\n    print(element)\n", "Python"), "Phrases(For(In(Element(), Object()), Print(Element())))");
+  assert.equal(await hear("for (const element of object) { print(element) }", "TypeScript"), 'Phrases(For(Of(Const(Identifier("element")), Identifier("object")), Identifier("print", Identifier("element"))))');
+  assert.equal(await hear("for element in object:\n    print(element)\n", "Python"), 'Phrases(For(In(Identifier("element"), Identifier("object")), Identifier("print", Identifier("element"))))');
   const ir = await both("for (const element of object) { print(element) }", "for element in object:\n    print(element)\n");
   assert.equal(ir, format(importTypeScript("for (const element of object) { print(element) }").expression));
 });
@@ -66,6 +72,15 @@ test("what a number's writing states is kept for a language that must choose a t
   assert.equal(format(await read("w = 2.0\n", "Python")), "Module(Var($w, Float(2)))");
 });
 
+test("a name is the program's variable where the code binds it, and kept as written where it does not", async () => {
+  assert.equal(format(await read("for (const element of object) { print(element) }", "TypeScript")), 'Module(ForOf($element, UnboundName("object"), Call(UnboundName("print"), $element)))');
+  // A variable named like a Concept is still the variable: "map" is not Map.
+  assert.equal(format(await read("const map = 1; map + 2", "TypeScript")), "Module(Sequence(Bind($map, 1), Add($map, 2)))");
+  assert.equal(format(await read("let x = 1; x = y", "TypeScript")), 'Module(Sequence(Var($x, 1), Assign($x, UnboundName("y"))))');
+  // Written back, a name the code does not bind is written as it was.
+  assert.equal(writeJavaScript(await read("for x in xs:\n    print(x)\n", "Python")).text, "for (let x of xs) { print(x) }");
+});
+
 test("known gaps", { todo: "an empty call is heard as the name alone; else-if, subscripts, types, lambdas" }, async () => {
-  assert.equal(format(await read("print()", "TypeScript")), "Module(Call($print))");
+  assert.equal(format(await read("print()", "TypeScript")), 'Module(Call(UnboundName("print")))');
 });

@@ -2,19 +2,19 @@
 // member by that name is a Concept of the code IR in this language ("xs.length" is Length(xs),
 // "xs.map(f)" is Map(xs, f)), it reads as that Concept.
 const [owner, member] = self.args.filter((a) => a.name === undefined).map((a) => a.value);
-// "import.meta": the module's own facts.
-if (isCall(owner) && owner.head === "Import" && owner.args.every((a) => a.name !== undefined) && isCall(member) && member.head === "Meta") return api.call("ImportMeta");
+// "import.meta": the module's own facts. A member is named by how it was written, never read as
+// a variable or a Concept of its own.
+const importing = (is(owner, "Import") && owner.args.every((a) => a.name !== undefined)) || (is(owner, "Identifier") && nameOf(owner) === "import" && positional(owner).length === 0);
+if (importing && is(member, "Identifier") && nameOf(member) === "meta") return api.call("ImportMeta");
 const of = await api.evaluate(owner, api.context);
 if (!isCall(member)) return api.call("Member", of, member);
-const said = member.args.find((a) => a.name === "said");
-const name = said ? said.value : member.head[0].toLowerCase() + member.head.slice(1);
+const name = nameOf(member);
 const got = api.call("Member", of, name);
 const values = [];
 let called = false;
-for (const a of member.args) {
-  if (a.name !== undefined) continue;
-  if (isCall(a.value) && a.value.head === "Parens" && a.value.args.length === 0) called = true;
-  else if (!(isCall(a.value) && a.value.head === "Angles")) values.push(await api.evaluate(a.value, api.context));
+for (const x of positional(member)) {
+  if (is(x, "Parens") && x.args.length === 0) called = true;
+  else if (!is(x, "Angles")) values.push(await read(x));
 }
 // What the graph says a member by this name is, in this language: xs.map(f) is Map(xs, f)
 // (Method("map", 1, Passes(1)) on Map), xs.length is Length(xs) (Property("length")). A

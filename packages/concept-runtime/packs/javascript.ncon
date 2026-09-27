@@ -1152,6 +1152,8 @@ To(Embedded($x), "&x")
 
 // Reading, calling and the primitives.
 To(Member($o, $k), "$o.#k")
+// A name the code uses but does not bind: written as it was.
+To(UnboundName($n), "#n")
 To(OptionalMember($o, $k), "$o?.#k")
 To(OptionalIndex($o, $i), "$o?.[$i]")
 To(OptionalCall($f, Rest($a)), "$f?.($a)")

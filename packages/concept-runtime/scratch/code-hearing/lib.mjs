@@ -26,24 +26,15 @@ export const READS_TS = "Context(Code(TypeScript()), Reading())";
 const PRELUDE = `
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const self = bindings.get("word");
-  const positional = (e) => e.args.filter((a) => a.name === undefined).map((a) => a.value);
+  // An identifier's first part is how it was written; what follows is what it took.
+  const positional = (e) => { const xs = e.args.filter((a) => a.name === undefined).map((a) => a.value); return e.head === "Identifier" ? xs.slice(1) : xs; };
   const parts = positional(self);
   const named = (k) => { const a = self.args.find((x) => x.name === k); return a ? a.value : undefined; };
   const read = (e) => api.evaluate(e, api.context);
   const ask = (head, ...xs) => api.evaluate(api.call(head, ...xs), api.context);
-  const nameOf = (e) => { if (typeof e === "string") return e; if (!isCall(e)) return String(e); const said = e.args.find((a) => a.name === "said"); return said ? said.value : e.head[0].toLowerCase() + e.head.slice(1); };
+  const nameOf = (e) => { if (typeof e === "string") return e; if (!isCall(e)) return String(e); if (e.head === "Identifier") return e.args[0].value; return e.head[0].toLowerCase() + e.head.slice(1); };
   const variable = (e) => api.fromHost({ variable: nameOf(e) });
   const is = (e, head) => isCall(e) && e.head === head;
-  // A word typed other than as its plain name ("Set" beside "set") is only a name here.
-  if (named("said") !== undefined) {
-    const xs = [];
-    let called = false;
-    for (const p of parts) {
-      if (is(p, "Parens") && p.args.length === 0) called = true;
-      else if (!is(p, "Angles")) xs.push(await read(p));
-    }
-    return xs.length || called ? api.call("Call", variable(self), ...xs) : variable(self);
-  }
 `;
 // A reading's body: its own code (a comment saying what it reads, then what it does), after the
 // shared helpers above.

@@ -710,3 +710,59 @@ Concept(FlatMap(), Relation(Method("flatMap", 1, Passes(1)), context = Code(Type
 Concept(Reduce(), Relation(Method("reduce", 2, Passes(2)), context = Code(TypeScript())))
 
 Concept(Includes(), Relation(Method("includes", 1), context = Code(TypeScript())))
+
+// The language's own words for values, which are never identifiers.
+Concept(True(), Keyword())
+
+Concept(False(), Keyword())
+
+Concept(Null(), Relation(Keyword(), context = Code(TypeScript())))
+
+Concept(Undefined(), Relation(Keyword(), context = Code(TypeScript())))
+
+Concept(This(), Relation(Keyword(), context = Code(TypeScript())))
+
+Concept(Super(), Relation(Keyword(), context = Code(TypeScript())))
+
+Concept(None(), Relation(Keyword(), context = Code(Python())))
+
+Concept(Pass(), Relation(Keyword(), context = Code(Python())))
+
+// How words bind names, for reading to tell a program's own variables from names it only uses.
+// A word that Declares binds what it holds; one that DeclaresFirst binds only its first part (a
+// loop's binding, an assignment's target); one that DeclaresName binds the name it holds and
+// what that name takes; one that DeclaresParameters binds what it is given. BindsLeft and
+// BindsRight say which side of a pair is bound.
+Concept(Const(), Declares())
+
+Concept(Let(), Declares())
+
+Concept(Var(), Declares())
+
+Concept(Import(), Declares())
+
+Concept(Catch(), Declares())
+
+Concept(Global(), Relation(Declares(), context = Code(Python())))
+
+Concept(For(), DeclaresFirst())
+
+Concept(Assign(), DeclaresFirst(), BindsLeft())
+
+Concept(Function(), DeclaresName())
+
+Concept(Def(), DeclaresName())
+
+Concept(Class(), DeclaresName())
+
+Concept(Arrow(), DeclaresParameters())
+
+Concept(Lambda(), DeclaresParameters())
+
+Concept(Of(), BindsLeft())
+
+Concept(In(), BindsLeft())
+
+Concept(Colon(), BindsLeft())
+
+Concept(As(), BindsRight())

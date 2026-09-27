@@ -14,7 +14,7 @@ for (const item of parts) {
     const ps = [];
     for (const x of p.filter((x) => !is(x, "Block") && !is(x, "Parens"))) ps.push(await ask("CodeTarget", x));
     items.push({ value: api.call("Method", nameOf(item), api.call("List", ...ps), await ask("CodeBody", ...positional(blk))) });
-  } else if (isCall(item) && p.length === 0) put(nameOf(item), variable(item));
+  } else if (is(item, "Identifier") && p.length === 0) put(nameOf(item), await read(item));
   else items.push({ value: await read(item) });
 }
 return { head: "Object", args: items };

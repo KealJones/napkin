@@ -78,9 +78,14 @@ async (args, bindings, api) => {
   // What a word says it is here (Sense): "<" after a name is its angles, "{" after a signature
   // is a block, "get" in "x.get" is only a name. Its Concept, with only the kinds it has.
   const saying = new Set();
+  // Words of the language said only as names here ("x.get", "{ default: 1 }").
+  const namedHere = new Set();
   const become = (i, head) => {
     saying.add(i);
-    if (head === "Name") kinds[i] = ["Name"];
+    if (head === "Name") {
+      kinds[i] = ["Name"];
+      namedHere.add(i);
+    }
     else {
       heads[i] = head;
       kinds[i] = [SHAPE[said[i].kind] ?? "Symbol", ...kindsOf(head)];
@@ -277,13 +282,11 @@ async (args, bindings, api) => {
     dirty = next;
   }
   // Each word written as its Concept, the words it took as its arguments, in the order said.
-  // A name keeps how it was typed when its Concept's name does not say it: MyClass(said="MyClass");
-  // an operator said after the one thing it holds says so: Increment(X(), after=true).
+  // A name is Identifier("as written", what it took...); an operator said after the one thing it holds says so: Increment(X(), after=true).
   const children = said.map(() => []);
   for (const l of [...links].sort((a, b) => a.from - b.from)) {
     if (l.role !== "Absorbs") children[l.to].push(l.from);
   }
-  const lower = (t) => t[0].toLowerCase() + t.slice(1);
   const build = (i) => {
     const kids = children[i].map((j) => ({ value: build(j) }));
     const w = said[i];
@@ -292,8 +295,9 @@ async (args, bindings, api) => {
     if (w.kind === "regex") return api.call("Regex", w.value, w.flags);
     if (w.kind === "comment") return api.call("Comment", w.value);
     if (!heads[i]) return api.call("Symbol", w.text);
-    // A name that is a word of code elsewhere ("index", "comma") says it is only a name here.
-    if (w.kind === "name" && (lower(heads[i]) !== w.text || (kinds[i].length === 1 && kindsOf(heads[i]).length > 0))) kids.push({ name: "said", value: w.text });
+    // A name that is not one of the language's words is an identifier, as written: what it
+    // names is reading's to work out, never a Concept that happens to share its spelling.
+    if (w.kind === "name" && (!keyword(heads[i]) || namedHere.has(i))) return { head: "Identifier", args: [{ value: w.text }, ...kids] };
     if ((is(i, "Infix") || is(i, "Prefix")) && children[i].length === 1 && children[i][0] < i) kids.push({ name: "after", value: true });
     return { head: is(i, "Scope") ? "Block" : heads[i], args: kids };
   };

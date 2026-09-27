@@ -2,7 +2,7 @@
 const e = parts[0];
 if (!isCall(e)) return e;
 const p = positional(e);
-if (e.args.some((a) => a.name === "said") && p.length === 0) return variable(e);
+if (is(e, "Identifier") && p.length === 0) return variable(e);
 if ((is(e, "Colon") || is(e, "OptionalColon")) && p.length === 2) {
   // The type may itself be a function type: the default is at its far end ("f: () => T = g").
   let t = p[1];
@@ -23,5 +23,4 @@ if (is(e, "Braces")) {
   }
   return { head: "Object", args: items };
 }
-if (p.length === 0 && e.args.every((a) => a.name === "said")) return variable(e);
 return read(e);

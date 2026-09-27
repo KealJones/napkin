@@ -47,7 +47,7 @@ const member = async (m) => {
   const ps = [];
   for (const x of sp.filter((x) => !is(x, "Block") && !is(x, "Parens") && !is(x, "Angles"))) ps.push(await ask("CodeTarget", x));
   const body = await ask("CodeBody", ...(blk ? positional(blk) : []));
-  if (is(sig, "Constructor")) return api.call("Constructor", api.call("List", ...ps), await ask("CodeStatements", ...(blk ? positional(blk) : [])));
+  if (is(sig, "Identifier") && nameOf(sig) === "constructor") return api.call("Constructor", api.call("List", ...ps), await ask("CodeStatements", ...(blk ? positional(blk) : [])));
   return api.call("Method", nameOf(sig), api.call("List", ...ps), body);
 };
 const out = [];

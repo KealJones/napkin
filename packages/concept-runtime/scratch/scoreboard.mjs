@@ -60,7 +60,7 @@ const hasUnsupported = (e) => isCall(e) && (e.head === "Unsupported" || e.args.s
 // Kept on purpose, where the reference erases it: a Float(n) stated in the source counts as
 // the reference's plain n, and a declared type (type=...) is set aside.
 const plain = (e) =>
-  !isCall(e) ? e : e.head === "Float" && e.args.length === 1 ? e.args[0].value : { head: e.head, args: e.args.filter((a) => a.name !== "type").map((a) => ({ ...a, value: plain(a.value) })) };
+  !isCall(e) ? e : e.head === "Float" && e.args.length === 1 ? e.args[0].value : e.head === "UnboundName" && e.args.length === 1 ? { variable: e.args[0].value } : { head: e.head, args: e.args.filter((a) => a.name !== "type").map((a) => ({ ...a, value: plain(a.value) })) };
 const unwrap = (e) => (isCall(e) && e.head === "Module" && e.args.length === 1 ? e.args[0].value : e);
 // Where two readings first part: the reference's head there names the failure.
 const diverge = (a, b) => {
