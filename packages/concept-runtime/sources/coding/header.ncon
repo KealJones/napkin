@@ -1,0 +1,218 @@
+// Code a message shows or names, and what can be done with it: explained, checked, fixed, run,
+// converted, saved. Written by scripts/pack.mjs from sources/coding (edit those, not this).
+// Each verb finds the code it is about (CodeOf) whatever shape the words put it in: "explain
+// this code: `...`", "fix src/x.ts", "what's wrong with `...`".
+Requires(Core(), Basic(), Code(), CodeWords())
+
+// Code as the graph holds it: its text as written, the language it is in, the code IR it reads
+// as, and the file it came from when it came from one.
+Concept(SourceCode(), IsA(Data()))
+
+// What code said in words is: SourceCode and a sentence for what it does.
+Concept(Explained(), IsA(Data()))
+
+// What looks wrong in code: the code, and each finding as a sentence.
+Concept(Findings(), IsA(Data()))
+
+Concept(Finding(), IsA(Data()))
+
+// Code with what looked wrong changed, and what was changed.
+Concept(Fixed(), IsA(Data()))
+
+// What running code gave.
+Concept(Ran(), IsA(Data()))
+
+// Code written in another language.
+Concept(Converted(), IsA(Data()))
+
+// A file written, and a file that could not be read or written.
+Concept(Written(), IsA(Data()))
+
+Concept(Unwritable(), IsA(Data()))
+
+// Code to save with no file to save it to.
+Concept(NoFile(), IsA(Data()))
+
+// Code that cannot be written in a language yet: the language, and what has no way to be written.
+Concept(CannotWrite(), IsA(Data()))
+
+Concept(Unreadable(), IsA(Data()))
+
+// No code in what was said, for a verb about code.
+Concept(NoCode(), IsA(Data()))
+
+// Code said in words: under Explaining(), each construct of the code IR is how it is said.
+Concept(Explaining(), IsA(ContextFacet()), Quiet())
+
+// A name in code, as said.
+Concept(Name(), Realization(Name($n), context = Explaining(), body = $n))
+
+Concept(Module(), Realization(Module($b), context = Explaining(), body = $b))
+
+Concept(Func(), Realization(Func($n, $ps, $b), context = Explaining(), body = Text("a function ", $n, " that takes ", $ps, ", and ", $b)))
+
+Concept(Lambda(), Realization(Lambda($ps, $b), context = Explaining(), body = Text("a function of ", $ps, " giving ", $b)))
+
+Concept(Return(),
+  Realization(Return(Undefined()), context = Explaining(), body = "stops"),
+  Realization(Return($x), context = Explaining(), body = Text("gives back ", $x)),
+  Realization(Return(), context = Explaining(), body = "stops")
+)
+
+Concept(Bind(), Realization(Bind($n, $v), context = Explaining(), body = Text($n, " is ", $v)))
+
+Concept(Var(), Realization(Var($n, $v), context = Explaining(), body = Text($n, " starts as ", $v)))
+
+Concept(Assign(), Realization(Assign($t, $v), context = Explaining(), body = Text("sets ", $t, " to ", $v)))
+
+Concept(If(),
+  Realization(If($c, $t), context = Explaining(), body = Text("if ", $c, ", it ", $t)),
+  Realization(If($c, $t, Undefined()), context = Explaining(), body = Text("if ", $c, ", it ", $t)),
+  Realization(If($c, $t, $e), context = Explaining(), body = Text("if ", $c, ", it ", $t, "; otherwise it ", $e))
+)
+
+Concept(ForOf(), Realization(ForOf($x, $xs, $b), context = Explaining(), body = Text("for each ", $x, " in ", $xs, ", it ", $b)))
+
+Concept(ForIn(), Realization(ForIn($x, $o, $b), context = Explaining(), body = Text("for each key ", $x, " of ", $o, ", it ", $b)))
+
+Concept(While(), Realization(While($c, $b), context = Explaining(), body = Text("while ", $c, ", it ", $b)))
+
+Concept(Member(), Realization(Member($o, $k), context = Explaining(), body = Text("the ", $k, " of ", $o)))
+
+Concept(Index(), Realization(Index($o, $i), context = Explaining(), body = Text("item ", $i, " of ", $o)))
+
+Concept(Add(), Realization(Add($a, $b), context = Explaining(), body = Text($a, " plus ", $b)))
+
+Concept(Subtract(), Realization(Subtract($a, $b), context = Explaining(), body = Text($a, " minus ", $b)))
+
+Concept(Multiply(), Realization(Multiply($a, $b), context = Explaining(), body = Text($a, " times ", $b)))
+
+Concept(Divide(), Realization(Divide($a, $b), context = Explaining(), body = Text($a, " divided by ", $b)))
+
+Concept(Equals(), Realization(Equals($a, $b), context = Explaining(), body = Text($a, " is ", $b)))
+
+Concept(NotEquals(), Realization(NotEquals($a, $b), context = Explaining(), body = Text($a, " is not ", $b)))
+
+Concept(GreaterThan(), Realization(GreaterThan($a, $b), context = Explaining(), body = Text($a, " is more than ", $b)))
+
+Concept(LessThan(), Realization(LessThan($a, $b), context = Explaining(), body = Text($a, " is less than ", $b)))
+
+Concept(And(), Realization(And($a, $b), context = Explaining(), body = Text($a, " and ", $b)))
+
+Concept(Or(), Realization(Or($a, $b), context = Explaining(), body = Text($a, " or ", $b)))
+
+Concept(Not(), Realization(Not($a), context = Explaining(), body = Text("not ", $a)))
+
+Concept(Length(), Realization(Length($x), context = Explaining(), body = Text("the length of ", $x)))
+
+Concept(Map(), Realization(Map($xs, $f), context = Explaining(), body = Text("each of ", $xs, " put through ", $f)))
+
+Concept(Filter(), Realization(Filter($xs, $f), context = Explaining(), body = Text("those of ", $xs, " for which ", $f)))
+
+Concept(Reduce(), Realization(Reduce($xs, $f, $start), context = Explaining(), body = Text($xs, " combined one by one through ", $f, ", starting from ", $start)))
+
+Concept(Concat(), Realization(Concat(Rest($parts)), context = Explaining(), body = Text("the lists ", List(Rest($parts)), " joined")))
+
+Concept(Includes(), Realization(Includes($xs, $x), context = Explaining(), body = Text("whether ", $xs, " holds ", $x)))
+
+Concept(Some(), Realization(Some($xs, $f), context = Explaining(), body = Text("whether any of ", $xs, " passes ", $f)))
+
+Concept(Every(), Realization(Every($xs, $f), context = Explaining(), body = Text("whether all of ", $xs, " pass ", $f)))
+
+Concept(Find(), Realization(Find($xs, $f), context = Explaining(), body = Text("the first of ", $xs, " that passes ", $f)))
+
+Concept(Spread(), Realization(Spread($x), context = Explaining(), body = Text("everything in ", $x)))
+
+Concept(Await(), Realization(Await($x), context = Explaining(), body = Text("waits for ", $x)))
+
+Concept(Async(), Realization(Async($f), context = Explaining(), body = Text("an asynchronous ", $f)))
+
+Concept(Throw(), Realization(Throw($x), context = Explaining(), body = Text("fails with ", $x)))
+
+Concept(New(), Realization(New($c, Rest($_)), context = Explaining(), body = Text("a new ", $c)))
+
+Concept(Comment(), Realization(Comment($t), context = Explaining(), body = Text("(", $t, ")")))
+
+Concept(UnboundName(), Realization(UnboundName($n), context = Explaining(), body = $n))
+
+// Names a language gives every program, so code using them is not said to use a name it never
+// defines.
+Concept(Console(), Relation(GlobalName("console"), context = Code(TypeScript())))
+
+Concept(Math(), Relation(GlobalName("Math"), context = Code(TypeScript())))
+
+Concept(Json(), Relation(GlobalName("JSON"), context = Code(TypeScript())))
+
+Concept(Promise(), Relation(GlobalName("Promise"), context = Code(TypeScript())))
+
+Concept(Date(), Relation(GlobalName("Date"), context = Code(TypeScript())))
+
+Concept(Error(), Relation(GlobalName("Error"), context = Code(TypeScript())))
+
+Concept(Object(), Relation(GlobalName("Object"), context = Code(TypeScript())))
+
+Concept(Array(), Relation(GlobalName("Array"), context = Code(TypeScript())))
+
+Concept(Number(), Relation(GlobalName("Number"), context = Code(TypeScript())))
+
+Concept(String(), Relation(GlobalName("String"), context = Code(TypeScript())))
+
+Concept(Boolean(), Relation(GlobalName("Boolean"), context = Code(TypeScript())))
+
+Concept(Map(), Relation(GlobalName("Map"), context = Code(TypeScript())))
+
+Concept(Set(), Relation(GlobalName("Set"), context = Code(TypeScript())))
+
+Concept(ParseInt(), Relation(GlobalName("parseInt"), context = Code(TypeScript())))
+
+Concept(SetTimeout(), Relation(GlobalName("setTimeout"), context = Code(TypeScript())))
+
+Concept(Process(), Relation(GlobalName("process"), context = Code(TypeScript())))
+
+Concept(Print(), Relation(GlobalName("print"), context = Code(Python())))
+
+Concept(Len(), Relation(GlobalName("len"), context = Code(Python())))
+
+Concept(Range(), Relation(GlobalName("range"), context = Code(Python())))
+
+Concept(Str(), Relation(GlobalName("str"), context = Code(Python())))
+
+Concept(Int(), Relation(GlobalName("int"), context = Code(Python())))
+
+Concept(Sum(), Relation(GlobalName("sum"), context = Code(Python())))
+
+Concept(Sorted(), Relation(GlobalName("sorted"), context = Code(Python())))
+
+Concept(Enumerate(), Relation(GlobalName("enumerate"), context = Code(Python())))
+
+Concept(Open(), Relation(GlobalName("open"), context = Code(Python())))
+
+// Other words for the same work.
+Concept(Review(), SynonymOf(Check()))
+
+Concept(Bug(), SynonymOf(Check()))
+
+Concept(Bugs(), SynonymOf(Check()))
+
+Concept(Wrong(), SynonymOf(Check()))
+
+Concept(Repair(), SynonymOf(Fix()))
+
+Concept(Translate(), SynonymOf(Convert()))
+
+Concept(Rewrite(), SynonymOf(Convert()))
+
+Concept(Execute(), SynonymOf(Run()))
+
+// How the plain results are said.
+Concept(Written(), Realization(Written(File($p)), context = Speaking(), body = Text("Saved to ", $p, ".")))
+
+Concept(Unwritable(), Realization(Unwritable(File($p)), context = Speaking(), body = Text("I can't write to ", $p, ": I only write files under the folder I was started in.")))
+
+Concept(Unreadable(), Realization(Unreadable(File($p)), context = Speaking(), body = Text("I couldn't read ", $p, ". I look for files from the folder I was started in, or from ~/.")))
+
+Concept(NoFile(), Realization(NoFile($code), context = Speaking(), body = "Where should I save it? Name the file, like: save it to src/thing.ts"))
+
+Concept(NoCode(), Realization(NoCode(), context = Speaking(), body = "I don't see any code in that. Put it in backticks or a ``` block, or name a file."))
+
+Concept(CannotWrite(), Realization(CannotWrite($language, $what), context = Speaking(), evaluateArguments = false, body = Text("I can't write that in ", $language, " yet.")))

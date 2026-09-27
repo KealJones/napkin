@@ -3307,7 +3307,30 @@ Concept(Hear(),
                   Var($e, Undefined()),
                   If(
                     Call($tagged, $i, "Verbatim"),
-                    Return(Index(Member($kept, "spans"), Call($Number, Call(Member($t, "slice"), 8)))),
+                    Sequence(
+                      Bind($span, Index(Member($kept, "spans"), Call($Number, Call(Member($t, "slice"), 8)))),
+                      If(Not(Length($kids)), Return($span), Undefined()),
+                      Comment("What was said of the code or the file is not lost: a word said of it holds it (\"run"),
+                      Comment("`f(2)` with 21\" is Run(the code, With(21))), and what else was said goes with it."),
+                      Bind($d,
+                        Call(
+                          Member($kids, "findIndex"),
+                          Lambda(List($k), And(Call($isCall, $k), Equals(Length(Member($k, "args")), 0)))
+                        )
+                      ),
+                      Return(
+                        If(
+                          AtLeast($d, 0),
+                          Call(
+                            Member($api, "call"),
+                            Member(Index($kids, $d), "head"),
+                            $span,
+                            Spread(Call(Member($kids, "filter"), Lambda(List($_, $k), NotEquals($k, $d))))
+                          ),
+                          Call(Member($api, "call"), "With", $span, Spread($kids))
+                        )
+                      )
+                    ),
                     Undefined()
                   ),
                   Bind($clock, Call(Member($CLOCK, "exec"), $t)),
@@ -3617,6 +3640,23 @@ Concept(Hear(),
                         Not(Includes($first, "Helper"))
                       )
                     ),
+                    Return("Imperative"),
+                    Undefined()
+                  ),
+                  Comment("\"run `f(2)` with 21\": a word that could be a doing, first, said of code or a file shown"),
+                  Comment("and with no other doing, orders it (the tagger took \"run\" for a noun)."),
+                  Bind($firstWord, Index($said, Index($in_, 0))),
+                  Bind($shows,
+                    Call(Member($in_, "some"), Lambda(List($i), Includes(Member(Index($said, $i), "tags"), "Verbatim")))
+                  ),
+                  Bind($otherVerb,
+                    Call(
+                      Member(Call(Member($in_, "slice"), 1), "some"),
+                      Lambda(List($i), Includes(Member(Index($said, $i), "tags"), "Verb"))
+                    )
+                  ),
+                  If(
+                    And(And($shows, Not($otherVerb)), Includes(Otherwise(Member($firstWord, "could"), List()), "Verb")),
                     Return("Imperative"),
                     Undefined()
                   ),
@@ -4153,11 +4193,164 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("\"explain this code: `f(1)`\": what is pointed at with \"this\" is what the message shows,"),
+            Comment("code or a file said on its own beside it, so the two are one: Explain(the code)."),
+            Bind($shown, Filter($kept_, Lambda(List($e), Includes(Member($kept, "spans"), Call($inner, $e))))),
+            Bind($pointing,
+              Lambda(List($e),
+                And(
+                  And(
+                    And(
+                      And(Call($isCall, $e), Equals(Member($e, "head"), "Ref")),
+                      Equals(TypeOf(OptionalMember(Index(Member($e, "args"), 0), "value")), "string")
+                    ),
+                    Call(
+                      Member(Regex("^(this|that|it|these|those)\\b", "i"), "test"),
+                      Member(Index(Member($e, "args"), 0), "value")
+                    )
+                  ),
+                  Equals(Length(Member($e, "args")), 1)
+                )
+              )
+            ),
+            Bind($has,
+              Lambda(List($e),
+                And(
+                  Call($isCall, $e),
+                  Or(
+                    Call($pointing, $e),
+                    Call(Member(Member($e, "args"), "some"), Lambda(List($a), Call($has, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Bind($put,
+              Lambda(List($e, $span),
+                Sequence(
+                  Var($done, false),
+                  Bind($go,
+                    Lambda(List($x),
+                      Sequence(
+                        If(
+                          Or($done, Not(Call($isCall, $x))),
+                          Return($x),
+                          Undefined()
+                        ),
+                        If(
+                          Call($pointing, $x),
+                          Sequence(Assign($done, true), Return($span)),
+                          Undefined()
+                        ),
+                        Return(
+                          Object(
+                            head = Member($x, "head"),
+                            args = Map(
+                              Member($x, "args"),
+                              Lambda(List($a),
+                                If(
+                                  Equals(Member($a, "name"), Undefined()),
+                                  Object(value = Call($go, Member($a, "value"))),
+                                  Object(name = Member($a, "name"), value = Call($go, Member($a, "value")))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Return(Call($go, $e))
+                )
+              )
+            ),
+            Var($joined, $kept_),
+            Comment("An order's verb said alone before what it is about (\"convert | this to javascript ...\"):"),
+            Comment("the verb takes it."),
+            Bind($verbAlone,
+              Lambda(List($e),
+                Sequence(
+                  Bind($x, Call($inner, $e)),
+                  If(
+                    Or(
+                      Or(
+                        Or(
+                          Or(Or(Not(Call($isCall, $x)), Length(Member($x, "args"))), Not(Call($isCall, $e))),
+                          NotEquals(Member($e, "head"), "Mood")
+                        ),
+                        Not(Call($isCall, Member(Index(Member($e, "args"), 0), "value")))
+                      ),
+                      NotEquals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Imperative")
+                    ),
+                    Return(false),
+                    Undefined()
+                  ),
+                  Bind($w,
+                    Call(
+                      Member($said, "find"),
+                      Lambda(List($s), Equals(Call($name, Member($s, "text")), Member($x, "head")))
+                    )
+                  ),
+                  Return(And(Not(Not($w)), Includes(Member($w, "tags"), "Verb")))
+                )
+              )
+            ),
+            For(
+              Var($k, 0),
+              LessThan(Add($k, 1), Length($joined)),
+              PostIncrement($k),
+              Sequence(
+                If(
+                  Not(Call($verbAlone, Index($joined, $k))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($next, Index($joined, Add($k, 1))),
+                Assign(
+                  $joined,
+                  Concat(
+                    Call(Member($joined, "slice"), 0, $k),
+                    List(
+                      Call(
+                        Member($api, "call"),
+                        "Mood",
+                        Member(Index(Member(Index($joined, $k), "args"), 0), "value"),
+                        Call(
+                          Member($api, "call"),
+                          Member(Call($inner, Index($joined, $k)), "head"),
+                          Call($inner, $next)
+                        )
+                      )
+                    ),
+                    Call(Member($joined, "slice"), Add($k, 2))
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $span,
+              $shown,
+              Sequence(
+                Bind($at,
+                  Call(Member($joined, "findIndex"), Lambda(List($e), And(NotEquals($e, $span), Call($has, $e))))
+                ),
+                If(LessThan($at, 0), Continue(), Undefined()),
+                Assign(
+                  $joined,
+                  Filter(
+                    Call(
+                      Member($joined, "map"),
+                      Lambda(List($e, $k), If(Equals($k, $at), Call($put, $e, Call($inner, $span)), $e))
+                    ),
+                    Lambda(List($e), NotEquals($e, $span))
+                  )
+                )
+              )
+            ),
             Return(
               Call(
                 Member($api, "call"),
                 "Phrases",
-                Spread(Map($kept_, $onLast))
+                Spread(Map($joined, $onLast))
               )
             )
           )

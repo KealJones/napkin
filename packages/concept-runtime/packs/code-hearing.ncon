@@ -7626,10 +7626,10 @@ Concept(Identifier(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
-            Comment("A name as written, worked out here, never guessed: the program's own variable where the code"),
-            Comment("binds it (InScope, from CodeScope); else the Concept the graph says it is in this language"),
-            Comment("(GlobalName(\"console\")); else a name this code uses but does not bind, kept as written"),
-            Comment("(UnboundName), for the graph to work out once it knows more. What it took, it is called with."),
+            Comment("A name as written, worked out here, never guessed: a variable where the code binds it"),
+            Comment("(InScope, from CodeScope) or the language gives it every program (GlobalName(\"console\") on a"),
+            Comment("Concept); else a name this code uses but does not bind, kept as written (UnboundName), for the"),
+            Comment("graph to work out once it knows more. What it took, it is called with."),
             Bind($name, Call($nameOf, $self)),
             Bind($xs, List()),
             Var($called, false),
@@ -7691,13 +7691,9 @@ Concept(Identifier(),
             ),
             Bind($target,
               If(
-                $bound,
+                Or($bound, $global),
                 Call($variable, $self),
-                If(
-                  $global,
-                  Call(Member($api, "call"), Member($global, "identity")),
-                  Call(Member($api, "call"), "UnboundName", $name)
-                )
+                Call(Member($api, "call"), "UnboundName", $name)
               )
             ),
             Return(

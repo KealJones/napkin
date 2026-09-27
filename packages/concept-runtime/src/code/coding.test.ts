@@ -1,0 +1,56 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { test } from "node:test";
+import { c } from "../concept/expression.js";
+import { seed } from "../seed/seed.js";
+import { ConceptStore } from "../store/store.js";
+import { Runtime } from "../runtime/evaluator.js";
+import { turn } from "../runtime/turn.js";
+
+// packs/coding.ncon (sources/coding): code a message shows or names, explained, checked, fixed,
+// run, converted and saved, through a whole turn, as the studio asks.
+const store = new ConceptStore();
+seed(store);
+const ask = async (text: string, history: { message: string; result: string }[] = []) => {
+  const r = await turn(new Runtime(store), text, c("Execution"), { learn: false, history });
+  return { result: String(r.rendered), said: r.spoken };
+};
+
+test("code shown is explained in words, however it is asked about", async () => {
+  assert.equal((await ask("explain this code: `function add(a, b) { return a + b }`")).said, "Here's what it does: a function add that takes a and b, and gives back a plus b.");
+  assert.match((await ask("what does this do? `const total = [1, 2, 3].reduce((a, b) => a + b, 0)`")).said, /combined one by one through a function of a and b giving a plus b, starting from 0/);
+});
+
+test("a file named is read from the workspace and said as what it is made of", async () => {
+  const { said } = await ask("explain src/code/tree.ts");
+  assert.match(said, /it defines functions parserFor\(grammar\) and readTree\(text, grammar, prefix\)/);
+  assert.match(said, /it gives out readTree/);
+  assert.match((await ask("explain src/no/such/file.ts")).said, /I couldn't read src\/no\/such\/file\.ts/);
+});
+
+test("what looks wrong is found the same way for any code, and what has a plain repair is fixed", async () => {
+  const checked = await ask("whats wrong with `if (x = 5) { go() }`");
+  assert.match(checked.said, /`x = 5` in the condition sets x instead of comparing it; you probably meant `x === 5`/);
+  assert.match((await ask("check `function f() { return 1; console.log(2) }`")).said, /never runs/);
+  assert.equal((await ask("check `const y = 2; console.log(y)`")).said, "Nothing in it looks wrong to me.");
+  const fixed = await ask("fix this `if (x = 5) { go() }`");
+  assert.match(fixed.said, /^Fixed: `x = 5` compares now: `x === 5`\./);
+  assert.match(fixed.said, /```typescript\nif \(\(x === 5\)\) \{ go\(\) \}\n```/);
+});
+
+test("code is run apart from the host, with the values said beside it", async () => {
+  assert.equal((await ask("run `function f(n) { return n * 2 }` with 21")).said, "It gives 42.");
+  assert.match((await ask("run `function f() { return process.exit(1) }`")).said, /^Running it failed: process is not defined/);
+});
+
+test("code is written in another language, and saved where it is asked to be", async () => {
+  const converted = await ask("convert this to javascript ```python\ndef add(a, b):\n    return a + b\n```");
+  assert.equal(converted.said, "In JavaScript:\n\n```javascript\nfunction add(a, b) { return (a + b) }\n```");
+  const path = "dist/coding-test-saved.js";
+  rmSync(path, { force: true });
+  const saved = await ask(`save it to ${path}`, [{ message: "convert this", result: converted.result }]);
+  assert.equal(saved.said, `Saved to ${path}.`);
+  assert.equal(readFileSync(path, "utf8"), "function add(a, b) { return (a + b) }");
+  rmSync(path, { force: true });
+  assert.ok(!existsSync(path));
+});

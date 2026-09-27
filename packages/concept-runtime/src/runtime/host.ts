@@ -12,7 +12,9 @@
  * Any other Concept is itself: an expression passes through as the object it is.
  */
 import nlp from "compromise";
-import { exists, home, moduleFile, mtime, read, resolve, runtimeRoot } from "#platform";
+import { exists, home, moduleFile, mtime, read, resolve, runIsolated, runtimeRoot, workingDir, write } from "#platform";
+
+export { runIsolated };
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
 import { PersistentList } from "../concept/list.js";
@@ -40,6 +42,43 @@ export function toHost(v: unknown, cells?: CellStore): unknown {
 }
 
 const READABLE = [resolve(runtimeRoot, "data"), resolve(home(), ".napkin")];
+
+/**
+ * Where a path a message names is looked for: where the host was started, then the root of the
+ * repository around it (a server started in its own package still finds "src/..." of the project).
+ */
+function workspaces(): string[] {
+  const roots = [workingDir()];
+  for (let dir = workingDir(); dir !== "/" && dir.length > 1; dir = resolve(dir, "..")) {
+    if (exists(resolve(dir, ".git"))) {
+      if (dir !== roots[0]) roots.push(dir);
+      break;
+    }
+  }
+  return roots;
+}
+/** A path a message names, "~/" from home, else from each workspace in turn. */
+const candidates = (path: string): string[] => (path.startsWith("~/") ? [resolve(home(), path.slice(2))] : workspaces().map((root) => resolve(root, path)));
+/** Files a message may name: under a workspace, or home. */
+const within = (full: string, roots: readonly string[]): boolean => roots.some((root) => full === root || full.startsWith(root + "/"));
+const MAX_FILE = 1_000_000;
+
+/** A text file a message names (CodeApi.readFile), under a workspace or home. */
+export function readFile(path: string): { path: string; text: string } | undefined {
+  const full = candidates(path).find((p) => within(p, [...workspaces(), home()]) && exists(p));
+  if (full === undefined) return undefined;
+  const text = read(full);
+  return text === undefined || text.length > MAX_FILE ? undefined : { path: full, text };
+}
+
+/** Write a text file a message names (CodeApi.writeFile), only under a workspace: an existing file where it is, a new one from where the host was started. */
+export function writeFile(path: string, text: string): string | undefined {
+  const all = candidates(path);
+  const full = all.find((p) => exists(p)) ?? all[0];
+  if (!within(full, workspaces())) return undefined;
+  write(full, text);
+  return full;
+}
 const texts = new Map<string, { at: number; text: string }>();
 
 /** A text file under the data directory or ~/.napkin, cached until it changes (CodeApi.readText). */

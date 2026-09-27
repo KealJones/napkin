@@ -25,8 +25,9 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
-import { type CodeWord, codeWords, fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
-import { verbatim } from "../ears/code-reading.js";
+import { type CodeWord, codeWords, fromHost, lemma, properNoun, readFile, readText, runIsolated, toHost, words, writeFile } from "./host.js";
+import { readCode, verbatim } from "../ears/code-reading.js";
+import { writeSource } from "../code/import.js";
 import { CellStore } from "../store/cells.js";
 import { listAt, listSize, listValues, listWith, PersistentList } from "../concept/list.js";
 import { Relations } from "../store/relations.js";
@@ -137,6 +138,16 @@ export interface CodeApi {
    * cached until the file changes. Undefined when it is not there.
    */
   readText(path: string): string | undefined;
+  /** A text file a message names, from where the host was started or "~/": its full path and text. */
+  readFile(path: string): { path: string; text: string } | undefined;
+  /** Write a text file a message names, only under where the host was started: its full path, or undefined. */
+  writeFile(path: string, text: string): string | undefined;
+  /** Source read as the code IR, by the language named or the first that reads it cleanly. */
+  readCode(text: string, language?: string): Promise<{ ir: Expr; language: string } | undefined>;
+  /** JavaScript run apart from the host (no require, no process, no files), stopped after a second. */
+  runCode(source: string): { value?: unknown; error?: string };
+  /** The code IR written as a language: its text, and what could not be written. */
+  writeCode(ir: Expr, language: string): { text: string; unwritable: string[] };
   /** A word's base form: a verb's infinitive, a noun's singular ("ate" is "eat"). */
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
@@ -589,6 +600,14 @@ export class Runtime {
       rank: (candidates, sources = []) =>
         activation(this.store, sources, { among: candidates, events: this.evidence?.all() ?? [] }).map((a) => a.identity),
       readText,
+      readFile,
+      writeFile,
+      readCode,
+      runCode: (source) => runIsolated(source),
+      writeCode: (ir, language) => {
+        const w = writeSource(ir, language);
+        return { text: w.text, unwritable: w.unwritable };
+      },
       lemma,
       words,
       codeWords,

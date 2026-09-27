@@ -55,8 +55,12 @@ export function verbatimSpans(message: string): { text: string; spans: Expr[]; t
   let text = message.replace(/(`{3,})([\w+-]*)[ \t]*\n([\s\S]*?)\n?\1/g, (_m, _f, lang: string, body: string) =>
     keep(lang ? c("Block", lang, body) : c("Block", body)),
   );
-  // Backticks around several lines hold a block, before any line is judged on its own.
+  // Backticks around several lines hold a block, before any line is judged on its own; around
+  // one line, inline code, before the line around it is judged ("whats wrong with `if (x = 5)`").
   text = text.replace(/`([^`]*\n[^`]*)`/g, (_m, code: string) => keep(c("Block", code)));
+  text = text.replace(/`([^`\n]+)`/g, (_m, code: string) => keep(c("InlineCode", code)));
+  // A path to a file ("src/code/tree.ts", "./notes.md", "~/x.py") is the file, one thing.
+  text = text.replace(/(^|[\s(])((?:~|\.{1,2})?\/?(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,6}|(?:~|\.{1,2})\/[\w.-]+\.[A-Za-z0-9]{1,6})(?=$|[\s),.!?:;])/g, (_m, before: string, path: string) => before + keep(c("File", path)));
   // Lines that are code by their form: they end the way statements do, or open a block, or
   // are mostly the symbols code is written in. Consecutive ones are one block.
   const codeLine = (line: string): boolean => {
@@ -104,8 +108,7 @@ export function verbatimSpans(message: string): { text: string; spans: Expr[]; t
     out.push(j - i > 1 ? keep(c("Block", lines.slice(i, j).join("\n"))) : within(lines[i]));
     i = j;
   }
-  text = out.join("\n")
-    .replace(/`([^`\n]+)`/g, (_m, code: string) => keep(c("InlineCode", code)));
+  text = out.join("\n");
   text = bareCode(text, (code) => keep(c("InlineCode", code)))
     .replace(/https?:\/\/[^\s)]+[^\s).,!?]/g, (url) => keep(url))
     .replace(/"([^"\n]+)"/g, (_m, q: string) => keep(q));

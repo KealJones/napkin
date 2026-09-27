@@ -5,6 +5,7 @@
  * Paths are plain absolute strings on both hosts, so the runtime names `~/.napkin/store.ncon`
  * or `<runtime>/packs` the same way whichever host holds them.
  */
+import { runInNewContext } from "node:vm";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -16,6 +17,8 @@ export { basename, dirname, join, resolve } from "node:path";
 
 /** Where `~` is. */
 export const home = (): string => process.env.HOME ?? homedir();
+/** Where the host was started: the files a message names are found from here. */
+export const workingDir = (): string => process.env.NAPKIN_WORKSPACE ?? process.cwd();
 /** The runtime package: `packs/`, `data/`, `eval/`. */
 export const runtimeRoot = fileURLToPath(new URL("../..", import.meta.url)).replace(/\/$/, "");
 /** A file inside an installed package, `an-array-of-english-words/index.json`. */
@@ -77,5 +80,19 @@ export function release(path: string): void {
     if (read(lock)?.trim() === String(process.pid)) unlinkSync(lock);
   } catch {
     // As above: a stale lock is harmless.
+  }
+}
+
+/**
+ * JavaScript run apart from the host: a fresh context with no require, no process, no file or
+ * network, stopped after a second. For code a person shows Napkin and asks it to run.
+ */
+export function runIsolated(source: string, timeoutMs = 1000): { value?: unknown; error?: string } {
+  try {
+    return { value: runInNewContext(source, Object.create(null), { timeout: timeoutMs }) };
+  } catch (error) {
+    // An error from the other context is not this context's Error: read its message.
+    const message = error !== null && typeof error === "object" && "message" in error ? (error as { message: unknown }).message : undefined;
+    return { error: typeof message === "string" ? message : String(error) };
   }
 }

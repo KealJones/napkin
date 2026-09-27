@@ -363,6 +363,9 @@ export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
     if (!isCall(node)) continue;
     const bare = node.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.args.length === 0);
     if (bare.length >= 2) for (const a of bare) scoped.add(a.value);
+    // What a named argument holds is data about its call, not a setting: the language of code
+    // shown (InlineCode(..., language=TypeScript())) is the code's, not the conversation's.
+    for (const a of node.args) if (a.name !== undefined && isCall(a.value)) scoped.add(a.value);
   }
   for (const node of walk(expression)) {
     if (!isCall(node) || node.args.length > 0 || scoped.has(node)) continue;

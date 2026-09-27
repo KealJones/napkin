@@ -15,6 +15,7 @@
  */
 
 export const home = (): string => "/home";
+export const workingDir = (): string => "/work";
 export const runtimeRoot = "/runtime";
 export const moduleFile = (spec: string): string => `/modules/${spec}`;
 
@@ -207,4 +208,9 @@ export function digest(text: string): string {
     b = (b * 131 + code) % 4294967279;
   }
   return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0");
+}
+
+/** A browser host runs no code it is shown. */
+export function runIsolated(_source: string, _timeoutMs = 1000): { value?: unknown; error?: string } {
+  return { error: "running code is not offered in the browser" };
 }
