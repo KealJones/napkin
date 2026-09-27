@@ -53,6 +53,7 @@ const kinds = {
   Heads: "// Heads a statement: a bracketed header, then what it heads.\nConcept(Heads(), IsA(CodeWord()))",
   Unary: "// Can stand before a thing alone: \"-x\".\nConcept(Unary(), IsA(CodeWord()))",
   Callable: "// Leads, and can also be called: \"import(...)\".\nConcept(Callable(), IsA(CodeWord()))",
+  Contextual: "// A word of the language only where it is not used as a name: \"get(x)\" calls get.\nConcept(Contextual(), IsA(CodeWord()))",
   TakesBlock: "// A brace after it opens a block.\nConcept(TakesBlock(), IsA(CodeWord()))",
 };
 for (const k of Object.values(kinds)) say(k);

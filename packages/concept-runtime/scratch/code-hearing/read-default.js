@@ -8,7 +8,7 @@ async (args, bindings, api) => {
   const name = said ? said.value : self.head[0].toLowerCase() + self.head.slice(1);
   const values = self.args.filter((a) => a.name === undefined).map((a) => a.value);
   const called = values.some((v) => isCall(v) && v.head === "Parens" && v.args.length === 0);
-  const passed = values.filter((v) => !(isCall(v) && ((v.head === "Parens" && v.args.length === 0) || v.head === "Angles")));
+  const passed = values.filter((v) => !(isCall(v) && ((v.head === "Parens" && v.args.length === 0) || v.head === "Angles" || v.head === "Comment")));
   const variable = api.fromHost({ variable: name });
   return passed.length || called ? api.call("Call", variable, ...passed) : variable;
 }

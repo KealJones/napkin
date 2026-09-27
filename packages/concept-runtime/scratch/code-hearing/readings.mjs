@@ -14,8 +14,10 @@ export const READINGS = {
   Prefix: [reads("$word", js("reads-as.js"))],
   Concept: [reads("$word", js("read-default.js"))],
   Phrases: [reads("Phrases(Rest($statements))", js("phrases.js"))],
-  Number: [reads("Number($said)", js("number.js", { __SUFFIX__: '{ n: "BigInt" }' })), reads("Number($said)", js("number.js", { __SUFFIX__: "{}" }), PY)],
-  ...keepAll(["Comment", "Regex", "Else", "Break", "Continue", "Return", "Yield", "Parens"]),
+  Numeral: [reads("Numeral($said)", js("number.js", { __SUFFIX__: '{ n: "BigInt" }' })), reads("Numeral($said)", js("number.js", { __SUFFIX__: "{}" }), PY)],
+  ...keepAll(["Comment", "Regex", "Else", "Break", "Continue", "Return", "Yield"]),
+  Parens: [w('"(a, b)" as a value: a then b, giving b.', `if (parts.length < 2) return self; const xs = []; for (const x of parts) xs.push(await read(x)); return api.call("Sequence", ...xs);`)],
+  Plus: [w('"+x" is x as a number, as the language reads it; "a + b" adds.', `return parts.length === 1 ? read(parts[0]) : api.call("Add", await read(parts[0]), await read(parts[1]));`)],
   // Angles say at what types a name is used: kept as said, not read as code.
   Angles: [w("Types a name is used at, kept as said.", `return self;`)],
   Minus: [reads("Minus($a)", "Negate($a)")],
@@ -27,7 +29,13 @@ export const READINGS = {
       `const e = parts[0];
   if (!isCall(e)) return e;
   const p = positional(e);
-  if ((is(e, "Colon") || is(e, "OptionalColon")) && p.length === 2) return is(p[1], "Assign") && positional(p[1]).length === 2 ? api.call("Default", await ask("CodeTarget", p[0]), await read(positional(p[1])[1])) : ask("CodeTarget", p[0]);
+  if ((is(e, "Colon") || is(e, "OptionalColon")) && p.length === 2) {
+    // The type may itself be a function type: the default is at its far end ("f: () => T = g").
+    let t = p[1];
+    while (is(t, "Arrow") && positional(t).length === 2) t = positional(t)[1];
+    return is(t, "Assign") && positional(t).length === 2 ? api.call("Default", await ask("CodeTarget", p[0]), await read(positional(t)[1])) : ask("CodeTarget", p[0]);
+  }
+  if (["Readonly", "Private", "Public", "Protected"].includes(e.head) && p.length === 1) return ask("CodeTarget", p[0]);
   if (is(e, "Spread")) return api.call("Spread", await ask("CodeTarget", p[0]));
   if (is(e, "Assign") && p.length === 2) return api.call("Default", await ask("CodeTarget", p[0]), await read(p[1]));
   if (is(e, "Brackets")) { const xs = []; for (const x of p) xs.push(await ask("CodeTarget", x)); return api.call("List", ...xs); }
@@ -63,7 +71,7 @@ export const READINGS = {
     if (!(is(r, "Undefined") && r.args.length === 0)) steps.push(r);
   }
   const last = steps[steps.length - 1];
-  if (!is(last, "Return")) steps.push(api.call("Undefined"));
+  if (!is(last, "Return") && !is(last, "Throw")) steps.push(api.call("Undefined"));
   return steps.length === 1 ? steps[0] : api.call("Sequence", ...steps);`,
     ),
   ],
@@ -203,10 +211,10 @@ export const READINGS = {
   let t = api.call("Try", await ask("CodeStatements", ...done));
   if (caught) {
     const cs = positional(caught);
-    const param = cs.length ? cs[0] : undefined;
-    const c = param !== undefined ? api.call("Catch", await ask("CodeTarget", param), await ask("CodeStatements", ...cs.slice(1))) : api.call("Catch", await ask("CodeStatements", ...cs));
-    t = api.call("Try", ...positional(t), c);
-  }
+    const said = is(cs[0], "Parens") ? positional(cs[0]) : undefined;
+    const param = said && said.length ? await ask("CodeTarget", said[0]) : api.fromHost({ variable: "_" });
+    t = api.call("Try", ...positional(t), api.call("Catch", param, await ask("CodeStatements", ...(said ? cs.slice(1) : cs))));
+  } else t = api.call("Try", ...positional(t), api.call("Undefined"));
   return after ? api.call("Finally", t, await ask("CodeStatements", ...positional(after))) : t;`,
     ),
   ],
@@ -218,6 +226,7 @@ export const READINGS = {
   const items = [];
   const put = (k, v) => items.push(typeof k === "string" && NAME.test(k) ? { name: k, value: v } : { value: api.call("Pair", k, v) });
   for (const item of parts) {
+    if (is(item, "Comment")) continue;
     const p = isCall(item) ? positional(item) : [];
     if (is(item, "Colon") && p.length === 2) {
       const k = p[0];
@@ -241,6 +250,7 @@ export const READINGS = {
   let run = [];
   let spread = false;
   for (const x of parts) {
+    if (is(x, "Comment")) continue;
     if (is(x, "Spread")) {
       if (run.length) runs.push(api.call("List", ...run));
       run = [];
@@ -259,6 +269,8 @@ export const READINGS = {
       '"a?.b": a\'s member b, if there is an a.',
       `const [owner, member] = parts;
   const o = await read(owner);
+  if (is(member, "Brackets") && positional(member).length === 1) return api.call("OptionalIndex", o, await read(positional(member)[0]));
+  if (is(member, "Parens")) { const xs = []; for (const x of positional(member)) xs.push(await read(x)); return api.call("OptionalCall", o, ...xs); }
   const got = api.call("OptionalMember", o, nameOf(member));
   const xs = [];
   for (const x of isCall(member) ? positional(member) : []) if (!is(x, "Parens")) xs.push(await read(x));
@@ -304,7 +316,8 @@ export const READINGS = {
     w(
       '"export": what the module gives: a declaration, some names, or all of another module.',
       `const e = parts[0];
-  const names = (b) => positional(b).map((x) => (is(x, "As") ? api.call("As", variable(positional(x)[0]), nameOf(positional(x)[1])) : variable(x)));
+  const bare = (x) => (is(x, "Type") && positional(x).length ? positional(x)[0] : x);
+  const names = (b) => positional(b).filter((x) => !is(x, "Comment")).map((x) => bare(x)).map((x) => (is(x, "As") ? api.call("As", variable(positional(x)[0]), nameOf(positional(x)[1])) : variable(x)));
   if (is(e, "Braces")) return api.call("ReExport", api.call("List", ...names(e)));
   if (is(e, "From")) {
     const [what, source] = positional(e);
@@ -354,7 +367,7 @@ export const READINGS = {
     const ps = [];
     for (const x of sp.filter((x) => !is(x, "Block") && !is(x, "Parens") && !is(x, "Angles"))) ps.push(await ask("CodeTarget", x));
     const body = await ask("CodeBody", ...(blk ? positional(blk) : []));
-    if (is(sig, "Constructor")) return api.call("Constructor", api.call("List", ...ps), body);
+    if (is(sig, "Constructor")) return api.call("Constructor", api.call("List", ...ps), await ask("CodeStatements", ...(blk ? positional(blk) : [])));
     return api.call("Method", nameOf(sig), api.call("List", ...ps), body);
   };
   const out = [];

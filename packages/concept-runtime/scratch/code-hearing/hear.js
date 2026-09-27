@@ -82,7 +82,9 @@ async (args, bindings, api) => {
     const member = i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "." || said[i - 1].text === "?.");
     const key = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === ":" && i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "{" || said[i - 1].text === ",");
     const owner = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === "." && !is0(i, "Infix");
-    if (w.text !== heads[i][0].toLowerCase() + heads[i].slice(1) || member || key || owner) kinds[i] = ["Name"];
+    // A word of the language only where not used as a name, called: "get(x)" calls get.
+    const called = is0(i, "Contextual") && i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === "(";
+    if (w.text !== heads[i][0].toLowerCase() + heads[i].slice(1) || member || key || owner || called) kinds[i] = ["Name"];
   }
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
   const become = (i, head) => {
@@ -221,6 +223,8 @@ async (args, bindings, api) => {
     if (!bindsOf.has(heads[i])) bindsOf.set(heads[i], claims(heads[i] || "", "Binds")[0]);
     const binds = bindsOf.get(heads[i]);
     if (binds) tags.push(binds);
+    const after = claims(heads[i] || "", "BindsAfter")[0];
+    if (after) tags.push(after);
     if (pair[i] >= 0) tags.push(api.call("Pairs", pair[i]));
     if (inside[i] >= 0) tags.push(api.call("Inside", inside[i]));
     if (leader[i] >= 0) tags.push(api.call("Leader", leader[i]));
@@ -293,6 +297,11 @@ async (args, bindings, api) => {
         if (pair[hi[k] + 1] >= 0) touch(pair[hi[k] + 1]);
         if (lo[k] > 0 && pair[lo[k] - 1] >= 0) touch(pair[lo[k] - 1]);
         if (lo[k] > 0 && parent[lo[k] - 1] >= 0) touch(parent[lo[k] - 1]);
+        // What goes on from it past a separator ("...; else").
+        for (let j = hi[k] + 1; j < n && j <= hi[k] + 3; j++) {
+          touch(j);
+          if (!kinds[j].includes("Separator")) break;
+        }
       }
     }
     links = links.concat(accepted);
@@ -309,12 +318,13 @@ async (args, bindings, api) => {
   const build = (i) => {
     const kids = children[i].map((j) => ({ value: build(j) }));
     const w = said[i];
-    if (w.kind === "number") return String(Number(w.text)) === w.text ? Number(w.text) : api.call("Number", w.text);
+    if (w.kind === "number") return String(Number(w.text)) === w.text ? Number(w.text) : api.call("Numeral", w.text);
     if (w.kind === "text") return w.value;
     if (w.kind === "regex") return api.call("Regex", w.value, w.flags);
     if (w.kind === "comment") return api.call("Comment", w.value);
     if (!heads[i]) return api.call("Symbol", w.text);
-    if (w.kind === "name" && lower(heads[i]) !== w.text) kids.push({ name: "said", value: w.text });
+    // A name that is a word of code elsewhere ("index", "comma") says it is only a name here.
+    if (w.kind === "name" && (lower(heads[i]) !== w.text || (kinds[i].length === 1 && kindsOf(heads[i]).length > 0))) kids.push({ name: "said", value: w.text });
     if ((is(i, "Infix") || is(i, "Prefix")) && children[i].length === 1 && children[i][0] < i) kids.push({ name: "after", value: true });
     return { head: is(i, "Scope") ? "Block" : heads[i], args: kids };
   };

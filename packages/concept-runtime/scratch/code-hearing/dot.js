@@ -7,7 +7,7 @@ async (args, bindings, api) => {
   const self = bindings.get("word");
   const [owner, member] = self.args.filter((a) => a.name === undefined).map((a) => a.value);
   // "import.meta": the module's own facts.
-  if (isCall(owner) && owner.head === "Import" && owner.args.length === 0 && isCall(member) && member.head === "Meta") return api.call("ImportMeta");
+  if (isCall(owner) && owner.head === "Import" && owner.args.every((a) => a.name !== undefined) && isCall(member) && member.head === "Meta") return api.call("ImportMeta");
   const of = await api.evaluate(owner, api.context);
   if (!isCall(member)) return api.call("Member", of, member);
   const said = member.args.find((a) => a.name === "said");

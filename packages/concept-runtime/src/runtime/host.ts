@@ -155,7 +155,12 @@ export function codeWords(
   const NUMBER = /(0[xob][0-9a-f_]+|\d[\d_]*(\.\d*)?([eE][+-]?\d+)?)[A-Za-z]*/iy;
   const NAME = /[\p{L}_$][\p{L}\p{N}_$]*/uy;
   const QUOTE = /"""|'''|"|'|`/y;
-  const unescape = (s: string) => s.replace(/\\(.)/g, (_, c: string) => ({ n: "\n", t: "\t", r: "\r" })[c] ?? c);
+  const unescape = (s: string) =>
+    s.replace(/\\(x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|[0-7]{1,3}|.)/gs, (_, c: string) => {
+      if (c[0] === "x" || c[0] === "u") return String.fromCodePoint(parseInt(c.replace(/[xu{}]/g, ""), 16));
+      if (/^[0-7]+$/.test(c)) return String.fromCharCode(parseInt(c, 8));
+      return ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", "\n": "" } as Record<string, string>)[c] ?? c;
+    });
   // A template's text up to its end or its next ${.
   const templateText = () => {
     const q = options.templates!;

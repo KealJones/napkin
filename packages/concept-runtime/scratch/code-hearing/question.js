@@ -22,7 +22,7 @@ async (args, bindings, api) => {
     const b = v("lo", l) - 1;
     // Something still to its left that belongs to it ("a.b" before "a" is taken): not whole yet.
     if (v("operandEnd", b)) return api.call("List", ...out);
-    const before = b >= 0 && (v("infix", b) || v("prefix", b)) ? holding(b) : null;
+    const before = b >= 0 && !(v("pair", b) > at) && (v("operator", b) || v("prefix", b)) ? holding(b) : null;
     if (before === null || before <= mine) link(l, "Takes");
   }
   // The first answer: the one thing between.

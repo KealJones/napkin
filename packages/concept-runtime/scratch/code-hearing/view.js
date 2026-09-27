@@ -6,6 +6,8 @@ async (args, bindings, api) => {
   const n = words.length;
   const kinds = [];
   const binds = [];
+  // How tightly it holds what follows it, where that differs ("x as A | B": the type).
+  const after = [];
   const right = [];
   const pair = [];
   const inside = [];
@@ -19,6 +21,8 @@ async (args, bindings, api) => {
     kinds.push(tags.filter((t) => isCall(t) && t.args.length === 0).map((t) => t.head));
     const b = tags.find((t) => isCall(t) && t.head === "Binds");
     binds.push(b ? b.args[0].value : null);
+    const a = tags.find((t) => isCall(t) && t.head === "BindsAfter");
+    after.push(a ? a.args[0].value : b ? b.args[0].value : null);
     right.push(b ? b.args.length > 1 : false);
     pair.push(tagged(tags, "Pairs"));
     inside.push(tagged(tags, "Inside"));
@@ -29,7 +33,6 @@ async (args, bindings, api) => {
   const infix = kinds.map((_, i) => is(i, "Infix"));
   const prefix = kinds.map((_, i) => is(i, "Prefix"));
   // What binds as an operator does, for what waits on it: operators, and an index after a thing.
-  const operator = kinds.map((_, i) => infix[i] || is(i, "Postfix"));
   // A block after an operator is the operator's thing: it stands alone, as a value does.
   const alone = kinds.map((_, i) => scope[i] && leader[i] < 0 && infix[i - 1]);
   // A thing can end here: a name that is not an operator, a value, a closed group (not a block).
@@ -41,6 +44,9 @@ async (args, bindings, api) => {
   const symbolStray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1]);
   const stray = kinds.map((_, i) => symbolStray[i] || (infix[i] && is(i, "Name") && !is(i, "Unary") && !prefix[i] && !plainEnd(i - 1) && !symbolStray[i - 1]));
   const ends = (i) => plainEnd(i) || !!stray[i];
+  // What binds as an operator does, for what waits on it: operators that are not only names
+  // here, and an index after a thing.
+  const operator = kinds.map((_, i) => (infix[i] && !stray[i]) || is(i, "Postfix"));
   // A thing can start here: a name, a value, a group, an operator standing alone.
   const attached = (i) => is(i, "Postfix") || is(i, "Attached");
   const starts = (i, lone) => stray[i] || (is(i, "Name") && !infix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Opener") && !scope[i] && !attached(i) && !infix[i]) || alone[i] || lone(i);
@@ -71,5 +77,5 @@ async (args, bindings, api) => {
       hi[p] = Math.max(hi[p], i);
     }
   }
-  return api.fromHost({ operator, stray, kinds, binds, right, pair, inside, leader, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation, parent, role, lo, hi });
+  return api.fromHost({ after, operator, stray, kinds, binds, right, pair, inside, leader, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation, parent, role, lo, hi });
 }

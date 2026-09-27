@@ -100,7 +100,7 @@ async (args, bindings, api) => {
     while (l >= 0 && v("parent", l) >= 0 && v("hi", v("parent", l)) < at) l = v("parent", l);
     const b = l >= 0 ? v("lo", l) - 1 : -1;
     if (v("operandEnd", b)) return api.call("List", ...out);
-    const before = b >= 0 && (v("infix", b) || v("prefix", b)) ? (v("unary", b) ? 150 : v("binds", b)) : null;
+    const before = b >= 0 && !(v("pair", b) > at) && (v("operator", b) || v("prefix", b)) ? (v("unary", b) ? 150 : v("binds", b)) : null;
     if (l >= 0 && v("parent", l) < 0 && !v("punctuation", l) && (before === null || before < (v("binds", at) ?? 200))) link(l, at, "Takes");
   } else {
     let p = at - 1;

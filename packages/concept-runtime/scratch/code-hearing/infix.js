@@ -15,8 +15,10 @@ async (args, bindings, api) => {
   const unary = v("unary", at);
   const postfix = v("postfix", at);
   const mine = unary ? alone(at) : postfix ? ALONE + 10 : v("binds", at) ?? 0;
+  const mineAfter = unary || postfix ? mine : v("after", at) ?? mine;
   const rightToLeft = v("right", at);
   const holding = (b) => (v("unary", b) ? alone(b) : v("binds", b));
+  const holdingAfter = (b) => (v("unary", b) ? alone(b) : v("after", b));
   const out = [];
   // What follows: the whole thing that starts after me, once what comes after it is not held
   // more tightly by the next operator, and nothing still belongs to it.
@@ -28,7 +30,7 @@ async (args, bindings, api) => {
     if (v("punctuation", e) && v("pair", e) >= v("lo", r) && v("pair", e) < e) return api.call("List", ...out);
     const next = v("operator", e) && !v("unary", e) ? holding(e) : undefined;
     const free = v("parent", r) < 0 && !v("punctuation", r);
-    if (free && (v("boundary", e) || (next !== undefined && next !== null && (next < mine || (next === mine && !rightToLeft))))) out.push(api.call("Link", r, at, api.call("Takes")));
+    if (free && (v("boundary", e) || (next !== undefined && next !== null && (next < mineAfter || (next === mineAfter && !rightToLeft))))) out.push(api.call("Link", r, at, api.call("Takes")));
   }
   if (unary) return api.call("List", ...out);
   // What comes before: the whole thing that ends before me, once the operator before it (if
@@ -39,7 +41,7 @@ async (args, bindings, api) => {
     const b = v("lo", l) - 1;
     // Something still to its left that belongs to it ("a.b" before "a" is taken): not whole yet.
     if (v("operandEnd", b)) return api.call("List", ...out);
-    const before = b >= 0 && (v("infix", b) || v("prefix", b)) ? holding(b) : undefined;
+    const before = b >= 0 && !(v("pair", b) > at) && (v("operator", b) || v("prefix", b)) ? holdingAfter(b) : undefined;
     if (before === undefined || before === null || before < mine || (before === mine && rightToLeft)) out.push(api.call("Link", l, at, api.call("Takes")));
   }
   return api.call("List", ...out);
