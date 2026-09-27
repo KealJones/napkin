@@ -95,6 +95,127 @@ export function words(text: string): { text: string; typed: string; tags: string
   return out;
 }
 
+export interface CodeWord {
+  readonly text: string;
+  readonly kind: "name" | "number" | "text" | "comment" | "symbol" | "newline" | "indent" | "dedent";
+  /** A string's contents, a comment's words. */
+  readonly value?: string;
+}
+
+/**
+ * Code's words by their shape alone (CodeApi.codeWords), the way `words` gives English's:
+ * names, numbers (with any suffix, "3n", as typed), quoted text, comments, and symbols, the
+ * longest of the `spellings` the graph knows first. What the language says is passed in: its
+ * comment starts, and whether indentation carries structure (`offside`), which gives Indent
+ * and Dedent. A line break is a word only between two things that could each end and start
+ * a statement. No word's role is named here; the graph hears them.
+ */
+export function codeWords(text: string, options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean } = {}): CodeWord[] {
+  const spellings = [...(options.spellings ?? [])].sort((a, b) => b.length - a.length);
+  const comments = options.comments ?? [];
+  const out: CodeWord[] = [];
+  const indents = [0];
+  const opens = "([{";
+  const closes = ")]}";
+  let depth = 0;
+  let lineStart = true;
+  let i = 0;
+  const ends = () => {
+    const last = out[out.length - 1];
+    return !!last && (last.kind === "name" || last.kind === "number" || last.kind === "text" || (last.kind === "symbol" && closes.includes(last.text)));
+  };
+  let pendingBreak = false;
+  const push = (w: CodeWord) => {
+    // A break between an end and a start separates them; anywhere else it is layout.
+    if (pendingBreak && depth === 0 && ends() && (w.kind === "name" || w.kind === "number" || w.kind === "text" || w.kind === "comment" || (w.kind === "symbol" && opens.includes(w.text)))) out.push({ text: "\n", kind: "newline" });
+    pendingBreak = false;
+    out.push(w);
+  };
+  while (i < text.length) {
+    if (options.offside && lineStart && depth === 0) {
+      const lead = /^[ \t]*/.exec(text.slice(i))![0];
+      const rest = text.slice(i + lead.length);
+      if (rest.startsWith("\n") || rest === "") {
+        i += lead.length + (rest === "" ? 0 : 1);
+        if (rest === "") break;
+        continue;
+      }
+      const col = lead.replace(/\t/g, "        ").length;
+      if (col > indents[indents.length - 1]) {
+        indents.push(col);
+        pendingBreak = false;
+        out.push({ text: "", kind: "indent" });
+      }
+      while (col < indents[indents.length - 1]) {
+        indents.pop();
+        if (ends()) out.push({ text: "\n", kind: "newline" });
+        pendingBreak = false;
+        out.push({ text: "", kind: "dedent" });
+      }
+      lineStart = false;
+      i += lead.length;
+      continue;
+    }
+    const ch = text[i];
+    if (ch === "\n") {
+      pendingBreak = true;
+      lineStart = true;
+      i += 1;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      i += 1;
+      continue;
+    }
+    const rest = text.slice(i);
+    const comment = comments.find((c) => rest.startsWith(c));
+    if (comment) {
+      const block = comment === "/*";
+      const end = block ? rest.indexOf("*/") + 2 : rest.indexOf("\n");
+      const said = end <= (block ? 1 : -1) ? rest : rest.slice(0, end);
+      push({ text: said, kind: "comment", value: (block ? said.slice(2, -2) : said.slice(comment.length)).trim() });
+      i += said.length;
+      continue;
+    }
+    const quote = /^("""|'''|"|'|`)/.exec(rest);
+    if (quote) {
+      const q = quote[1];
+      let k = q.length;
+      while (k < rest.length && !rest.startsWith(q, k)) k += rest[k] === "\\" ? 2 : 1;
+      const said = rest.slice(0, k + q.length);
+      const value = said.slice(q.length, -q.length).replace(/\\(.)/g, (_, c: string) => ({ n: "\n", t: "\t" })[c] ?? c);
+      push({ text: said, kind: "text", value });
+      i += said.length;
+      continue;
+    }
+    const number = /^(0[xob][0-9a-f_]+|\d[\d_]*(\.\d*)?([eE][+-]?\d+)?)[A-Za-z]*/i.exec(rest);
+    if (number) {
+      push({ text: number[0], kind: "number" });
+      i += number[0].length;
+      continue;
+    }
+    const name = /^[\p{L}_$][\p{L}\p{N}_$]*/u.exec(rest);
+    if (name) {
+      push({ text: name[0], kind: "name" });
+      i += name[0].length;
+      continue;
+    }
+    const symbol = spellings.find((s) => rest.startsWith(s)) ?? ch;
+    if (opens.includes(symbol) && (options.offside || symbol !== "{")) depth += 1;
+    if (closes.includes(symbol) && (options.offside || symbol !== "}")) depth = Math.max(0, depth - 1);
+    push({ text: symbol, kind: "symbol" });
+    i += symbol.length;
+  }
+  if (options.offside) {
+    if (ends()) out.push({ text: "\n", kind: "newline" });
+    while (indents.length > 1) {
+      indents.pop();
+      out.push({ text: "", kind: "dedent" });
+    }
+  }
+  return out;
+}
+
 let english: Set<string> | undefined;
 
 /** A name, as opposed to a word: Berlin, Greg, Keal, but not bolt or apple (CodeApi.properNoun). */

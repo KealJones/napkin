@@ -1,0 +1,34 @@
+async (args, bindings, api) => {
+  // "a + b": an operator takes the thing before it and the thing after it, once neither is
+  // held more tightly by the operator on its other side. With nothing before it, it holds
+  // only what follows ("-x"), as tightly as any word alone before a thing does.
+  const self = bindings.get("word");
+  const [prompt, at, links] = self.args.map((a) => a.value);
+  const v = api.toHost(await api.evaluate(api.call("CodeView", prompt, links), api.context));
+  const ALONE = 15;
+  const mine = v.unary[at] ? ALONE : v.binds[at] ?? 0;
+  const rightToLeft = v.right[at];
+  const holding = (b) => (v.unary[b] ? ALONE : v.binds[b]);
+  const out = [];
+  // What follows: the whole thing that starts after me, once what comes after it is not held
+  // more tightly by the next operator, and nothing still belongs to it.
+  let r = at + 1;
+  if (v.operandStart[r]) {
+    while (v.parent[r] >= 0 && v.lo[v.parent[r]] > at) r = v.parent[r];
+    const e = v.hi[r] + 1;
+    const next = v.infix[e] && !v.unary[e] ? holding(e) : undefined;
+    const free = v.parent[r] < 0 && !v.punctuation[r];
+    if (free && (v.boundary[e] || (next !== undefined && (next < mine || (next === mine && !rightToLeft))))) out.push(api.call("Link", r, at, api.call("Takes")));
+  }
+  if (v.unary[at]) return api.call("List", ...out);
+  // What comes before: the whole thing that ends before me, once the operator before it (if
+  // any) does not hold it more tightly.
+  let l = at - 1;
+  while (l >= 0 && v.parent[l] >= 0 && v.hi[v.parent[l]] < at) l = v.parent[l];
+  if (l >= 0 && v.parent[l] < 0 && !v.punctuation[l]) {
+    const b = v.lo[l] - 1;
+    const before = b >= 0 && (v.infix[b] || v.prefix[b]) ? holding(b) : undefined;
+    if (before === undefined || before === null || before < mine || (before === mine && rightToLeft)) out.push(api.call("Link", l, at, api.call("Takes")));
+  }
+  return api.call("List", ...out);
+}

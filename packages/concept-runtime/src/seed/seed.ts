@@ -15,6 +15,7 @@ import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
 import { readPhrase } from "../ears/parser/rules.js";
 import { UNIVERSAL } from "../runtime/select.js";
+import { exclusiveFacets } from "../runtime/context.js";
 
 /** A realization that only hands the call to another Concept, rather than doing anything. */
 const FORWARDING = "Forwarding";
@@ -90,8 +91,12 @@ function deriveSynonymForwarding(store: ConceptStore): number {
       store.replaceRealizations(unit.identity, unit.realizations.map((r, i) => (gone.has(i) ? { ...r, retired: true } : r)));
     }
   }
+  // Behaviour confined to an exclusive facet (how "+" hears, or reads, as code) is not
+  // behaviour anywhere else, so it does not stop the synonym forwarding everywhere else.
+  const relationsOf = (identity: string) => (store.get(identity)?.relations ?? []).map((x) => x.claim);
+  const confined = (r: Realization) => exclusiveFacets(r.context, relationsOf).size > 0;
   for (const unit of store.all()) {
-    if (unit.realizations.some((r) => !r.retired)) continue;
+    if (unit.realizations.some((r) => !r.retired && !confined(r))) continue;
     for (const { claim: r } of unit.relations) {
       if (!isCall(r) || r.head !== "SynonymOf" || store.retracted(unit.identity, r)) continue;
       const target = r.args[0]?.value;

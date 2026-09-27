@@ -50,6 +50,10 @@ Concept(Exclusive(), IsA(Category()))
 // reading a phrase finds the Concept it spells, or leaves the phrase as said.
 Concept(Reading(), IsA(ContextFacet()))
 
+// Code(<language>): what is heard or read is code in that language, and nothing a word does
+// elsewhere runs (packs/code-hearing.ncon).
+Concept(Code(), IsA(ContextFacet()), Exclusive())
+
 Concept(JavaScript(), IsA(TargetLanguage()))
 
 Concept(SupersetOf(), Transitive(), Asymmetric())

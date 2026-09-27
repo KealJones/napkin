@@ -25,7 +25,7 @@ import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
 import { languagePackStore } from "../code/import.js";
-import { fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
+import { type CodeWord, codeWords, fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
 import { verbatim } from "../ears/code-reading.js";
 import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
@@ -140,6 +140,8 @@ export interface CodeApi {
    * is also read as Concepts by the language pack that reads it (`ir=`, `language=`).
    */
   verbatim(text: string): Promise<{ text: string; spans: Expr[] }>;
+  /** Code's words by their shape: names, numbers, text, comments, symbols, and layout (host.ts). */
+  codeWords(text: string, options?: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean }): CodeWord[];
 }
 
 export class Runtime {
@@ -574,6 +576,7 @@ export class Runtime {
       readText,
       lemma,
       words,
+      codeWords,
       verbatim,
       properNoun,
       forgetTurns: (saidSeqs) => {

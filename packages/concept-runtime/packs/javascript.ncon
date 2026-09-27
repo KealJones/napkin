@@ -967,6 +967,10 @@ To(Sequence(Rest($ss)), Statement(), "{ %ss }")
 To(Sequence($a, $b), "($a, $b)")
 To(Undefined(), "undefined")
 To(This(), "this")
+// A number whose writing stated more than its value: every JavaScript number is a float, so a
+// Float is its value, and a BigInt is made from its digits.
+To(Float($n), "$n")
+To(BigInt($digits), "BigInt($digits)")
 To(ImportMeta(), "import.meta")
 To(NewTarget(), "new.target")
 To(Super(), "super")
