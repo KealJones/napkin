@@ -81,7 +81,7 @@ Concept(Sensing(), IsA(ContextFacet()), Exclusive(), Quiet())`);
 say(`// Code heard: what each word is, the links they find in rounds, each word written as its Concept.
 Concept(Hear(), Realization(Hear($text), context = Context(Execution(), Code($language)), evaluateArguments = false, body = ${js("hear.js")}))`);
 say(`// What a word hearing code sees: the kinds around it and the groups the links have made.
-Concept(CodeView(), Realization(CodeView($prompt, $links), context = ${HEARS}, evaluateArguments = false, body = ${js("view.js")}))`);
+Concept(CodeView(), Realization(CodeView($view), context = ${HEARS}, evaluateArguments = false, body = ${js("view.js")}))`);
 say(`// Between two things: takes them by how tightly it binds. A word of the language used as a
 // name ("x.in", "{ from: 1 }") says it is only a name.
 Concept(Infix(), ${senses("asname.js")}, ${hears("infix.js")})`);

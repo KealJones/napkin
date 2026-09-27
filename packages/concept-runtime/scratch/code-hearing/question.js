@@ -5,7 +5,12 @@ async (args, bindings, api) => {
   const at = self.args[1].value;
   const field = {};
   for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value.args;
-  const v = (k, i) => (i >= 0 && i < field[k].length ? field[k][i].value : undefined);
+  // An entry that changes as links are made is a cell: read what it holds now.
+  const v = (k, i) => {
+    if (!(i >= 0 && i < field[k].length)) return undefined;
+    const x = field[k][i].value;
+    return x !== null && typeof x === "object" && x.head === "CellRef" ? api.cells.read(x) : x;
+  };
   const close = v("pair", at);
   if (close < 0) return api.call("List");
   const mine = v("binds", at) ?? 25;

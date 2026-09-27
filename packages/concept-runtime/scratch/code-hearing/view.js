@@ -2,33 +2,14 @@ async (args, bindings, api) => {
   // What a word hearing code needs to see: what each word is, and what the links so far make
   // of the words around it (where each group of words starts and ends).
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const words = api.cells.read(args[0].value).args.map((a) => a.value);
-  const n = words.length;
-  const kinds = [];
-  const binds = [];
-  // How tightly it holds what follows it, where that differs ("x as A | B": the type).
-  const after = [];
-  const right = [];
-  const pair = [];
-  const inside = [];
-  const heads = [];
-  const tagged = (tags, head) => {
-    const t = tags.find((x) => isCall(x) && x.head === head);
-    return t ? t.args[0].value : -1;
-  };
-  for (const w of words) {
-    const tags = w.args[2].value.args.map((a) => a.value);
-    kinds.push(tags.filter((t) => isCall(t) && t.args.length === 0).map((t) => t.head));
-    const b = tags.find((t) => isCall(t) && t.head === "Binds");
-    binds.push(b ? b.args[0].value : null);
-    const a = tags.find((t) => isCall(t) && t.head === "BindsAfter");
-    after.push(a ? a.args[0].value : b ? b.args[0].value : null);
-    right.push(b ? b.args.length > 1 : false);
-    pair.push(tagged(tags, "Pairs"));
-    inside.push(tagged(tags, "Inside"));
-    const heard = tags.find((t) => isCall(t) && t.head === "Heard");
-    heads.push(heard ? heard.args[0].value.head : null);
-  }
+  // Reads what each word is from the view hear.js keeps (each field a list, one entry a word),
+  // and gives it back with what that makes of the words around each added.
+  const view = api.cells.read(args[0].value);
+  const field = {};
+  for (const a of view.args) field[a.name] = a.value.args.map((x) => x.value);
+  const n = field.heads.length;
+  const kinds = field.kinds.map((k) => k.args.map((a) => a.value));
+  const { binds, after, right, pair, inside } = field;
   // A word that closes a bracket ("a ? b : c", "A<T>") is only that bracket's end.
   for (let i = 0; i < n; i++) {
     if (pair[i] >= 0 && pair[i] < i && !kinds[i].includes("Closer")) kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator" && k !== "Prefix"), "Closer"];
@@ -72,20 +53,7 @@ async (args, bindings, api) => {
   // Where what is being said stops: a separator, a closer, a block, a comment, the end.
   const boundary = [...kinds.map((_, i) => is(i, "Separator") || is(i, "Closer") || (scope[i] && !alone[i]) || is(i, "Comment")), true];
   const punctuation = kinds.map((_, i) => is(i, "Separator") || is(i, "Closer"));
-  const parent = new Array(n).fill(-1);
-  const role = new Array(n).fill("");
-  for (const l of api.cells.read(args[1].value).args) {
-    const [from, to, r] = l.value.args.map((a) => a.value);
-    parent[from] = to;
-    role[from] = r.head;
-  }
-  const lo = [...Array(n).keys()];
-  const hi = [...Array(n).keys()];
-  for (let i = 0; i < n; i++) {
-    for (let p = parent[i], g = 0; p >= 0 && g < n; p = parent[p], g++) {
-      lo[p] = Math.min(lo[p], i);
-      hi[p] = Math.max(hi[p], i);
-    }
-  }
-  return api.fromHost({ after, operator, stray, kinds, binds, right, pair, inside, heads, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation, parent, role, lo, hi });
+  const derived = api.fromHost({ kinds, operator, stray, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation });
+  const own = new Set(derived.args.map((a) => a.name));
+  return { head: view.head, args: [...view.args.filter((a) => !own.has(a.name)), ...derived.args] };
 }
