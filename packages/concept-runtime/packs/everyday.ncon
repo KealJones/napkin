@@ -1736,6 +1736,13 @@ Concept(Define(), SynonymOf(What()))
 
 Concept(Explain(), SynonymOf(What()))
 
+// "calculate 10 / 4 + 1": worked out, as what it is.
+Concept(Calculate(), SynonymOf(What()))
+
+Concept(Compute(), SynonymOf(What()))
+
+Concept(Solve(), SynonymOf(What()))
+
 // "that was wrong", "that's wrong": told it made a mistake. Apologising is the reply;
 // the correction itself is evidence the next turn carries (emergent-judgment-plan
 // Part 3.1), not something to believe.

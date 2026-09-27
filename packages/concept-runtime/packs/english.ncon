@@ -103,7 +103,7 @@ Concept(Words(),
                 If(
                   Call(Member($Number, "isInteger"), $n),
                   Call($String, $n),
-                  Call($String, Call(Member($n, "toFixed"), 4))
+                  Call($String, Call($Number, Call(Member($n, "toFixed"), 4)))
                 )
               )
             ),

@@ -20,9 +20,27 @@ function unresolved(message: string, result: Expr, gaps: readonly Unrealized[]):
   const absent = gaps.filter((g) => g.kind === "unknown" || g.kind === "empty").map((g) => words(g.identity));
   const inert = gaps.filter((g) => g.kind === "inert" || g.kind === "reference").map((g) => words(g.identity));
   const parts: string[] = [];
-  if (absent.length) parts.push(`I don't know what ${list(absent)} ${absent.length > 1 ? "are" : "is"} yet.`);
+  // Not knowing is said with how to fix it: what to tell Napkin so it knows next time.
+  if (absent.length) parts.push(`I don't know what ${list(absent)} ${absent.length > 1 ? "are" : "is"} yet. Tell me (like "${absent[0]} is ...") and I'll remember.`);
   if (inert.length) parts.push(`I don't know how to ${list(inert)} yet.`);
-  return parts.length ? parts.join(" ") : "I could not work that out.";
+  if (parts.length) return parts.join(" ");
+  // Nothing it can name was missing: say what it heard, so the words can be put another way.
+  const heard = heardAs(result);
+  return heard ? `I heard that as "${heard}", but couldn't work it out. Could you put it another way?` : "I couldn't work that out. Could you put it another way?";
+}
+
+/** What was heard, as its words in order: What(Is(Capital(Of(France())))) is "what is capital of france". */
+function heardAs(e: Expr): string {
+  const out: string[] = [];
+  const go = (x: Expr): void => {
+    if (typeof x === "string" || typeof x === "number") out.push(String(x));
+    else if (isCall(x)) {
+      if (!["Mood", "Answer", "Unknown", "Ref", "Sequence"].includes(x.head) && !/^Mark/.test(x.head)) out.push(words(x.head));
+      for (const a of x.args) if (a.name === undefined) go(a.value);
+    }
+  };
+  go(e);
+  return out.join(" ").trim();
 }
 
 /** A Concept's name as the words it came from: `GrannySmith` is "granny smith". */

@@ -45,3 +45,11 @@ test("tell me about yourself describes Self, and a question about us nothing ans
   const { say } = conversation();
   assert.match(await say("tell me about yourself"), /^Describes\(Self\(\), List\(Named\("Napkin"\)/);
 });
+
+test("a word told a value is worked out with: what was said it is stands in for it", async () => {
+  const { say } = conversation();
+  await say("pi is 3.14159");
+  assert.equal(await say("what is pi times 2"), "Answer(6.28318)");
+  await say("a dozen is 12");
+  assert.equal(await say("what is 3 times a dozen"), "Answer(36)");
+});

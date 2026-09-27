@@ -47,6 +47,14 @@ export async function verbatim(text: string): Promise<{ text: string; spans: Exp
   const spans: Expr[] = [];
   let said = kept.text;
   for (const [n, e] of kept.spans.entries()) {
+    // Arithmetic in symbols is the sum it writes, in the code IR's own arithmetic ("^" a power).
+    if (isCall(e) && e.head === "Arithmetic" && typeof e.args[0]?.value === "string") {
+      const sum = e.args[0].value.replace(/\^/g, "**").replace(/×/g, "*").replace(/÷/g, "/");
+      const read = await readCode(sum, "typescript");
+      const ir = read && isCall(read.ir) && read.ir.head === "Module" && read.ir.args.length === 1 ? read.ir.args[0].value : undefined;
+      spans.push(ir !== undefined && !(isCall(ir) && ir.head === "Sequence") ? ir : e.args[0].value);
+      continue;
+    }
     if (!isCall(e) || (e.head !== "InlineCode" && e.head !== "Block")) {
       spans.push(e);
       continue;

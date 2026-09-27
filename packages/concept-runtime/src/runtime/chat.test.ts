@@ -201,3 +201,10 @@ test("hearing: what the rules parser heard that hearing does not yet", { todo: "
   // A second correction replaces the first, so it works on the answer before that: 12.
   assert.equal(await again("woops i meant and TIMES 27?"), "324");
 });
+
+test("arithmetic in symbols, with grouping, powers and fractions, is the sum it writes", async () => {
+  assert.equal(await ask("what is (2+3)*4"), "Answer(20)");
+  assert.equal(await ask("what is 2^10"), "Answer(1024)");
+  assert.equal(await ask("whats 3/4"), "Answer(0.75)");
+  assert.equal(await ask("what's 12 * 12 - 4"), "Answer(140)");
+});

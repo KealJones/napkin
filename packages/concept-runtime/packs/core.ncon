@@ -50,6 +50,10 @@ Concept(Exclusive(), IsA(Category()))
 // are not traced, unless the runtime is asked to (traceQuiet, napkin --trace-quiet).
 Concept(Quiet(), IsA(Category()))
 
+// Recalling what a word was said to be, to work a question out with it: nothing recalls again
+// while it is on (core Mood).
+Concept(Recalling(), IsA(ContextFacet()))
+
 // Reading what was said as the graph names it: folds realize here and nothing else runs, so
 // reading a phrase finds the Concept it spells, or leaves the phrase as said.
 Concept(Reading(), IsA(ContextFacet()))
@@ -693,8 +697,6 @@ Concept(Mood(),
             ),
             Bind($kind, Member(Index($args, 0), "value")),
             Var($line, Member(Index($args, 1), "value")),
-            // Said as a whole, a statement may be one thing the graph names: "good morning" is
-            // GoodMorning, a greeting answered as one, not a claim about a morning.
             If(
               And($kind, Equals(Member($kind, "head"), "Declarative")),
               Sequence(
@@ -723,20 +725,13 @@ Concept(Mood(),
               ),
               Undefined()
             ),
-            // A statement is a claim, not a request: it is kept as said (the conversation's
-            // Said), and read back when something asks after it (Pursue). Running it would
-            // turn every word of it into missing behaviour.
-            // It is answered the way people answer such a thing (Reply), when the graph knows
-            // how: a joke, a compliment and a bad day are all statements.
             If(
               And($kind, Equals(Member($kind, "head"), "Declarative")),
               Sequence(
                 Bind($message, Call(Member($api, "ambient"), "message")),
-                // Said beside a question, a statement is what the question is about, not talk to
-                // answer in kind: "i'm planning a wedding: ... what am i missing?"
                 Bind($reply,
                   If(
-                    And($message, Not(Call(Member($message, "includes"), "?"))),
+                    And($message, Not(Includes($message, "?"))),
                     Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
                     Undefined()
                   )
@@ -751,8 +746,6 @@ Concept(Mood(),
               ),
               Undefined()
             ),
-            // What was asked or ordered is read as the graph names it first: "how many days
-            // until new years day" asks about NewYearsDay. The Said keeps the words as said.
             Assign($line, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
             Bind($context,
               Call(
@@ -763,8 +756,6 @@ Concept(Mood(),
               )
             ),
             Bind($value, Await(Call(Member($api, "evaluate"), $line, $context))),
-            // A question nothing answered is pursued, whatever word it starts with: "should i
-            // use tabs or spaces" has no What to route it, and still asks something.
             If(
               And(
                 And($kind, Equals(Member($kind, "head"), "Interrogative")),
@@ -787,6 +778,183 @@ Concept(Mood(),
                       Member($api, "call"),
                       "Answer",
                       Member(Index(Member($found, "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Comment("A question left unanswered for want of a word (\"pi\" in \"what is pi times 2\"): what was"),
+            Comment("said that word is (Pursue, as \"what is pi\" would ask) stands in for it, and the question"),
+            Comment("is worked out again."),
+            Bind($recalling,
+              Call(Member($facets, "some"), Lambda(List($f), And($f, Equals(Member($f, "head"), "Recalling"))))
+            ),
+            If(
+              And(And($kind, Equals(Member($kind, "head"), "Interrogative")), Not($recalling)),
+              Sequence(
+                Bind($isCall,
+                  Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))
+                ),
+                Comment("A word said on its own that is still there, unworked, inside what came back."),
+                Bind($said, New($Set)),
+                Bind($look,
+                  Lambda(List($e, $into),
+                    Sequence(
+                      If(Not(Call($isCall, $e)), Return(), Undefined()),
+                      If(
+                        Not(Length(Member($e, "args"))),
+                        Call(Member($into, "add"), Member($e, "head")),
+                        Undefined()
+                      ),
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        Call($look, Member($a, "value"), $into)
+                      ),
+                      Undefined()
+                    )
+                  )
+                ),
+                Call($look, $line, $said),
+                Bind($left, New($Set)),
+                Bind($inner,
+                  If(
+                    And(
+                      And(
+                        Call($isCall, $value),
+                        Or(Equals(Member($value, "head"), "Answer"), Equals(Member($value, "head"), "Unknown"))
+                      ),
+                      Length(Member($value, "args"))
+                    ),
+                    Member(Index(Member($value, "args"), 0), "value"),
+                    $value
+                  )
+                ),
+                If(
+                  And(Call($isCall, $inner), Length(Member($inner, "args"))),
+                  ForOf(
+                    $a,
+                    Member($inner, "args"),
+                    Call($look, Member($a, "value"), $left)
+                  ),
+                  Undefined()
+                ),
+                Comment("Only a word with no behaviour of its own: \"do\" and \"is\" are not things to recall."),
+                Bind($acts,
+                  Lambda(List($h),
+                    Call(
+                      Member(
+                        Otherwise(
+                          OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "realizations"),
+                          List()
+                        ),
+                        "some"
+                      ),
+                      Lambda(List($r), Not(Member($r, "retired")))
+                    )
+                  )
+                ),
+                Bind($wanting,
+                  Filter(Concat($left), Lambda(List($h), And(Call(Member($said, "has"), $h), Not(Call($acts, $h)))))
+                ),
+                If(
+                  Length($wanting),
+                  Sequence(
+                    Var($changed, $line),
+                    Var($recalled, false),
+                    ForOf(
+                      $h,
+                      $wanting,
+                      Sequence(
+                        Comment("Asked the way \"what is pi\" asks it, so every way the graph answers that is tried."),
+                        Bind($asked,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(
+                                Member($api, "call"),
+                                "Mood",
+                                $kind,
+                                Call(
+                                  Member($api, "call"),
+                                  "What",
+                                  Call(
+                                    Member($api, "call"),
+                                    "Is",
+                                    Call(Member($api, "call"), $h)
+                                  )
+                                )
+                              ),
+                              Call(
+                                Member($api, "call"),
+                                "Context",
+                                Spread($facets),
+                                $kind,
+                                Call(Member($api, "call"), "Recalling")
+                              )
+                            )
+                          )
+                        ),
+                        Bind($got,
+                          If(
+                            And(
+                              And(Call($isCall, $asked), Equals(Member($asked, "head"), "Answer")),
+                              Length(Member($asked, "args"))
+                            ),
+                            Member(Index(Member($asked, "args"), 0), "value"),
+                            Undefined()
+                          )
+                        ),
+                        If(
+                          Or(
+                            Equals($got, Undefined()),
+                            And(
+                              Call($isCall, $got),
+                              Or(
+                                Equals(Member($got, "head"), "Unknown"),
+                                Includes(Call(Member($api, "format"), $got), Add($h, "()"))
+                              )
+                            )
+                          ),
+                          Continue(),
+                          Undefined()
+                        ),
+                        Bind($put,
+                          Lambda(List($e),
+                            If(
+                              Call($isCall, $e),
+                              If(
+                                And(Equals(Member($e, "head"), $h), Not(Length(Member($e, "args")))),
+                                $got,
+                                Object(
+                                  head = Member($e, "head"),
+                                  args = Map(
+                                    Member($e, "args"),
+                                    Lambda(List($a), Object(Spread($a), value = Call($put, Member($a, "value"))))
+                                  )
+                                )
+                              ),
+                              $e
+                            )
+                          )
+                        ),
+                        Assign($changed, Call($put, $changed)),
+                        Assign($recalled, true)
+                      )
+                    ),
+                    If(
+                      $recalled,
+                      Sequence(
+                        Bind($again, Await(Call(Member($api, "evaluate"), $changed, $context))),
+                        If(
+                          NotEquals(Call(Member($api, "format"), $again), Call(Member($api, "format"), $changed)),
+                          Return($again),
+                          Undefined()
+                        )
+                      ),
+                      Undefined()
                     )
                   ),
                   Undefined()

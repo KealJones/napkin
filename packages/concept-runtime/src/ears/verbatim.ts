@@ -59,6 +59,11 @@ export function verbatimSpans(message: string): { text: string; spans: Expr[]; t
   // one line, inline code, before the line around it is judged ("whats wrong with `if (x = 5)`").
   text = text.replace(/`([^`]*\n[^`]*)`/g, (_m, code: string) => keep(c("Block", code)));
   text = text.replace(/`([^`\n]+)`/g, (_m, code: string) => keep(c("InlineCode", code)));
+  // Arithmetic written in symbols with grouping or powers ("(2+3)*4", "2^10", "3/4") is one
+  // thing, the sum it writes (code-reading.ts reads it as the code IR's arithmetic).
+  text = text.replace(/(^|[\s=:(])((?:[-(]\s*)*\d+(?:\.\d+)?(?:\s*[)]*\s*[-+*/^×÷]\s*[(\s]*-?\d+(?:\.\d+)?\s*[)]*)+)(?=$|[\s?.!,])/g, (m, before: string, sum: string) =>
+    /[()^/÷]|[-+*×].*[-+*×]/.test(sum) && (sum.match(/\(/g) ?? []).length === (sum.match(/\)/g) ?? []).length ? before + keep(c("Arithmetic", sum.trim())) : m,
+  );
   // A path to a file ("src/code/tree.ts", "./notes.md", "~/x.py") is the file, one thing.
   text = text.replace(/(^|[\s(])((?:~|\.{1,2})?\/?(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,6}|(?:~|\.{1,2})\/[\w.-]+\.[A-Za-z0-9]{1,6})(?=$|[\s),.!?:;])/g, (_m, before: string, path: string) => before + keep(c("File", path)));
   // Lines that are code by their form: they end the way statements do, or open a block, or
