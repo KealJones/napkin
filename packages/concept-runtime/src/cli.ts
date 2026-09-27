@@ -9,7 +9,6 @@
  */
 import { dirname, resolve } from "node:path";
 import { c, format, parse } from "./concept/expression.js";
-import { modelAvailable } from "./ears/ollama.js";
 import { Runtime } from "./runtime/evaluator.js";
 import { activation } from "./runtime/activation.js";
 import { evidenceStoreFor } from "./runtime/evidence.js";
@@ -168,13 +167,9 @@ if (flag("--exist")) {
 const expr = value("--expr");
 
 if (flag("--study")) {
-  if (!(await modelAvailable())) {
-    console.error("No local model reachable at http://127.0.0.1:11434 — start Ollama.");
-    process.exit(1);
-  }
   // Every bare word is a topic; the flag values are not.
   const consumed = new Set(
-    ["--graph", "--limit", "--depth", "--model", "--endpoint", "--track", "--as", "--from"]
+    ["--graph", "--limit", "--depth", "--track"]
       .map(value)
       .filter(Boolean),
   );
@@ -190,37 +185,17 @@ if (flag("--study")) {
     );
     process.exit(1);
   }
-  // Documents to learn from, rather than the web. A directory takes every .md inside it.
-  const from = value("--from");
-  let reading: { name: string; text: string }[] = [];
-  if (from) {
-    const { readFileSync, readdirSync, statSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const files = statSync(from).isDirectory()
-      ? readdirSync(from).filter((f) => /\.(md|txt)$/.test(f)).map((f) => join(from, f))
-      : [from];
-    reading = files.map((f) => ({ name: f.split("/").pop() ?? f, text: readFileSync(f, "utf8") }));
-    console.log(`reading ${reading.length} document(s) from ${from}`);
-  }
-
   const limit = Number(value("--limit") ?? 25);
   const depth = Number(value("--depth") ?? 2);
   const before = store.size();
   const what = track ? `track ${track} (${topics.length} topics)` : topics.join(", ");
-  const facet = value("--as");
-  console.log(
-    facet
-      ? `expressing ${what} in ${facet} — up to ${limit} Concepts\n`
-      : `studying ${what} — up to ${limit} Concepts, depth ${depth}\n`,
-  );
+  console.log(`studying ${what}, up to ${limit} Concepts, depth ${depth}\n`);
   const result = await study(runtime, topics, {
     maxConcepts: limit,
     maxDepth: depth,
-    as: value("--as"),
     research: !flag("--no-research"),
-    reading,
     onStep: (s) => {
-      const mark = { taught: "+", grounded: "@", attached: "&", known: "=", read: ".", refused: "~", failed: "!" }[s.how];
+      const mark = { grounded: "@", defined: "+", attached: "&", known: "=", failed: "!" }[s.how];
       console.log(`${mark} ${"  ".repeat(s.depth)}${s.identity}  ${s.detail.slice(0, 120)}`);
       if (s.discovered.length) {
         console.log(`  ${"  ".repeat(s.depth)}\x1b[2m-> ${s.discovered.join(" ")}\x1b[0m`);
@@ -231,7 +206,7 @@ if (flag("--study")) {
   });
   persist();
   console.log(
-    `\n${result.taught} taught, ${result.visited} visited; graph went ${before} -> ${store.size()}` +
+    `\n${result.learned} learned, ${result.visited} visited; graph went ${before} -> ${store.size()}` +
       (result.remaining.length ? `\nstill queued: ${result.remaining.slice(0, 20).join(" ")}` : ""),
   );
   process.exit(0);
@@ -250,8 +225,8 @@ if (importing) {
   process.exit(0);
 }
 
-// A flag's value is not part of the message: `--hear prompt "hi"` says "hi".
-const VALUED = new Set(["--model", "--endpoint", "--hear", "--graph", "--expr"]);
+// A flag's value is not part of the message: `--graph g.ncon "hi"` says "hi".
+const VALUED = new Set(["--graph", "--expr", "--limit", "--depth", "--track", "--budget", "--import"]);
 const message = args.filter((a, i) => !a.startsWith("--") && a !== expr && !VALUED.has(args[i - 1] ?? "")).join(" ");
 
 const show = (label: string, body: string) => console.log(`\n\x1b[1m${label}\x1b[0m\n${body}`);
@@ -309,10 +284,6 @@ if (expr) {
   show("trace", runtime.trace.render());
   persistTrace();
 } else if (message) {
-  // Hearing and speaking need no model. Only the Teacher, the last resort in learning, does.
-  if (!flag("--no-learn") && !(await modelAvailable())) {
-    console.error("No local model reachable at http://127.0.0.1:11434: learning will not reach the Teacher.");
-  }
   // One conversation the command line keeps across runs, the newest persistent one, so what
   // was said in one run is there to be read in the next, the way the studio records it.
   const conversations = new ConversationRepository(store);
@@ -330,9 +301,6 @@ if (expr) {
     history,
     conversation: conversationId,
     learn: !flag("--no-learn"),
-    ...(value("--hear") === "prompt" ? { backend: "prompt" as const } : {}),
-    ...(value("--model") === undefined ? {} : { model: value("--model")! }),
-    ...(value("--endpoint") === undefined ? {} : { endpoint: value("--endpoint")! }),
   });
   show("message", t.heard.message);
   show("heard", t.heard.raw.trim());
@@ -363,15 +331,10 @@ if (expr) {
   napkin "What is 5 times three?"        hear a message, then realize it
   napkin --expr 'Add(2, 3)'             realize an expression directly
   napkin "what is chess?"               learning is on; --no-learn to answer from the graph alone
-  napkin --model qwen3.5:9b "..."       parse with a different local model
-  napkin --hear prompt "..."            hear with prompt hearing instead of the rules parser
   napkin --study money debt             learn topics, and whatever they turn out to need
   napkin --study --track economics      learn a whole curriculum track
   napkin --study --everyday             the whole everyday world, foundations first
-  napkin --study If Add --as TypeScript teach existing Concepts to emit a language
   napkin --study money --limit 200 --depth 4    a long run; saves as it goes
-  napkin --study --track napkin --from .agents/planning/2026-09-16-concept-ai-system/design
-                                         learn its own vocabulary from its own specs
   napkin --import src/thing.ts          read TypeScript as Concept expressions
   napkin --sources                      learned facts by where they came from: every LearningSource, and packs
   napkin --agenda                       what it would work on next, unprompted

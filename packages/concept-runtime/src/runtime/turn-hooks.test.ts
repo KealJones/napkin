@@ -50,7 +50,7 @@ test("ordinary Concepts render a computed nested result without a model call", a
   const requests = model(t, () => { throw new Error("No model should be called"); });
   const result = await turn(rt, "FixtureCalculation(Multiply(6, 7))", EXEC, { inputMode: "expression", learn: false });
   assert.equal(result.spoken, "Computed value: 42");
-  assert.equal(result.heard.attempts, 0);
+
   assert.equal(requests.length, 0);
   assert.equal(holdsResidual(rt, result.result), false);
 });

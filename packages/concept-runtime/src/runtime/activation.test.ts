@@ -109,7 +109,7 @@ test("an old, unused individual is no bare-reference candidate, and still answer
     const runtime = new Runtime(store);
     const heard = conversations.receive();
     runtime.trace.said(heard.seq);
-    const r = await turn(runtime, text, c("Execution"), { backend: "rules", learn: false, speak: false });
+    const r = await turn(runtime, text, c("Execution"), { learn: false, speak: false });
     conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, heard });
     return r.rendered;
   };

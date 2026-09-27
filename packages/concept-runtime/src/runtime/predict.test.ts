@@ -10,7 +10,7 @@ const store = new ConceptStore();
 seed(store);
 const run = async (e: string) => format(await new Runtime(store).evaluate(parse(e), c("Execution")));
 const ask = async (text: string) =>
-  String((await turn(new Runtime(store), text, c("Execution"), { backend: "rules", learn: false, speak: false })).rendered);
+  String((await turn(new Runtime(store), text, c("Execution"), { learn: false, speak: false })).rendered);
 
 test("a rule is found among the graph's own operations, and names the one it used", async () => {
   assert.equal(await run("Predict(List(2, 4, 8, 16))"), "Predicted(32, Multiply(Previous(), 2))");

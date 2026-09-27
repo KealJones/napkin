@@ -89,64 +89,6 @@ test("salvage never wins over something that already parses", () => {
   assert.equal(format(lift(fine).expression!), fine);
 });
 
-test("the vocabulary keeps what matters when the graph outgrows the prompt", async () => {
-  const { vocabulary } = await import("./prompt.js");
-  const { ConceptStore } = await import("../store/store.js");
-  const { seed } = await import("../seed/seed.js");
-  const { concept } = await import("../concept/unit.js");
-
-  const store = new ConceptStore();
-  seed(store);
-  // Enough junk to push everything past the limit, all of it alphabetically early.
-  for (let i = 0; i < 600; i += 1) store.seed(concept(`Aardvark${String(i).padStart(4, "0")}`));
-
-  // Room for what the seed realizes and a little more, so the seed can grow without this
-  // test turning into a count of it.
-  const realizing = store.all().filter((u) => u.realizations.length).length;
-  const shown = vocabulary(store, realizing + 10, "what time is it").split("\n")[1]!;
-  // Alphabetical truncation lost the interrogatives and everything that computes.
-  assert.match(shown, /\bWhat\(/, "an interrogative is required by the rules beside this list");
-  assert.match(shown, /\bTime\(/, "naming a Concept that realizes is the difference from a residual");
-  assert.match(shown, /\bMultiply\(/);
-});
-
-test("the message pulls in Concepts that are otherwise nowhere near the front", async () => {
-  const { vocabulary } = await import("./prompt.js");
-  const { ConceptStore } = await import("../store/store.js");
-  const { concept } = await import("../concept/unit.js");
-
-  const store = new ConceptStore();
-  for (let i = 0; i < 300; i += 1) store.seed(concept(`Aardvark${String(i).padStart(4, "0")}`));
-  store.seed(concept("Zebra"));
-
-  assert.match(vocabulary(store, 50, "tell me about a zebra").split("\n")[1]!, /\bZebra\(/);
-  assert.ok(!vocabulary(store, 50, "tell me about a horse").split("\n")[1]!.includes("Zebra("));
-});
-
-test("the Ears is shown no vocabulary, so it renders the idea rather than picking one", async () => {
-  const { earsPrompt } = await import("./prompt.js");
-  const { ConceptStore } = await import("../store/store.js");
-  const { seed } = await import("../seed/seed.js");
-  const store = new ConceptStore();
-  seed(store);
-  const prompt = earsPrompt(store, [], "what time is it?");
-  assert.ok(!prompt.includes("VOCABULARY"));
-  // The form rules are the contract (ir-spec Part 9), and they stay.
-  assert.match(prompt, /one line for each phrase/i);
-  assert.match(prompt, /MUST start that line with the question word/);
-});
-
-test("history shows the parser what was said, not the expression that said it", async () => {
-  const { recent } = await import("./prompt.js");
-  const shown = recent([
-    { message: "what time is it?", result: 'Answer(Time(hour=10, spoken="10:15 AM"))', spoken: "It is 10:15 AM." },
-  ]);
-  // Handing it IR invited copying an earlier answer as the reading of a new message.
-  assert.match(shown, /It is 10:15 AM\./);
-  assert.ok(!shown.includes("Answer(Time("));
-  assert.match(shown, /Never copy an earlier answer/);
-});
-
 test("Number(...) slips are mended mechanically, and only the unambiguous ones", () => {
   const mend = (text: string, message: string) => format(mendNumbers(lift(text).expression!, message));
   assert.equal(mend('Take(Number("10"))', "take 10"), "Take(10)");

@@ -7,7 +7,7 @@
  * with nothing unsupported is the one.
  */
 import { type Expr, call, isCall } from "../concept/expression.js";
-import { verbatimSpans } from "./parser/rules.js";
+import { verbatimSpans } from "./verbatim.js";
 import { importSource, languagePackStore } from "../code/import.js";
 
 /** Every language some pack says how to read, TypeScript first. */
@@ -38,7 +38,7 @@ export async function readCode(code: string, named?: string): Promise<{ ir: Expr
 }
 
 /**
- * What in a text is kept as typed, cut out as `verbatim0` tokens (parser/rules.ts), with code
+ * What in a text is kept as typed, cut out as `verbatim0` tokens (verbatim.ts), with code
  * also read as Concepts: `InlineCode("foo()", ir=Module(Call($foo)), language=TypeScript())`.
  * Text shaped like code that no language reads is put back as words.
  */

@@ -67,8 +67,3 @@ test("a gold reading commits its frames, holes, references and kept words", () =
   assert.equal(lost.checks["keeps:him"], undefined, "a pronoun is not a content word");
 });
 
-test("a gold reading can be written without fused names", async () => {
-  const { unfuse } = await import("./harness.js");
-  assert.equal(unfuse("Mood(Interrogative(), WhoDid(Hamlet(), Kill()))"), "Mood(Interrogative(), Who(Did(Hamlet(), Kill())))");
-  assert.equal(unfuse("$x = Chess(IsA(Sport()))\nPush(DoNot(Main()))"), "$x = Chess(Is(Sport()))\nPush(Do(Not(Main())))");
-});

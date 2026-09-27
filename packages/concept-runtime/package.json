@@ -14,8 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test 'dist/**/*.test.js'",
-    "eval:ears": "npm run build && node dist/ears/eval/run.js"
+    "test": "npm run build && node --test 'dist/**/*.test.js'"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -17,7 +17,7 @@ const conversation = () => {
     const runtime = new Runtime(store);
     const heard = conversations.receive();
     runtime.trace.said(heard.seq);
-    const r = await turn(runtime, text, c("Execution"), { backend: "rules", learn: false, speak: false, conversation: id });
+    const r = await turn(runtime, text, c("Execution"), { learn: false, speak: false, conversation: id });
     conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, heard });
     return { rendered: String(r.rendered), gaps: r.gaps.map((g) => g.expression) };
   };

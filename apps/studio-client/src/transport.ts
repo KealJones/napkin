@@ -3,7 +3,6 @@
  * with no server (`VITE_NAPKIN_HOST=browser`), to the same handler running in a Worker.
  * Either way the caller gets a `Response`, streamed bodies included.
  */
-import { useEffect, useState } from "react";
 
 type Answer = { id: number; status?: number; headers?: [string, string][]; chunk?: Uint8Array; end?: boolean };
 
@@ -41,26 +40,3 @@ export function request(path: string, init: RequestInit = {}): Promise<Response>
   });
 }
 
-export type Reader = "model" | "rules" | "hybrid" | "prompt";
-export type Host = { models: boolean; readers: Reader[]; defaultReader: Reader };
-
-/**
- * Until the host says otherwise: in a browser build, no model; from the Node server, every
- * reader (a server older than `/api/host` offered them all).
- */
-const ASSUMED: Host = inBrowser
-  ? { models: false, readers: ["rules", "prompt"], defaultReader: "prompt" }
-  : { models: true, readers: ["hybrid", "rules", "prompt", "model"], defaultReader: "hybrid" };
-let asked: Promise<Host> | undefined;
-
-/** What this host offers (`/api/host`): which readers, and whether a model may be asked. */
-export function useHost(): Host {
-  const [host, setHost] = useState<Host>(ASSUMED);
-  useEffect(() => {
-    asked ??= request("/api/host")
-      .then((r) => (r.ok ? (r.json() as Promise<Host>) : ASSUMED))
-      .catch(() => ASSUMED);
-    void asked.then(setHost);
-  }, []);
-  return host;
-}

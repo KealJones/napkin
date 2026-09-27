@@ -18,7 +18,7 @@ const port = Number(process.env.NAPKIN_PORT ?? 4173);
 const clientBuildPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../studio-client/dist");
 
 await mkdir(dirname(graphPath), { recursive: true });
-const studio = await createStudio({ graphPath, tracePath, models: true });
+const studio = await createStudio({ graphPath, tracePath });
 const { opened, store } = studio;
 if (opened.journal?.migratedFrom) console.log(`Migrated ${opened.journal.migratedFrom} to ${graphPath} (kept as ${opened.journal.migratedFrom}.migrated)`);
 if (opened.journal?.readOnly) console.warn(`${graphPath} is open in another process: reading it only, and nothing learned here is kept.`);

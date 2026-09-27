@@ -64,7 +64,7 @@ test("a grounded kind answers as one: subclass chains, membership takes one step
   // K2 is a volcano; a volcano is a kind of mountain: so K2 is a mountain.
   store.addRelation("Volcano", c("SubclassOf", c("Mountain")));
   store.addRelation("K2", c("IsA", c("Volcano")));
-  const ask = async (text: string) => (await (await import("../runtime/turn.js")).turn(new Runtime(store), text, c("Execution"), { backend: "rules", learn: false, speak: false })).rendered;
+  const ask = async (text: string) => (await (await import("../runtime/turn.js")).turn(new Runtime(store), text, c("Execution"), { learn: false, speak: false })).rendered;
   assert.equal(await ask("is an emoji a symbol?"), "Answer(True())", "subclass chain");
   assert.equal(await ask("is k2 a mountain?"), "Answer(True())", "an instance, through its kind's superclass");
   assert.equal(await ask("is an emoji a notation?"), "Answer(True())");

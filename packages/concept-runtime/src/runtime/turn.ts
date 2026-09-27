@@ -10,6 +10,7 @@ import { type Call, type Expr, c, call, equal, format, isCall, parse, walk } fro
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
+import { foldPhrases } from "../ears/phrase.js";
 import { learn, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
@@ -298,9 +299,8 @@ export interface TurnOptions extends HearOptions {
   /** Render the result as a sentence. */
   speak?: boolean;
   maxPasses?: number;
+  /** Off keeps learning to the graph: no Wikidata, no dictionary. */
   research?: boolean;
-  /** Off asks no model to teach: the graph and the world (Wikidata, Wiktionary) still answer. `research: false` keeps it to the graph. */
-  teacher?: boolean;
   /**
    * The conversation this message is said in, as ambient state, so what it is focused on
    * can be derived for it (memory-spec Part 8.1). Absent, nothing is focused.
@@ -324,10 +324,10 @@ async function graphText(runtime: Runtime, identity: string, input: Expr): Promi
 
 function exactExpression(message: string): EarsResult {
   try {
-    return { message, raw: message, expression: parse(message), problems: [], rejected: [], attempts: 0 };
+    return { message, raw: message, expression: parse(message), problems: [], rejected: [] };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return { message, raw: message, expression: undefined, problems: [reason], rejected: [{ line: message, reason }], attempts: 0 };
+    return { message, raw: message, expression: undefined, problems: [reason], rejected: [{ line: message, reason }] };
   }
 }
 
@@ -450,16 +450,9 @@ export async function turn(
   runtime.context.set("message", message);
   if (options.conversation === undefined) runtime.context.delete("conversation");
   else runtime.context.set("conversation", options.conversation);
-  for (const key of ["model", "endpoint"] as const) {
-    const value = options[key];
-    if (value === undefined) runtime.context.delete(key);
-    else runtime.context.set(key, value);
-  }
-  // The rules read, here rather than in each caller, so the CLI and the studio hear a message
-  // the same way. A word they cannot read is Unclear and looked up (Meaning), not handed to a
-  // model: the model's readings were where "good news i was lol" became Good(MarkAside(...)).
-  // "hybrid" and "model" are still there to ask for.
-  options = { backend: "rules", ...options };
+  // The graph's multi-word names the message says, heard so their folds are there to read
+  // ("ice cream" is IceCream).
+  await foldPhrases(runtime.store, message);
   const hearMessage = async (): Promise<EarsResult> =>
     options.inputMode === "expression" ? exactExpression(message) : hear(runtime.store, message, options);
   let heard = await hearMessage();

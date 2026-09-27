@@ -27,7 +27,7 @@ async function boot() {
   if (!read(graphPath) && seed) write(graphPath, seed);
   // The runtime reads its word lists as it loads, so it is imported only once they are mounted.
   const { createStudio } = await import("@napkin/studio-server/handler");
-  return createStudio({ graphPath, tracePath, models: false });
+  return createStudio({ graphPath, tracePath });
 }
 
 const studio = boot();

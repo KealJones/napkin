@@ -9,11 +9,11 @@
  * Nothing in a pack is stubbed. A Concept that cannot yet be honestly realized is omitted,
  * so that it produces a residual the learning path can act on rather than a wrong answer.
  */
-import { c, call, equal, format, isCall, parse } from "../concept/expression.js";
+import { type Expr, c, call, equal, format, isCall, parse } from "../concept/expression.js";
 import { declares, realization, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
-import { readPhrase } from "../ears/parser/rules.js";
+import { heardPhrases, multiWord } from "../ears/phrase.js";
 import { UNIVERSAL } from "../runtime/select.js";
 import { exclusiveFacets } from "../runtime/context.js";
 
@@ -120,13 +120,13 @@ const foldTarget = (r: Realization): string | undefined => {
 
 /**
  * Every multi-word name folds its own phrase. `WorkInProgress` is spelled from "work in
- * progress", and the Ears reads those words as `Work(In(Progress()))`, so the universal
+ * progress", and hearing hears those words as `Work(In(Progress()))`, so the universal
  * parent gets a realization with that pattern whose body is `WorkInProgress()`, in the
  * `Reading()` context: the phrase stays as said, and reading it (`Read`) finds the Concept.
  *
  * The fold lives on `Concept`, which every head inherits from, so no Concept is created for
  * `Work` just to hold it: a word nobody taught stays unknown. A fold only runs while reading
- * and only matches the phrase exactly as the Ears reads it, so a name nobody says
+ * and only matches the phrase exactly as hearing hears it, so a name nobody says
  * (`MakeCall`) folds a phrase nobody says. Nobody writes a fold: a Concept learned tomorrow folds the next time the graph is seeded,
  * and a fold goes when its Concept does.
  */
@@ -144,13 +144,31 @@ export function deriveFolds(store: ConceptStore): number {
   let derived = 0;
   for (const unit of store.all()) {
     // Words only: a minted individual (Greg_1) or an acronym is not a phrase.
-    if (folded.has(unit.identity) || !/^(?:[A-Z][a-z]+){2,}$/.test(unit.identity)) continue;
-    const said = readPhrase(unit.identity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase());
-    if (said === undefined || !isCall(said) || said.head === unit.identity || equal(said, c(unit.identity))) continue;
+    if (folded.has(unit.identity) || !multiWord(unit.identity)) continue;
+    // As hearing hears the words (ears/phrase.ts, foldPhrases); a name not heard yet waits.
+    const said = heardPhrases.get(unit.identity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase());
+    if (said === undefined || said === null || !isCall(said) || said.head === unit.identity || equal(said, c(unit.identity))) continue;
     // A compound's describers come first and what is said of it follows: "the square root
     // of 144" is Root(Square(), Of(144)), which is SquareRoot(Of(144)).
     const open = said.args.length > 0 && said.args.every((a) => a.name === undefined && isCall(a.value) && !a.value.args.length);
     const rest = parse("Rest($rest)");
+    // A chain of words each holding the next, "more than" as More(Than()), holds what follows
+    // in its last word: "more than 99" is More(Than(99)), which is MoreThan(99).
+    const chain = (e: Expr): boolean => isCall(e) && (e.args.length === 0 || (e.args.length === 1 && e.args[0].name === undefined && chain(e.args[0].value)));
+    const tail = (e: Expr): Expr => (isCall(e) && e.args.length ? call(e.head, [{ value: tail(e.args[0].value) }]) : call((e as { head: string }).head, [{ value: rest }]));
+    if (isCall(said) && said.args.length === 1 && chain(said)) {
+      store.addRealization(
+        UNIVERSAL,
+        realization({
+          pattern: tail(said),
+          context: "Reading()",
+          evaluateArguments: false,
+          properties: [`${FOLD}(${unit.identity}())`],
+          body: call(unit.identity, [{ value: rest }]),
+        }),
+      );
+      derived += 1;
+    }
     store.addRealization(
       UNIVERSAL,
       realization({

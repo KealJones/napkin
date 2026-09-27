@@ -12,7 +12,6 @@
  */
 import { c, format, isCall, type Expr } from "../concept/expression.js";
 import { learn } from "../learn/learn.js";
-import type { ModelOptions } from "../ears/ollama.js";
 import { orphans } from "../store/forget.js";
 import { Relations } from "../store/relations.js";
 import type { Runtime } from "./evaluator.js";
@@ -24,7 +23,7 @@ export interface Intent {
   readonly why: string;
 }
 
-export interface ExistOptions extends ModelOptions {
+export interface ExistOptions {
   /** Stop after this many intents. Unattended work must be bounded. */
   budget?: number;
   /** Pause between intents, so it does not saturate the machine. */
@@ -35,7 +34,7 @@ export interface ExistOptions extends ModelOptions {
 
 /**
  * What to work on next, read off the graph. Ordered by how cheap the fix is, so the free
- * repairs happen before anything asks a model.
+ * repairs happen first.
  */
 export function agenda(runtime: Runtime, limit = 16): Intent[] {
   const out: Intent[] = [];

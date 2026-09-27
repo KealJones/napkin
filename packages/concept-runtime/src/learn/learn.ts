@@ -1,30 +1,28 @@
 /**
  * The learning loop (concept-spec Part 12).
  *
- * Invent, realize, collect, try to learn unaided, ask the Teacher last, save, re-evaluate.
+ * Realize, collect the gaps, learn what the graph and the world can say (the graph's own
+ * clusters, Wikidata, the dictionary), save, re-evaluate. No model teaches: what nothing sourced
+ * can say stays a residual.
  *
  * The loop is bounded and every step is traced. A gap that cannot be closed stays a
  * residual, which is an honest outcome and better than a fabricated realization.
  */
 import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
-import { facets } from "../runtime/context.js";
-import { lineage, reachesBehaviour } from "../runtime/select.js";
-import type { ModelOptions } from "../ears/ollama.js";
+import { reachesBehaviour } from "../runtime/select.js";
 import { groundInWikidata } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
-import { evidenceText, research } from "../research/sources.js";
 import { Relations } from "../store/relations.js";
-import { deriveFolds, forwardSynonym } from "../seed/seed.js";
+import { forwardSynonym } from "../seed/seed.js";
 import { nameOf } from "../ears/parser/names.js";
-import { sayPhrase } from "../ears/parser/rules.js";
-import { teach } from "./teacher.js";
+import { foldPhrases, sayPhrase } from "../ears/phrase.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "research" | "wikidata" | "dictionary" | "phrase" | "teacher" | "unresolved";
+  readonly how: "graph" | "wikidata" | "dictionary" | "phrase";
   readonly detail: string;
 }
 
@@ -36,7 +34,7 @@ export interface LearnResult {
 }
 
 /**
- * Step 4: try the graph before the model.
+ * Step 4: try the graph first.
  *
  * The real defect is disconnection, not absence (concept-spec Part 5.3). If a Concept sits
  * in a cluster that already contains something realizable, it needs attaching rather than
@@ -60,12 +58,6 @@ export function fromGraph(runtime: Runtime, identity: string): string | undefine
   return `forwards to ${realizable.identity}, derived from the synonym relation`;
 }
 
-/** What the graph holds for an identity, so progress can be measured rather than assumed. */
-function size(runtime: Runtime, identity: string): { relations: number; realizations: number } {
-  const unit = runtime.store.get(identity);
-  return { relations: unit?.relations.length ?? 0, realizations: unit?.realizations.length ?? 0 };
-}
-
 /** CamelCase identities read badly as search queries. */
 export function readable(identity: string): string {
   return identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase();
@@ -76,9 +68,8 @@ export async function learn(
   message: string,
   expression: Expr,
   context: Expr,
-  options: ModelOptions & {
+  options: {
     maxPasses?: number;
-    teacher?: boolean;
     research?: boolean;
     /** Identities already asked about, shared across re-readings of one message. */
     asked?: Set<string>;
@@ -90,17 +81,7 @@ export async function learn(
   const steps: LearnStep[] = [];
   let result: Expr | undefined;
   let passes = 0;
-  /**
-   * Names a rejected realization said it needed first. A taught body may only compose
-   * Concepts that already exist, so when one is refused for naming something unreal, that
-   * name becomes the next thing to learn rather than a dead end.
-   */
-  const pending = new Set<string>();
-  /**
-   * Identities already put to the Teacher this turn. Without this the loop asked the same
-   * question three times: a declaration that saved nothing still counted as progress, so
-   * the pass repeated verbatim, research and all.
-   */
+  /** Identities already looked up this turn: a lookup that found nothing is not tried again. */
   const attempted = options.asked ?? new Set<string>();
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
@@ -113,12 +94,6 @@ export async function learn(
     }
 
     const all = collectGaps(runtime, result);
-    for (const identity of pending) {
-      if (!runtime.store.has(identity)) {
-        all.push({ kind: "unknown", identity, expression: `${identity}()`, input: c(identity) });
-      }
-    }
-    pending.clear();
     const gaps = learnable(runtime, all);
     if (!gaps.length) return { steps, result, passes, remaining: [] };
 
@@ -128,7 +103,7 @@ export async function learn(
     // pass reads the phrase as it.
     if (options.research !== false) {
       for (const gap of gaps) {
-        const phrase = isCall(gap.input) && gap.input.args.length ? sayPhrase(gap.input) : undefined;
+        const phrase = isCall(gap.input) && gap.input.args.length ? await sayPhrase(runtime.store, gap.input) : undefined;
         const name = phrase === undefined ? undefined : nameOf(phrase);
         if (name === undefined || runtime.store.has(name) || attempted.has(name)) continue;
         attempted.add(name);
@@ -141,7 +116,7 @@ export async function learn(
             if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") detail = meaning.args[1].value;
           }
           if (!detail || !runtime.store.has(name)) continue;
-          deriveFolds(runtime.store);
+          await foldPhrases(runtime.store, phrase);
           steps.push({ identity: name, how: "phrase", detail: `"${phrase}" is one thing. ${detail}` });
           learnedSomething = true;
         } catch {
@@ -183,13 +158,13 @@ export async function learn(
             continue;
           }
         } catch {
-          // Unreachable is not an answer: fall through to research and the Teacher.
+          // Unreachable is not an answer: fall through to the dictionary.
         }
       }
 
       // A word's meaning, worked out like a question (packs/words.ncon): what was said about
       // it, then the dictionary sense that fits how it was used. Applied to something, it is
-      // a verb. Only meaning is learned here; behaviour is still the Teacher's to teach.
+      // a verb.
       if (looked && options.research !== false) {
         try {
           const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, ...(named ? [] : [{ value: c("Verb") }])]), c("Execution"));
@@ -199,132 +174,12 @@ export async function learn(
             continue;
           }
         } catch {
-          // Unreachable is not an answer: fall through to research and the Teacher.
+          // Unreachable is not an answer: what nothing sourced can say stays a residual.
         }
-      }
-
-      // The world above is sourced and deterministic; what follows is the Teacher, and the
-      // research that is only its evidence. Without a Teacher there is nothing to ground.
-      if (options.teacher === false) continue;
-
-      // Research before asking. The Teacher is a last resort, and grounding it in
-      // source-attributed evidence is the difference between learning and inventing.
-      let evidence = "";
-      let read: string[] = [];
-      if (options.research !== false) {
-        try {
-          const findings = await research(readable(gap.identity));
-          evidence = evidenceText(findings);
-          read = findings.map((f) => f.url).filter(Boolean);
-          if (evidence) {
-            steps.push({
-              identity: gap.identity,
-              how: "research",
-              detail: `${findings.length} findings from ${[...new Set(findings.map((f) => f.source))].join(" and ")}`,
-            });
-          }
-        } catch {
-          // Research is best-effort: an unreachable network must not stop learning.
-        }
-      }
-
-      const unit = runtime.store.get(gap.identity);
-      const behaviour = gap.kind === "inert" && unit !== undefined;
-      /**
-       * Teach the behaviour the CONTEXT needs, not a context-free one.
-       *
-       * Evaluating under `TypeScript()` and finding something unrealized means a TypeScript
-       * rendering is missing — so that is what to ask for. Without this the loop taught an
-       * ordinary realization while the question was how to write the thing in a language,
-       * and studying `--as TypeScript` separately invented call shapes the Ears never
-       * produces: it taught `Function($name, $parameters, $body)` while the parser writes
-       * `Function(TypeScript(), Says("hello world"))`, and the pattern never matched.
-       *
-       * Driven from the real call, the shape is whatever the parser actually said.
-       */
-      const language = facets(context).find(
-        (f) =>
-          isCall(f) &&
-          lineage(runtime.store, f.head).some((u) => u.identity === "TargetLanguage"),
-      );
-      const taught = await teach(
-        runtime.store,
-        {
-          identity: gap.identity,
-          message,
-          expression: format(expression),
-          evidence,
-          ...(behaviour && language !== undefined && isCall(language)
-            ? { inContext: format(language) }
-            : {}),
-          ...(behaviour
-            ? {
-                unrealizedCall: gap.expression,
-                existing: unit.realizations
-                  .map((r) => `  ${format(r.pattern)}${r.context ? ` in ${format(r.context)}` : ""}`)
-                  .join("\n"),
-              }
-            : {}),
-        },
-        options,
-      );
-      if (!taught.declaration) {
-        steps.push({ identity: gap.identity, how: "unresolved", detail: taught.problem ?? "no declaration" });
-        continue;
-      }
-      const before = size(runtime, gap.identity);
-      try {
-        // What the Teacher says is sourced from the Teacher, with the pages it was shown, so
-        // what it taught can be counted against every other source and deleted as one.
-        const taughtBy = runtime.store.addRelation(
-          "Teacher",
-          call("Taught", [
-            { value: gap.identity },
-            { name: "model", value: options.model ?? "default" },
-            ...(read.length ? [{ name: "from", value: call("List", read.map((url) => ({ value: call("Web", [{ value: url }]) }))) }] : []),
-          ]),
-          undefined,
-          runtime.trace.cause,
-        );
-        const saved = await runtime.trace.sourcedFrom(taughtBy.seq, () => runtime.evaluate(taught.declaration!, c("Execution")));
-        // "americanpie" taught as AmericanPie: the same word written another way is the same
-        // Concept, so what was asked about finds what was learned.
-        const declared = isCall(taught.declaration) ? taught.declaration.args.find((a) => a.name === "identity")?.value : undefined;
-        const spelled = (id: string) => id.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (typeof declared === "string" && declared !== gap.identity && spelled(declared) === spelled(gap.identity) && runtime.store.has(declared)) {
-          runtime.store.addRelation(gap.identity, c("SynonymOf", c(declared)), undefined, taughtBy.seq);
-        }
-        // A refused realization names what it needed; queue those for the next pass.
-        for (const node of walk(saved)) {
-          if (!isCall(node) || node.head !== "NeedsFirst") continue;
-          for (const item of walk(node)) {
-            if (isCall(item) && item.head !== "NeedsFirst" && item.head !== "List") {
-              pending.add(item.head);
-            }
-          }
-        }
-        steps.push({
-          identity: gap.identity,
-          how: "teacher",
-          detail: `${format(taught.declaration)} -> ${format(saved)}`,
-        });
-        // A declaration that changed nothing is not something learned. `Saved(Add(), 0)`
-        // used to count, so the loop believed it had progressed and ran the same pass
-        // again. Progress is measured against the graph, not against the reply.
-        const after = size(runtime, gap.identity);
-        if (after.relations > before.relations || after.realizations > before.realizations) {
-          learnedSomething = true;
-        }
-      } catch (caught) {
-        steps.push({
-          identity: gap.identity,
-          how: "unresolved",
-          detail: caught instanceof ConceptError ? format(caught.value) : String(caught),
-        });
       }
     }
-    // Nothing new was learned and nothing is queued, so another pass repeats this one.
-    if (!learnedSomething && pending.size === 0) break;
+    // Nothing new was learned, so another pass repeats this one.
+    if (!learnedSomething) break;
   }
 
   runtime.reset();

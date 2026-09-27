@@ -168,6 +168,10 @@ Concept(Conjunction(), IsA(WordClass()))
 
 Concept(Copula(), IsA(WordClass()))
 
+// "lol means laugh out loud": a word said to mean something is said with a verb, whatever the
+// tagger guesses of "means".
+Concept(Means(), IsA(Verb()))
+
 // A word that says something about the thing after it: "old", "1999", "my".
 Concept(Describer(), IsA(Category()))
 
@@ -2516,7 +2520,57 @@ Concept(Hear(),
               )
             ),
             Comment("Code, links and quotes are kept as typed, each one thing: \"fix `foo()`\" fixes InlineCode."),
-            Bind($kept, Await(Call(Member($api, "verbatim"), Call($String, $text)))),
+            Bind($kept,
+              Await(
+                Call(
+                  Member($api, "verbatim"),
+                  Call(
+                    Member(Call($String, $text), "replace"),
+                    Regex("(\\d)%", "g"),
+                    "$1 percent"
+                  )
+                )
+              )
+            ),
+            Comment("Numbers listed (\"2, 4 and 9\", \"3, 4, 5\") are one thing, a List, as code is one thing."),
+            Assign(
+              Member($kept, "text"),
+              Call(
+                Member(Member($kept, "text"), "replace"),
+                Regex(
+                  "(-?\\d+(?:\\.\\d+)?)((?:\\s*,\\s*-?\\d+(?:\\.\\d+)?)+)(?:\\s*,?\\s+(and|or)\\s+(-?\\d+(?:\\.\\d+)?))?",
+                  "g"
+                ),
+                Lambda(List($m, $first, $more, $joined, $last),
+                  Sequence(
+                    Bind($items,
+                      Concat(
+                        List($first),
+                        Filter(
+                          Map(Call(Member($more, "split"), ","), Lambda(List($x), Call(Member($x, "trim")))),
+                          Lambda(List($x), GreaterThan(Length($x), 0))
+                        ),
+                        If($last, List($last), List())
+                      )
+                    ),
+                    If(
+                      And(LessThan(Length($items), 3), Not($last)),
+                      Return($m),
+                      Undefined()
+                    ),
+                    Call(
+                      Member(Member($kept, "spans"), "push"),
+                      Call(
+                        Member($api, "call"),
+                        "List",
+                        Spread(Map($items, $Number))
+                      )
+                    ),
+                    Return(Add(Add(" verbatim", Subtract(Length(Member($kept, "spans")), 1)), " "))
+                  )
+                )
+              )
+            ),
             Bind($said, Call(Member($api, "words"), Member($kept, "text"))),
             ForOf(
               $w,
@@ -2686,7 +2740,13 @@ Concept(Hear(),
               LessThan($i, Length($said)),
               PostIncrement($i),
               Sequence(
-                Bind($sym, Index($SYMBOL, Member(Index($said, $i), "text"))),
+                Bind($sym,
+                  If(
+                    Includes(Call(Member($Object, "keys"), $SYMBOL), Member(Index($said, $i), "text")),
+                    Index($SYMBOL, Member(Index($said, $i), "text")),
+                    Undefined()
+                  )
+                ),
                 Bind($between,
                   And(
                     And(
@@ -2755,8 +2815,8 @@ Concept(Hear(),
                 And(
                   And(
                     Equals(
-                      Call(Member(Member(Index($said, $i), "text"), "toLowerCase")),
-                      Call(Member(Member(Index($said, Add($i, 1)), "text"), "toLowerCase"))
+                      Call(Member(Call($String, Member(Index($said, $i), "text")), "toLowerCase")),
+                      Call(Member(Call($String, Member(Index($said, Add($i, 1)), "text")), "toLowerCase"))
                     ),
                     Equals(Member(Index($said, $i), "sentence"), Member(Index($said, Add($i, 1)), "sentence"))
                   ),
@@ -3855,7 +3915,251 @@ Concept(Hear(),
               )
             ),
             Call($flush),
-            Return(Call(Member($api, "call"), "Phrases", Spread($roots)))
+            Comment("A word that only carries the talk on (\"and\", \"then\", said before the rest) heads nothing"),
+            Comment("said: set aside when something else was said."),
+            Bind($inner,
+              Lambda(List($e),
+                If(
+                  And(And(Call($isCall, $e), Equals(Member($e, "head"), "Mood")), Equals(Length(Member($e, "args")), 2)),
+                  Member(Index(Member($e, "args"), 1), "value"),
+                  $e
+                )
+              )
+            ),
+            Bind($joining,
+              Lambda(List($e),
+                Sequence(
+                  Bind($x, Call($inner, $e)),
+                  If(
+                    Or(Not(Call($isCall, $x)), Length(Member($x, "args"))),
+                    Return(false),
+                    Undefined()
+                  ),
+                  Bind($at,
+                    Call(
+                      Member($said, "findIndex"),
+                      Lambda(List($s), Equals(Call($name, Member($s, "text")), Member($x, "head")))
+                    )
+                  ),
+                  If(LessThan($at, 0), Return(false), Undefined()),
+                  Bind($w, Index($said, $at)),
+                  Bind($next, Index($said, Add($at, 1))),
+                  Return(
+                    Or(
+                      Includes(Member($w, "tags"), "Conjunction"),
+                      And(
+                        And(
+                          And(Includes(Member($w, "tags"), "Adverb"), Not(Not($next))),
+                          Equals(Member($next, "sentence"), Member($w, "sentence"))
+                        ),
+                        Includes(Member($next, "tags"), "Verb")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("In the rules' conventions only (a turn's reading); heard alone, every word stays."),
+            If(
+              Not($asRules),
+              Return(Call(Member($api, "call"), "Phrases", Spread($roots))),
+              Undefined()
+            ),
+            Bind($kept_,
+              If(
+                GreaterThan(Length($roots), 1),
+                Call(
+                  Member($roots, "filter"),
+                  Lambda(List($e, $k), Not(And(Call($joining, $e), LessThan($k, Subtract(Length($roots), 1)))))
+                ),
+                $roots
+              )
+            ),
+            Comment("A doing of two things said with one (\"add 5\", \"then subtract 3\") works on what was last"),
+            Comment("answered: Add(Ref(\"\"), 5). How many things a doing takes is what its realizations take."),
+            Bind($takesTwo,
+              Lambda(List($head, Default($depth, 0)),
+                Sequence(
+                  Bind($unit, Call(Member(Member($api, "store"), "get"), $head)),
+                  If(
+                    Or(Not($unit), GreaterThan($depth, 3)),
+                    Return(false),
+                    Undefined()
+                  ),
+                  Comment("A word for another doing (\"plus\" for Add) takes what that doing takes."),
+                  Bind($synonym,
+                    Call(
+                      Member(Member($unit, "relations"), "find"),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            Call($isCall, Member($r, "claim")),
+                            Equals(Member(Member($r, "claim"), "head"), "SynonymOf")
+                          ),
+                          Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                        )
+                      )
+                    )
+                  ),
+                  If(
+                    And(
+                      $synonym,
+                      Call(
+                        $takesTwo,
+                        Member(Member(Index(Member(Member($synonym, "claim"), "args"), 0), "value"), "head"),
+                        Add($depth, 1)
+                      )
+                    ),
+                    Return(true),
+                    Undefined()
+                  ),
+                  Bind($working,
+                    Lambda(List($r),
+                      Or(
+                        Equals(Member($r, "context"), Undefined()),
+                        And(
+                          Call($isCall, Member($r, "context")),
+                          Or(
+                            Equals(Member(Member($r, "context"), "head"), "Execution"),
+                            Call(
+                              Member(Member(Member($r, "context"), "args"), "some"),
+                              Lambda(List($a),
+                                And(
+                                  Call($isCall, Member($a, "value")),
+                                  Equals(Member(Member($a, "value"), "head"), "Execution")
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Bind($arities,
+                    Map(
+                      Filter(
+                        Member($unit, "realizations"),
+                        Lambda(List($r),
+                          And(
+                            And(
+                              And(
+                                And(Not(Member($r, "retired")), Call($working, $r)),
+                                Call($isCall, Member($r, "pattern"))
+                              ),
+                              Equals(Member(Member($r, "pattern"), "head"), $head)
+                            ),
+                            Not(
+                              Call(
+                                Member(Member(Member($r, "pattern"), "args"), "some"),
+                                Lambda(List($a),
+                                  And(
+                                    Call($isCall, Member($a, "value")),
+                                    Equals(Member(Member($a, "value"), "head"), "Rest")
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Lambda(List($r),
+                        Length(
+                          Filter(
+                            Member(Member($r, "pattern"), "args"),
+                            Lambda(List($a), Equals(Member($a, "name"), Undefined()))
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Return(And(Includes($arities, 2), Not(Includes($arities, 1))))
+                )
+              )
+            ),
+            Bind($onLast,
+              Lambda(List($e),
+                Sequence(
+                  Bind($x, Call($inner, $e)),
+                  If(
+                    Or(
+                      Or(Not(Call($isCall, $x)), Not(Call($takesTwo, Member($x, "head")))),
+                      Call(
+                        Member(Member($x, "args"), "some"),
+                        Lambda(List($a), NotEquals(Member($a, "name"), Undefined()))
+                      )
+                    ),
+                    Return($e),
+                    Undefined()
+                  ),
+                  Comment("\"and plus 3\": the word that carries the talk on is not the first thing added."),
+                  Bind($first,
+                    If(
+                      Equals(Length(Member($x, "args")), 2),
+                      Member(Index(Member($x, "args"), 0), "value"),
+                      Undefined()
+                    )
+                  ),
+                  Bind($carried,
+                    And(
+                      And(And(NotEquals($first, Undefined()), Call($joining, $first)), Call($isCall, $first)),
+                      Not(Length(Member($first, "args")))
+                    )
+                  ),
+                  If(
+                    And(NotEquals(Length(Member($x, "args")), 1), Not($carried)),
+                    Return($e),
+                    Undefined()
+                  ),
+                  Bind($only, Member(Index(Member($x, "args"), Subtract(Length(Member($x, "args")), 1)), "value")),
+                  Comment("\"add 2 and 3\": the two things joined are the two it takes."),
+                  Bind($pair,
+                    If(
+                      And(
+                        And(And(Not($carried), Call($isCall, $only)), Equals(Member($only, "head"), "And")),
+                        Equals(Length(Member($only, "args")), 2)
+                      ),
+                      Map(Member($only, "args"), Lambda(List($a), Member($a, "value"))),
+                      Undefined()
+                    )
+                  ),
+                  Bind($y,
+                    If(
+                      $pair,
+                      Call(
+                        Member($api, "call"),
+                        Member($x, "head"),
+                        Spread($pair)
+                      ),
+                      Call(
+                        Member($api, "call"),
+                        Member($x, "head"),
+                        Call(Member($api, "call"), "Ref", ""),
+                        $only
+                      )
+                    )
+                  ),
+                  Return(
+                    If(
+                      Equals($x, $e),
+                      $y,
+                      Call(
+                        Member($api, "call"),
+                        "Mood",
+                        Member(Index(Member($e, "args"), 0), "value"),
+                        $y
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Phrases",
+                Spread(Map($kept_, $onLast))
+              )
+            )
           )
         )
       )

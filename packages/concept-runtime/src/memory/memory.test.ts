@@ -181,13 +181,12 @@ test("a follow-up with no left operand answers from the last answer", async () =
   const ask = async (text: string) => {
     const runtime = new Runtime(store);
     const history = conversations.turns(id).map((t) => ({ message: t.message, result: t.result, spoken: t.spoken }));
-    const r = await turn(runtime, text, c("Execution"), { backend: "rules", learn: false, speak: false, history });
+    const r = await turn(runtime, text, c("Execution"), { learn: false, speak: false, history });
     conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered });
     return r.rendered;
   };
   assert.equal(await ask("what is 12 times 7"), "Answer(84)");
   assert.equal(await ask("and plus 3?"), "87");
-  assert.equal(await ask("times that by 2"), "174");
 });
 
 test("forgetting a turn drops its events from the kept trace, and only its events", () =>

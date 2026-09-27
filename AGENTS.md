@@ -32,8 +32,9 @@ what a particular question means, are answer paths even when they look general.
   If you are about to write fifty similar lines, write the derivation.
 - **Where answers come from, in order:** what the graph holds, what the user said (matched
   by shape and by base form), behaviour the question names, then the world (Wikidata,
-  Wiktionary, web pages, the DailyDialog corpus). The Teacher (a model) is the last resort.
-  No model hears or speaks by default, and none should be added back to those paths.
+  Wiktionary, the DailyDialog corpus). No model hears, speaks or teaches, and none should be
+  added back: a message is heard by `Hear()` (`packs/hearing.ncon`), and what nothing sourced
+  can answer stays a residual.
 - **Pick the sense that makes the question make sense,** never the first label: the sense
   that has the property asked for (Dune the novel has an author), the senses that share a
   kind (python the language beside javascript), the part of speech the word's use calls

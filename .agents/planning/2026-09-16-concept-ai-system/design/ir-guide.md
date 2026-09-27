@@ -21,7 +21,7 @@ flowchart LR
   T["text: English or code"] -->|hear| H["heard expression<br/>(structure, no meaning yet)"]
   H -->|read / evaluate<br/>in a context| M["meaning<br/>(answer, code IR, residual)"]
   M -->|speak / write| O["text: English or code"]
-  M -->|residual| L["look further:<br/>graph, user's words,<br/>the world, Teacher"]
+  M -->|residual| L["look further:<br/>graph, user's words,<br/>the world"]
   L --> M
 ```
 
@@ -137,7 +137,7 @@ unit, read at query time by `store/relations.ts`. Derived facts are never stored
 Every relation carries stamps (`seq`, `recordedAt`, `source`, `pack`), written by the store,
 never read by evaluation rules. Pack facts get deterministic negative seqs so `Retracts(seq)`
 survives a reload. Learned facts point at a source record: `Imported(item, revision=,
-license="CC0")` for Wikidata, `Taught(identity, model=, from=List(Web(url)))` for the Teacher.
+license="CC0")` for Wikidata, `Meaning(..., from=Wiktionary(url))` for the dictionary.
 Pursue keeps a route that worked as a realization with `properties = List(Chunked($from))`.
 Everything learned can be traced and deleted.
 
@@ -277,7 +277,7 @@ the evaluation path today.
 | `lists` | persistent List helpers **(spike)** |
 | `match`, `substitute`, `bind`, `resolve`, `applyLambda` | pattern and value helpers |
 | `toHost`, `fromHost`, `parse`, `format` | convert and print |
-| `ambient(key)` | turn state: message, conversation, model |
+| `ambient(key)` | turn state: message, conversation |
 | `readText`, `lemma`, `properNoun`, `words`, `verbatim`, `codeWords` | generic host facilities |
 | `events`, `rank`, `forgetTurns`, `trace` | trace, evidence, activation |
 
@@ -362,7 +362,7 @@ sequenceDiagram
   participant T as turn()
   participant R as Runtime
   participant S as Speaking()
-  U->>E: rules parser or Hear() in hearing.ncon
+  U->>E: Hear() in hearing.ncon
   E->>T: Mood(Interrogative(), What(Is(Times(17, 4))))
   T->>T: resolve pronouns, Refs, names; lift facets
   T->>R: evaluate in Execution()
@@ -375,13 +375,9 @@ sequenceDiagram
 
 ### 7.1 Hearing English
 
-Two backends produce the same shape.
-
-- **The rules parser** (`src/ears/parser/rules.ts`, the default): a tagger plus rewrite rules.
-  The first thing said is the head; a question word or fronted helper leads a question; a number
-  or `Ref` never heads, so "5 times 3" is `Times(5, 3)`.
-- **Prompt hearing** (`Hear()` in `packs/hearing.ncon`): each word is its own Concept and hears
-  under `Hearing()`, proposing links to other words by position:
+Hearing (`Hear()` in `packs/hearing.ncon`) is the only way a message is heard; no model and no
+separate parser. Each word is its own Concept and hears under `Hearing()`, proposing links to
+other words by position:
 
   | Role | Example |
   |---|---|
@@ -417,8 +413,9 @@ Where an answer comes from, in order (AGENTS.md):
 1. **what the graph holds**: realizations and relations
 2. **what the user said**: `Pursue` searches the user's own `Said` lines by shape and base form
 3. **behaviour the question names**: ordinary realizations, including `Interrogative`'s shared one
-4. **the world**: Wikidata, Wiktionary (`Meaning`), web pages, DailyDialog (`Reply`)
-5. **the Teacher** (a model): last resort, stamped `Taught(...)`, and only when enabled
+4. **the world**: Wikidata, Wiktionary (`Meaning`), DailyDialog (`Reply`)
+
+No model teaches: what nothing sourced can say stays a residual, honestly.
 
 ### 7.3 Speaking
 

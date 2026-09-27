@@ -7,35 +7,27 @@
  * learned `Dollar` in the same turn it was asked to value it
  * (`design/judgment-research.md` Part 9.5).
  *
- * Study inverts the driver. Give it topics; it researches and teaches each one, then
- * follows what the teaching revealed. Teaching `Money` yields `IsA(MediumOfExchange())`,
- * and `MediumOfExchange` is then a Concept the graph names but does not know — a frontier
- * to expand rather than a loose end. The same crawl picks up `NeedsFirst` refusals, so a
- * body that could not be saved for want of a Concept schedules that Concept instead.
+ * Study inverts the driver. Give it topics; it grounds each one in what the world says
+ * (Wikidata, the dictionary), then follows what that revealed. Grounding `Money` yields
+ * `IsA(MediumOfExchange())`, and `MediumOfExchange` is then a Concept the graph names but
+ * does not know: a frontier to expand rather than a loose end.
  *
  * Everything it can reach is bounded: a budget of Concepts and a depth from the seeds.
  * Unbounded, a relation crawl reaches the whole of Wikidata.
  */
-import { type Expr, isCall, walk } from "../concept/expression.js";
+import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
 import type { ConceptUnit } from "../concept/unit.js";
 import { activation } from "../runtime/activation.js";
-import { facetAncestors } from "../runtime/select.js";
 import { groundInWikidata } from "../research/wikidata.js";
-import type { ModelOptions } from "../ears/ollama.js";
-import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
-import { c, format } from "../concept/expression.js";
-import { evidenceText, research } from "../research/sources.js";
-import { passages, type Document } from "./reading.js";
-import { fromGraph, readable } from "./learn.js";
-import { teach } from "./teacher.js";
+import { fromGraph } from "./learn.js";
 
-/** Structural identities and containers. Teaching these would be teaching the harness. */
+/** Structural identities and containers. Learning these would be learning the harness. */
 const STRUCTURAL = new Set([
   "Concept", "Realization", "Code", "Context", "Suppresses", "IsA", "List", "Rest",
   "Saved", "Rejected", "NeedsFirst", "SelfReferential", "NotComposed", "Incomplete",
   "True", "False", "Number", "String", "Boolean",
-  // How a relation is said, not what it names. These leak in when a Teacher nests one.
+  // How a relation is said, not what it names.
   "InverseOf", "SynonymOf", "Symmetric", "Transitive", "Asymmetric", "Functional", "Enduring", "Occurrent",
   "OppositeOf", "InverseOperation",
   "Irreflexive", "Disjoint", "Describes", "Relations",
@@ -81,14 +73,13 @@ export interface StudyStep {
   readonly identity: string;
   readonly depth: number;
   /**
-   * `attached`  — connected to a realizable neighbour it already named, for free;
-   * `taught`    — the Teacher produced a declaration and the graph changed;
-   * `known`     — already understood, so it was harvested rather than taught;
-   * `read`      — evidence was found for it, which is a note rather than an outcome;
-   * `refused`   — a declaration came back and saved nothing;
-   * `failed`    — no usable declaration.
+   * `grounded`  - Wikidata said what it is;
+   * `defined`   - the dictionary said what it means;
+   * `attached`  - connected to a realizable neighbour it already named, for free;
+   * `known`     - already understood, so it was harvested rather than learned;
+   * `failed`    - nothing sourced says anything about it.
    */
-  readonly how: "taught" | "grounded" | "attached" | "known" | "read" | "refused" | "failed";
+  readonly how: "grounded" | "defined" | "attached" | "known" | "failed";
   readonly detail: string;
   /** Concepts this step put on the frontier. */
   readonly discovered: readonly string[];
@@ -96,37 +87,22 @@ export interface StudyStep {
 
 export interface StudyResult {
   readonly steps: StudyStep[];
-  readonly taught: number;
+  readonly learned: number;
   readonly visited: number;
   /** Reached the budget with these still queued. */
   readonly remaining: string[];
 }
 
-export interface StudyOptions extends ModelOptions {
-  /** Concepts actually taught before stopping. Default 25. */
+export interface StudyOptions {
+  /** Concepts actually learned before stopping. Default 25. */
   maxConcepts?: number;
   /** How far from a seed topic the crawl may wander. Default 2. */
   maxDepth?: number;
-  /** Ground the Teacher in sources. On by default; off makes it recall-only. */
+  /** Off means crawl only what is already known, looking nothing up. */
   research?: boolean;
-  /**
-   * Documents to take evidence from instead of the web. For a vocabulary the web would
-   * get wrong -- this project's own terms, a house style, a domain with private meanings
-   * -- the right source is the one that defines them.
-   */
-  reading?: readonly Document[];
-  /** Off means crawl what is already known without asking the Teacher anything. */
-  teacher?: boolean;
-  /**
-   * Express Concepts in this context rather than learning new ones, e.g. `TypeScript`.
-   * The target inverts: a Concept the graph ALREADY has, with no realization carrying
-   * this facet, is the gap. Without this, study skips everything it already understands,
-   * so a seeded Concept like If could never be taught to emit a language.
-   */
-  as?: string;
   /** Called after each step, so a long run is watchable. */
   onStep?: (step: StudyStep) => void;
-  /** Called after each Concept taught, so a long run survives being killed. */
+  /** Called after each Concept learned, so a long run survives being killed. */
   onProgress?: () => void;
 }
 
@@ -142,19 +118,6 @@ function understood(runtime: Runtime, identity: string): boolean {
   return holding.length > 0 || unit.realizations.length > 0;
 }
 
-/** Does anything this Concept can do already carry the facet? */
-function speaks(runtime: Runtime, identity: string, facet: string): boolean {
-  const unit = runtime.store.get(identity);
-  if (!unit) return false;
-  return unit.realizations.some((r) => {
-    if (r.context === undefined) return false;
-    // A compile template runs here; it is not a rendering of the Concept for someone to read.
-    if ([...walk(r.context)].some((node) => isCall(node) && node.head === "Compiled")) return false;
-    for (const node of walk(r.context)) if (isCall(node) && node.head === facet) return true;
-    return false;
-  });
-}
-
 export async function study(
   runtime: Runtime,
   topics: readonly string[],
@@ -166,9 +129,9 @@ export async function study(
   const steps: StudyStep[] = [];
   const seen = new Set<string>();
   /**
-   * Each topic remembers how it was reached: studying Emoticon found TextRepresentation
-   * through `IsA(TextRepresentation())`, and asked about on its own the Teacher taught text
-   * vectorization. The sense that makes the claim true is the one to learn.
+   * Each topic remembers how it was reached (studying Emoticon found TextRepresentation
+   * through `IsA(TextRepresentation())`): the sense that makes the claim true is the one to
+   * learn.
    */
   type Queued = { identity: string; depth: number; via?: { from: string; claim: string }; first?: true };
   const queue: Queued[] = topics
@@ -179,7 +142,7 @@ export async function study(
    * The next topic is the one most relevant to what was asked, by activation spread from
    * the topics (memory-spec Part 10.1, emergent-judgment-plan Part 3.3), not the oldest
    * queued. Taken in order, emoji spent its budget on WebPage, Document and WebResource,
-   * one associative hop at a time. A prerequisite a refused body named still goes first.
+   * one associative hop at a time.
    */
   const next = (): Queued => {
     const first = queue.findIndex((q) => q.first);
@@ -192,7 +155,7 @@ export async function study(
     return queue.shift()!;
   };
 
-  let taught = 0;
+  let learned = 0;
   let visited = 0;
 
   const record = (step: StudyStep): void => {
@@ -200,8 +163,8 @@ export async function study(
     options.onStep?.(step);
   };
 
-  while (queue.length && taught < maxConcepts) {
-    const { identity, depth, via } = next();
+  while (queue.length && learned < maxConcepts) {
+    const { identity, depth } = next();
     if (seen.has(identity) || STRUCTURAL.has(identity)) continue;
     seen.add(identity);
     visited += 1;
@@ -225,78 +188,7 @@ export async function study(
       return found;
     };
 
-    // Expressing rather than learning: the gap is a Concept that works but is mute in
-    // this context. One that the graph does not have at all is somebody else's job.
-    // A language is taught where its templates live: TypeScript is a SupersetOf
-    // JavaScript, so it is expressed in JavaScript until it has types of its own to add.
-    const language = options.as === undefined ? undefined : [options.as, ...facetAncestors(runtime.store, options.as)].pop()!;
-    if (language !== undefined) {
-      const unit = runtime.store.get(identity);
-      if (!unit) {
-        record({ identity, depth, how: "failed", detail: "not in the graph", discovered: [] });
-        continue;
-      }
-      // Requiring existing behaviour was wrong here. Function, Write and Says do nothing in
-      // any context and are exactly the constructs a target language needs a rendering for
-      // -- for a pure syntax Concept the emission realization may be the only one it ever
-      // has. Whether something has a sensible rendering is a judgement the Teacher is
-      // better placed to make than a heuristic, and CONTEXT_SYSTEM rule 7 already tells it
-      // to return realizations=List() when the answer is no.
-      if (speaks(runtime, identity, language)) {
-        record({ identity, depth, how: "known", detail: `already speaks ${language}`, discovered: [] });
-        continue;
-      }
-      if (options.teacher === false) {
-        record({ identity, depth, how: "failed", detail: "no Teacher", discovered: [] });
-        continue;
-      }
-      const before = unit.realizations.length;
-      let lesson: Awaited<ReturnType<typeof teach>>;
-      try {
-        lesson = await teach(
-          runtime.store,
-          {
-            identity,
-            message: `Express ${readable(identity)} in ${language}.`,
-            expression: `${identity}()`,
-            inContext: `${language}()`,
-            existing: unit.realizations.map((r) => `  ${format(r.pattern)}`).join("\n"),
-          },
-          options,
-        );
-      } catch (caught) {
-        record({
-          identity, depth, how: "failed",
-          detail: caught instanceof Error ? caught.message : String(caught),
-          discovered: [],
-        });
-        continue;
-      }
-      if (!lesson.declaration) {
-        record({ identity, depth, how: "failed", detail: lesson.problem ?? "no declaration", discovered: [] });
-        continue;
-      }
-      try {
-        const saved = await runtime.evaluate(lesson.declaration, c("Execution"));
-        const gained = (runtime.store.get(identity)?.realizations.length ?? 0) - before;
-        if (gained > 0) {
-          taught += 1;
-          record({ identity, depth, how: "taught", detail: format(saved), discovered: [] });
-          options.onProgress?.();
-        } else {
-          record({ identity, depth, how: "refused", detail: format(saved), discovered: [] });
-        }
-      } catch (caught) {
-        record({
-          identity, depth, how: "failed",
-          detail: caught instanceof ConceptError ? format(caught.value) : String(caught),
-          discovered: [],
-        });
-      }
-      continue;
-    }
-
-    // Already understood: nothing to teach, but what it names is still worth following,
+    // Already understood: nothing to learn, but what it names is still worth following,
     // and it may be an island that a neighbour could give behaviour to.
     if (understood(runtime, identity)) {
       const discovered = follow(runtime.store.get(identity), depth + 1);
@@ -311,120 +203,34 @@ export async function study(
       continue;
     }
 
-    // Wikidata before the Teacher: what it states about a word is sourced and the same
-    // every time; what the Teacher recalls is neither.
+    // What the world says, sourced and the same every time: Wikidata, then the dictionary.
     if (options.research !== false) {
       try {
         const grounded = await groundInWikidata(runtime.store, identity);
         if (grounded?.relations.length) {
-          taught += 1;
+          learned += 1;
           const discovered = follow(runtime.store.get(identity), depth + 1);
           record({ identity, depth, how: "grounded", detail: `${grounded.item}: ${grounded.relations.map(format).join(" ")}`, discovered });
           options.onProgress?.();
           continue;
         }
       } catch {
-        // Unreachable: the Teacher below is still there.
+        // Unreachable: the dictionary may still say.
       }
-    }
-
-    if (options.teacher === false) {
-      record({ identity, depth, how: "failed", detail: "no Teacher", discovered: [] });
-      continue;
-    }
-
-    let evidence = "";
-    if (options.reading?.length) {
-      // Documents beat the web where they cover the term, and the web is not consulted
-      // at all for a vocabulary it would answer confidently and wrongly.
-      evidence = evidenceText(passages(options.reading, readable(identity)));
-      if (evidence) {
-        record({
-          identity, depth, how: "read",
-          detail: `${options.reading.length} document(s)`, discovered: [],
-        });
-      }
-    }
-    if (!evidence && options.research !== false) {
       try {
-        // Searched with the word it was reached from, so the results are about that sense.
-        evidence = evidenceText(await research(via ? `${readable(identity)} ${readable(via.from)}` : readable(identity)));
+        const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }]), c("Execution"));
+        if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {
+          learned += 1;
+          record({ identity, depth, how: "defined", detail: meaning.args[1].value, discovered: follow(runtime.store.get(identity), depth + 1) });
+          options.onProgress?.();
+          continue;
+        }
       } catch {
-        // Best effort. An unreachable network makes the Teacher recall rather than stop.
+        // Unreachable is not an answer.
       }
     }
-
-    let taughtResult: Awaited<ReturnType<typeof teach>>;
-    try {
-      taughtResult = await teach(
-        runtime.store,
-        {
-          identity,
-          message: `Teach me about ${readable(identity)}.`,
-          expression: `${identity}()`,
-          evidence,
-          ...(via ? { reachedThrough: `${via.from} ${via.claim}` } : {}),
-        },
-        options,
-      );
-    } catch (caught) {
-      // A generation that times out is one lost topic, not a lost run. An overnight crawl
-      // that dies on its fifth Concept because one call was slow is worthless.
-      record({
-        identity, depth, how: "failed",
-        detail: caught instanceof Error ? caught.message : String(caught),
-        discovered: [],
-      });
-      continue;
-    }
-    if (!taughtResult.declaration) {
-      record({
-        identity, depth, how: "failed",
-        detail: taughtResult.problem ?? "no declaration", discovered: [],
-      });
-      continue;
-    }
-
-    let saved: Expr;
-    try {
-      saved = await runtime.evaluate(taughtResult.declaration, c("Execution"));
-    } catch (caught) {
-      record({
-        identity, depth, how: "failed",
-        detail: caught instanceof ConceptError ? format(caught.value) : String(caught),
-        discovered: [],
-      });
-      continue;
-    }
-
-    // A refused body names what it needed first. Those are prerequisites, so they are
-    // queued at this depth rather than deeper — they are not a digression.
-    const needed: string[] = [];
-    for (const node of walk(saved)) {
-      if (!isCall(node) || node.head !== "NeedsFirst") continue;
-      for (const item of walk(node)) {
-        if (isCall(item) && item.head !== "NeedsFirst" && item.head !== "List") needed.push(item.head);
-      }
-    }
-
-    const unit = runtime.store.get(identity);
-    const learned = (unit?.relations.length ?? 0) + (unit?.realizations.length ?? 0);
-    const discovered = [...push(needed, depth, true), ...follow(unit, depth + 1)];
-
-    if (learned > 0) {
-      taught += 1;
-      record({ identity, depth, how: "taught", detail: format(saved), discovered });
-      // Try the graph before the model, which here means AFTER the model: a Concept just
-      // taught `SynonymOf(Something())` is an island until it is attached, and attaching
-      // costs nothing. Without this a crawl builds synonyms that cannot do what their
-      // twins can, so the same question phrased two ways computes once and residuals once.
-      const attached = fromGraph(runtime, identity);
-      if (attached) record({ identity, depth, how: "attached", detail: attached, discovered: [] });
-      options.onProgress?.();
-    } else {
-      record({ identity, depth, how: "refused", detail: format(saved), discovered });
-    }
+    record({ identity, depth, how: "failed", detail: "nothing sourced says", discovered: [] });
   }
 
-  return { steps, taught, visited, remaining: queue.map((q) => q.identity) };
+  return { steps, learned, visited, remaining: queue.map((q) => q.identity) };
 }

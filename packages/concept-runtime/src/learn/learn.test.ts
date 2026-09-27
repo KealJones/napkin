@@ -6,7 +6,6 @@ import { Runtime } from "../runtime/evaluator.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
 import { learn } from "./learn.js";
-import { nearby } from "./teacher.js";
 
 const EXEC = c("Execution");
 const fresh = () => {
@@ -39,27 +38,21 @@ test("learning closes a gap from the graph before reaching for a model", async (
   const rt = fresh();
   // Multiplication is a known synonym cluster member; nothing should need teaching.
   rt.store.seed(concept("Multiplication", { relations: ["SynonymOf(Multiply())"] }));
-  const out = await learn(rt, "multiply", parse("Multiplication(6, 7)"), EXEC, { teacher: false, research: false });
+  const out = await learn(rt, "multiply", parse("Multiplication(6, 7)"), EXEC, { research: false });
   assert.ok(out.steps.some((s) => s.how === "graph"), JSON.stringify(out.steps));
 });
 
 test("an unclosable gap stays a residual rather than being fabricated", async () => {
   const rt = fresh();
-  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false, research: false });
+  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { research: false });
   assert.equal(format(out.result!), "Frobnicate(3)");
   assert.ok(out.remaining.some((g) => g.identity === "Frobnicate"));
 });
 
 test("the loop is bounded when nothing new can be learned", async () => {
   const rt = fresh();
-  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { teacher: false, research: false, maxPasses: 5 });
+  const out = await learn(rt, "x", parse("Frobnicate(3)"), EXEC, { research: false, maxPasses: 5 });
   assert.equal(out.passes, 1, "it should stop as soon as a pass learns nothing");
-});
-
-test("the Teacher is offered what already exists nearby, not the whole library", () => {
-  const rt = fresh();
-  const text = nearby(rt.store, "Times");
-  assert.match(text, /Multiply/);
 });
 
 test("a declaration saves realizations, not just relations", async () => {
@@ -210,12 +203,12 @@ test("the frontier is what a Concept names but does not explain", async () => {
   assert.deepEqual(found.sort(), ["Credit", "MediumOfExchange"]);
 });
 
-test("studying without a Teacher still crawls what is already known", async () => {
+test("studying without looking anything up still crawls what is already known", async () => {
   const { study } = await import("./study.js");
   const rt = fresh();
   // Tomorrow is seeded and names Date, Deictic and Yesterday in its relations.
-  const result = await study(rt, ["tomorrow"], { research: false, teacher: false });
-  assert.equal(result.taught, 0);
+  const result = await study(rt, ["tomorrow"], { research: false });
+  assert.equal(result.learned, 0);
   assert.ok(result.steps.some((s) => s.identity === "Tomorrow" && s.how === "known"));
   // The crawl followed the relations rather than stopping at the topic.
   assert.ok(result.visited > 1);
@@ -255,34 +248,6 @@ test("Text joins its parts, so a taught body can lay out syntax", async () => {
   );
 });
 
-test("expressing in a context is offered for anything in the graph", async () => {
-  const { study } = await import("./study.js");
-  const rt = fresh();
-  rt.store.seed(concept("Chess", { relations: [] }));
-  // Rust: If already knows how to be written in JavaScript (packs/javascript.ncon).
-  const result = await study(rt, ["if", "chess"], { as: "Rust", teacher: false });
-  // Requiring existing behaviour was wrong: Function, Write and Says do nothing in any
-  // context and are exactly the constructs a language needs a rendering for. Whether
-  // something HAS a sensible rendering is the Teacher's judgement, and CONTEXT_SYSTEM
-  // rule 7 tells it to answer realizations=List() when the answer is no.
-  assert.ok(result.steps.some((s) => s.identity === "If" && s.detail === "no Teacher"));
-  assert.ok(result.steps.some((s) => s.identity === "Chess" && s.detail === "no Teacher"));
-  // Something absent from the graph entirely is still not the job.
-  const missing = await study(rt, ["nonesuch"], { as: "Rust", teacher: false });
-  assert.ok(missing.steps.some((s) => /not in the graph/.test(s.detail)));
-});
-
-test("a Concept that already speaks the context is left alone, and TypeScript is spoken as JavaScript", async () => {
-  const { study } = await import("./study.js");
-  const rt = fresh();
-  await rt.evaluate(
-    parse('Concept(identity="If", realizations=List(Realization(pattern=If($c, $t, $e), context=JavaScript(), body=Text("x"))))'),
-    EXEC,
-  );
-  const result = await study(rt, ["if"], { as: "TypeScript", teacher: false });
-  assert.ok(result.steps.some((s) => s.identity === "If" && s.how === "known"));
-});
-
 test("a declaration cannot flood the graph with free association", async () => {
   const rt = fresh();
   // What a runaway Teacher produces: Quantity once came back with two hundred relations,
@@ -306,19 +271,6 @@ test("a reasonable declaration is not capped", async () => {
   assert.ok(!format(saved).includes("TooMany"));
 });
 
-test("a Teacher that times out costs one topic, not the run", async () => {
-  const { study } = await import("./study.js");
-  const rt = fresh();
-  // An endpoint that is not there fails the same way a timeout does.
-  const result = await study(rt, ["chess", "backgammon"], {
-    research: false,
-    endpoint: "http://127.0.0.1:9",
-    timeoutMs: 200,
-  });
-  assert.equal(result.visited, 2);
-  assert.ok(result.steps.every((s) => s.how === "failed"));
-});
-
 test("repeating one relation does not spend the cap on it", async () => {
   const rt = fresh();
   // A Teacher that loses the thread repeats itself; "hi" came back with the same relation
@@ -339,7 +291,6 @@ test("a turn that learns nothing reads the message once", async () => {
   const out = await turn(rt, "", c("Execution"), {
     learn: true,
     speak: false,
-    teacher: false,
     research: false,
   });
   assert.equal(out.rereads, 0);
@@ -364,7 +315,7 @@ test("learning is on unless a caller turns it off", async () => {
   // was asked.
   const off = await turn(rt, "", c("Execution"), { learn: false, speak: false });
   assert.equal(off.learned.length, 0);
-  const on = await turn(rt, "", c("Execution"), { speak: false, teacher: false, research: false });
+  const on = await turn(rt, "", c("Execution"), { speak: false, research: false });
   assert.equal(on.rereads, 0, "nothing to learn, so nothing is re-read");
 });
 
@@ -404,7 +355,6 @@ test("an answer that never ran is never spoken as one", async () => {
   const out = await turn(rt, "", c("Execution"), {
     learn: false,
     speak: false,
-    teacher: false,
     research: false,
   });
   assert.equal(out.rereads, 0);

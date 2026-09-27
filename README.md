@@ -32,8 +32,8 @@ A Concept is one self-contained unit of three parts:
 | **realizations** | how it means, or how it acts, per usage context |
 
 There is no separate rules table, action registry, fact store, or native-function map.
-Arithmetic, HTTP, file access, the input parser, the Teacher, and the evaluator's own entry
-are all Concepts of this shape.
+Arithmetic, HTTP, file access, hearing a message, and the evaluator's own entry are all
+Concepts of this shape.
 
 ### Residual evaluation
 
@@ -63,18 +63,15 @@ additively, so asking for a description keeps the situation being described.
 ```
 $ napkin --learn "what is chess?"
 
-learned  teacher: Chess — Concept(identity="Chess", relations=List(IsA(BoardGame()),
-         MinimumNumberOfPlayers(2), PlayedOn(ChessBoard()), ...)) -> Saved(Chess())
-result   Describes(Chess(), List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ...))
+learned  wikidata: Chess: Q718: IsA(BoardGame()), ...
+result   Describes(Chess(), List(IsA(BoardGame()), ...))
 ```
 
-Invent, realize, collect what came back residual, try the graph, ask the Teacher last, save,
-re-answer. The graph persists to `~/.napkin/store.ncon`, a journal over the packs, so asking again in a fresh process
-needs no model call.
-
-Wikidata and web search run **before** the Teacher, so it is a last resort rather than the
-only path, and its declarations are grounded in source-attributed evidence rather than
-recall. A gap that cannot be closed stays a residual. It is not filled in with a guess.
+Realize, collect what came back residual, try the graph, then what the world says (Wikidata,
+the dictionary), save, re-answer. Everything learned is sourced and stamped. The graph
+persists to `~/.napkin/store.ncon`, a journal over the packs. No model hears, speaks or
+teaches: a gap that nothing sourced can close stays a residual. It is not filled in with a
+guess.
 
 ### It works without being asked
 
@@ -84,8 +81,7 @@ learn     Backgammon    left residual in Backgammon()
 
 $ napkin --exist
 learn Backgammon
-  did: research: 8 findings from Wikidata and Web; teacher: Concept(identity="Backgammon",
-       relations=List(IsA(BoardGame()), MinimumNumberOfPlayers(2), ...)) -> Saved(Backgammon())
+  did: wikidata: Backgammon: Q11379: IsA(BoardGame()), ...
 ```
 
 Nothing invents a goal for it. **The agenda is already written down**: every residual is
@@ -93,7 +89,7 @@ something it could not realize, every orphan a cluster attached to nothing. It r
 trace for what it could not do, and works on that. Unattended work is bounded by a budget,
 and its envelope is narrow — it may research and learn, and nothing else.
 
-Some repairs need no model at all. A Concept whose synonym relation was never turned into
+Some repairs need nothing from outside at all. A Concept whose synonym relation was never turned into
 behaviour gets the forwarding realization derived, and `Multiplication(6, 7)` starts
 answering 42.
 
@@ -125,11 +121,8 @@ pnpm studio                                 # browse the graph at :4317
 pnpm test
 ```
 
-Natural-language input needs [Ollama](https://ollama.com) with `qwen3.5:4b`, and the Teacher
-uses `qwen3.8:27b`. Everything else runs without a model.
-
-The 4b is not a placeholder. It was measured against 9b and **won** on fidelity at 1.6x the
-speed — a larger model restructures where this job wants faithful transcription.
+Nothing needs a model. A message is heard by the graph itself (`Hear()` in
+`packs/hearing.ncon`): each word is its own Concept and the words find each other.
 
 ## Layout
 
@@ -139,7 +132,7 @@ packages/concept-runtime/src/
   store/       the graph, the two-directional relation index, cells, persistence
   runtime/     facet contexts, selection, evaluation, the trace, one turn, Exist
   ears/        message -> Concepts: the prompt, line lifting, repair, checks
-  learn/       the Teacher, and the learning loop
+  learn/       the learning loop and study
   research/    Wikidata and web search, as Concepts
   seed/        the Concepts the network starts with
 apps/studio/   browse the graph and watch a turn happen

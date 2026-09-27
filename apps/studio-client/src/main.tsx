@@ -9,12 +9,11 @@ import {
 } from "@napkin/concept-runtime/expression";
 import type { TraceEvent } from "@napkin/concept-runtime";
 import "./styles.css";
-import { EarsLab } from "./EarsLab";
 import { CodePlayground } from "./CodePlayground";
 import { Walkthrough } from "./Walkthrough";
-import { request, useHost, type Reader } from "./transport";
+import { request } from "./transport";
 
-type Page = "chat" | "concepts" | "traces" | "ears" | "code" | "guide";
+type Page = "chat" | "concepts" | "traces" | "code" | "guide";
 type ConversationSummary = {
   id: string;
   persistent: boolean;
@@ -46,18 +45,11 @@ type Activity = {
   id: string;
   meaning: string | null;
   result: string | null;
-  teacherUsed: boolean;
-  teacherLesson: string | null;
-  teacherResponse: string | null;
-  teacherStatus: string;
   complete: boolean;
   failed: boolean;
   expanded: boolean;
   /** What the parser emitted, before lifting. */
   heard: string | null;
-  /** Who read the message, and why the rules handed it to the model if they did. */
-  reader?: string | null;
-  fallback?: string | null;
   /** References the parser marked, and what memory resolved them to. */
   resolved: { reference: string; to: string }[];
   /** What the graph could not realize — the learning queue. */
@@ -95,12 +87,6 @@ type TraceSummary = {
 
 const initialPrompt = "";
 
-const READER_OPTIONS: { value: Reader; label: string }[] = [
-  { value: "hybrid", label: "Hybrid" },
-  { value: "rules", label: "Rules" },
-  { value: "prompt", label: "Hearing" },
-  { value: "model", label: "LLM" },
-];
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await request(path, {
@@ -209,10 +195,6 @@ function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
         id: `history-${index + 1}`,
         meaning: turn.parsed.trim() || null,
         result: result || null,
-        teacherUsed: false,
-        teacherLesson: null,
-        teacherResponse: null,
-        teacherStatus: "not used",
         complete: true,
         failed: false,
         expanded: false,
@@ -259,10 +241,6 @@ function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
             id: `history-${messages.length}`,
             meaning: null,
             result: null,
-            teacherUsed: false,
-            teacherLesson: null,
-            teacherResponse: null,
-            teacherStatus: "not used",
             complete: true,
             failed: false,
             expanded: false,
@@ -283,21 +261,6 @@ function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
     } else if (head === "InterpretedAs" && latestUser?.activity) {
       latestUser.activity.meaning =
         typeof relation === "string" ? relation : null;
-    } else if (head === "TeacherUsage" && latestUser?.activity) {
-      latestUser.activity.teacherUsed = argsOf(relation, "used") === true;
-      const lesson = argsOf(relation, "lesson");
-      const response = argsOf(relation, "response");
-      latestUser.activity.teacherLesson = lesson
-        ? formatExpression(lesson)
-        : null;
-      latestUser.activity.teacherResponse = response
-        ? formatExpression(response)
-        : null;
-      latestUser.activity.teacherStatus = latestUser.activity.teacherUsed
-        ? latestUser.activity.teacherLesson
-          ? "learned and saved"
-          : "used"
-        : "not used";
     }
   }
   return messages;
@@ -312,20 +275,6 @@ function App() {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [newPersistent, setNewPersistent] = useState(true);
   const [persistentTurn, setPersistentTurn] = useState(true);
-  const [model, setModel] = useState("qwen3.5:4b");
-  // Who reads a message: the rules first and the model for what they cannot (hybrid), or one alone.
-  const host = useHost();
-  const [chosenReader, setReadBy] = useState<Reader>(() => {
-    try {
-      const saved = localStorage.getItem("napkin-reader");
-      return saved === "model" || saved === "rules" || saved === "hybrid" || saved === "prompt" ? saved : "hybrid";
-    } catch {
-      return "hybrid";
-    }
-  });
-  // A reader this host does not offer (the model or hybrid, in a browser) falls back to its own.
-  const readBy = host.readers.includes(chosenReader) ? chosenReader : host.defaultReader;
-  const [endpoint, setEndpoint] = useState("http://127.0.0.1:11434");
   const [title, setTitle] = useState("New conversation");
   const [concepts, setConcepts] = useState<ConceptUnit[]>([]);
   const [conceptCount, setConceptCount] = useState(0);
@@ -564,10 +513,6 @@ function App() {
         id: activityId,
         meaning: null,
         result: null,
-        teacherUsed: false,
-        teacherLesson: null,
-        teacherResponse: null,
-        teacherStatus: "not used",
         complete: false,
         failed: false,
         expanded: true,
@@ -590,8 +535,6 @@ function App() {
         body: JSON.stringify({
           conversationId: id,
           text: source,
-          ...(host.models ? { model, endpoint } : {}),
-          backend: readBy,
         }),
       });
       if (!response.ok || !response.body) {
@@ -615,51 +558,14 @@ function App() {
           updateActivity(activityId, (item) => ({
             ...item,
             meaning: event.expression as string,
-            reader: typeof event.reader === "string" ? event.reader : null,
-            fallback: typeof event.fallback === "string" ? event.fallback : null,
-          }));
-        } else if (event.type === "teacher") {
-          updateActivity(activityId, (item) => ({
-            ...item,
-            teacherUsed: event.used === true,
-            teacherStatus:
-              event.status === "learned"
-                ? "learned and saved"
-                : event.status === "failure"
-                  ? "call failed"
-                  : "called",
-            teacherLesson:
-              typeof event.lesson === "string"
-                ? event.lesson
-                : item.teacherLesson,
-            teacherResponse:
-              typeof event.response === "string"
-                ? event.response
-                : item.teacherResponse,
           }));
         } else if (event.type === "complete") {
           updateActivity(activityId, (item) => ({
             ...item,
             complete: true,
-            teacherUsed: event.teacherUsed === true,
-            teacherLesson:
-              typeof event.teacherLesson === "string"
-                ? event.teacherLesson
-                : item.teacherLesson,
-            teacherResponse:
-              typeof event.teacherResponse === "string"
-                ? event.teacherResponse
-                : item.teacherResponse,
             result:
               typeof event.result === "string" ? event.result : item.result,
-            teacherStatus: event.teacherUsed
-              ? event.teacherLesson
-                ? "learned and saved"
-                : "used"
-              : "not used",
             heard: typeof event.heard === "string" ? event.heard : item.heard,
-            reader: typeof event.reader === "string" ? event.reader : item.reader ?? null,
-            fallback: typeof event.fallback === "string" ? event.fallback : item.fallback ?? null,
             resolved: Array.isArray(event.resolved)
               ? (event.resolved as Activity["resolved"])
               : item.resolved,
@@ -817,13 +723,6 @@ function App() {
               <b className="nav-label">Trace history</b>
             </button>
             <button
-              className={page === "ears" ? "active" : ""}
-              onClick={() => setPage("ears")}
-            >
-              <span>◎</span>
-              <b className="nav-label">Ears lab</b>
-            </button>
-            <button
               className={page === "code" ? "active" : ""}
               onClick={() => setPage("code")}
             >
@@ -843,7 +742,7 @@ function App() {
           <span className="runtime-dot" />
           Local runtime
           <br />
-          <span className="side-indent">{host.models ? "Concept graph · Ollama" : "Concept graph · in this browser"}</span>
+          <span className="side-indent">Concept graph · hearing</span>
         </div>
       </aside>
       <main className="main">
@@ -853,13 +752,11 @@ function App() {
               ? "Chat"
               : page === "concepts"
                 ? "Concept network"
-                : page === "ears"
-                  ? "Ears lab"
-                  : page === "code"
-                    ? "Code playground"
-                    : page === "guide"
-                      ? "How Napkin works"
-                      : "Trace history"}
+                : page === "code"
+                  ? "Code playground"
+                  : page === "guide"
+                    ? "How Napkin works"
+                    : "Trace history"}
           </h1>
           <div className="topmeta">
             <span>
@@ -874,8 +771,6 @@ function App() {
           <Walkthrough />
         ) : page === "code" ? (
           <CodePlayground />
-        ) : page === "ears" ? (
-          <EarsLab />
         ) : page === "chat" ? (
           <section className="page active">
             <div className="chat-layout">
@@ -1009,43 +904,6 @@ function App() {
                         Persist chat
                       </label>
                       <span className="spacer" />
-                      <select
-                        className="model-input reader-select"
-                        value={readBy}
-                        title={host.models ? "Who reads the message: the rules, the model, or the rules with the model for what they cannot read" : "Who reads the message: the rules, or hearing"}
-                        onChange={(event) => {
-                          const next = event.target.value as Reader;
-                          setReadBy(next);
-                          try {
-                            localStorage.setItem("napkin-reader", next);
-                          } catch {
-                            /* storage may be unavailable */
-                          }
-                        }}
-                        aria-label="Reader"
-                      >
-                        {READER_OPTIONS.filter((o) => host.readers.includes(o.value)).map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                      {host.models && (
-                        <>
-                          <input
-                            className="model-input"
-                            value={model}
-                            onChange={(event) => setModel(event.target.value)}
-                            aria-label="Ollama model"
-                          />
-                          <input
-                            className="model-input endpoint-input"
-                            value={endpoint}
-                            onChange={(event) => setEndpoint(event.target.value)}
-                            aria-label="Ollama endpoint"
-                          />
-                        </>
-                      )}
                       <button
                         className="primary"
                         disabled={sending || !prompt.trim()}
@@ -1204,20 +1062,12 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             : activity.complete
               ? "Complete"
               : "Running"}
-          {activity.teacherUsed ? " · Teacher used" : ""}
         </span>
       </summary>
       <div className="turn-activity-scroll">
         <details className="activity-step" open>
           <summary>
             Input Concept expression
-            {activity.reader ? (
-              <span className="muted">
-                {" "}
-                · read by {activity.reader === "rules" ? "rules" : activity.reader === "prompt" ? "hearing" : "LLM"}
-                {activity.fallback && activity.reader !== "rules" ? ` (rules ${activity.fallback})` : ""}
-              </span>
-            ) : null}
           </summary>
           <div className="activity-step-body">
             {meaning ? (
@@ -1228,40 +1078,6 @@ function ActivityPanel({ activity }: { activity: Activity }) {
               <span className="muted">
                 Waiting for the input Concept expression…
               </span>
-            )}
-          </div>
-        </details>
-        <details className="activity-step">
-          <summary>
-            Teacher · {activity.teacherUsed ? "used" : "not used"}
-          </summary>
-          <div className="activity-step-body">
-            {activity.teacherUsed ? (
-              <>
-                <div className="muted">{activity.teacherStatus}</div>
-                {activity.teacherLesson && (
-                  <>
-                    <div className="phase">Learned Concept</div>
-                    <pre>
-                      <Highlight
-                        value={prettyExpressionText(activity.teacherLesson)}
-                      />
-                    </pre>
-                  </>
-                )}
-                {activity.teacherResponse && (
-                  <>
-                    <div className="phase">Teacher response</div>
-                    <pre>
-                      <Highlight
-                        value={prettyExpressionText(activity.teacherResponse)}
-                      />
-                    </pre>
-                  </>
-                )}
-              </>
-            ) : (
-              "Teacher was not used for this turn."
             )}
           </div>
         </details>

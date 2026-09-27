@@ -1563,6 +1563,15 @@ Concept(ValentinesDay(),
   )
 )
 
+// Heard with what is said of the days inside them, Days(Until(christmas)): the same question.
+Concept(HowMany(),
+  Realization(HowMany(Days(Until($when))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = HowMany(Days(), Until($when))
+  )
+)
+
 // "how many days until christmas": from today to the date, in whole days.
 Concept(HowMany(),
   Realization(HowMany(Days(), Until($when)),

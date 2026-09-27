@@ -562,6 +562,9 @@ test("a multi-word name folds its own phrase, and only while reading", async () 
   seed(store);
   store.addRelation("IceCream", parse("IsA(Food())"));
   seed(store);
+  // Each name heard as its words are (ears/phrase.ts); a turn hears the ones its message says.
+  const { foldPhrases } = await import("./ears/phrase.js");
+  await foldPhrases(store);
   const rt = new Runtime(store);
   // Nobody wrote these folds: each is derived from the name, as the Ears reads its words.
   assert.equal(format(await rt.evaluate(parse("Read(Cream(Ice()))"), c("Execution"))), "IceCream()");
@@ -572,6 +575,7 @@ test("a multi-word name folds its own phrase, and only while reading", async () 
   // A fold goes when its Concept does.
   store.forgetConcept("IceCream");
   seed(store);
+  await foldPhrases(store);
   assert.equal(format(await rt.evaluate(parse("Read(Cream(Ice()))"), c("Execution"))), "Cream(Ice())");
 });
 

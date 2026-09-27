@@ -7,7 +7,6 @@
  */
 import { type Call, type Expr, format, isCall, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
-import type { ModelOptions } from "./ollama.js";
 
 /**
  * A residual is not an answer. Narrating one as though it were is how a system starts
@@ -120,7 +119,7 @@ export interface Unrealized {
   readonly kind: "unknown" | "inert" | "reference" | "empty";
 }
 
-export interface SayOptions extends ModelOptions {
+export interface SayOptions {
   /** What the graph could not realize. Its presence means this is not an answer. */
   unrealized?: readonly Unrealized[];
   /**

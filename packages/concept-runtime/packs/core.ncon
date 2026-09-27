@@ -693,6 +693,36 @@ Concept(Mood(),
             ),
             Bind($kind, Member(Index($args, 0), "value")),
             Var($line, Member(Index($args, 1), "value")),
+            // Said as a whole, a statement may be one thing the graph names: "good morning" is
+            // GoodMorning, a greeting answered as one, not a claim about a morning.
+            If(
+              And($kind, Equals(Member($kind, "head"), "Declarative")),
+              Sequence(
+                Bind($named, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
+                If(
+                  And(
+                    And(Member($named, "head"), Not(Length(Member($named, "args")))),
+                    Not(Equals(Call(Member($api, "format"), $named), Call(Member($api, "format"), $line)))
+                  ),
+                  Return(
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        $named,
+                        Call(
+                          Member($api, "call"),
+                          "Context",
+                          Spread($facets),
+                          $kind
+                        )
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             // A statement is a claim, not a request: it is kept as said (the conversation's
             // Said), and read back when something asks after it (Pursue). Running it would
             // turn every word of it into missing behaviour.

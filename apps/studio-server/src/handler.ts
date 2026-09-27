@@ -25,37 +25,12 @@ import {
 } from "@napkin/concept-runtime";
 import { concept, realization } from "@napkin/concept-runtime";
 import { codeLanguages, formatNcon, importSource, writeSource } from "@napkin/concept-runtime";
-import {
-  compareEars,
-  earsCases,
-  earsPrompt,
-  hashEarsPrompt,
-  listEarsRuns,
-  logEarsConversion,
-  openEarsRun,
-  recentEarsConversions,
-  hear,
-  latestEarsRun,
-  lift,
-  rescoreEars,
-  runEars,
-  saveEarsRun,
-  summarizeEars,
-  type EarsRun,
-} from "@napkin/concept-runtime";
-
-type Reader = "model" | "rules" | "hybrid" | "prompt";
 
 export interface StudioOptions {
   /** The journal (`store.ncon`), or an old `.json` snapshot. */
   graphPath: string;
   /** The trace beside it (concept-spec Part 13). */
   tracePath: string;
-  /**
-   * Whether a model may read or teach. Off (a browser host): only the rules and hearing read,
-   * the Teacher is never asked, and a request for a model reader is refused.
-   */
-  models: boolean;
 }
 
 export interface Studio {
@@ -67,7 +42,7 @@ export interface Studio {
 }
 
 export async function createStudio(options: StudioOptions): Promise<Studio> {
-  const { graphPath, tracePath, models } = options;
+  const { graphPath, tracePath } = options;
   const store = new ConceptStore();
   // The built-in packs, a user's own beside the graph (packs/*.ncon), then the journal.
   const opened = await openNapkinGraph(store, graphPath);
@@ -75,10 +50,6 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
   const save = () => opened.save();
   const relations = new Relations(store);
   const conversations = new ConversationRepository(store);
-  /** Who can read a message: the model's readers only where a model may be asked. */
-  const readers = new Set<Reader>(models ? ["model", "rules", "hybrid", "prompt"] : ["rules", "prompt"]);
-  const defaultReader: Reader = models ? "model" : "prompt";
-  const readerOf = (value: unknown): Reader | undefined => (readers.has(value as Reader) ? (value as Reader) : undefined);
 
   /** Every trace of every turn this host has served, newest first. */
   const traces: { traceId: string; startedAt: string; concept: string; events: TraceEvent[] }[] = [];
@@ -171,13 +142,9 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
     }
 
     // What this host offers, so the client shows only what works here.
-    if (method === "GET" && path === "/api/host") {
-      return json(200, { models, readers: [...readers], defaultReader });
-    }
 
     if (method === "POST" && path === "/api/chat/turn") return runChatTurn(request);
 
-    if (path.startsWith("/api/ears/")) return handleEarsLab(path, url, request);
 
     if (path.startsWith("/api/code/")) return handleCode(path, request);
 
@@ -265,19 +232,6 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       return json(400, { error: "inputMode must be message or expression" });
     }
     if (!conversations.get(conversationId)) return json(404, { error: "Conversation not found" });
-    if (body.backend !== undefined && !readerOf(body.backend)) return json(400, { error: `Unknown reader "${String(body.backend)}"` });
-    let endpoint: URL | undefined;
-    if (models) {
-      const endpointText = typeof body.endpoint === "string" ? body.endpoint.replace(/\/$/, "") : "http://127.0.0.1:11434";
-      try {
-        endpoint = new URL(endpointText);
-      } catch {
-        return json(400, { error: "Ollama endpoint URL is invalid" });
-      }
-      if (endpoint.protocol !== "http:" && endpoint.protocol !== "https:") return json(400, { error: "Endpoint must use HTTP or HTTPS" });
-    }
-    const model = typeof body.model === "string" ? body.model : "qwen3.5:4b";
-    const backend = readerOf(body.backend);
 
     return stream(async (send) => {
       // NAPKIN_TRACE_QUIET=1 traces what quiet facets keep out (hearing's rounds), to debug them.
@@ -303,27 +257,14 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
           .map((t) => ({ message: t.message, result: t.result, spoken: t.spoken || t.result }));
 
         const result = await runTurn(runtime, text, c("Execution"), {
-          ...(endpoint ? { model, endpoint: endpoint.origin } : { teacher: false }),
           learn: body.learn !== false,
           inputMode: body.inputMode === "expression" ? "expression" : "message",
           history,
           conversation: conversationId,
-          ...(backend ? { backend } : models ? {} : { backend: defaultReader }),
         });
-        const reader = { reader: result.heard.backend ?? "model", fallback: result.heard.fallback ?? null };
 
-        if (result.parsed) send({ type: "meaning", expression: result.parsed, ...reader });
+        if (result.parsed) send({ type: "meaning", expression: result.parsed });
         if (result.resolved.length) send({ type: "resolved", resolved: result.resolved });
-
-        const taught = result.learned.filter((l) => l.how === "teacher");
-        if (taught.length) {
-          send({
-            type: "teacher",
-            used: true,
-            lesson: taught.map((l) => l.detail).join("\n\n"),
-            response: taught.map((l) => `${l.identity}: ${l.detail}`).join("\n"),
-          });
-        }
 
         conversations.record(conversationId, {
           message: text,
@@ -351,12 +292,7 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
           result: result.rendered,
           resolved: result.resolved,
           heard: result.heard.raw.trim(),
-          ...reader,
           conversation: conversations.listActive().find((x) => x.id === conversationId),
-          teacherUsed: taught.length > 0,
-          teacherLesson: taught.map((l) => l.detail).join("\n\n") || null,
-          teacherResponse: null,
-          externalExchanges: result.learned.filter((l) => l.how === "research").length,
           problems: result.heard.problems,
           rejected: result.heard.rejected,
           gaps: result.gaps,
@@ -370,37 +306,6 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       } finally {
         unlisten();
       }
-    });
-  }
-
-  /* ---------------------------------------------------------------- *
-   * Ears lab: try a prompt on one message, or run it against the eval cases and the gold.
-   * Observes only; nothing here changes the graph or the saved prompt.
-   * ---------------------------------------------------------------- */
-  let earsEvalRunning = false;
-
-  const plain = (summary: ReturnType<typeof summarizeEars>) => ({
-    ...summary,
-    bySource: Object.fromEntries(summary.bySource),
-    byCheck: Object.fromEntries(summary.byCheck),
-  });
-
-  /** One case of a run, with what it was scored against: the gold reading, or its checks. */
-  function caseView(run: EarsRun) {
-    const known = new Map(earsCases().map((c) => [c.id, c]));
-    return run.cases.map((c) => {
-      const passes = c.samples.filter((s) => Object.values(s.checks).every(Boolean)).length;
-      const def = known.get(c.id);
-      return {
-        id: c.id,
-        source: c.status === "open" ? "gold open" : c.inPrompt ? "in prompt" : c.source,
-        message: c.message,
-        rate: c.samples.length ? passes / c.samples.length : 0,
-        failed: [...new Set(c.samples.flatMap((s) => Object.entries(s.checks).filter(([, ok]) => !ok).map(([k]) => k)))],
-        readings: c.samples.map((s) => s.reading ?? s.raw),
-        gold: c.target ?? def?.target ?? null,
-        expect: def?.expect ?? null,
-      };
     });
   }
 
@@ -436,116 +341,6 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       return json(200, { source: written.text, unwritable: written.unwritable });
     }
     return json(404, { error: "Unknown code endpoint" });
-  }
-
-  async function handleEarsLab(path: string, url: URL, request: Request): Promise<Response> {
-    const method = request.method;
-    if (path === "/api/ears/prompt" && method === "GET") return json(200, { prompt: earsPrompt(store) });
-
-    if (path === "/api/ears/runs" && method === "GET") {
-      const runs = listEarsRuns().map(({ file, run }) => {
-        const scored = openEarsRun(file) ?? run;
-        const s = summarizeEars(scored);
-        return {
-          file, label: run.label, date: run.date, promptHash: run.promptHash, promptChars: run.promptChars, unfused: run.unfused === true,
-          cases: run.cases.length, samples: run.samples,
-          headline: s.headline, retained: s.retained, order: s.order, match: s.match, copyRate: s.copyRate, ruled: s.ruled,
-        };
-      });
-      return json(200, { runs });
-    }
-
-    if (path.startsWith("/api/ears/runs/") && method === "GET") {
-      const unfused = url.searchParams.get("unfused");
-      const run = openEarsRun(decodeURIComponent(path.slice("/api/ears/runs/".length)), unfused === null ? undefined : unfused === "1");
-      if (!run) return json(404, { error: "Run not found" });
-      return json(200, { label: run.label, date: run.date, prompt: run.prompt, unfused: run.unfused === true, summary: plain(summarizeEars(run)), cases: caseView(run) });
-    }
-
-    if (path === "/api/ears/conversions" && method === "GET") return json(200, { conversions: recentEarsConversions() });
-
-    if (path === "/api/ears/convert" && method === "POST") {
-      const body = await readJson(request);
-      if (!isRecord(body) || typeof body.message !== "string" || !body.message.trim()) return json(400, { error: "A non-empty message is required" });
-      const system = typeof body.system === "string" && body.system.trim() ? body.system : undefined;
-      const started = Date.now();
-      // The lab always says who reads, so a change to the chat's default never changes the lab.
-      // A reader this host does not offer is refused, never quietly swapped for another.
-      if (body.backend !== undefined && !readerOf(body.backend)) return json(400, { error: `Unknown reader "${String(body.backend)}"` });
-      const backend = readerOf(body.backend) ?? defaultReader;
-      const heard = await hear(store, body.message, {
-        ...(system ? { system } : {}),
-        backend,
-        ...(typeof body.model === "string" ? { model: body.model } : {}),
-      });
-      const before = lift(heard.raw).expression;
-      logEarsConversion({
-        date: new Date().toISOString(),
-        promptHash: hashEarsPrompt(system ?? earsPrompt(store)),
-        message: body.message,
-        raw: heard.raw,
-        reading: heard.expression === undefined ? null : format(heard.expression),
-      });
-      return json(200, {
-        raw: heard.raw,
-        lifted: before === undefined ? null : format(before),
-        reading: heard.expression === undefined ? null : format(heard.expression),
-        problems: heard.problems,
-        rejected: heard.rejected,
-        backend: heard.backend ?? "model",
-        fallback: heard.fallback ?? null,
-        ms: Date.now() - started,
-      });
-    }
-
-    if (path === "/api/ears/eval" && method === "POST") {
-      if (earsEvalRunning) return json(409, { error: "An eval is already running; the model runs one call at a time." });
-      const body = await readJson(request);
-      const options = isRecord(body) ? body : {};
-      if (options.backend !== undefined && !readerOf(options.backend)) return json(400, { error: `Unknown reader "${String(options.backend)}"` });
-      const system = typeof options.system === "string" && options.system.trim() ? options.system : undefined;
-      const backend = readerOf(options.backend) ?? defaultReader;
-      earsEvalRunning = true;
-      return stream(async (send) => {
-        try {
-          const run = await runEars({
-            label: backend === "model" ? "lab" : `lab-${backend}`,
-            ...(system ? { system } : {}),
-            samples: typeof options.samples === "number" ? Math.max(1, Math.min(5, options.samples)) : 1,
-            ...(typeof options.only === "string" && options.only ? { only: options.only } : {}),
-            questions: options.questions === true,
-            ...(options.unfused === true ? { unfused: true } : {}),
-            backend,
-            onCase: (result, done, total) =>
-              send({
-                type: "case",
-                done,
-                total,
-                id: result.id,
-                rate: result.samples.filter((s) => Object.values(s.checks).every(Boolean)).length / result.samples.length,
-                reading: result.samples[0]?.reading ?? result.samples[0]?.raw ?? "",
-              }),
-          });
-          const file = saveEarsRun(run);
-          const previous = latestEarsRun((label) => !label.startsWith("lab") && !label.includes("rescored"));
-          const baseline: EarsRun | undefined = previous ? rescoreEars(previous, options.unfused === true) : undefined;
-          const diff = baseline ? compareEars(baseline, run) : undefined;
-          send({
-            type: "done",
-            file: file.split("/").slice(-1)[0],
-            summary: plain(summarizeEars(run)),
-            baseline: baseline && diff ? { label: previous!.label, shared: diff.shared, before: plain(diff.before), after: plain(diff.after) } : null,
-            cases: caseView(run),
-          });
-        } catch (error) {
-          send({ type: "error", error: error instanceof Error ? error.message : String(error) });
-        } finally {
-          earsEvalRunning = false;
-        }
-      });
-    }
-
-    return json(404, { error: "Unknown Ears lab endpoint" });
   }
 
   return { handle, store, opened, save };
