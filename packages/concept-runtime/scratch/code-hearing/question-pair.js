@@ -21,7 +21,7 @@ async (args, bindings, api) => {
       }
       if (is(k, "Closer") && p < 0) break;
       // A bracket between that has not found its closer yet: wait for it.
-      if (is(k, "Opener") && p < 0 && !is(k, "Infix")) return api.call("List");
+      if (is(k, "Opener") && p < 0 && !is(k, "Infix")) return api.call("List", api.call("Waits"));
       if (v("heads", k) === "Question") asked++;
       else if (v("heads", k) === "Colon" || v("heads", k) === "Returns") {
         if (asked === 0) return api.call("List", api.call("Link", k, at, api.call("Closes")));

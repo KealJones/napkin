@@ -36,7 +36,21 @@ export const UNIVERSAL = "Concept";
  * The universal parent is always last, so a default declared there is inherited by
  * everything and still loses to anything declared locally.
  */
+/** Lineages already walked, per store, until the store next changes. */
+const lineages = new WeakMap<ConceptStore, { version: number; byIdentity: Map<string, ConceptUnit[]> }>();
+
 export function lineage(store: ConceptStore, identity: string, limit = 16): ConceptUnit[] {
+  let cache = lineages.get(store);
+  if (!cache || cache.version !== store.version) lineages.set(store, (cache = { version: store.version, byIdentity: new Map() }));
+  const key = `${limit} ${identity}`;
+  const known = cache.byIdentity.get(key);
+  if (known) return known;
+  const walked = walkLineage(store, identity, limit);
+  cache.byIdentity.set(key, walked);
+  return walked;
+}
+
+function walkLineage(store: ConceptStore, identity: string, limit: number): ConceptUnit[] {
   const out: ConceptUnit[] = [];
   const seen = new Set<string>();
   let frontier = [identity];
@@ -89,6 +103,14 @@ export const runs = (r: Realization): boolean => r.context === undefined || face
 /** The mode evaluation runs in, one of the identities the loop may know. */
 const EXECUTION = "Execution";
 
+/** The heads of the facets a realization's context names, where a facet is a call. */
+const heads = new WeakMap<Realization, string[]>();
+function facetHeads(realization: Realization): string[] {
+  let found = heads.get(realization);
+  if (!found) heads.set(realization, (found = facets(realization.context).flatMap((f) => (isCall(f) ? [f.head] : []))));
+  return found;
+}
+
 export function candidates(
   store: ConceptStore,
   target: Call,
@@ -104,11 +126,15 @@ export function candidates(
 ): Candidate[] {
   const found: Candidate[] = [];
   const chain = lineage(store, target.head);
+  // A facet a realization names can only match an active facet with its head: one naming a
+  // head nothing active has is passed over before any matching.
+  const active = new Set(facets(context).flatMap((f) => (isCall(f) ? [f.head] : [])));
 
   chain.forEach((unit, distance) => {
     unit.realizations.forEach((realization, order) => {
       if (realization.retired) return;
       if (realization.properties.some((p) => isCall(p) && suppressed.has(p.head))) return;
+      if (facetHeads(realization).some((h) => !active.has(h))) return;
 
       const bindings: Bindings = new Map();
       if (!match(realization.pattern, target, bindings)) return;

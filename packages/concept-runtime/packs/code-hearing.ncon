@@ -445,8 +445,8 @@ Concept(Hear(),
             Comment("First, what each word is here. A word says it (Sense, about itself only: \"<\" after a name"),
             Comment("is its angles, \"{\" after a signature a block, \"x.get\"'s \"get\" only a name), and a bracket"),
             Comment("finds what closes it (Closes), each as its Concept does under Sensing(Code(<language>))."),
-            Comment("A word with nothing to say answers with itself and is not asked again. Rounds until no"),
-            Comment("word says anything new."),
+            Comment("A word says what it can at once; one that will know more once more brackets have closed"),
+            Comment("says it waits (Waits) and is asked again. Rounds until no word says anything new."),
             Bind($sensing, Call(Member($api, "call"), "Sensing", $code)),
             Bind($onlyName,
               Lambda(List($i), And(Equals(Length(Index($kinds, $i)), 1), Equals(Index(Index($kinds, $i), 0), "Name")))
@@ -555,12 +555,17 @@ Concept(Hear(),
                       Continue(),
                       Undefined()
                     ),
-                    Call(Member($still, "push"), $i),
                     ForOf(
                       $a,
                       Member($said2, "args"),
                       Sequence(
                         Bind($p, Member($a, "value")),
+                        Comment("It will know more once more brackets have closed: ask it again."),
+                        If(
+                          And(Call($isCall, $p), Equals(Member($p, "head"), "Waits")),
+                          Call(Member($still, "push"), $i),
+                          Undefined()
+                        ),
                         If(
                           And(
                             And(Call($isCall, $p), Equals(Member($p, "head"), "Link")),
@@ -628,9 +633,9 @@ Concept(Hear(),
             Call($structure),
             Comment("Then the links: rounds until nothing changes. Each word hears as its Concept does under"),
             Comment("Hearing(Code(<language>)) and answers with the links it proposes. What each word sees"),
-            Comment("(CodeView: the kinds around it and the groups the links have made) is worked out once a"),
-            Comment("round, held in a cell, and handed over by reference, so a word's hearing costs what it"),
-            Comment("looks at, not the length of the code. A word with no hearing of its own (it answered with"),
+            Comment("(CodeView: the kinds around it and the groups the links have made) is held in a cell and"),
+            Comment("handed over by reference, so a word's hearing costs what it looks at, not the length of"),
+            Comment("the code. A word with no hearing of its own (it answered with"),
             Comment("itself) is not asked again, and a word is asked again only where a link was just made:"),
             Comment("beside a group whose edges moved, or in a bracket that just gained one."),
             Call(
@@ -647,29 +652,37 @@ Concept(Hear(),
             Var($dirty, New($Set, Call(Member($said, "map"), Lambda(List($_, $i), $i)))),
             Bind($lo, Concat(Call(Member(Call($Array, $n), "keys")))),
             Bind($hi, Concat(Call(Member(Call($Array, $n), "keys")))),
+            Comment("What each word sees, once: what the words are does not change from here, and who took whom"),
+            Comment("is kept in step as links are made."),
+            Call($writeLinks),
+            Call(
+              Member(Member($api, "cells"), "write"),
+              $viewCell,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "CodeView",
+                    $promptCell,
+                    $linksCell
+                  ),
+                  $hearing
+                )
+              )
+            ),
+            Bind($seen, Object()),
+            ForOf(
+              $a,
+              Member(Call(Member(Member($api, "cells"), "read"), $viewCell), "args"),
+              Assign(Index($seen, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
             For(
               Var($round, 0),
               And(LessThan($round, Add($n, 2)), Member($dirty, "size")),
               PostIncrement($round),
               Sequence(
                 PostIncrement($rounds),
-                Call($writeLinks),
-                Call(
-                  Member(Member($api, "cells"), "write"),
-                  $viewCell,
-                  Await(
-                    Call(
-                      Member($api, "evaluate"),
-                      Call(
-                        Member($api, "call"),
-                        "CodeView",
-                        $promptCell,
-                        $linksCell
-                      ),
-                      $hearing
-                    )
-                  )
-                ),
                 Bind($proposals, List()),
                 ForOf(
                   $i,
@@ -763,7 +776,9 @@ Concept(Hear(),
                       Undefined()
                     ),
                     Call(Member($accepted, "push"), $p),
-                    Assign(Index($parent, Member($p, "from")), Member($p, "to"))
+                    Assign(Index($parent, Member($p, "from")), Member($p, "to")),
+                    Assign(Member(Index(Member($seen, "parent"), Member($p, "from")), "value"), Member($p, "to")),
+                    Assign(Member(Index(Member($seen, "role"), Member($p, "from")), "value"), Member($p, "role"))
                   )
                 ),
                 Comment("A waiting word waits on the edges of the groups beside it, or on its bracket's parts."),
@@ -807,6 +822,8 @@ Concept(Hear(),
                             Index($hi, Member($p, "from"))
                           )
                         ),
+                        Assign(Member(Index(Member($seen, "lo"), $k), "value"), Index($lo, $k)),
+                        Assign(Member(Index(Member($seen, "hi"), $k), "value"), Index($hi, $k)),
                         Call($touch, $k),
                         Call($touch, Subtract(Index($lo, $k), 1)),
                         Call($touch, Add(Index($hi, $k), 1)),
@@ -2891,7 +2908,13 @@ Concept(Question(),
                   Comment("A bracket between that has not found its closer yet: wait for it."),
                   If(
                     And(And(Call($is, $k, "Opener"), LessThan($p, 0)), Not(Call($is, $k, "Infix"))),
-                    Return(Call(Member($api, "call"), "List")),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "List",
+                        Call(Member($api, "call"), "Waits")
+                      )
+                    ),
                     Undefined()
                   ),
                   If(
@@ -3601,7 +3624,14 @@ Concept(Braces(),
             ),
             If(
               LessThan(Call($pair, $at), 0),
-              Return(Call($as, "Opener")),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(Member($api, "call"), "Waits"),
+                  Spread(Map(Member(Await(Call($as, "Opener")), "args"), Lambda(List($a), Member($a, "value"))))
+                )
+              ),
               Undefined()
             ),
             Bind($code,
@@ -3854,7 +3884,14 @@ Concept(Brackets(),
             ),
             If(
               LessThan(Call($pair, $at), 0),
-              Return(Call($as, "Opener")),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(Member($api, "call"), "Waits"),
+                  Spread(Map(Member(Await(Call($as, "Opener")), "args"), Lambda(List($a), Member($a, "value"))))
+                )
+              ),
               Undefined()
             ),
             Return(
@@ -3999,7 +4036,14 @@ Concept(Parens(),
             ),
             If(
               LessThan(Call($pair, $at), 0),
-              Return(Call($as, "Opener")),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(Member($api, "call"), "Waits"),
+                  Spread(Map(Member(Await(Call($as, "Opener")), "args"), Lambda(List($a), Member($a, "value"))))
+                )
+              ),
               Undefined()
             ),
             Bind($p, Subtract($at, 1)),

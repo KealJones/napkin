@@ -125,8 +125,8 @@ async (args, bindings, api) => {
   // First, what each word is here. A word says it (Sense, about itself only: "<" after a name
   // is its angles, "{" after a signature a block, "x.get"'s "get" only a name), and a bracket
   // finds what closes it (Closes), each as its Concept does under Sensing(Code(<language>)).
-  // A word with nothing to say answers with itself and is not asked again. Rounds until no
-  // word says anything new.
+  // A word says what it can at once; one that will know more once more brackets have closed
+  // says it waits (Waits) and is asked again. Rounds until no word says anything new.
   const sensing = api.call("Sensing", code);
   const onlyName = (i) => kinds[i].length === 1 && kinds[i][0] === "Name";
   const parent = new Array(n).fill(-1);
@@ -149,9 +149,10 @@ async (args, bindings, api) => {
       if (pair[i] >= 0 && pair[i] < i) continue;
       const said2 = await api.evaluate(api.call(heads[i], promptCell, i, linksCell, viewCell), sensing);
       if (!isCall(said2) || said2.head !== "List") continue;
-      still.push(i);
       for (const a of said2.args) {
         const p = a.value;
+        // It will know more once more brackets have closed: ask it again.
+        if (isCall(p) && p.head === "Waits") still.push(i);
         if (isCall(p) && p.head === "Link" && p.args[2].value.head === "Closes") closes.push({ from: p.args[0].value, to: p.args[1].value, role: "Closes" });
         else if (isCall(p) && p.head === "Sense" && p.args[0].value === i && isCall(p.args[1].value)) {
           const h2 = p.args[1].value.head;
@@ -174,9 +175,9 @@ async (args, bindings, api) => {
   structure();
   // Then the links: rounds until nothing changes. Each word hears as its Concept does under
   // Hearing(Code(<language>)) and answers with the links it proposes. What each word sees
-  // (CodeView: the kinds around it and the groups the links have made) is worked out once a
-  // round, held in a cell, and handed over by reference, so a word's hearing costs what it
-  // looks at, not the length of the code. A word with no hearing of its own (it answered with
+  // (CodeView: the kinds around it and the groups the links have made) is held in a cell and
+  // handed over by reference, so a word's hearing costs what it looks at, not the length of
+  // the code. A word with no hearing of its own (it answered with
   // itself) is not asked again, and a word is asked again only where a link was just made:
   // beside a group whose edges moved, or in a bracket that just gained one.
   api.cells.write(promptCell, api.call("Prompt", ...said.map(wordAt)));
@@ -185,10 +186,14 @@ async (args, bindings, api) => {
   let dirty = new Set(said.map((_, i) => i));
   const lo = [...Array(n).keys()];
   const hi = [...Array(n).keys()];
+  // What each word sees, once: what the words are does not change from here, and who took whom
+  // is kept in step as links are made.
+  writeLinks();
+  api.cells.write(viewCell, await api.evaluate(api.call("CodeView", promptCell, linksCell), hearing));
+  const seen = {};
+  for (const a of api.cells.read(viewCell).args) seen[a.name] = a.value.args;
   for (let round = 0; round < n + 2 && dirty.size; round++) {
     rounds++;
-    writeLinks();
-    api.cells.write(viewCell, await api.evaluate(api.call("CodeView", promptCell, linksCell), hearing));
     const proposals = [];
     for (const i of [...dirty].sort((a, b) => a - b)) {
       // A word that closes a bracket is part of how the bracket is said.
@@ -216,6 +221,8 @@ async (args, bindings, api) => {
       if (parent[p.from] >= 0 || p.from === p.to || above(p.to, p.from)) continue;
       accepted.push(p);
       parent[p.from] = p.to;
+      seen.parent[p.from].value = p.to;
+      seen.role[p.from].value = p.role;
     }
     // A waiting word waits on the edges of the groups beside it, or on its bracket's parts.
     const next = new Set();
@@ -228,6 +235,8 @@ async (args, bindings, api) => {
       for (let k = p.to, g = 0; k >= 0 && g < n; k = parent[k], g++) {
         lo[k] = Math.min(lo[k], lo[p.from]);
         hi[k] = Math.max(hi[k], hi[p.from]);
+        seen.lo[k].value = lo[k];
+        seen.hi[k].value = hi[k];
         touch(k);
         touch(lo[k] - 1);
         touch(hi[k] + 1);

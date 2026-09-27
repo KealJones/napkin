@@ -20,6 +20,6 @@ async (args, bindings, api) => {
     (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && head(i) !== "Dedent" && head(i) !== null && !is(pair(i), "Infix"));
   // Round brackets that head a statement: "if (x)".
   const header = (i) => is(i, "Closer") && pair(i) > 0 && is(pair(i) - 1, "Heads");
-  if (pair(at) < 0) return as("Opener");
+  if (pair(at) < 0) return api.call("List", api.call("Waits"), ...(await as("Opener")).args.map((a) => a.value));
   return ends(at - 1) && !header(at - 1) ? sense("Index") : api.call("List");
 }

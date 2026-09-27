@@ -22,7 +22,7 @@ async (args, bindings, api) => {
     (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && head(i) !== "Dedent" && head(i) !== null && !is(pair(i), "Infix"));
   // Round brackets that head a statement: "if (x)".
   const header = (i) => is(i, "Closer") && pair(i) > 0 && is(pair(i) - 1, "Heads");
-  if (pair(at) < 0) return as("Opener");
+  if (pair(at) < 0) return api.call("List", api.call("Waits"), ...(await as("Opener")).args.map((a) => a.value));
   const code = (api.context.args ?? []).map((a) => a.value).find((f) => isCall(f) && f.head === "Code");
   const language = code ? api.store.get(code.args[0].value.head) : undefined;
   const offside = !!language && language.relations.some((r) => isCall(r.claim) && r.claim.head === "Offside");
