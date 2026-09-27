@@ -47,7 +47,7 @@ async (args, bindings, api) => {
   const done = (rule) => {
     const code = fn(rule);
     const written = api.writeCode(code, "JavaScript");
-    return api.call("Derived", { head: "SourceCode", args: [{ value: written.text }, { name: "language", value: api.call("JavaScript") }, { name: "ir", value: code }] }, name);
+    return { head: "Derived", args: [{ value: { head: "SourceCode", args: [{ value: written.text }, { name: "language", value: api.call("JavaScript") }, { name: "ir", value: code }] } }, { value: name }, { name: "fits", value: examples.length }] };
   };
   const mentions = (e, n) => (e !== null && typeof e === "object" && "variable" in e ? e.variable === n : isCall(e) && e.args.some((a) => mentions(a.value, n)));
   // With more than one argument a rule uses them all: a rule that ignores one fits the examples by chance.

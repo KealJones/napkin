@@ -1,7 +1,7 @@
 // @realization Write(Rest($said)), context = Execution(), evaluateArguments = false
 // Code written from examples the message shows ("write a function where f(1) is 2, f(2) is 4"),
 // in the language said, if one is (a TargetLanguage the graph holds), else JavaScript. With no
-// examples, Write stays itself, for whatever else can take it.
+// examples, a function that does what a doing names (WriteDoing).
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const languages = api.store.all().filter((u) => u.relations.some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0].value) && r.claim.args[0].value.head === "TargetLanguage")).map((u) => u.identity);
@@ -23,11 +23,11 @@ async (args, bindings, api) => {
     for (const a of e.args) inContext(a.value);
   };
   if (examples) inContext(api.context);
-  if (!examples) return api.call("Write", ...args.map((a) => a.value));
+  if (!examples) return api.evaluate(api.call("WriteDoing", ...args.map((a) => a.value)), api.context);
   const derived = await api.evaluate(examples, api.context);
   if (!target || target === "JavaScript" || !isCall(derived) || derived.head !== "Derived") return derived;
   const ir = derived.args[0].value.args.find((a) => a.name === "ir").value;
   const written = api.writeCode(ir, target);
   if (written.unwritable.length) return api.call("CannotWrite", target, api.call("List", ...written.unwritable));
-  return api.call("Derived", { head: "SourceCode", args: [{ value: written.text }, { name: "language", value: api.call(target) }, { name: "ir", value: ir }] }, derived.args[1].value);
+  return { ...derived, args: [{ value: { head: "SourceCode", args: [{ value: written.text }, { name: "language", value: api.call(target) }, { name: "ir", value: ir }] } }, ...derived.args.slice(1)] };
 };

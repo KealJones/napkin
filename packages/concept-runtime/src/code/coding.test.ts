@@ -91,3 +91,8 @@ test("a file is fixed in place and saved back where it came from, keeping its la
   const ran = await ask("run `function f(n) { return n * 2 }` with 21");
   assert.match((await ask("convert it to python", [{ message: "run", result: ran.result }])).said, /def f\(n\):\n    return \(n \* 2\)/);
 });
+
+test("a function is written for what a doing names, in the language asked for", async () => {
+  assert.equal((await ask("write a function that adds two numbers")).said, "Here's add:\n\n```javascript\nfunction add(a, b) { return (a + b) }\n```");
+  assert.match((await ask("write a python function that multiplies two numbers")).said, /```python\ndef multiply\(a, b\):\n    return \(a \* b\)\n```/);
+});

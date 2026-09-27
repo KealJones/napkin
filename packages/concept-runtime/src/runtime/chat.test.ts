@@ -208,3 +208,11 @@ test("arithmetic in symbols, with grouping, powers and fractions, is the sum it 
   assert.equal(await ask("whats 3/4"), "Answer(0.75)");
   assert.equal(await ask("what's 12 * 12 - 4"), "Answer(140)");
 });
+
+test("a thing named that works out to a value is answered, and lists and counts are said as words", async () => {
+  assert.equal(await ask("average of 3, 5, 10"), "Answer(6)");
+  const spoken = async (text: string) => (await turn(new Runtime(store), text, c("Execution"), { learn: false })).spoken;
+  assert.equal(await spoken("sort 5, 3, 9, 1"), "1, 3, 5 and 9.");
+  assert.equal(await spoken('reverse "hello"'), "olleh");
+  assert.match(await spoken("how many days until christmas"), /^\d+ days\.$/);
+});

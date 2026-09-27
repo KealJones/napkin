@@ -298,13 +298,23 @@ Concept(Words(),
                       ),
                       Undefined()
                     ),
+                    Comment("A count of a plural noun is said count first: Days(89) is \"89 days\"."),
+                    Bind($word, Call($spoken, Member($e, "head"))),
+                    If(
+                      And(
+                        And(
+                          And(Equals(Length($positional), 1), Equals(TypeOf(Index($positional, 0)), "number")),
+                          Not(Includes($word, " "))
+                        ),
+                        NotEquals(Call(Member($api, "lemma"), $word), $word)
+                      ),
+                      Return(Add(Add(Call($number, Index($positional, 0)), " "), $word)),
+                      Undefined()
+                    ),
                     Return(
                       Call(
                         Member(
-                          Concat(
-                            List(Call($spoken, Member($e, "head"))),
-                            Await(Call(Member($Promise, "all"), Map($positional, $say)))
-                          ),
+                          Concat(List($word), Await(Call(Member($Promise, "all"), Map($positional, $say)))),
                           "join"
                         ),
                         " "
@@ -1989,5 +1999,56 @@ Concept(Position(),
   Realization(Position(),
     context = Speaking(),
     body = "its place"
+  )
+)
+
+// A list said on its own, as words: "1, 3, 5 and 9."
+Concept(List(),
+  Realization(List(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Words",
+                    Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                    )
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Bind($t,
+              If(
+                Equals(TypeOf($said), "string"),
+                Call(Member($said, "trim")),
+                ""
+              )
+            ),
+            Return(
+              If(
+                $t,
+                Add(Add(Call(Member(Index($t, 0), "toUpperCase")), Call(Member($t, "slice"), 1)), "."),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
   )
 )

@@ -725,6 +725,69 @@ Concept(Mood(),
               ),
               Undefined()
             ),
+            Comment("A thing named that works out to a value (\"average of 3, 5 and 10\", \"square root of 144\")"),
+            Comment("is asked for, not told: worked out as a question would be, apart, and answered when it"),
+            Comment("gives a value. What is told (a claim, a greeting) gives none and is noted as before."),
+            If(
+              And(
+                And(And(And($kind, Equals(Member($kind, "head"), "Declarative")), $line), Member($line, "head")),
+                Length(Member($line, "args"))
+              ),
+              Sequence(
+                Bind($asked,
+                  Call(
+                    Member($api, "call"),
+                    "Context",
+                    Spread($facets),
+                    Call(Member($api, "call"), "Hypothetical")
+                  )
+                ),
+                Var($value, Undefined()),
+                Try(
+                  Assign($value, Await(Call(Member($api, "evaluate"), $line, $asked))),
+                  Catch($error, Assign($value, Undefined()))
+                ),
+                Bind($plain,
+                  Lambda(List($v),
+                    Or(
+                      Or(Equals(TypeOf($v), "number"), And(Equals(TypeOf($v), "string"), GreaterThan(Length($v), 0))),
+                      And(
+                        And(And($v, Equals(Member($v, "head"), "List")), GreaterThan(Length(Member($v, "args")), 0)),
+                        Call(Member(Member($v, "args"), "every"), Lambda(List($a), Call($plain, Member($a, "value"))))
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Call($plain, $value),
+                  Sequence(
+                    Bind($answer,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          $line,
+                          Call(
+                            Member($api, "call"),
+                            "Context",
+                            Spread($facets),
+                            Call(Member($api, "call"), "Interrogative")
+                          )
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        And($answer, Equals(Member($answer, "head"), "Answer")),
+                        $answer,
+                        Call(Member($api, "call"), "Answer", $answer)
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               And($kind, Equals(Member($kind, "head"), "Declarative")),
               Sequence(

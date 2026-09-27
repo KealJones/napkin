@@ -4336,6 +4336,12 @@ Concept(Reverse(),
             ),
             Bind($list, Lambda(List($xs), Call(Member($api, "call"), "List", Spread($xs)))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Comment("Text reversed is its letters in the other order."),
+            If(
+              Equals(TypeOf(Index($v, 0)), "string"),
+              Return(Call(Member(Call(Member(Concat(Index($v, 0)), "reverse")), "join"), "")),
+              Undefined()
+            ),
             Return(Call($list, Call(Member(Call($items, Index($v, 0)), "reverse"))))
           )
         )
