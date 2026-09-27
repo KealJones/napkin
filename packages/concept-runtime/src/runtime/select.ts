@@ -111,6 +111,37 @@ function facetHeads(realization: Realization): string[] {
   return found;
 }
 
+/**
+ * The realizations a call to `head` could select in a context: its lineage's, not retired,
+ * and naming no facet head the context lacks (a facet can only match one with its head).
+ * Worked out once per head and set of active facet heads, until the store changes.
+ */
+interface Reachable {
+  readonly unit: ConceptUnit;
+  readonly realization: Realization;
+  readonly distance: number;
+  readonly order: number;
+}
+const reachables = new WeakMap<ConceptStore, { version: number; byKey: Map<string, Reachable[]> }>();
+function reachable(store: ConceptStore, head: string, context: Expr | undefined): Reachable[] {
+  const active = [...new Set(facets(context).flatMap((f) => (isCall(f) ? [f.head] : [])))].sort();
+  let cache = reachables.get(store);
+  if (!cache || cache.version !== store.version) reachables.set(store, (cache = { version: store.version, byKey: new Map() }));
+  const key = `${head} ${active.join(" ")}`;
+  const known = cache.byKey.get(key);
+  if (known) return known;
+  const has = new Set(active);
+  const out: Reachable[] = [];
+  lineage(store, head).forEach((unit, distance) => {
+    unit.realizations.forEach((realization, order) => {
+      if (realization.retired || facetHeads(realization).some((h) => !has.has(h))) return;
+      out.push({ unit, realization, distance, order });
+    });
+  });
+  cache.byKey.set(key, out);
+  return out;
+}
+
 export function candidates(
   store: ConceptStore,
   target: Call,
@@ -125,21 +156,15 @@ export function candidates(
   preference?: (candidate: Candidate) => number | undefined,
 ): Candidate[] {
   const found: Candidate[] = [];
-  const chain = lineage(store, target.head);
-  // A facet a realization names can only match an active facet with its head: one naming a
-  // head nothing active has is passed over before any matching.
-  const active = new Set(facets(context).flatMap((f) => (isCall(f) ? [f.head] : [])));
-
-  chain.forEach((unit, distance) => {
-    unit.realizations.forEach((realization, order) => {
-      if (realization.retired) return;
-      if (realization.properties.some((p) => isCall(p) && suppressed.has(p.head))) return;
-      if (facetHeads(realization).some((h) => !active.has(h))) return;
+  for (const { unit, realization, distance, order } of reachable(store, target.head, context)) {
+    if (realization.retired) continue;
+    {
+      if (realization.properties.some((p) => isCall(p) && suppressed.has(p.head))) continue;
 
       const bindings: Bindings = new Map();
-      if (!match(realization.pattern, target, bindings)) return;
+      if (!match(realization.pattern, target, bindings)) continue;
       const ctx = matchContext(realization.context, context, bindings);
-      if (!ctx.ok) return;
+      if (!ctx.ok) continue;
 
       found.push({
         realization,
@@ -151,8 +176,8 @@ export function candidates(
         order,
         bindings,
       });
-    });
-  });
+    }
+  }
 
   found.sort((a, b) => {
     if (a.distance !== b.distance) return a.distance - b.distance;
