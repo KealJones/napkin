@@ -23,18 +23,38 @@ const flag = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) 
 const LIMIT = Number(flag("--limit", "100000"));
 const SHOW = flag("--show", undefined)?.split("|");
 const shown = new Map();
-const wants = (category) => SHOW && SHOW.some((x) => category.startsWith(x)) && (shown.set(category, (shown.get(category) ?? 0) + 1), shown.get(category) <= 3);
+const wants = (category) => SHOW && SHOW.some((x) => category.startsWith(x)) && (shown.set(category, (shown.get(category) ?? 0) + 1), shown.get(category) <= Number(flag("--examples", "3")));
 const MAX_TOKENS = Number(flag("--max-tokens", "1000000"));
 
 const store = new ConceptStore();
 seed(store);
 const stats = { evaluations: 0 };
-const hearRead = async (text, lang) => {
+const hearRead = async (text, lang, seen = () => {}) => {
   const rt = new Runtime(store, { maximumSteps: 50_000_000, maximumDepth: 10_000 });
   const h = await rt.evaluate(call("Hear", [{ value: text }]), c("Context", c("Execution"), c("Code", c(lang))));
+  seen(h);
   const r = await rt.evaluate(h, c("Context", c("Code", c(lang)), c("Reading")));
   stats.evaluations += rt.steps ?? 0;
   return { heard: h, read: r, steps: rt.steps ?? 0 };
+};
+// The smallest part of what was heard whose reading fails.
+const culprit = async (heard, lang) => {
+  const fails = async (e) => {
+    try {
+      await new Runtime(store, { maximumSteps: 50_000_000, maximumDepth: 10_000 }).evaluate(e, c("Context", c("Code", c(lang)), c("Reading")));
+      return false;
+    } catch {
+      return true;
+    }
+  };
+  let e = heard;
+  for (let depth = 0; depth < 50 && isCall(e); depth++) {
+    const inner = [];
+    for (const a of e.args) if (isCall(a.value) && (await fails(a.value))) inner.push(a.value);
+    if (!inner.length) break;
+    e = inner[0];
+  }
+  return format(e).slice(0, 300);
 };
 const hasUnsupported = (e) => isCall(e) && (e.head === "Unsupported" || e.args.some((a) => hasUnsupported(a.value)));
 // Kept on purpose, where the reference erases it: a Float(n) stated in the source counts as
@@ -87,8 +107,10 @@ async function score(name, statements, reference, lang) {
     }
     counted++;
     let category;
+    let heardTree;
     try {
-      const read = plain((await hearRead(text, lang)).read);
+      const heardRead = await hearRead(text, lang, (h) => (heardTree = h));
+      const read = plain(heardRead.read);
       if (format(unwrap(read)) === format(unwrap(ref.expression))) {
         same++;
         continue;
@@ -98,7 +120,7 @@ async function score(name, statements, reference, lang) {
       if (wants(category) && !examples.has(text)) examples.set(text, [d.ref, d.mine]);
     } catch (e) {
       category = `error: ${String(e.message).slice(0, 60)}`;
-      if (wants(category) && !examples.has(text)) examples.set(text, [String(e.stack).split("\n").slice(0, 3).join(" | "), ""]);
+      if (wants(category) && !examples.has(text)) examples.set(text, [heardTree ? await culprit(heardTree, lang) : "(hearing failed)", String(e.message)]);
     }
     categories.set(category, (categories.get(category) ?? 0) + 1);
   }
@@ -110,7 +132,7 @@ async function score(name, statements, reference, lang) {
 }
 
 const tsFiles = () =>
-  readFileSync(join(here, "corpus-9d08be4.txt"), "utf8")
+  (flag("--file", undefined) ? flag("--file") + "\n" : readFileSync(join(here, "corpus-9d08be4.txt"), "utf8"))
     .split("\n")
     .filter((f) => f.endsWith(".ts"))
     .map((f) => join(root, "../..", f))

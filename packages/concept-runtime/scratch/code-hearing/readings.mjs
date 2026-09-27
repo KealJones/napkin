@@ -15,7 +15,9 @@ export const READINGS = {
   Concept: [reads("$word", js("read-default.js"))],
   Phrases: [reads("Phrases(Rest($statements))", js("phrases.js"))],
   Number: [reads("Number($said)", js("number.js", { __SUFFIX__: '{ n: "BigInt" }' })), reads("Number($said)", js("number.js", { __SUFFIX__: "{}" }), PY)],
-  ...keepAll(["Comment", "Regex", "Else", "Break", "Continue", "Return", "Yield", "Parens", "Angles"]),
+  ...keepAll(["Comment", "Regex", "Else", "Break", "Continue", "Return", "Yield", "Parens"]),
+  // Angles say at what types a name is used: kept as said, not read as code.
+  Angles: [w("Types a name is used at, kept as said.", `return self;`)],
   Minus: [reads("Minus($a)", "Negate($a)")],
   Dot: [reads("$word", js("dot.js"), { evaluate: false })],
   // The helpers the readings ask: what a pattern binds, a function's parameters and body.
@@ -251,7 +253,7 @@ export const READINGS = {
   return api.call("Concat", ...runs);`,
     ),
   ],
-  Index: [w('"a[0]": what a holds at 0.', `return api.call("Index", await read(parts[0]), await read(parts[1]));`)],
+  Index: [w('"a[0]": what a holds at 0; "T[]", a type, is kept as said.', `return parts.length === 2 ? api.call("Index", await read(parts[0]), await read(parts[1])) : self;`)],
   OptionalDot: [
     w(
       '"a?.b": a\'s member b, if there is an a.',

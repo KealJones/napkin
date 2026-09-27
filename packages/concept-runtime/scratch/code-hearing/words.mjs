@@ -24,7 +24,7 @@ export const WORDS = [
   ["Instanceof", ["Infix"], undefined, "Binds(90)", ["SynonymOf(InstanceOf())"], TS],
   ["As", ["Infix"], undefined, "Binds(90)"],
   ["Satisfies", ["Infix"], undefined, "Binds(90)", TS],
-  ["Is", ["Infix"], undefined, "Binds(90)", PY],
+  ["Is", ["Infix"], undefined, "Binds(90)"],
   ["Equals", ["Infix"], "===", "Binds(80)", [only('Spelled("==")', PY)]],
   ["NotEquals", ["Infix"], "!==", "Binds(80)", [only('Spelled("!=")', PY)]],
   ["LooseEquals", ["Infix"], undefined, "Binds(80)", [only('Spelled("==")', TS)], TS],

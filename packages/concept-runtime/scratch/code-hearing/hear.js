@@ -66,12 +66,14 @@ async (args, bindings, api) => {
   const kinds = said.map((w, i) => [SHAPE[w.kind] ?? "Symbol", ...kindsOf(heads[i])]);
   // A word typed other than as its Concept's plain name ("Set" beside "set"), a member's name
   // ("x.set"), or a key ("{ default: 1 }") is a name, whatever the word is elsewhere.
+  const is0 = (i, k) => kinds[i].includes(k);
   for (let i = 0; i < n; i++) {
     const w = said[i];
     if (w.kind !== "name" || kinds[i].length === 1) continue;
     const member = i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "." || said[i - 1].text === "?.");
     const key = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === ":" && i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "{" || said[i - 1].text === ",");
-    if (w.text !== heads[i][0].toLowerCase() + heads[i].slice(1) || member || key) kinds[i] = ["Name"];
+    const owner = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === "." && !is0(i, "Infix");
+    if (w.text !== heads[i][0].toLowerCase() + heads[i].slice(1) || member || key || owner) kinds[i] = ["Name"];
   }
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
   const become = (i, head) => {
@@ -121,11 +123,15 @@ async (args, bindings, api) => {
     if (p < 0) return true;
     if (is(p, "TakesBlock")) return true;
     if (is(p, "Separator")) return inside[p] < 0 || is(inside[p], "Scope") || heads[p] === "Semicolon";
+    if (is(p, "Opener")) return is(p, "Scope");
+    // After a signature's type ("f(): string[] {", "(): void {"), a brace is the block the
+    // type is of: look back along what is said for the colon that follows round brackets.
+    for (let j = p; j >= 0; j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
+      if (heads[j] === "Returns") return true;
+      if (is(j, "Separator") || is(j, "Scope") || (is(j, "Opener") && !(pair[j] >= 0 && pair[j] < i)) || heads[j] === "Arrow" || heads[j] === "Assign") break;
+    }
     // After round brackets, a block, or angles ("f(x) {", "} {", "A<T> {"): a block.
     if (is(p, "Closer")) return pair[p] >= 0 && (is(pair[p], "Round") || is(pair[p], "Scope") || is(pair[p], "Attached"));
-    if (is(p, "Opener")) return is(p, "Scope");
-    // After a type ("(): void {"), a brace is the block the type is of.
-    if (is(p, "Prefix") && (heads[p - 1] === "Colon" || heads[p - 1] === "Returns")) return true;
     return ends(p) || is(p, "Comment");
   };
   for (let i = 0; i < n; i++) {
@@ -139,6 +145,8 @@ async (args, bindings, api) => {
       pair[i] = top;
       inside[i] = open.length ? open[open.length - 1] : -1;
       kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator"), "Closer"];
+      // It only closes: what it does elsewhere ("a: b") it does not do here.
+      if (!kindsOf(heads[i]).includes("Closer")) heads[i] = undefined;
       continue;
     }
     if (is(i, "Closer")) {

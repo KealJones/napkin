@@ -33,7 +33,7 @@ async (args, bindings, api) => {
   // A block after an operator is the operator's thing: it stands alone, as a value does.
   const alone = kinds.map((_, i) => scope[i] && leader[i] < 0 && infix[i - 1]);
   // A thing can end here: a name that is not an operator, a value, a closed group (not a block).
-  const plainEnd = (i) => (is(i, "Name") && !infix[i] && !prefix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && (!scope[pair[i]] || alone[pair[i]]));
+  const plainEnd = (i) => (is(i, "Name") && !infix[i] && !prefix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && (!scope[pair[i]] || alone[pair[i]]) && !is(pair[i] - 1, "Heads"));
   // An operator that cannot stand alone, found where a thing should be, is a thing ("import *").
   const stray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1]);
   const ends = (i) => plainEnd(i) || !!stray[i];

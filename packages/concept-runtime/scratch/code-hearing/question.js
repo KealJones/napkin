@@ -20,6 +20,8 @@ async (args, bindings, api) => {
   while (l >= 0 && v("parent", l) >= 0 && v("hi", v("parent", l)) < at) l = v("parent", l);
   if (l >= 0 && v("parent", l) < 0 && !v("punctuation", l)) {
     const b = v("lo", l) - 1;
+    // Something still to its left that belongs to it ("a.b" before "a" is taken): not whole yet.
+    if (v("operandEnd", b)) return api.call("List", ...out);
     const before = b >= 0 && (v("infix", b) || v("prefix", b)) ? holding(b) : null;
     if (before === null || before <= mine) link(l, "Takes");
   }
@@ -33,7 +35,7 @@ async (args, bindings, api) => {
     while (v("parent", r) >= 0 && v("lo", v("parent", r)) > close) r = v("parent", r);
     const e = v("hi", r) + 1;
     // Its own closing bracket, not yet absorbed, is not where it ends.
-    if (v("punctuation", e) && v("pair", e) >= r && v("pair", e) < e) return api.call("List", ...out);
+    if (v("punctuation", e) && v("pair", e) >= v("lo", r) && v("pair", e) < e) return api.call("List", ...out);
     const next = v("operator", e) && !v("unary", e) ? holding(e) : undefined;
     if (v("boundary", e) || (next !== undefined && next !== null && next < mine)) link(r, "Takes");
   }

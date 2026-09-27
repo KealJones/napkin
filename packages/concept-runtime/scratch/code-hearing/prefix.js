@@ -16,7 +16,7 @@ async (args, bindings, api) => {
     if (v("parent", r) >= 0 || v("punctuation", r)) return [];
     const e = v("hi", r) + 1;
     // Its own closing bracket, not yet absorbed, is not where it ends.
-    if (v("punctuation", e) && v("pair", e) >= r && v("pair", e) < e) return [];
+    if (v("punctuation", e) && v("pair", e) >= v("lo", r) && v("pair", e) < e) return [];
     const next = v("operator", e) && !v("unary", e) ? v("binds", e) : undefined;
     return v("boundary", e) || (next !== undefined && next !== null && next <= mine) ? [api.call("Link", r, at, api.call("Takes"))] : [];
   };
