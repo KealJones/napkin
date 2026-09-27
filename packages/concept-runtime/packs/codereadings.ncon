@@ -1,0 +1,187 @@
+// How heard code reads as the code IR where that is only saying it with other Concepts: each a
+// realization under Context(Code(<language>), Reading()) whose body is built, not read again
+// (resultContext Code()). Readings that work something out are in packs/code-hearing.ncon.
+Requires(CodeWords())
+
+// What the code IR names the same.
+Concept(Else(),
+  Realization(Else(Rest($xs)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Else(Rest($xs))
+  )
+)
+
+Concept(Break(),
+  Realization(Break(Rest($xs)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Break(Rest($xs))
+  )
+)
+
+Concept(Continue(),
+  Realization(Continue(Rest($xs)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Continue(Rest($xs))
+  )
+)
+
+Concept(Return(),
+  Realization(Return(Rest($xs)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Return(Rest($xs))
+  )
+)
+
+Concept(Yield(),
+  Realization(Yield(Rest($xs)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Yield(Rest($xs))
+  )
+)
+
+// The language's words for what the code IR names otherwise.
+Concept(Minus(),
+  Realization(Minus($a),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Negate($a)
+  )
+)
+
+Concept(Typeof(),
+  Realization(Typeof($x),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = TypeOf($x)
+  )
+)
+
+Concept(Instanceof(),
+  Realization(Instanceof($a, $b),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = InstanceOf($a, $b)
+  )
+)
+
+Concept(Question(),
+  Realization(Question($a, $b, $c),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = If($a, $b, $c)
+  )
+)
+
+// "x += 1" is x now holding x + 1.
+Concept(PlusAssign(),
+  Realization(PlusAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, Add($x, $v))
+  )
+)
+
+Concept(MinusAssign(),
+  Realization(MinusAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, Subtract($x, $v))
+  )
+)
+
+Concept(TimesAssign(),
+  Realization(TimesAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, Multiply($x, $v))
+  )
+)
+
+Concept(OrAssign(),
+  Realization(OrAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, Or($x, $v))
+  )
+)
+
+Concept(AndAssign(),
+  Realization(AndAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, And($x, $v))
+  )
+)
+
+Concept(OtherwiseAssign(),
+  Realization(OtherwiseAssign($x, $v),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Assign($x, Otherwise($x, $v))
+  )
+)
+
+// The words a language gives values.
+Concept(True(),
+  Realization(True(Rest($_)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = true
+  )
+)
+
+Concept(False(),
+  Realization(False(Rest($_)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = false
+  )
+)
+
+Concept(Null(),
+  Realization(Null(Rest($_)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = null
+  )
+)
+
+Concept(Undefined(),
+  Realization(Undefined(Rest($_)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = Undefined()
+  )
+)
+
+Concept(This(),
+  Realization(This(Rest($_)),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = This()
+  )
+)
+
+Concept(None(),
+  Realization(None(Rest($_)),
+    context = Context(Code(Python()), Reading()),
+    resultContext = Code(),
+    body = null
+  )
+)
+
+Concept(Pass(),
+  Realization(Pass(),
+    context = Context(Code(Python()), Reading()),
+    resultContext = Code(),
+    body = Undefined()
+  )
+)
+
+// What a number's suffix says it is, in a language: "3n" is a BigInt in TypeScript.
+Concept(BigInt(), Relation(NumberSuffix("n"), context = Code(TypeScript())))

@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { formatNcon } from "../../dist/code/format.js";
 import { ConceptStore } from "../../dist/store/store.js";
 import { seed } from "../../dist/seed/seed.js";
-import { READINGS } from "./readings.mjs";
-import { js } from "./lib.mjs";
+import { readdirSync, readFileSync } from "node:fs";
+import { js, readsWord } from "./lib.mjs";
 import { deriveBinds } from "./binds.mjs";
 
 // How tightly operators bind in each language, from its tree-sitter grammar (binds.mjs): an
@@ -67,7 +67,7 @@ say(`// SPIKE (spike/hear-code-words): code heard the way a message is. Each wor
 // belongs to the word that leads it. The heard words then realize, under
 // Context(Code(<language>), Reading()), as the code IR (ForOf, Func, If, Call ...), which the
 // language packs write out. Bodies written from the JavaScript in scratch/code-hearing by gen.mjs.
-Requires(Hearing(), Code(), Python(), TypeScript(), CodeWords(), CodeBinds())
+Requires(Hearing(), Code(), Python(), TypeScript(), CodeWords(), CodeBinds(), CodeReadings())
 
 // What a word says about itself, here: Sense(position, Concept).
 Concept(Sense(), IsA(Data()))
@@ -103,8 +103,12 @@ say(`// "[" after a thing: its index.
 Concept(Brackets(), ${senses("brackets.js")})`);
 say(`// "(" after a closed group: what it gives, called.
 Concept(Parens(), ${senses("parens.js")})`);
-say("// Reading what was heard as the code IR.");
-for (const [head, rs] of Object.entries(READINGS)) say(`Concept(${head}(), ${rs.join(", ")})`);
+say("// Reading what was heard as the code IR, where that works something out: each Concept's own, from\n// read/<Concept>.js (read/<Concept>.<Language>.js for one language only). Readings that only say\n// it with other Concepts are packs/codereadings.ncon.");
+for (const file of readdirSync(join(here, "read")).filter((f) => f.endsWith(".js")).sort()) {
+  const [head, language] = file.replace(/\.js$/, "").split(".");
+  const context = language ? `Context(Code(${language}()), Reading())` : "Context(Code($language), Reading())";
+  say(`Concept(${head}(), ${readsWord(readFileSync(join(here, "read", file), "utf8"), context)})`);
+}
 writeFileSync(join(here, "../../packs/code-hearing.ncon"), formatNcon(out.join("\n\n") + "\n"));
 console.log("derived Binds:", [...derived.values()].flat().length, "relations on", derived.size, "words");
 console.log("wrote packs/code-hearing.ncon, packs/codebinds.ncon");

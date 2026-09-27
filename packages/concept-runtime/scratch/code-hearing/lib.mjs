@@ -21,12 +21,6 @@ export const jsText = (src, file = "body") => {
 export const READS = "Context(Code($language), Reading())";
 export const READS_PY = "Context(Code(Python()), Reading())";
 export const READS_TS = "Context(Code(TypeScript()), Reading())";
-// What a composed body builds is code already, so it is built under Code() alone and not read again.
-export const reads = (pattern, body, { context = READS, evaluate = true } = {}) =>
-  `Realization(${pattern}, context = ${context}${evaluate ? "" : ", evaluateArguments = false"}${body.startsWith("Code(") ? "" : ", resultContext = Code()"}, body = ${body})`;
-// A word read as what it already names in the code IR: built, not read again.
-export const keeps = (head, context = READS) => `Realization(${head}(Rest($xs)), context = ${context}, resultContext = Code(), body = ${head}(Rest($xs)))`;
-
 // A reading written as a snippet: the word as $word, its positional parts, its named ones,
 // and small helpers to read a part, ask a helper Concept, and say a name.
 const PRELUDE = `
@@ -51,6 +45,8 @@ const PRELUDE = `
     return xs.length || called ? api.call("Call", variable(self), ...xs) : variable(self);
   }
 `;
-export const snippet = (comment, code) => jsText(`async (args, bindings, api) => {\n  // ${comment}\n${PRELUDE}\n${code}\n}`);
-// A reading on $word whose parts are not read first: the snippet reads what it needs.
-export const readsWord = (comment, code, context = READS) => `Realization($word, context = ${context}, evaluateArguments = false, body = ${snippet(comment, code)})`;
+// A reading's body: its own code (a comment saying what it reads, then what it does), after the
+// shared helpers above.
+export const snippet = (code) => jsText(`async (args, bindings, api) => {\n${PRELUDE}\n${code}\n}`);
+// A reading on $word whose parts are not read first: the body reads what it needs.
+export const readsWord = (code, context = READS) => `Realization($word, context = ${context}, evaluateArguments = false, body = ${snippet(code)})`;
