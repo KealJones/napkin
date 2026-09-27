@@ -102,7 +102,10 @@ export function holdsResidual(runtime: Runtime, result: Expr | undefined): boole
   if (isCall(result) && result.head === "Describes") return false;
   const unevaluated = runtime.trace.residuals(runtime.attemptStart).map((e) => e.input);
   if (!unevaluated.length) return false;
-  for (const node of walk(result)) {
+  // What a named argument holds is data about its call (a SourceCode's ir= is code, not steps
+  // left undone): only the answer's own parts are walked.
+  const parts = (e: Expr): Expr[] => [e, ...(isCall(e) ? e.args.filter((a) => a.name === undefined).flatMap((a) => parts(a.value)) : [])];
+  for (const node of parts(result)) {
     if (isCall(result) && result.head === "Answer" && node === result) continue;
     // Inert data is the answer's structure. Keep walking its children: a data wrapper
     // must never hide an unresolved computation or reference inside it.
@@ -120,6 +123,8 @@ function isPureData(runtime: Runtime, identity: string): boolean {
     lineage(runtime.store, identity).some((u) => u.identity === "Data" || u.identity === "Result");
 }
 
+const holds = (e: Expr, part: Expr): boolean => equal(e, part) || (isCall(e) && e.args.some((a) => a.name === undefined && holds(a.value, part)));
+
 /** Everything the graph could not realize, plus every unresolved reference. */
 export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
   const gaps = new Map<string, Gap>();
@@ -132,7 +137,9 @@ export function collectGaps(runtime: Runtime, result: Expr | undefined): Gap[] {
     // A residual that was worked around is not missing: "what is my name" left My(Name())
     // residual and then found the name some other way. Only what the answer still holds, or
     // a turn with no answer at all, has something left to learn.
-    if (result !== undefined && ![...walk(result)].some((node) => equal(node, event.input))) continue;
+    // What a named argument holds is data about its call (a SourceCode's ir= is code, not steps
+    // left undone), so only what the answer holds as its own parts counts.
+    if (result !== undefined && !holds(result, event.input)) continue;
     // A name resolved to an individual is a thing, not missing behaviour: "who is greg"
     // describes Greg_1 whether or not a kind called Greg exists.
     if (isCall(event.input) && event.input.args.some((a) => a.name === "resolvedTo")) continue;

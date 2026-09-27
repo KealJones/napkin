@@ -96,3 +96,9 @@ test("a function is written for what a doing names, in the language asked for", 
   assert.equal((await ask("write a function that adds two numbers")).said, "Here's add:\n\n```javascript\nfunction add(a, b) { return (a + b) }\n```");
   assert.match((await ask("write a python function that multiplies two numbers")).said, /```python\ndef multiply\(a, b\):\n    return \(a \* b\)\n```/);
 });
+
+test("what code shown gives is what running it gives, however it is asked", async () => {
+  assert.equal((await ask("what does `[1,2,3].filter(n => n > 1)` give")).said, "It gives `[2, 3]`.");
+  assert.equal((await ask("what does `2 ** 8` return")).said, "It gives 256.");
+  assert.equal((await ask("what's the output of `'ab'.repeat(3)`")).said, 'It gives "ababab".');
+});

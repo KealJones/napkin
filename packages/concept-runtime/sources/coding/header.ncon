@@ -35,6 +35,8 @@ Concept(Example(), IsA(Data()))
 
 Concept(Make(), SynonymOf(Write()))
 
+Concept(Output(), SynonymOf(Run()))
+
 Concept(Create(), SynonymOf(Write()))
 
 // A file written, and a file that could not be read or written.

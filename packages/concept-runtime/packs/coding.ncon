@@ -35,6 +35,8 @@ Concept(Example(), IsA(Data()))
 
 Concept(Make(), SynonymOf(Write()))
 
+Concept(Output(), SynonymOf(Run()))
+
 Concept(Create(), SynonymOf(Write()))
 
 // A file written, and a file that could not be read or written.
@@ -3254,6 +3256,21 @@ Concept(Ran(),
               Undefined()
             ),
             Bind($v, Member(Index($args, 0), "value")),
+            Comment("A value as code would write it, or as JSON when code can't write it (a record, say)."),
+            Bind($shown,
+              Lambda(List($x),
+                Sequence(
+                  Bind($w, Call(Member($api, "writeCode"), $x, "JavaScript")),
+                  Return(
+                    If(
+                      Length(Member($w, "unwritable")),
+                      Call(Member($JSON, "stringify"), Call(Member($api, "toHost"), $x)),
+                      Member($w, "text")
+                    )
+                  )
+                )
+              )
+            ),
             Bind($said,
               If(
                 Equals(TypeOf($v), "string"),
@@ -3266,7 +3283,7 @@ Concept(Ran(),
                   "nothing",
                   If(
                     Equals(TypeOf($v), "object"),
-                    Call(Member($api, "format"), $v),
+                    Add(Add("`", Call($shown, $v)), "`"),
                     Call($String, $v)
                   )
                 )
@@ -3368,6 +3385,122 @@ Concept(What(),
                 ),
                 Member($api, "context")
               )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what does `this` give / return?" of code shown is what running it gives (Run); "do" is what
+// it does, in words (Explain).
+Concept(What(),
+  Realization(What(Does(Block($text, Rest($more)), $doing)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($doing, Call(Member($bindings, "get"), "doing")),
+            Bind($does,
+              And(And(Call($isCall, $doing), Equals(Member($doing, "head"), "Do")), Not(Length(Member($doing, "args"))))
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  If($does, "Explain", "Run"),
+                  Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value")
+                ),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what does `this` give / return?" of code shown is what running it gives (Run); "do" is what
+// it does, in words (Explain).
+Concept(What(),
+  Realization(What(Does(InlineCode($text, Rest($more)), $doing)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($doing, Call(Member($bindings, "get"), "doing")),
+            Bind($does,
+              And(And(Call($isCall, $doing), Equals(Member($doing, "head"), "Do")), Not(Length(Member($doing, "args"))))
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  If($does, "Explain", "Run"),
+                  Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value")
+                ),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what is `2 ** 8`?" asks what the code shown works out to: running it (Run).
+Concept(What(),
+  Realization(What(Is(Block($text, Rest($more)))),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Return(
+            Call(
+              Member($api, "evaluate"),
+              Call(
+                Member($api, "call"),
+                "Run",
+                Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value")
+              ),
+              Member($api, "context")
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what is `2 ** 8`?" asks what the code shown works out to: running it (Run).
+Concept(What(),
+  Realization(What(Is(InlineCode($text, Rest($more)))),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Return(
+            Call(
+              Member($api, "evaluate"),
+              Call(
+                Member($api, "call"),
+                "Run",
+                Member(Index(Member(Member(Index($args, 0), "value"), "args"), 0), "value")
+              ),
+              Member($api, "context")
             )
           )
         )
