@@ -16,6 +16,14 @@ async (args, bindings, api) => {
   for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value.args;
   const v = (k, i) => (i >= 0 && i < field[k].length ? field[k][i].value : undefined);
   const is = (i, k) => i >= 0 && i < field.kinds.length && v("kinds", i).args.some((a) => a.value === k);
+  const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
+  const n = field.kinds.length;
+  const head = (i) => v("heads", i);
+  const claim = (h, k) => {
+    const unit = h ? api.store.get(h) : undefined;
+    const r = unit ? unit.relations.find((x) => isCall(x.claim) && x.claim.head === k) : undefined;
+    return r ? r.claim : undefined;
+  };
   const close = v("pair", at);
   if (close < 0) return api.call("List");
   // The parts: between separators; a comment is a part of its own; in a template, each piece.
@@ -32,11 +40,11 @@ async (args, bindings, api) => {
       if (k > a) parts.push([a, k]);
       parts.push([k, k + 1]);
       a = k + 1;
-    } else if (v("pair", k) > k && v("scope", k) && !v("alone", k) && v("operandStart", v("pair", k) + 1) && v("pair", k) + 1 < close) {
+    } else if (v("pair", k) > k && v("scope", k) && !v("alone", k) && v("operandStart", v("pair", k) + 1) && !is(v("pair", k) + 1, "Continues") && v("pair", k) + 1 < close) {
       // A block ends what is said: what starts after it is another part.
       parts.push([a, v("pair", k) + 1]);
       a = v("pair", k) + 1;
-    } else if (is(k, "Separator") && !v("scope", k + 1)) {
+    } else if (is(k, "Separator") && !v("scope", k + 1) && !is(k + 1, "Continues")) {
       if (k > a) parts.push([a, k]);
       separators.push(k);
       a = k + 1;
@@ -80,7 +88,40 @@ async (args, bindings, api) => {
     }
   };
   if (v("scope", at)) {
-    const owner = v("leader", at);
+    // Who the block belongs to: the name whose brackets come just before it (a function, a
+    // method; with its return type, that type's colon), else the word that leads what is said
+    // before it (if, for, class, else). After an operator it belongs to no one: it is the
+    // operator's thing ("=> { }").
+    const stops = (k) => is(k, "Separator") || v("scope", k) || is(k, "Comment") || (is(k, "Closer") && v("scope", v("pair", k)));
+    const back = (j) => (is(j, "Closer") && v("pair", j) >= 0 ? v("pair", j) - 1 : j - 1);
+    const leader = () => {
+      let p = at - 1;
+      if (is(p, "Separator") && head(at) !== "Block") p--;
+      if (p < 0 || v("infix", p)) return -1;
+      let k = p;
+      let typed = -1;
+      if (!(is(k, "Closer") && head(v("pair", k)) === "Parens")) {
+        for (let j = k; j >= 0 && !stops(j); j = back(j)) {
+          if (is(j, "Opener")) break;
+          if (head(j) === "Returns") {
+            typed = j;
+            k = j - 1;
+            break;
+          }
+        }
+      }
+      if (is(k, "Closer") && head(v("pair", k)) === "Parens") {
+        let g = v("pair", k) - 1;
+        if (is(g, "Closer") && head(v("pair", g)) === "Angles") g = v("pair", g) - 1;
+        if (is(g, "Name") && !v("infix", g)) return v("prefix", g) ? g : typed >= 0 ? typed : g;
+      }
+      for (let j = p; j >= 0 && !stops(j); j = back(j)) {
+        if (is(j, "Opener")) break;
+        if (v("prefix", j)) return j;
+      }
+      return -1;
+    };
+    const owner = leader();
     if (owner >= 0 && is(owner, "Prefix")) into(owner);
     else {
       word();

@@ -303,669 +303,164 @@ Concept(Hear(),
                 )
               )
             ),
-            Comment("A word typed other than as its Concept's plain name (\"Set\" beside \"set\"), a member's name"),
-            Comment("(\"x.set\"), or a key (\"{ default: 1 }\") is a name, whatever the word is elsewhere."),
-            Bind($is0, Lambda(List($i, $k), Includes(Index($kinds, $i), $k))),
-            For(
-              Var($i, 0),
-              LessThan($i, $n),
-              PostIncrement($i),
-              Sequence(
-                Bind($w, Index($said, $i)),
-                If(
-                  Or(NotEquals(Member($w, "kind"), "name"), Equals(Length(Index($kinds, $i)), 1)),
-                  Continue(),
-                  Undefined()
-                ),
-                Bind($member,
-                  And(
-                    And(GreaterThan($i, 0), Equals(Member(Index($said, Subtract($i, 1)), "kind"), "symbol")),
-                    Or(
-                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "."),
-                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "?.")
-                    )
-                  )
-                ),
-                Bind($key,
-                  And(
-                    And(
-                      And(
-                        And(
-                          And(LessThan(Add($i, 1), $n), Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")),
-                          Equals(Member(Index($said, Add($i, 1)), "text"), ":")
-                        ),
-                        GreaterThan($i, 0)
-                      ),
-                      Equals(Member(Index($said, Subtract($i, 1)), "kind"), "symbol")
-                    ),
-                    Or(
-                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "{"),
-                      Equals(Member(Index($said, Subtract($i, 1)), "text"), ",")
-                    )
-                  )
-                ),
-                Bind($owner,
-                  And(
-                    And(
-                      And(LessThan(Add($i, 1), $n), Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")),
-                      Equals(Member(Index($said, Add($i, 1)), "text"), ".")
-                    ),
-                    Not(Call($is0, $i, "Infix"))
-                  )
-                ),
-                Comment("A word of the language only where not used as a name, called: \"get(x)\" calls get."),
-                Bind($called,
-                  And(
-                    And(
-                      And(Call($is0, $i, "Contextual"), LessThan(Add($i, 1), $n)),
-                      Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")
-                    ),
-                    Equals(Member(Index($said, Add($i, 1)), "text"), "(")
-                  )
-                ),
-                If(
-                  Or(
-                    Or(
-                      Or(
-                        Or(
-                          NotEquals(
-                            Member($w, "text"),
-                            Add(
-                              Call(Member(Index(Index($heads, $i), 0), "toLowerCase")),
-                              Call(Member(Index($heads, $i), "slice"), 1)
-                            )
-                          ),
-                          $member
-                        ),
-                        $key
-                      ),
-                      $owner
-                    ),
-                    $called
-                  ),
-                  Assign(Index($kinds, $i), List("Name")),
-                  Undefined()
-                )
-              )
-            ),
             Bind($is, Lambda(List($i, $k), And(And(AtLeast($i, 0), LessThan($i, $n)), Includes(Index($kinds, $i), $k)))),
+            Comment("What a word says it is here (Sense): \"<\" after a name is its angles, \"{\" after a signature"),
+            Comment("is a block, \"get\" in \"x.get\" is only a name. Its Concept, with only the kinds it has."),
             Bind($become,
               Lambda(List($i, $head),
                 Sequence(
-                  Assign(Index($heads, $i), $head),
-                  Assign(
-                    Index($kinds, $i),
-                    Concat(
-                      List(Otherwise(Index($SHAPE, Member(Index($said, $i), "kind")), "Symbol")),
-                      Call($kindsOf, $head)
-                    )
-                  ),
-                  Undefined()
-                )
-              )
-            ),
-            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
-            Bind($ends,
-              Lambda(List($i),
-                Or(
-                  Or(
-                    Or(
-                      Or(
-                        Or(
-                          And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
-                          Call($is, $i, "Number")
-                        ),
-                        Call($is, $i, "Text")
-                      ),
-                      Call($is, $i, "Regex")
-                    ),
-                    And(
-                      And(Call($is, $i, "Closer"), Not(Call($is, $i, "Dedent"))),
-                      NotEquals(Index($heads, $i), Undefined())
-                    )
-                  ),
-                  And(
-                    And(
-                      And(
-                        And(
-                          And(
-                            And(Call($is, $i, "Unary"), Equals(Member(Index($said, $i), "kind"), "symbol")),
-                            GreaterThan($i, 0)
-                          ),
-                          Call($ends, Subtract($i, 1))
-                        ),
-                        Index($said, Add($i, 1))
-                      ),
-                      Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")
-                    ),
-                    Includes("[.(", Index(Member(Index($said, Add($i, 1)), "text"), 0))
-                  )
-                )
-              )
-            ),
-            Comment("Where a bracket stands says which it is. \"[\" after a thing is that thing's index. \"<\""),
-            Comment("right after a name, closing on \">\" around nothing that computes, is the name's angles."),
-            Comment("A \"{\" where a thing can start is a value; where a statement starts, or after what a"),
-            Comment("block follows, a block. Where indentation makes blocks, a brace is always a value."),
-            Bind($CALM,
-              New(
-                $Set,
-                List(
-                  ",",
-                  ".",
-                  "[",
-                  "]",
-                  "|",
-                  "&",
-                  "?",
-                  ":",
-                  "?:",
-                  "(",
-                  ")",
-                  "=>",
-                  "{",
-                  "}",
-                  ";",
-                  "...",
-                  "<",
-                  ">",
-                  "\n"
-                )
-              )
-            ),
-            For(
-              Var($i, 0),
-              LessThan($i, $n),
-              PostIncrement($i),
-              Sequence(
-                Comment("A colon that opens a block (Python's) only separates the block from what leads it."),
-                If(
-                  And(Equals(Index($heads, $i), "Colon"), Call($is, Add($i, 1), "Scope")),
-                  Assign(Index($kinds, $i), List("Symbol", "Separator")),
-                  Undefined()
-                )
-              )
-            ),
-            For(
-              Var($i, 1),
-              LessThan($i, $n),
-              PostIncrement($i),
-              Sequence(
-                Comment("A colon right after round brackets says what they give: \"(x): number\"."),
-                If(
-                  And(
-                    And(Equals(Index($heads, $i), "Colon"), Call($is, $i, "Infix")),
-                    Equals(Member(Index($said, Subtract($i, 1)), "text"), ")")
-                  ),
-                  Call($become, $i, "Returns"),
-                  Undefined()
-                ),
-                If(
-                  And(
-                    And(Equals(Index($heads, $i), "Less"), Call($is, Subtract($i, 1), "Name")),
-                    Not(Call($is, Subtract($i, 1), "Infix"))
-                  ),
-                  Sequence(
-                    Var($depth, 0),
-                    Var($j, $i),
-                    For(
-                      Undefined(),
-                      And(LessThan($j, $n), LessThan($j, Add($i, 200))),
-                      PostIncrement($j),
-                      Sequence(
-                        Bind($t, Index($said, $j)),
-                        If(
-                          And(Equals(Member($t, "kind"), "symbol"), Equals(Member($t, "text"), "<")),
-                          PostIncrement($depth),
-                          If(
-                            And(Equals(Member($t, "kind"), "symbol"), Equals(Member($t, "text"), ">")),
-                            PostDecrement($depth),
-                            If(
-                              Not(
-                                Or(
-                                  Or(
-                                    Or(Equals(Member($t, "kind"), "name"), Equals(Member($t, "kind"), "text")),
-                                    Equals(Member($t, "kind"), "number")
-                                  ),
-                                  And(
-                                    Equals(Member($t, "kind"), "symbol"),
-                                    Call(Member($CALM, "has"), Member($t, "text"))
-                                  )
-                                )
-                              ),
-                              Break(),
-                              Undefined()
-                            )
-                          )
-                        ),
-                        If(Equals($depth, 0), Break(), Undefined())
-                      )
-                    ),
-                    If(
-                      And(And(Equals($depth, 0), LessThan($j, $n)), Equals(Member(Index($said, $j), "text"), ">")),
-                      Sequence(Call($become, $i, "Angles"), Call($become, $j, "AngleEnd")),
-                      Undefined()
-                    )
-                  ),
-                  Undefined()
-                )
-              )
-            ),
-            Comment("Brackets pair by counting, as any bracket is read; an opener that says what closes it"),
-            Comment("(ClosedBy: \"?\" by \":\", angles by their end) is closed only by that."),
-            Bind($pair, Map($said, Lambda(List(), Negate(1)))),
-            Bind($inside, Map($said, Lambda(List(), Negate(1)))),
-            Bind($open, List()),
-            Bind($closedBy, Lambda(List($i), Call($first, Or(Index($heads, $i), ""), "ClosedBy"))),
-            Bind($blockAt,
-              Lambda(List($i),
-                Sequence(
-                  If($offside, Return(false), Undefined()),
-                  Bind($p, Subtract($i, 1)),
-                  If(LessThan($p, 0), Return(true), Undefined()),
-                  If(Call($is, $p, "TakesBlock"), Return(true), Undefined()),
                   If(
-                    Call($is, $p, "Separator"),
-                    Return(
-                      Or(
-                        Or(LessThan(Index($inside, $p), 0), Call($is, Index($inside, $p), "Scope")),
-                        Equals(Index($heads, $p), "Semicolon")
-                      )
-                    ),
-                    Undefined()
-                  ),
-                  If(
-                    Call($is, $p, "Opener"),
-                    Return(Call($is, $p, "Scope")),
-                    Undefined()
-                  ),
-                  Comment("After a signature's type (\"f(): string[] {\", \"(): void {\"), a brace is the block the"),
-                  Comment("type is of: look back along what is said for the colon that follows round brackets."),
-                  Comment("Right after the colon, the brace is the type itself (\"(): { a: T } {\")."),
-                  If(
-                    Equals(Index($heads, $p), "Returns"),
-                    Return(false),
-                    Undefined()
-                  ),
-                  For(
-                    Var($j, $p),
-                    AtLeast($j, 0),
-                    Assign(
-                      $j,
-                      If(
-                        And(Call($is, $j, "Closer"), AtLeast(Index($pair, $j), 0)),
-                        Subtract(Index($pair, $j), 1),
-                        Subtract($j, 1)
-                      )
-                    ),
+                    Equals($head, "Name"),
+                    Assign(Index($kinds, $i), List("Name")),
                     Sequence(
-                      If(
-                        Equals(Index($heads, $j), "Returns"),
-                        Return(true),
-                        Undefined()
-                      ),
-                      If(
-                        Or(
-                          Or(
-                            Or(
-                              Or(Call($is, $j, "Separator"), Call($is, $j, "Scope")),
-                              And(
-                                Call($is, $j, "Opener"),
-                                Not(And(AtLeast(Index($pair, $j), 0), LessThan(Index($pair, $j), $i)))
-                              )
-                            ),
-                            Equals(Index($heads, $j), "Arrow")
-                          ),
-                          Equals(Index($heads, $j), "Assign")
-                        ),
-                        Break(),
-                        Undefined()
-                      )
-                    )
-                  ),
-                  Comment("After round brackets, a block, or angles (\"f(x) {\", \"} {\", \"A<T> {\"): a block."),
-                  If(
-                    Call($is, $p, "Closer"),
-                    Return(
-                      And(
-                        AtLeast(Index($pair, $p), 0),
-                        Or(
-                          Or(Call($is, Index($pair, $p), "Round"), Call($is, Index($pair, $p), "Scope")),
-                          Call($is, Index($pair, $p), "Attached")
+                      Assign(Index($heads, $i), $head),
+                      Assign(
+                        Index($kinds, $i),
+                        Concat(
+                          List(Otherwise(Index($SHAPE, Member(Index($said, $i), "kind")), "Symbol")),
+                          Call($kindsOf, $head)
                         )
                       )
-                    ),
-                    Undefined()
-                  ),
-                  Return(Or(Call($ends, $p), Call($is, $p, "Comment")))
-                )
-              )
-            ),
-            For(
-              Var($i, 0),
-              LessThan($i, $n),
-              PostIncrement($i),
-              Sequence(
-                If(
-                  And(Equals(Index($heads, $i), "Braces"), Call($blockAt, $i)),
-                  Call($become, $i, "Block"),
-                  Undefined()
-                ),
-                Assign(
-                  Index($inside, $i),
-                  If(
-                    Length($open),
-                    Index($open, Subtract(Length($open), 1)),
-                    Negate(1)
-                  )
-                ),
-                Bind($top,
-                  If(
-                    Length($open),
-                    Index($open, Subtract(Length($open), 1)),
-                    Negate(1)
-                  )
-                ),
-                Bind($wanted, If(AtLeast($top, 0), Call($closedBy, $top), Undefined())),
-                If(
-                  And(
-                    And($wanted, Call($isCall, $wanted)),
-                    Or(
-                      Equals(Member($wanted, "head"), Index($heads, $i)),
-                      And(Equals(Member($wanted, "head"), "Colon"), Equals(Index($heads, $i), "Returns"))
-                    )
-                  ),
-                  Sequence(
-                    Call(Member($open, "pop")),
-                    Assign(Index($pair, $top), $i),
-                    Assign(Index($pair, $i), $top),
-                    Assign(
-                      Index($inside, $i),
-                      If(
-                        Length($open),
-                        Index($open, Subtract(Length($open), 1)),
-                        Negate(1)
-                      )
-                    ),
-                    Assign(
-                      Index($kinds, $i),
-                      Concat(
-                        Filter(
-                          Index($kinds, $i),
-                          Lambda(List($k), And(NotEquals($k, "Infix"), NotEquals($k, "Separator")))
-                        ),
-                        List("Closer")
-                      )
-                    ),
-                    Comment("It only closes: what it does elsewhere (\"a: b\") it does not do here."),
-                    If(
-                      Not(Includes(Call($kindsOf, Index($heads, $i)), "Closer")),
-                      Assign(Index($heads, $i), Undefined()),
-                      Undefined()
-                    ),
-                    Continue()
-                  ),
-                  Undefined()
-                ),
-                If(
-                  Call($is, $i, "Closer"),
-                  Sequence(
-                    While(
-                      And(Length($open), Call($closedBy, Index($open, Subtract(Length($open), 1)))),
-                      Call(Member($open, "pop"))
-                    ),
-                    If(
-                      Length($open),
-                      Sequence(
-                        Bind($o, Call(Member($open, "pop"))),
-                        Assign(Index($pair, $o), $i),
-                        Assign(Index($pair, $i), $o)
-                      ),
-                      Undefined()
-                    ),
-                    Assign(
-                      Index($inside, $i),
-                      If(
-                        Length($open),
-                        Index($open, Subtract(Length($open), 1)),
-                        Negate(1)
-                      )
                     )
                   ),
                   Undefined()
-                ),
-                If(
-                  Call($is, $i, "Opener"),
-                  Call(Member($open, "push"), $i),
-                  Undefined()
                 )
               )
             ),
-            Comment("\"[\" after a thing (not after a header, \"if (x) [a, b] = ...\") is that thing's index."),
-            For(
-              Var($i, 1),
-              LessThan($i, $n),
-              PostIncrement($i),
-              Sequence(
-                Bind($header,
-                  And(
-                    And(Call($is, Subtract($i, 1), "Closer"), GreaterThan(Index($pair, Subtract($i, 1)), 0)),
-                    Call(
-                      $is,
-                      Subtract(Index($pair, Subtract($i, 1)), 1),
-                      "Heads"
-                    )
-                  )
-                ),
-                If(
-                  And(And(Equals(Index($heads, $i), "Brackets"), Call($ends, Subtract($i, 1))), Not($header)),
-                  Call($become, $i, "Index"),
-                  Undefined()
-                ),
-                Comment("\"(\" right after a closed group that is not a header: what it gives, called (\"f(x)(y)\")."),
-                If(
-                  And(
-                    And(
-                      And(
-                        And(
-                          And(
-                            And(Equals(Index($heads, $i), "Parens"), Call($is, Subtract($i, 1), "Closer")),
-                            Not($header)
-                          ),
-                          NotEquals(Index($heads, Subtract($i, 1)), Undefined())
-                        ),
-                        AtLeast(Index($pair, Subtract($i, 1)), 0)
-                      ),
-                      Not(Call($is, Index($pair, Subtract($i, 1)), "Scope"))
-                    ),
-                    Not(Call($is, Index($pair, Subtract($i, 1)), "Attached"))
-                  ),
-                  Call($become, $i, "Apply"),
-                  Undefined()
-                )
-              )
-            ),
-            Comment("Who a block belongs to: the name whose brackets come just before it (a function, a"),
-            Comment("method; with its return type, that type's colon), else the word that leads what is"),
-            Comment("said before it (if, for, class, else). After an operator it belongs to no one: it is"),
-            Comment("the operator's thing (\"=> { }\")."),
-            Bind($leader, Map($said, Lambda(List(), Negate(1)))),
-            Bind($stops,
-              Lambda(List($k),
-                Or(
-                  Or(Or(Call($is, $k, "Separator"), Call($is, $k, "Scope")), Call($is, $k, "Comment")),
-                  And(Call($is, $k, "Closer"), Call($is, Index($pair, $k), "Scope"))
-                )
-              )
-            ),
-            For(
-              Var($o, 0),
-              LessThan($o, $n),
-              PostIncrement($o),
-              Sequence(
-                If(Not(Call($is, $o, "Scope")), Continue(), Undefined()),
-                Var($p, Subtract($o, 1)),
-                If(
-                  And(Call($is, $p, "Separator"), $offside),
-                  PostDecrement($p),
-                  Undefined()
-                ),
-                If(
-                  Or(LessThan($p, 0), Call($is, $p, "Infix")),
-                  Continue(),
-                  Undefined()
-                ),
-                Var($k, $p),
-                Var($typed, Negate(1)),
-                If(
-                  Not(And(Call($is, $k, "Closer"), Equals(Index($heads, Index($pair, $k)), "Parens"))),
-                  For(
-                    Var($j, $k),
-                    And(AtLeast($j, 0), Not(Call($stops, $j))),
-                    Assign(
-                      $j,
-                      If(
-                        And(Call($is, $j, "Closer"), AtLeast(Index($pair, $j), 0)),
-                        Subtract(Index($pair, $j), 1),
-                        Subtract($j, 1)
-                      )
-                    ),
+            Comment("Which brackets pair and which bracket each word is inside, from the links that say what"),
+            Comment("closes what (Closes)."),
+            Bind($pair, Map($said, Lambda(List(), Negate(1)))),
+            Bind($inside, Map($said, Lambda(List(), Negate(1)))),
+            Var($links, List()),
+            Comment("What closes what is a pairing, not a link: who the closer belongs to is the bracket's to say."),
+            Bind($closed, List()),
+            Bind($structure,
+              Lambda(List(),
+                Sequence(
+                  Call(Member($pair, "fill"), Negate(1)),
+                  Call(Member($inside, "fill"), Negate(1)),
+                  ForOf(
+                    $l,
+                    $closed,
                     Sequence(
-                      If(Call($is, $j, "Opener"), Break(), Undefined()),
+                      Assign(Index($pair, Member($l, "from")), Member($l, "to")),
+                      Assign(Index($pair, Member($l, "to")), Member($l, "from"))
+                    )
+                  ),
+                  Bind($open, List()),
+                  For(
+                    Var($i, 0),
+                    LessThan($i, $n),
+                    PostIncrement($i),
+                    Sequence(
                       If(
-                        Equals(Index($heads, $j), "Returns"),
+                        And(AtLeast(Index($pair, $i), 0), LessThan(Index($pair, $i), $i)),
                         Sequence(
-                          Assign($typed, $j),
-                          Assign($k, Subtract($j, 1)),
-                          Break()
+                          While(
+                            And(Length($open), NotEquals(Index($open, Subtract(Length($open), 1)), Index($pair, $i))),
+                            Call(Member($open, "pop"))
+                          ),
+                          Call(Member($open, "pop")),
+                          Assign(
+                            Index($inside, $i),
+                            If(
+                              Length($open),
+                              Index($open, Subtract(Length($open), 1)),
+                              Negate(1)
+                            )
+                          ),
+                          Continue()
                         ),
+                        Undefined()
+                      ),
+                      Assign(
+                        Index($inside, $i),
+                        If(
+                          Length($open),
+                          Index($open, Subtract(Length($open), 1)),
+                          Negate(1)
+                        )
+                      ),
+                      If(
+                        GreaterThan(Index($pair, $i), $i),
+                        Call(Member($open, "push"), $i),
                         Undefined()
                       )
                     )
                   ),
                   Undefined()
-                ),
-                If(
-                  And(Call($is, $k, "Closer"), Equals(Index($heads, Index($pair, $k)), "Parens")),
-                  Sequence(
-                    Var($g, Subtract(Index($pair, $k), 1)),
-                    If(
-                      And(Call($is, $g, "Closer"), Equals(Index($heads, $g), "AngleEnd")),
-                      Assign($g, Subtract(Index($pair, $g), 1)),
-                      Undefined()
-                    ),
-                    If(
-                      And(Call($is, $g, "Name"), Not(Call($is, $g, "Infix"))),
-                      Sequence(
-                        Assign(
-                          Index($leader, $o),
-                          If(
-                            Call($is, $g, "Prefix"),
-                            $g,
-                            If(AtLeast($typed, 0), $typed, $g)
-                          )
-                        ),
-                        Continue()
-                      ),
-                      Undefined()
-                    )
-                  ),
-                  Undefined()
-                ),
-                For(
-                  Var($j, $p),
-                  And(AtLeast($j, 0), Not(Call($stops, $j))),
-                  Assign(
-                    $j,
-                    If(
-                      And(Call($is, $j, "Closer"), AtLeast(Index($pair, $j), 0)),
-                      Subtract(Index($pair, $j), 1),
-                      Subtract($j, 1)
-                    )
-                  ),
-                  Sequence(
-                    If(Call($is, $j, "Opener"), Break(), Undefined()),
-                    If(
-                      Call($is, $j, "Prefix"),
-                      Sequence(Assign(Index($leader, $o), $j), Break()),
-                      Undefined()
-                    )
-                  )
                 )
               )
             ),
             Bind($bindsOf, New($Map)),
-            Bind($words,
-              Call(
-                Member($said, "map"),
-                Lambda(List($w, $i),
-                  Sequence(
-                    Bind($tags, Map(Index($kinds, $i), Lambda(List($k), Call(Member($api, "call"), $k)))),
-                    If(
-                      Not(Call(Member($bindsOf, "has"), Index($heads, $i))),
-                      Call(
-                        Member($bindsOf, "set"),
-                        Index($heads, $i),
-                        Index(Call($claims, Or(Index($heads, $i), ""), "Binds"), 0)
-                      ),
-                      Undefined()
+            Bind($wordAt,
+              Lambda(List($w, $i),
+                Sequence(
+                  Bind($tags, Map(Index($kinds, $i), Lambda(List($k), Call(Member($api, "call"), $k)))),
+                  If(
+                    Not(Call(Member($bindsOf, "has"), Index($heads, $i))),
+                    Call(
+                      Member($bindsOf, "set"),
+                      Index($heads, $i),
+                      List(
+                        Index(Call($claims, Or(Index($heads, $i), ""), "Binds"), 0),
+                        Index(Call($claims, Or(Index($heads, $i), ""), "BindsAfter"), 0)
+                      )
                     ),
-                    Bind($binds, Call(Member($bindsOf, "get"), Index($heads, $i))),
-                    If($binds, Call(Member($tags, "push"), $binds), Undefined()),
-                    Bind($after, Index(Call($claims, Or(Index($heads, $i), ""), "BindsAfter"), 0)),
-                    If($after, Call(Member($tags, "push"), $after), Undefined()),
-                    If(
-                      AtLeast(Index($pair, $i), 0),
-                      Call(Member($tags, "push"), Call(Member($api, "call"), "Pairs", Index($pair, $i))),
-                      Undefined()
-                    ),
-                    If(
-                      AtLeast(Index($inside, $i), 0),
-                      Call(Member($tags, "push"), Call(Member($api, "call"), "Inside", Index($inside, $i))),
-                      Undefined()
-                    ),
-                    If(
-                      AtLeast(Index($leader, $i), 0),
-                      Call(Member($tags, "push"), Call(Member($api, "call"), "Leader", Index($leader, $i))),
-                      Undefined()
-                    ),
-                    Return(
+                    Undefined()
+                  ),
+                  Bind(List($binds, $after), Call(Member($bindsOf, "get"), Index($heads, $i))),
+                  If($binds, Call(Member($tags, "push"), $binds), Undefined()),
+                  If($after, Call(Member($tags, "push"), $after), Undefined()),
+                  If(
+                    AtLeast(Index($pair, $i), 0),
+                    Call(Member($tags, "push"), Call(Member($api, "call"), "Pairs", Index($pair, $i))),
+                    Undefined()
+                  ),
+                  If(
+                    AtLeast(Index($inside, $i), 0),
+                    Call(Member($tags, "push"), Call(Member($api, "call"), "Inside", Index($inside, $i))),
+                    Undefined()
+                  ),
+                  If(
+                    Index($heads, $i),
+                    Call(
+                      Member($tags, "push"),
                       Call(
                         Member($api, "call"),
-                        "Word",
-                        Member($w, "text"),
-                        $i,
-                        Call(Member($api, "call"), "List", Spread($tags))
+                        "Heard",
+                        Call(Member($api, "call"), Index($heads, $i))
                       )
+                    ),
+                    Undefined()
+                  ),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Word",
+                      Member($w, "text"),
+                      $i,
+                      Call(Member($api, "call"), "List", Spread($tags))
                     )
                   )
                 )
               )
             ),
-            Bind($prompt, Call(Member($api, "call"), "Prompt", Spread($words))),
-            Comment("Rounds until nothing changes. What each word sees (CodeView: the kinds around it and the"),
-            Comment("groups the links have made) is worked out once a round, held in a cell, and handed over by"),
-            Comment("reference, so a word's hearing costs what it looks at, not the length of the code. A word"),
-            Comment("with no hearing of its own (it answered with itself) is not asked again, and a word is"),
-            Comment("asked again only where a link was just made: beside a group whose edges moved, or in a"),
-            Comment("bracket that just gained one."),
-            Var($links, List()),
+            Comment("First, what each word is here. A word says it (Sense, about itself only: \"<\" after a name"),
+            Comment("is its angles, \"{\" after a signature a block, \"x.get\"'s \"get\" only a name), and a bracket"),
+            Comment("finds what closes it (Closes), each as its Concept does under Sensing(Code(<language>))."),
+            Comment("A word with nothing to say answers with itself and is not asked again. Rounds until no"),
+            Comment("word says anything new."),
+            Bind($sensing, Call(Member($api, "call"), "Sensing", $code)),
+            Bind($onlyName,
+              Lambda(List($i), And(Equals(Length(Index($kinds, $i)), 1), Equals(Index(Index($kinds, $i), 0), "Name")))
+            ),
             Bind($parent, Call(Member(New($Array, $n), "fill"), Negate(1))),
-            Bind($promptCell, Call(Member(Member($api, "cells"), "allocate"), $prompt)),
+            Bind($promptCell, Call(Member(Member($api, "cells"), "allocate"), Call(Member($api, "call"), "List"))),
             Bind($linksCell, Call(Member(Member($api, "cells"), "allocate"), Call(Member($api, "call"), "List"))),
             Bind($viewCell, Call(Member(Member($api, "cells"), "allocate"), Call(Member($api, "call"), "List"))),
-            Bind($RANK, Object(Absorbs = 1, Takes = 2)),
-            Bind($deaf, New($Set)),
-            Var($dirty, New($Set, Call(Member($said, "map"), Lambda(List($_, $i), $i)))),
-            Bind($lo, Concat(Call(Member(Call($Array, $n), "keys")))),
-            Bind($hi, Concat(Call(Member(Call($Array, $n), "keys")))),
-            Var($rounds, 0),
-            For(
-              Var($round, 0),
-              And(LessThan($round, Add($n, 2)), Member($dirty, "size")),
-              PostIncrement($round),
-              Sequence(
-                PostIncrement($rounds),
+            Bind($writeLinks,
+              Lambda(List(),
                 Call(
                   Member(Member($api, "cells"), "write"),
                   $linksCell,
@@ -987,7 +482,182 @@ Concept(Hear(),
                       )
                     )
                   )
+                )
+              )
+            ),
+            Var(
+              $asking,
+              Filter(
+                Call(Member($said, "map"), Lambda(List($_, $i), $i)),
+                Lambda(List($i), And(Index($heads, $i), Not(Call($onlyName, $i))))
+              )
+            ),
+            Var($rounds, 0),
+            For(
+              Var($round, 0),
+              And(LessThan($round, 12), Length($asking)),
+              PostIncrement($round),
+              Sequence(
+                PostIncrement($rounds),
+                Call($structure),
+                Call(
+                  Member(Member($api, "cells"), "write"),
+                  $promptCell,
+                  Call(
+                    Member($api, "call"),
+                    "Prompt",
+                    Spread(Map($said, $wordAt))
+                  )
                 ),
+                Call($writeLinks),
+                Call(
+                  Member(Member($api, "cells"), "write"),
+                  $viewCell,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "CodeView",
+                        $promptCell,
+                        $linksCell
+                      ),
+                      $hearing
+                    )
+                  )
+                ),
+                Bind($still, List()),
+                Var($news, 0),
+                Bind($closes, List()),
+                ForOf(
+                  $i,
+                  $asking,
+                  Sequence(
+                    If(
+                      And(AtLeast(Index($pair, $i), 0), LessThan(Index($pair, $i), $i)),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($said2,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            Index($heads, $i),
+                            $promptCell,
+                            $i,
+                            $linksCell,
+                            $viewCell
+                          ),
+                          $sensing
+                        )
+                      )
+                    ),
+                    If(
+                      Or(Not(Call($isCall, $said2)), NotEquals(Member($said2, "head"), "List")),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Call(Member($still, "push"), $i),
+                    ForOf(
+                      $a,
+                      Member($said2, "args"),
+                      Sequence(
+                        Bind($p, Member($a, "value")),
+                        If(
+                          And(
+                            And(Call($isCall, $p), Equals(Member($p, "head"), "Link")),
+                            Equals(Member(Member(Index(Member($p, "args"), 2), "value"), "head"), "Closes")
+                          ),
+                          Call(
+                            Member($closes, "push"),
+                            Object(
+                              from = Member(Index(Member($p, "args"), 0), "value"),
+                              to = Member(Index(Member($p, "args"), 1), "value"),
+                              role = "Closes"
+                            )
+                          ),
+                          If(
+                            And(
+                              And(
+                                And(Call($isCall, $p), Equals(Member($p, "head"), "Sense")),
+                                Equals(Member(Index(Member($p, "args"), 0), "value"), $i)
+                              ),
+                              Call($isCall, Member(Index(Member($p, "args"), 1), "value"))
+                            ),
+                            Sequence(
+                              Bind($h2, Member(Member(Index(Member($p, "args"), 1), "value"), "head")),
+                              If(
+                                If(
+                                  Equals($h2, "Name"),
+                                  Call($onlyName, $i),
+                                  Equals(Index($heads, $i), $h2)
+                                ),
+                                Continue(),
+                                Undefined()
+                              ),
+                              Call($become, $i, $h2),
+                              PostIncrement($news)
+                            ),
+                            Undefined()
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                ForOf(
+                  $c,
+                  $closes,
+                  Sequence(
+                    If(
+                      Or(
+                        Or(AtLeast(Index($pair, Member($c, "from")), 0), AtLeast(Index($pair, Member($c, "to")), 0)),
+                        Equals(Member($c, "from"), Member($c, "to"))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Assign(Index($pair, Member($c, "to")), Member($c, "from")),
+                    Assign(Index($pair, Member($c, "from")), Member($c, "to")),
+                    Call(Member($closed, "push"), $c),
+                    PostIncrement($news)
+                  )
+                ),
+                If(Not($news), Break(), Undefined()),
+                Assign($asking, Filter($still, Lambda(List($i), Not(Call($onlyName, $i)))))
+              )
+            ),
+            Call($structure),
+            Comment("Then the links: rounds until nothing changes. Each word hears as its Concept does under"),
+            Comment("Hearing(Code(<language>)) and answers with the links it proposes. What each word sees"),
+            Comment("(CodeView: the kinds around it and the groups the links have made) is worked out once a"),
+            Comment("round, held in a cell, and handed over by reference, so a word's hearing costs what it"),
+            Comment("looks at, not the length of the code. A word with no hearing of its own (it answered with"),
+            Comment("itself) is not asked again, and a word is asked again only where a link was just made:"),
+            Comment("beside a group whose edges moved, or in a bracket that just gained one."),
+            Call(
+              Member(Member($api, "cells"), "write"),
+              $promptCell,
+              Call(
+                Member($api, "call"),
+                "Prompt",
+                Spread(Map($said, $wordAt))
+              )
+            ),
+            Bind($RANK, Object(Absorbs = 1, Takes = 2)),
+            Bind($deaf, New($Set)),
+            Var($dirty, New($Set, Call(Member($said, "map"), Lambda(List($_, $i), $i)))),
+            Bind($lo, Concat(Call(Member(Call($Array, $n), "keys")))),
+            Bind($hi, Concat(Call(Member(Call($Array, $n), "keys")))),
+            For(
+              Var($round, 0),
+              And(LessThan($round, Add($n, 2)), Member($dirty, "size")),
+              PostIncrement($round),
+              Sequence(
+                PostIncrement($rounds),
+                Call($writeLinks),
                 Call(
                   Member(Member($api, "cells"), "write"),
                   $viewCell,
@@ -1009,8 +679,12 @@ Concept(Hear(),
                   $i,
                   Call(Member(Concat($dirty), "sort"), Lambda(List($a, $b), Subtract($a, $b))),
                   Sequence(
+                    Comment("A word that closes a bracket is part of how the bracket is said."),
                     If(
-                      Or(Not(Index($heads, $i)), Call(Member($deaf, "has"), $i)),
+                      Or(
+                        Or(Or(Not(Index($heads, $i)), Call(Member($deaf, "has"), $i)), Call($onlyName, $i)),
+                        And(AtLeast(Index($pair, $i), 0), LessThan(Index($pair, $i), $i))
+                      ),
                       Continue(),
                       Undefined()
                     ),
@@ -1289,6 +963,16 @@ Concept(Hear(),
   )
 )
 
+// What a word says about itself, here (hearing): Sense(position, Concept).
+Concept(Sense(), IsA(Data()))
+
+// "}" closes "{": the link a bracket's end has to it.
+Concept(Closes(), IsA(LinkRole()))
+
+// Before the links, what each word is here: a word says it under Sensing(), and nothing it does
+// elsewhere runs.
+Concept(Sensing(), IsA(ContextFacet()), Exclusive())
+
 // What a word hearing code sees: the kinds around it and the groups the links have made.
 Concept(CodeView(),
   Realization(CodeView($prompt, $links),
@@ -1315,7 +999,7 @@ Concept(CodeView(),
             Bind($right, List()),
             Bind($pair, List()),
             Bind($inside, List()),
-            Bind($leader, List()),
+            Bind($heads, List()),
             Bind($tagged,
               Lambda(List($tags, $head),
                 Sequence(
@@ -1376,7 +1060,45 @@ Concept(CodeView(),
                 Call(Member($right, "push"), If($b, GreaterThan(Length(Member($b, "args")), 1), false)),
                 Call(Member($pair, "push"), Call($tagged, $tags, "Pairs")),
                 Call(Member($inside, "push"), Call($tagged, $tags, "Inside")),
-                Call(Member($leader, "push"), Call($tagged, $tags, "Leader"))
+                Bind($heard,
+                  Call(
+                    Member($tags, "find"),
+                    Lambda(List($t), And(Call($isCall, $t), Equals(Member($t, "head"), "Heard")))
+                  )
+                ),
+                Call(
+                  Member($heads, "push"),
+                  If(
+                    $heard,
+                    Member(Member(Index(Member($heard, "args"), 0), "value"), "head"),
+                    null
+                  )
+                )
+              )
+            ),
+            Comment("A word that closes a bracket (\"a ? b : c\", \"A<T>\") is only that bracket's end."),
+            For(
+              Var($i, 0),
+              LessThan($i, $n),
+              PostIncrement($i),
+              If(
+                And(
+                  And(AtLeast(Index($pair, $i), 0), LessThan(Index($pair, $i), $i)),
+                  Not(Includes(Index($kinds, $i), "Closer"))
+                ),
+                Assign(
+                  Index($kinds, $i),
+                  Concat(
+                    Filter(
+                      Index($kinds, $i),
+                      Lambda(List($k),
+                        And(And(NotEquals($k, "Infix"), NotEquals($k, "Separator")), NotEquals($k, "Prefix"))
+                      )
+                    ),
+                    List("Closer")
+                  )
+                ),
+                Undefined()
               )
             ),
             Bind($is, Lambda(List($i, $k), And(And(AtLeast($i, 0), LessThan($i, $n)), Includes(Index($kinds, $i), $k)))),
@@ -1386,12 +1108,7 @@ Concept(CodeView(),
             Comment("What binds as an operator does, for what waits on it: operators, and an index after a thing."),
             Comment("A block after an operator is the operator's thing: it stands alone, as a value does."),
             Bind($alone,
-              Call(
-                Member($kinds, "map"),
-                Lambda(List($_, $i),
-                  And(And(Index($scope, $i), LessThan(Index($leader, $i), 0)), Index($infix, Subtract($i, 1)))
-                )
-              )
+              Call(Member($kinds, "map"), Lambda(List($_, $i), And(Index($scope, $i), Index($infix, Subtract($i, 1)))))
             ),
             Comment("A thing can end here: a name that is not an operator, a value, a closed group (not a block)."),
             Comment("A closed group ends a thing, but not a block, a header (\"if (x)\"), or a question's \":\"."),
@@ -1668,7 +1385,7 @@ Concept(CodeView(),
                   right = $right,
                   pair = $pair,
                   inside = $inside,
-                  leader = $leader,
+                  heads = $heads,
                   scope = $scope,
                   alone = $alone,
                   infix = $infix,
@@ -1693,9 +1410,111 @@ Concept(CodeView(),
   )
 )
 
-// Between two things: takes them by how tightly it binds.
+// Between two things: takes them by how tightly it binds. A word of the language used as a
+// name ("x.in", "{ from: 1 }") says it is only a name.
 Concept(Infix(),
   IsA(CodeWord()),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A word of the language used as a name is only a name: typed other than as its Concept's"),
+            Comment(
+              "plain name (\"Set\" beside \"set\"), a member's name (\"x.set\"), a key (\"{ default: 1 }\"), what"
+            ),
+            Comment("a member is of (\"type.name\"), or, for a word of the language only where it is not a name,"),
+            Comment("called (\"get(x)\")."),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length($words))),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Call($v, "heads", $at)),
+            If(
+              Or(Not(Call($is, $at, "Name")), Not($head)),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($typed,
+              NotEquals(
+                Call($text, $at),
+                Add(Call(Member(Index($head, 0), "toLowerCase")), Call(Member($head, "slice"), 1))
+              )
+            ),
+            Bind($member, Or(Equals(Call($text, Subtract($at, 1)), "."), Equals(Call($text, Subtract($at, 1)), "?."))),
+            Bind($key,
+              And(
+                Equals(Call($text, Add($at, 1)), ":"),
+                Or(Equals(Call($text, Subtract($at, 1)), "{"), Equals(Call($text, Subtract($at, 1)), ","))
+              )
+            ),
+            Bind($owner, And(Equals(Call($text, Add($at, 1)), "."), Not(Call($is, $at, "Infix")))),
+            Bind($called, And(Call($is, $at, "Contextual"), Equals(Call($text, Add($at, 1)), "("))),
+            Return(
+              If(
+                Or(Or(Or(Or($typed, $member), $key), $owner), $called),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), "Name")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Hearing(Code($language)),
     evaluateArguments = false,
@@ -1909,9 +1728,110 @@ Concept(Infix(),
   )
 )
 
-// Before a thing: takes what follows.
+// Before a thing: takes what follows. Used as a name, only a name.
 Concept(Prefix(),
   IsA(CodeWord()),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A word of the language used as a name is only a name: typed other than as its Concept's"),
+            Comment(
+              "plain name (\"Set\" beside \"set\"), a member's name (\"x.set\"), a key (\"{ default: 1 }\"), what"
+            ),
+            Comment("a member is of (\"type.name\"), or, for a word of the language only where it is not a name,"),
+            Comment("called (\"get(x)\")."),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length($words))),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Call($v, "heads", $at)),
+            If(
+              Or(Not(Call($is, $at, "Name")), Not($head)),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($typed,
+              NotEquals(
+                Call($text, $at),
+                Add(Call(Member(Index($head, 0), "toLowerCase")), Call(Member($head, "slice"), 1))
+              )
+            ),
+            Bind($member, Or(Equals(Call($text, Subtract($at, 1)), "."), Equals(Call($text, Subtract($at, 1)), "?."))),
+            Bind($key,
+              And(
+                Equals(Call($text, Add($at, 1)), ":"),
+                Or(Equals(Call($text, Subtract($at, 1)), "{"), Equals(Call($text, Subtract($at, 1)), ","))
+              )
+            ),
+            Bind($owner, And(Equals(Call($text, Add($at, 1)), "."), Not(Call($is, $at, "Infix")))),
+            Bind($called, And(Call($is, $at, "Contextual"), Equals(Call($text, Add($at, 1)), "("))),
+            Return(
+              If(
+                Or(Or(Or(Or($typed, $member), $key), $owner), $called),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), "Name")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Hearing(Code($language)),
     evaluateArguments = false,
@@ -2036,9 +1956,190 @@ Concept(Prefix(),
   )
 )
 
-// A bracket: groups what it holds, for whoever it belongs to.
+// A bracket: finds what closes it, then groups what it holds, for whoever it belongs to.
 Concept(Opener(),
   IsA(CodeWord()),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A bracket finds what closes it (Closes). (Its hearing, once it has, is opener.js.)"),
+            Comment("A bracket groups what it holds, and where it stands says whose the group is:"),
+            Comment("- after a name, round brackets are what the name takes (\"print(x)\"): its arguments;"),
+            Comment("empty, they stay said (\"print()\" is Print(Parens()));"),
+            Comment("- after a word that heads a statement (\"if (...)\", \"for (...)\"), they are its header;"),
+            Comment("- a block belongs to the word that leads what is said before it (\"for ... { }\", \"if"),
+            Comment("...:\"), its statements that word's; a block a name leads is the name's Block (\"m() { }\");"),
+            Comment("- angles belong to the name before them; an index takes the thing before it too;"),
+            Comment("- a template takes each piece inside it, an interpolation is its one thing;"),
+            Comment("- any other group is itself a word (Brackets(1, 2), Braces(...), Parens(a, b)), except"),
+            Comment("round brackets around one thing, which are only how the thing is said."),
+            Comment("The closing bracket and the separators are part of how it is said: absorbed."),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($claim,
+              Lambda(List($h, $k),
+                Sequence(
+                  Bind($unit,
+                    If(
+                      $h,
+                      Call(Member(Member($api, "store"), "get"), $h),
+                      Undefined()
+                    )
+                  ),
+                  Bind($r,
+                    If(
+                      $unit,
+                      Call(
+                        Member(Member($unit, "relations"), "find"),
+                        Lambda(List($x),
+                          And(Call($isCall, Member($x, "claim")), Equals(Member(Member($x, "claim"), "head"), $k))
+                        )
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Return(If($r, Member($r, "claim"), Undefined()))
+                )
+              )
+            ),
+            If(
+              AtLeast(Call($v, "pair", $at), 0),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Sequence(
+              Comment("Its closer: the next closing bracket where the brackets between have all closed. A"),
+              Comment("bracket that says it is closed by something other than a bracket (\"?\" by \":\") is"),
+              Comment("left to find its own."),
+              Bind($plain,
+                Lambda(List($i),
+                  Sequence(
+                    Bind($c, Call($claim, Call($head, $i), "ClosedBy")),
+                    If(Not($c), Return(true), Undefined()),
+                    Bind($to,
+                      Call(
+                        Member(Member($api, "store"), "get"),
+                        Member(Member(Index(Member($c, "args"), 0), "value"), "head")
+                      )
+                    ),
+                    Return(
+                      And(
+                        Not(Not($to)),
+                        Call(
+                          Member(Member($to, "relations"), "some"),
+                          Lambda(List($r),
+                            And(
+                              And(
+                                And(
+                                  Call($isCall, Member($r, "claim")),
+                                  Equals(Member(Member($r, "claim"), "head"), "IsA")
+                                ),
+                                Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                              ),
+                              Equals(
+                                Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                                "Closer"
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              ),
+              If(
+                Not(Call($plain, $at)),
+                Return(Call(Member($api, "call"), "List")),
+                Undefined()
+              ),
+              Var($depth, 0),
+              For(
+                Var($k, Add($at, 1)),
+                LessThan($k, $n),
+                PostIncrement($k),
+                Sequence(
+                  Bind($p, Call($v, "pair", $k)),
+                  If(
+                    GreaterThan($p, $k),
+                    Sequence(Assign($k, $p), Continue()),
+                    Undefined()
+                  ),
+                  If(AtLeast($p, 0), Continue(), Undefined()),
+                  If(
+                    And(Call($is, $k, "Opener"), Call($plain, $k)),
+                    PostIncrement($depth),
+                    If(
+                      Call($is, $k, "Closer"),
+                      Sequence(
+                        If(
+                          Equals($depth, 0),
+                          Return(
+                            Call(
+                              Member($api, "call"),
+                              "List",
+                              Call(
+                                Member($api, "call"),
+                                "Link",
+                                $k,
+                                $at,
+                                Call(Member($api, "call"), "Closes")
+                              )
+                            )
+                          ),
+                          Undefined()
+                        ),
+                        PostDecrement($depth)
+                      ),
+                      Undefined()
+                    )
+                  )
+                )
+              ),
+              Return(Call(Member($api, "call"), "List"))
+            ),
+            Return(Call(Member($api, "call"), "List"))
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Hearing(Code($language)),
     evaluateArguments = false,
@@ -2085,6 +2186,35 @@ Concept(Opener(),
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
                   )
+                )
+              )
+            ),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($claim,
+              Lambda(List($h, $k),
+                Sequence(
+                  Bind($unit,
+                    If(
+                      $h,
+                      Call(Member(Member($api, "store"), "get"), $h),
+                      Undefined()
+                    )
+                  ),
+                  Bind($r,
+                    If(
+                      $unit,
+                      Call(
+                        Member(Member($unit, "relations"), "find"),
+                        Lambda(List($x),
+                          And(Call($isCall, Member($x, "claim")), Equals(Member(Member($x, "claim"), "head"), $k))
+                        )
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Return(If($r, Member($r, "claim"), Undefined()))
                 )
               )
             ),
@@ -2138,10 +2268,13 @@ Concept(Opener(),
                       And(
                         And(
                           And(
-                            And(GreaterThan(Call($v, "pair", $k), $k), Call($v, "scope", $k)),
-                            Not(Call($v, "alone", $k))
+                            And(
+                              And(GreaterThan(Call($v, "pair", $k), $k), Call($v, "scope", $k)),
+                              Not(Call($v, "alone", $k))
+                            ),
+                            Call($v, "operandStart", Add(Call($v, "pair", $k), 1))
                           ),
-                          Call($v, "operandStart", Add(Call($v, "pair", $k), 1))
+                          Not(Call($is, Add(Call($v, "pair", $k), 1), "Continues"))
                         ),
                         LessThan(Add(Call($v, "pair", $k), 1), $close)
                       ),
@@ -2151,7 +2284,10 @@ Concept(Opener(),
                         Assign($a, Add(Call($v, "pair", $k), 1))
                       ),
                       If(
-                        And(Call($is, $k, "Separator"), Not(Call($v, "scope", Add($k, 1)))),
+                        And(
+                          And(Call($is, $k, "Separator"), Not(Call($v, "scope", Add($k, 1)))),
+                          Not(Call($is, Add($k, 1), "Continues"))
+                        ),
                         Sequence(
                           If(
                             GreaterThan($k, $a),
@@ -2284,7 +2420,101 @@ Concept(Opener(),
             If(
               Call($v, "scope", $at),
               Sequence(
-                Bind($owner, Call($v, "leader", $at)),
+                Comment("Who the block belongs to: the name whose brackets come just before it (a function, a"),
+                Comment("method; with its return type, that type's colon), else the word that leads what is said"),
+                Comment("before it (if, for, class, else). After an operator it belongs to no one: it is the"),
+                Comment("operator's thing (\"=> { }\")."),
+                Bind($stops,
+                  Lambda(List($k),
+                    Or(
+                      Or(Or(Call($is, $k, "Separator"), Call($v, "scope", $k)), Call($is, $k, "Comment")),
+                      And(Call($is, $k, "Closer"), Call($v, "scope", Call($v, "pair", $k)))
+                    )
+                  )
+                ),
+                Bind($back,
+                  Lambda(List($j),
+                    If(
+                      And(Call($is, $j, "Closer"), AtLeast(Call($v, "pair", $j), 0)),
+                      Subtract(Call($v, "pair", $j), 1),
+                      Subtract($j, 1)
+                    )
+                  )
+                ),
+                Bind($leader,
+                  Lambda(List(),
+                    Sequence(
+                      Var($p, Subtract($at, 1)),
+                      If(
+                        And(Call($is, $p, "Separator"), NotEquals(Call($head, $at), "Block")),
+                        PostDecrement($p),
+                        Undefined()
+                      ),
+                      If(
+                        Or(LessThan($p, 0), Call($v, "infix", $p)),
+                        Return(Negate(1)),
+                        Undefined()
+                      ),
+                      Var($k, $p),
+                      Var($typed, Negate(1)),
+                      If(
+                        Not(And(Call($is, $k, "Closer"), Equals(Call($head, Call($v, "pair", $k)), "Parens"))),
+                        For(
+                          Var($j, $k),
+                          And(AtLeast($j, 0), Not(Call($stops, $j))),
+                          Assign($j, Call($back, $j)),
+                          Sequence(
+                            If(Call($is, $j, "Opener"), Break(), Undefined()),
+                            If(
+                              Equals(Call($head, $j), "Returns"),
+                              Sequence(
+                                Assign($typed, $j),
+                                Assign($k, Subtract($j, 1)),
+                                Break()
+                              ),
+                              Undefined()
+                            )
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      If(
+                        And(Call($is, $k, "Closer"), Equals(Call($head, Call($v, "pair", $k)), "Parens")),
+                        Sequence(
+                          Var($g, Subtract(Call($v, "pair", $k), 1)),
+                          If(
+                            And(Call($is, $g, "Closer"), Equals(Call($head, Call($v, "pair", $g)), "Angles")),
+                            Assign($g, Subtract(Call($v, "pair", $g), 1)),
+                            Undefined()
+                          ),
+                          If(
+                            And(Call($is, $g, "Name"), Not(Call($v, "infix", $g))),
+                            Return(
+                              If(
+                                Call($v, "prefix", $g),
+                                $g,
+                                If(AtLeast($typed, 0), $typed, $g)
+                              )
+                            ),
+                            Undefined()
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      For(
+                        Var($j, $p),
+                        And(AtLeast($j, 0), Not(Call($stops, $j))),
+                        Assign($j, Call($back, $j)),
+                        Sequence(
+                          If(Call($is, $j, "Opener"), Break(), Undefined()),
+                          If(Call($v, "prefix", $j), Return($j), Undefined())
+                        )
+                      ),
+                      Return(Negate(1))
+                    )
+                  )
+                ),
+                Bind($owner, Call($leader)),
                 If(
                   And(AtLeast($owner, 0), Call($is, $owner, "Prefix")),
                   Call($into, $owner),
@@ -2413,10 +2643,111 @@ Concept(Opener(),
   )
 )
 
-// Goes on from the statement before it.
+// Goes on from the statement before it. Used as a name, only a name.
 Concept(Continues(),
   IsA(Prefix()),
   IsA(CodeWord()),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A word of the language used as a name is only a name: typed other than as its Concept's"),
+            Comment(
+              "plain name (\"Set\" beside \"set\"), a member's name (\"x.set\"), a key (\"{ default: 1 }\"), what"
+            ),
+            Comment("a member is of (\"type.name\"), or, for a word of the language only where it is not a name,"),
+            Comment("called (\"get(x)\")."),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length($words))),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Call($v, "heads", $at)),
+            If(
+              Or(Not(Call($is, $at, "Name")), Not($head)),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Bind($typed,
+              NotEquals(
+                Call($text, $at),
+                Add(Call(Member(Index($head, 0), "toLowerCase")), Call(Member($head, "slice"), 1))
+              )
+            ),
+            Bind($member, Or(Equals(Call($text, Subtract($at, 1)), "."), Equals(Call($text, Subtract($at, 1)), "?."))),
+            Bind($key,
+              And(
+                Equals(Call($text, Add($at, 1)), ":"),
+                Or(Equals(Call($text, Subtract($at, 1)), "{"), Equals(Call($text, Subtract($at, 1)), ","))
+              )
+            ),
+            Bind($owner, And(Equals(Call($text, Add($at, 1)), "."), Not(Call($is, $at, "Infix")))),
+            Bind($called, And(Call($is, $at, "Contextual"), Equals(Call($text, Add($at, 1)), "("))),
+            Return(
+              If(
+                Or(Or(Or(Or($typed, $member), $key), $owner), $called),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), "Name")
+                  )
+                ),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Hearing(Code($language)),
     evaluateArguments = false,
@@ -3292,7 +3623,240 @@ Concept(Less(),
   Spelled("<"),
   SynonymOf(LessThan()),
   Relation(Binds(90), context = Code(TypeScript())),
-  Relation(Binds(73), context = Code(Python()))
+  Relation(Binds(73), context = Code(Python())),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("\"<\" right after a name, closing on a \">\" around nothing that computes, is the name's"),
+            Comment(
+              "angles (\"Map<K, V>\", \"f<T>(x)\"): it says so, and that \">\" is its end. Otherwise it compares."
+            ),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($pair,
+              Lambda(List($i),
+                If(
+                  Equals(Call($v, "pair", $i), Undefined()),
+                  Negate(1),
+                  Call($v, "pair", $i)
+                )
+              )
+            ),
+            Comment("As the kind of word it also is: what it does when it is not the case here."),
+            Bind($as,
+              Lambda(List($kind),
+                Call(
+                  Member($api, "evaluate"),
+                  Object(head = $kind, args = Member($self, "args")),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($sense,
+              Lambda(List($h),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), $h)
+                  )
+                )
+              )
+            ),
+            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
+            Bind($ends,
+              Lambda(List($i),
+                Or(
+                  Or(
+                    Or(
+                      Or(
+                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                        Call($is, $i, "Number")
+                      ),
+                      Call($is, $i, "Text")
+                    ),
+                    Call($is, $i, "Regex")
+                  ),
+                  And(
+                    And(
+                      And(Call($is, $i, "Closer"), NotEquals(Call($head, $i), "Dedent")),
+                      NotEquals(Call($head, $i), null)
+                    ),
+                    Not(Call($is, Call($pair, $i), "Infix"))
+                  )
+                )
+              )
+            ),
+            Comment("Round brackets that head a statement: \"if (x)\"."),
+            Bind($header,
+              Lambda(List($i),
+                And(
+                  And(Call($is, $i, "Closer"), GreaterThan(Call($pair, $i), 0)),
+                  Call($is, Subtract(Call($pair, $i), 1), "Heads")
+                )
+              )
+            ),
+            Bind($CALM,
+              New(
+                $Set,
+                List(
+                  ",",
+                  ".",
+                  "[",
+                  "]",
+                  "|",
+                  "&",
+                  "?",
+                  ":",
+                  "?:",
+                  "(",
+                  ")",
+                  "=>",
+                  "{",
+                  "}",
+                  ";",
+                  "...",
+                  "<",
+                  ">",
+                  "\n"
+                )
+              )
+            ),
+            If(
+              And(Call($is, Subtract($at, 1), "Name"), Not(Call($is, Subtract($at, 1), "Infix"))),
+              Sequence(
+                Var($depth, 0),
+                Var($round, 0),
+                For(
+                  Var($j, $at),
+                  And(LessThan($j, $n), LessThan($j, Add($at, 200))),
+                  PostIncrement($j),
+                  Sequence(
+                    Bind($t, Call($text, $j)),
+                    If(
+                      Equals($t, "<"),
+                      PostIncrement($depth),
+                      If(
+                        Equals($t, ">"),
+                        PostDecrement($depth),
+                        If(
+                          Or(Or(Equals($t, "("), Equals($t, "[")), Equals($t, "{")),
+                          PostIncrement($round),
+                          If(
+                            Or(Or(Equals($t, ")"), Equals($t, "]")), Equals($t, "}")),
+                            Sequence(
+                              Comment("A bracket that closes one opened before me: I was not around it."),
+                              If(LessThan(PreDecrement($round), 0), Break(), Undefined())
+                            ),
+                            If(
+                              Not(
+                                Or(
+                                  Or(Or(Call($is, $j, "Name"), Call($is, $j, "Text")), Call($is, $j, "Number")),
+                                  And(Call($is, $j, "Symbol"), Call(Member($CALM, "has"), $t))
+                                )
+                              ),
+                              Break(),
+                              Undefined()
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      Equals($depth, 0),
+                      Sequence(
+                        If(
+                          And(Equals($t, ">"), Equals($round, 0)),
+                          Return(
+                            Call(
+                              Member($api, "call"),
+                              "List",
+                              Call(
+                                Member($api, "call"),
+                                "Sense",
+                                $at,
+                                Call(Member($api, "call"), "Angles")
+                              ),
+                              Call(
+                                Member($api, "call"),
+                                "Link",
+                                $j,
+                                $at,
+                                Call(Member($api, "call"), "Closes")
+                              )
+                            )
+                          ),
+                          Undefined()
+                        ),
+                        Break()
+                      ),
+                      Undefined()
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "List"))
+          )
+        )
+      )
+    )
+  )
 )
 
 Concept(AtLeast(),
@@ -4105,6 +4669,147 @@ Concept(Colon(),
   IsA(Infix()),
   Spelled(":"),
   Binds(15),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A \":\" that opens a block (Python's) only separates the block from what leads it; one right"),
+            Comment("after round brackets says what they give (\"(x): number\"). Otherwise it pairs a key with"),
+            Comment("its value."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($pair,
+              Lambda(List($i),
+                If(
+                  Equals(Call($v, "pair", $i), Undefined()),
+                  Negate(1),
+                  Call($v, "pair", $i)
+                )
+              )
+            ),
+            Comment("As the kind of word it also is: what it does when it is not the case here."),
+            Bind($as,
+              Lambda(List($kind),
+                Call(
+                  Member($api, "evaluate"),
+                  Object(head = $kind, args = Member($self, "args")),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($sense,
+              Lambda(List($h),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), $h)
+                  )
+                )
+              )
+            ),
+            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
+            Bind($ends,
+              Lambda(List($i),
+                Or(
+                  Or(
+                    Or(
+                      Or(
+                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                        Call($is, $i, "Number")
+                      ),
+                      Call($is, $i, "Text")
+                    ),
+                    Call($is, $i, "Regex")
+                  ),
+                  And(
+                    And(
+                      And(Call($is, $i, "Closer"), NotEquals(Call($head, $i), "Dedent")),
+                      NotEquals(Call($head, $i), null)
+                    ),
+                    Not(Call($is, Call($pair, $i), "Infix"))
+                  )
+                )
+              )
+            ),
+            Comment("Round brackets that head a statement: \"if (x)\"."),
+            Bind($header,
+              Lambda(List($i),
+                And(
+                  And(Call($is, $i, "Closer"), GreaterThan(Call($pair, $i), 0)),
+                  Call($is, Subtract(Call($pair, $i), 1), "Heads")
+                )
+              )
+            ),
+            If(
+              Call($is, Add($at, 1), "Scope"),
+              Return(Call($sense, "BlockColon")),
+              Undefined()
+            ),
+            If(
+              Equals(Call($text, Subtract($at, 1)), ")"),
+              Return(Call($sense, "Returns")),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "List"))
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -7804,6 +8509,160 @@ Concept(Parens(),
   IsA(Round()),
   Spelled("("),
   Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("\"(\" right after a closed group that is not a header, a block or angles: what that group"),
+            Comment("gives, called (\"f(x)(y)\")."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($pair,
+              Lambda(List($i),
+                If(
+                  Equals(Call($v, "pair", $i), Undefined()),
+                  Negate(1),
+                  Call($v, "pair", $i)
+                )
+              )
+            ),
+            Comment("As the kind of word it also is: what it does when it is not the case here."),
+            Bind($as,
+              Lambda(List($kind),
+                Call(
+                  Member($api, "evaluate"),
+                  Object(head = $kind, args = Member($self, "args")),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($sense,
+              Lambda(List($h),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), $h)
+                  )
+                )
+              )
+            ),
+            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
+            Bind($ends,
+              Lambda(List($i),
+                Or(
+                  Or(
+                    Or(
+                      Or(
+                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                        Call($is, $i, "Number")
+                      ),
+                      Call($is, $i, "Text")
+                    ),
+                    Call($is, $i, "Regex")
+                  ),
+                  And(
+                    And(
+                      And(Call($is, $i, "Closer"), NotEquals(Call($head, $i), "Dedent")),
+                      NotEquals(Call($head, $i), null)
+                    ),
+                    Not(Call($is, Call($pair, $i), "Infix"))
+                  )
+                )
+              )
+            ),
+            Comment("Round brackets that head a statement: \"if (x)\"."),
+            Bind($header,
+              Lambda(List($i),
+                And(
+                  And(Call($is, $i, "Closer"), GreaterThan(Call($pair, $i), 0)),
+                  Call($is, Subtract(Call($pair, $i), 1), "Heads")
+                )
+              )
+            ),
+            If(
+              LessThan(Call($pair, $at), 0),
+              Return(Call($as, "Opener")),
+              Undefined()
+            ),
+            Bind($p, Subtract($at, 1)),
+            Bind($applied,
+              And(
+                And(
+                  And(
+                    And(And(Call($is, $p, "Closer"), Not(Call($header, $p))), NotEquals(Call($head, $p), null)),
+                    AtLeast(Call($pair, $p), 0)
+                  ),
+                  Not(Call($is, Call($pair, $p), "Scope"))
+                ),
+                Not(Call($is, Call($pair, $p), "Attached"))
+              )
+            ),
+            Return(
+              If(
+                $applied,
+                Call($sense, "Apply"),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
+  Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
     body = Code(
@@ -7921,6 +8780,146 @@ Concept(Parens(),
 Concept(Brackets(),
   IsA(Opener()),
   Spelled("["),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("\"[\" after a thing (not after a header, \"if (x) [a, b] = ...\") is that thing's index."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($pair,
+              Lambda(List($i),
+                If(
+                  Equals(Call($v, "pair", $i), Undefined()),
+                  Negate(1),
+                  Call($v, "pair", $i)
+                )
+              )
+            ),
+            Comment("As the kind of word it also is: what it does when it is not the case here."),
+            Bind($as,
+              Lambda(List($kind),
+                Call(
+                  Member($api, "evaluate"),
+                  Object(head = $kind, args = Member($self, "args")),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($sense,
+              Lambda(List($h),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), $h)
+                  )
+                )
+              )
+            ),
+            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
+            Bind($ends,
+              Lambda(List($i),
+                Or(
+                  Or(
+                    Or(
+                      Or(
+                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                        Call($is, $i, "Number")
+                      ),
+                      Call($is, $i, "Text")
+                    ),
+                    Call($is, $i, "Regex")
+                  ),
+                  And(
+                    And(
+                      And(Call($is, $i, "Closer"), NotEquals(Call($head, $i), "Dedent")),
+                      NotEquals(Call($head, $i), null)
+                    ),
+                    Not(Call($is, Call($pair, $i), "Infix"))
+                  )
+                )
+              )
+            ),
+            Comment("Round brackets that head a statement: \"if (x)\"."),
+            Bind($header,
+              Lambda(List($i),
+                And(
+                  And(Call($is, $i, "Closer"), GreaterThan(Call($pair, $i), 0)),
+                  Call($is, Subtract(Call($pair, $i), 1), "Heads")
+                )
+              )
+            ),
+            If(
+              LessThan(Call($pair, $at), 0),
+              Return(Call($as, "Opener")),
+              Undefined()
+            ),
+            Return(
+              If(
+                And(Call($ends, Subtract($at, 1)), Not(Call($header, Subtract($at, 1)))),
+                Call($sense, "Index"),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -8066,6 +9065,257 @@ Concept(Brackets(),
 Concept(Braces(),
   IsA(Opener()),
   Spelled("{"),
+  Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A \"{\" where a thing can start is a value; where a statement starts, or after what a block"),
+            Comment("follows, a block. Where indentation makes blocks, a brace is always a value. It decides once"),
+            Comment("the brackets before it have closed (its own closer found, a round later)."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($words,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 0), "value")),
+                "args"
+              )
+            ),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($n, Length(Member($field, "kinds"))),
+            Bind($is,
+              Lambda(List($i, $k),
+                And(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Call(
+                    Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                    Lambda(List($a), Equals(Member($a, "value"), $k))
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, $n)),
+                  Member(Index(Member(Member(Index($words, $i), "value"), "args"), 0), "value"),
+                  ""
+                )
+              )
+            ),
+            Bind($head, Lambda(List($i), Call($v, "heads", $i))),
+            Bind($pair,
+              Lambda(List($i),
+                If(
+                  Equals(Call($v, "pair", $i), Undefined()),
+                  Negate(1),
+                  Call($v, "pair", $i)
+                )
+              )
+            ),
+            Comment("As the kind of word it also is: what it does when it is not the case here."),
+            Bind($as,
+              Lambda(List($kind),
+                Call(
+                  Member($api, "evaluate"),
+                  Object(head = $kind, args = Member($self, "args")),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($sense,
+              Lambda(List($h),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(
+                    Member($api, "call"),
+                    "Sense",
+                    $at,
+                    Call(Member($api, "call"), $h)
+                  )
+                )
+              )
+            ),
+            Comment("A thing ends here: a name that is no operator, a value, a closed bracket."),
+            Bind($ends,
+              Lambda(List($i),
+                Or(
+                  Or(
+                    Or(
+                      Or(
+                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                        Call($is, $i, "Number")
+                      ),
+                      Call($is, $i, "Text")
+                    ),
+                    Call($is, $i, "Regex")
+                  ),
+                  And(
+                    And(
+                      And(Call($is, $i, "Closer"), NotEquals(Call($head, $i), "Dedent")),
+                      NotEquals(Call($head, $i), null)
+                    ),
+                    Not(Call($is, Call($pair, $i), "Infix"))
+                  )
+                )
+              )
+            ),
+            Comment("Round brackets that head a statement: \"if (x)\"."),
+            Bind($header,
+              Lambda(List($i),
+                And(
+                  And(Call($is, $i, "Closer"), GreaterThan(Call($pair, $i), 0)),
+                  Call($is, Subtract(Call($pair, $i), 1), "Heads")
+                )
+              )
+            ),
+            If(
+              LessThan(Call($pair, $at), 0),
+              Return(Call($as, "Opener")),
+              Undefined()
+            ),
+            Bind($code,
+              Call(
+                Member(
+                  Map(Otherwise(Member(Member($api, "context"), "args"), List()), Lambda(List($a), Member($a, "value"))),
+                  "find"
+                ),
+                Lambda(List($f), And(Call($isCall, $f), Equals(Member($f, "head"), "Code")))
+              )
+            ),
+            Bind($language,
+              If(
+                $code,
+                Call(
+                  Member(Member($api, "store"), "get"),
+                  Member(Member(Index(Member($code, "args"), 0), "value"), "head")
+                ),
+                Undefined()
+              )
+            ),
+            Bind($offside,
+              And(
+                Not(Not($language)),
+                Call(
+                  Member(Member($language, "relations"), "some"),
+                  Lambda(List($r),
+                    And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Offside"))
+                  )
+                )
+              )
+            ),
+            Bind($returns, Lambda(List($j), Equals(Call($head, $j), "Returns"))),
+            Bind($blockAt,
+              Lambda(List(),
+                Sequence(
+                  If($offside, Return(false), Undefined()),
+                  Bind($p, Subtract($at, 1)),
+                  If(LessThan($p, 0), Return(true), Undefined()),
+                  If(Call($is, $p, "TakesBlock"), Return(true), Undefined()),
+                  If(
+                    Call($is, $p, "Separator"),
+                    Return(
+                      Or(
+                        Or(
+                          Or(Equals(Call($v, "inside", $p), Undefined()), LessThan(Call($v, "inside", $p), 0)),
+                          Call($is, Call($v, "inside", $p), "Scope")
+                        ),
+                        Equals(Call($head, $p), "Semicolon")
+                      )
+                    ),
+                    Undefined()
+                  ),
+                  If(
+                    Call($is, $p, "Opener"),
+                    Return(Call($is, $p, "Scope")),
+                    Undefined()
+                  ),
+                  Comment("After a signature's type (\"f(): string[] {\", \"(): void {\"), the block the type is of;"),
+                  Comment("right after the colon, the brace is the type itself (\"(): { a: T } {\")."),
+                  If(Call($returns, $p), Return(false), Undefined()),
+                  For(
+                    Var($j, $p),
+                    AtLeast($j, 0),
+                    Assign(
+                      $j,
+                      If(
+                        And(Call($is, $j, "Closer"), AtLeast(Call($pair, $j), 0)),
+                        Subtract(Call($pair, $j), 1),
+                        Subtract($j, 1)
+                      )
+                    ),
+                    Sequence(
+                      If(Call($returns, $j), Return(true), Undefined()),
+                      If(
+                        Or(
+                          Or(
+                            Or(
+                              Or(Call($is, $j, "Separator"), Call($is, $j, "Scope")),
+                              And(
+                                Call($is, $j, "Opener"),
+                                Not(And(AtLeast(Call($pair, $j), 0), LessThan(Call($pair, $j), $at)))
+                              )
+                            ),
+                            Equals(Call($head, $j), "Arrow")
+                          ),
+                          Equals(Call($head, $j), "Assign")
+                        ),
+                        Break(),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Comment("After round brackets, a block, or angles (\"f(x) {\", \"} {\", \"A<T> {\"): a block."),
+                  If(
+                    Call($is, $p, "Closer"),
+                    Return(
+                      And(
+                        AtLeast(Call($pair, $p), 0),
+                        Or(
+                          Or(Call($is, Call($pair, $p), "Round"), Call($is, Call($pair, $p), "Scope")),
+                          Call($is, Call($pair, $p), "Attached")
+                        )
+                      )
+                    ),
+                    Undefined()
+                  ),
+                  Return(Or(Call($ends, $p), Call($is, $p, "Comment")))
+                )
+              )
+            ),
+            Return(
+              If(
+                Call($blockAt),
+                Call($sense, "Block"),
+                Call(Member($api, "call"), "List")
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -8500,7 +9750,6 @@ Concept(Apply(),
 Concept(Angles(),
   IsA(Opener()),
   IsA(Attached()),
-  ClosedBy(AngleEnd()),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -8764,6 +10013,116 @@ Concept(Question(),
   Relation(Binds(25, Right()), context = Code(TypeScript())),
   Relation(ClosedBy(Colon()), context = Code(TypeScript())),
   Realization($word,
+    context = Sensing(Code($language)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("\"a ? b : c\": the question takes what is asked before it, and holds what is between it and"),
+            Comment("its \":\" and what follows the \":\" as the two answers."),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($at, Member(Index(Member($self, "args"), 1), "value")),
+            Bind($field, Object()),
+            ForOf(
+              $a,
+              Member(
+                Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
+                "args"
+              ),
+              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+            ),
+            Bind($v,
+              Lambda(List($k, $i),
+                If(
+                  And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k)))),
+                  Member(Index(Index($field, $k), $i), "value"),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              AtLeast(Call($v, "pair", $at), 0),
+              Return(Call(Member($api, "call"), "List")),
+              Undefined()
+            ),
+            Sequence(
+              Comment("Its \":\": the first where the brackets between have closed and any question asked between"),
+              Comment("has had its own."),
+              Bind($n, Length(Member($field, "kinds"))),
+              Bind($is,
+                Lambda(List($i, $k),
+                  And(
+                    And(AtLeast($i, 0), LessThan($i, $n)),
+                    Call(
+                      Member(Member(Call($v, "kinds", $i), "args"), "some"),
+                      Lambda(List($a), Equals(Member($a, "value"), $k))
+                    )
+                  )
+                )
+              ),
+              Var($asked, 0),
+              For(
+                Var($k, Add($at, 1)),
+                LessThan($k, $n),
+                PostIncrement($k),
+                Sequence(
+                  Bind($p, Call($v, "pair", $k)),
+                  If(
+                    GreaterThan($p, $k),
+                    Sequence(Assign($k, $p), Continue()),
+                    Undefined()
+                  ),
+                  If(
+                    And(Call($is, $k, "Closer"), LessThan($p, 0)),
+                    Break(),
+                    Undefined()
+                  ),
+                  Comment("A bracket between that has not found its closer yet: wait for it."),
+                  If(
+                    And(And(Call($is, $k, "Opener"), LessThan($p, 0)), Not(Call($is, $k, "Infix"))),
+                    Return(Call(Member($api, "call"), "List")),
+                    Undefined()
+                  ),
+                  If(
+                    Equals(Call($v, "heads", $k), "Question"),
+                    PostIncrement($asked),
+                    If(
+                      Or(Equals(Call($v, "heads", $k), "Colon"), Equals(Call($v, "heads", $k), "Returns")),
+                      Sequence(
+                        If(
+                          Equals($asked, 0),
+                          Return(
+                            Call(
+                              Member($api, "call"),
+                              "List",
+                              Call(
+                                Member($api, "call"),
+                                "Link",
+                                $k,
+                                $at,
+                                Call(Member($api, "call"), "Closes")
+                              )
+                            )
+                          ),
+                          Undefined()
+                        ),
+                        PostDecrement($asked)
+                      ),
+                      If(Call($is, $k, "Separator"), Break(), Undefined())
+                    )
+                  )
+                )
+              ),
+              Return(Call(Member($api, "call"), "List"))
+            ),
+            Return(Call(Member($api, "call"), "List"))
+          )
+        )
+      )
+    )
+  ),
+  Realization($word,
     context = Hearing(Code($language)),
     evaluateArguments = false,
     body = Code(
@@ -8934,8 +10293,6 @@ Concept(CloseBrace(), IsA(Closer()), Spelled("}"))
 
 Concept(Dedent(), IsA(Closer()))
 
-Concept(AngleEnd(), IsA(Closer()))
-
 Concept(TemplateEnd(), IsA(Closer()))
 
 Concept(Comma(), IsA(Separator()), Spelled(","))
@@ -8943,6 +10300,8 @@ Concept(Comma(), IsA(Separator()), Spelled(","))
 Concept(Semicolon(), IsA(Separator()), Spelled(";"))
 
 Concept(Newline(), IsA(Separator()))
+
+Concept(BlockColon(), Relation(IsA(Separator()), context = Code(Python())))
 
 // Reading what was heard as the code IR.
 Concept(Infix(),

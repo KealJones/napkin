@@ -74,190 +74,125 @@ async (args, bindings, api) => {
   // "comma" and "not" are names in TypeScript, "not" a word in Python.
   const keyword = (head) => claims(head || "", "Keyword").length > 0;
   const kinds = said.map((w, i) => [SHAPE[w.kind] ?? "Symbol", ...(w.kind !== "name" || keyword(heads[i]) ? kindsOf(heads[i]) : [])]);
-  // A word typed other than as its Concept's plain name ("Set" beside "set"), a member's name
-  // ("x.set"), or a key ("{ default: 1 }") is a name, whatever the word is elsewhere.
-  const is0 = (i, k) => kinds[i].includes(k);
-  for (let i = 0; i < n; i++) {
-    const w = said[i];
-    if (w.kind !== "name" || kinds[i].length === 1) continue;
-    const member = i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "." || said[i - 1].text === "?.");
-    const key = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === ":" && i > 0 && said[i - 1].kind === "symbol" && (said[i - 1].text === "{" || said[i - 1].text === ",");
-    const owner = i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === "." && !is0(i, "Infix");
-    // A word of the language only where not used as a name, called: "get(x)" calls get.
-    const called = is0(i, "Contextual") && i + 1 < n && said[i + 1].kind === "symbol" && said[i + 1].text === "(";
-    if (w.text !== heads[i][0].toLowerCase() + heads[i].slice(1) || member || key || owner || called) kinds[i] = ["Name"];
-  }
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
+  // What a word says it is here (Sense): "<" after a name is its angles, "{" after a signature
+  // is a block, "get" in "x.get" is only a name. Its Concept, with only the kinds it has.
   const become = (i, head) => {
-    heads[i] = head;
-    kinds[i] = [SHAPE[said[i].kind] ?? "Symbol", ...kindsOf(head)];
-  };
-  // A thing ends here: a name that is no operator, a value, a closed bracket.
-  const ends = (i) =>
-    (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && !is(i, "Dedent") && heads[i] !== undefined) || (is(i, "Unary") && said[i].kind === "symbol" && i > 0 && ends(i - 1) && said[i + 1] && said[i + 1].kind === "symbol" && "[.(".includes(said[i + 1].text[0]));
-  // Where a bracket stands says which it is. "[" after a thing is that thing's index. "<"
-  // right after a name, closing on ">" around nothing that computes, is the name's angles.
-  // A "{" where a thing can start is a value; where a statement starts, or after what a
-  // block follows, a block. Where indentation makes blocks, a brace is always a value.
-  const CALM = new Set([",", ".", "[", "]", "|", "&", "?", ":", "?:", "(", ")", "=>", "{", "}", ";", "...", "<", ">", "\n"]);
-  for (let i = 0; i < n; i++) {
-    // A colon that opens a block (Python's) only separates the block from what leads it.
-    if (heads[i] === "Colon" && is(i + 1, "Scope")) kinds[i] = ["Symbol", "Separator"];
-  }
-  for (let i = 1; i < n; i++) {
-    // A colon right after round brackets says what they give: "(x): number".
-    if (heads[i] === "Colon" && is(i, "Infix") && said[i - 1].text === ")") become(i, "Returns");
-    if (heads[i] === "Less" && is(i - 1, "Name") && !is(i - 1, "Infix")) {
-      let depth = 0;
-      let j = i;
-      for (; j < n && j < i + 200; j++) {
-        const t = said[j];
-        if (t.kind === "symbol" && t.text === "<") depth++;
-        else if (t.kind === "symbol" && t.text === ">") depth--;
-        else if (!(t.kind === "name" || t.kind === "text" || t.kind === "number" || (t.kind === "symbol" && CALM.has(t.text)))) break;
-        if (depth === 0) break;
-      }
-      if (depth === 0 && j < n && said[j].text === ">") {
-        become(i, "Angles");
-        become(j, "AngleEnd");
-      }
+    if (head === "Name") kinds[i] = ["Name"];
+    else {
+      heads[i] = head;
+      kinds[i] = [SHAPE[said[i].kind] ?? "Symbol", ...kindsOf(head)];
     }
-  }
-  // Brackets pair by counting, as any bracket is read; an opener that says what closes it
-  // (ClosedBy: "?" by ":", angles by their end) is closed only by that.
+  };
+  // Which brackets pair and which bracket each word is inside, from the links that say what
+  // closes what (Closes).
   const pair = said.map(() => -1);
   const inside = said.map(() => -1);
-  const open = [];
-  const closedBy = (i) => first(heads[i] || "", "ClosedBy");
-  const blockAt = (i) => {
-    if (offside) return false;
-    const p = i - 1;
-    if (p < 0) return true;
-    if (is(p, "TakesBlock")) return true;
-    if (is(p, "Separator")) return inside[p] < 0 || is(inside[p], "Scope") || heads[p] === "Semicolon";
-    if (is(p, "Opener")) return is(p, "Scope");
-    // After a signature's type ("f(): string[] {", "(): void {"), a brace is the block the
-    // type is of: look back along what is said for the colon that follows round brackets.
-    // Right after the colon, the brace is the type itself ("(): { a: T } {").
-    if (heads[p] === "Returns") return false;
-    for (let j = p; j >= 0; j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
-      if (heads[j] === "Returns") return true;
-      if (is(j, "Separator") || is(j, "Scope") || (is(j, "Opener") && !(pair[j] >= 0 && pair[j] < i)) || heads[j] === "Arrow" || heads[j] === "Assign") break;
+  let links = [];
+  // What closes what is a pairing, not a link: who the closer belongs to is the bracket's to say.
+  const closed = [];
+  const structure = () => {
+    pair.fill(-1);
+    inside.fill(-1);
+    for (const l of closed) {
+      pair[l.from] = l.to;
+      pair[l.to] = l.from;
     }
-    // After round brackets, a block, or angles ("f(x) {", "} {", "A<T> {"): a block.
-    if (is(p, "Closer")) return pair[p] >= 0 && (is(pair[p], "Round") || is(pair[p], "Scope") || is(pair[p], "Attached"));
-    return ends(p) || is(p, "Comment");
-  };
-  for (let i = 0; i < n; i++) {
-    if (heads[i] === "Braces" && blockAt(i)) become(i, "Block");
-    inside[i] = open.length ? open[open.length - 1] : -1;
-    const top = open.length ? open[open.length - 1] : -1;
-    const wanted = top >= 0 ? closedBy(top) : undefined;
-    if (wanted && isCall(wanted) && (wanted.head === heads[i] || (wanted.head === "Colon" && heads[i] === "Returns"))) {
-      open.pop();
-      pair[top] = i;
-      pair[i] = top;
-      inside[i] = open.length ? open[open.length - 1] : -1;
-      kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator"), "Closer"];
-      // It only closes: what it does elsewhere ("a: b") it does not do here.
-      if (!kindsOf(heads[i]).includes("Closer")) heads[i] = undefined;
-      continue;
-    }
-    if (is(i, "Closer")) {
-      while (open.length && closedBy(open[open.length - 1])) open.pop();
-      if (open.length) {
-        const o = open.pop();
-        pair[o] = i;
-        pair[i] = o;
-      }
-      inside[i] = open.length ? open[open.length - 1] : -1;
-    }
-    if (is(i, "Opener")) open.push(i);
-  }
-  // "[" after a thing (not after a header, "if (x) [a, b] = ...") is that thing's index.
-  for (let i = 1; i < n; i++) {
-    const header = is(i - 1, "Closer") && pair[i - 1] > 0 && is(pair[i - 1] - 1, "Heads");
-    if (heads[i] === "Brackets" && ends(i - 1) && !header) become(i, "Index");
-    // "(" right after a closed group that is not a header: what it gives, called ("f(x)(y)").
-    if (heads[i] === "Parens" && is(i - 1, "Closer") && !header && heads[i - 1] !== undefined && pair[i - 1] >= 0 && !is(pair[i - 1], "Scope") && !is(pair[i - 1], "Attached")) become(i, "Apply");
-  }
-  // Who a block belongs to: the name whose brackets come just before it (a function, a
-  // method; with its return type, that type's colon), else the word that leads what is
-  // said before it (if, for, class, else). After an operator it belongs to no one: it is
-  // the operator's thing ("=> { }").
-  const leader = said.map(() => -1);
-  const stops = (k) => is(k, "Separator") || is(k, "Scope") || is(k, "Comment") || (is(k, "Closer") && is(pair[k], "Scope"));
-  for (let o = 0; o < n; o++) {
-    if (!is(o, "Scope")) continue;
-    let p = o - 1;
-    if (is(p, "Separator") && offside) p--;
-    if (p < 0 || is(p, "Infix")) continue;
-    let k = p;
-    let typed = -1;
-    if (!(is(k, "Closer") && heads[pair[k]] === "Parens")) {
-      for (let j = k; j >= 0 && !stops(j); j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
-        if (is(j, "Opener")) break;
-        if (heads[j] === "Returns") {
-          typed = j;
-          k = j - 1;
-          break;
-        }
-      }
-    }
-    if (is(k, "Closer") && heads[pair[k]] === "Parens") {
-      let g = pair[k] - 1;
-      if (is(g, "Closer") && heads[g] === "AngleEnd") g = pair[g] - 1;
-      if (is(g, "Name") && !is(g, "Infix")) {
-        leader[o] = is(g, "Prefix") ? g : typed >= 0 ? typed : g;
+    const open = [];
+    for (let i = 0; i < n; i++) {
+      if (pair[i] >= 0 && pair[i] < i) {
+        while (open.length && open[open.length - 1] !== pair[i]) open.pop();
+        open.pop();
+        inside[i] = open.length ? open[open.length - 1] : -1;
         continue;
       }
+      inside[i] = open.length ? open[open.length - 1] : -1;
+      if (pair[i] > i) open.push(i);
     }
-    for (let j = p; j >= 0 && !stops(j); j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
-      if (is(j, "Opener")) break;
-      if (is(j, "Prefix")) {
-        leader[o] = j;
-        break;
-      }
-    }
-  }
+  };
   const bindsOf = new Map();
-  const words = said.map((w, i) => {
+  const wordAt = (w, i) => {
     const tags = kinds[i].map((k) => api.call(k));
-    if (!bindsOf.has(heads[i])) bindsOf.set(heads[i], claims(heads[i] || "", "Binds")[0]);
-    const binds = bindsOf.get(heads[i]);
+    if (!bindsOf.has(heads[i])) bindsOf.set(heads[i], [claims(heads[i] || "", "Binds")[0], claims(heads[i] || "", "BindsAfter")[0]]);
+    const [binds, after] = bindsOf.get(heads[i]);
     if (binds) tags.push(binds);
-    const after = claims(heads[i] || "", "BindsAfter")[0];
     if (after) tags.push(after);
     if (pair[i] >= 0) tags.push(api.call("Pairs", pair[i]));
     if (inside[i] >= 0) tags.push(api.call("Inside", inside[i]));
-    if (leader[i] >= 0) tags.push(api.call("Leader", leader[i]));
+    if (heads[i]) tags.push(api.call("Heard", api.call(heads[i])));
     return api.call("Word", w.text, i, api.call("List", ...tags));
-  });
-  const prompt = api.call("Prompt", ...words);
-  // Rounds until nothing changes. What each word sees (CodeView: the kinds around it and the
-  // groups the links have made) is worked out once a round, held in a cell, and handed over by
-  // reference, so a word's hearing costs what it looks at, not the length of the code. A word
-  // with no hearing of its own (it answered with itself) is not asked again, and a word is
-  // asked again only where a link was just made: beside a group whose edges moved, or in a
-  // bracket that just gained one.
-  let links = [];
+  };
+  // First, what each word is here. A word says it (Sense, about itself only: "<" after a name
+  // is its angles, "{" after a signature a block, "x.get"'s "get" only a name), and a bracket
+  // finds what closes it (Closes), each as its Concept does under Sensing(Code(<language>)).
+  // A word with nothing to say answers with itself and is not asked again. Rounds until no
+  // word says anything new.
+  const sensing = api.call("Sensing", code);
+  const onlyName = (i) => kinds[i].length === 1 && kinds[i][0] === "Name";
   const parent = new Array(n).fill(-1);
-  const promptCell = api.cells.allocate(prompt);
+  const promptCell = api.cells.allocate(api.call("List"));
   const linksCell = api.cells.allocate(api.call("List"));
   const viewCell = api.cells.allocate(api.call("List"));
+  const writeLinks = () => api.cells.write(linksCell, api.call("List", ...links.map((l) => api.call("Link", l.from, l.to, api.call(l.role)))));
+  let asking = said.map((_, i) => i).filter((i) => heads[i] && !onlyName(i));
+  let rounds = 0;
+  for (let round = 0; round < 12 && asking.length; round++) {
+    rounds++;
+    structure();
+    api.cells.write(promptCell, api.call("Prompt", ...said.map(wordAt)));
+    writeLinks();
+    api.cells.write(viewCell, await api.evaluate(api.call("CodeView", promptCell, linksCell), hearing));
+    const still = [];
+    let news = 0;
+    const closes = [];
+    for (const i of asking) {
+      if (pair[i] >= 0 && pair[i] < i) continue;
+      const said2 = await api.evaluate(api.call(heads[i], promptCell, i, linksCell, viewCell), sensing);
+      if (!isCall(said2) || said2.head !== "List") continue;
+      still.push(i);
+      for (const a of said2.args) {
+        const p = a.value;
+        if (isCall(p) && p.head === "Link" && p.args[2].value.head === "Closes") closes.push({ from: p.args[0].value, to: p.args[1].value, role: "Closes" });
+        else if (isCall(p) && p.head === "Sense" && p.args[0].value === i && isCall(p.args[1].value)) {
+          const h2 = p.args[1].value.head;
+          if (h2 === "Name" ? onlyName(i) : heads[i] === h2) continue;
+          become(i, h2);
+          news++;
+        }
+      }
+    }
+    for (const c of closes) {
+      if (pair[c.from] >= 0 || pair[c.to] >= 0 || c.from === c.to) continue;
+      pair[c.to] = c.from;
+      pair[c.from] = c.to;
+      closed.push(c);
+      news++;
+    }
+    if (!news) break;
+    asking = still.filter((i) => !onlyName(i));
+  }
+  structure();
+  // Then the links: rounds until nothing changes. Each word hears as its Concept does under
+  // Hearing(Code(<language>)) and answers with the links it proposes. What each word sees
+  // (CodeView: the kinds around it and the groups the links have made) is worked out once a
+  // round, held in a cell, and handed over by reference, so a word's hearing costs what it
+  // looks at, not the length of the code. A word with no hearing of its own (it answered with
+  // itself) is not asked again, and a word is asked again only where a link was just made:
+  // beside a group whose edges moved, or in a bracket that just gained one.
+  api.cells.write(promptCell, api.call("Prompt", ...said.map(wordAt)));
   const RANK = { Absorbs: 1, Takes: 2 };
   const deaf = new Set();
   let dirty = new Set(said.map((_, i) => i));
   const lo = [...Array(n).keys()];
   const hi = [...Array(n).keys()];
-  let rounds = 0;
   for (let round = 0; round < n + 2 && dirty.size; round++) {
     rounds++;
-    api.cells.write(linksCell, api.call("List", ...links.map((l) => api.call("Link", l.from, l.to, api.call(l.role)))));
+    writeLinks();
     api.cells.write(viewCell, await api.evaluate(api.call("CodeView", promptCell, linksCell), hearing));
     const proposals = [];
     for (const i of [...dirty].sort((a, b) => a - b)) {
-      if (!heads[i] || deaf.has(i)) continue;
+      // A word that closes a bracket is part of how the bracket is said.
+      if (!heads[i] || deaf.has(i) || onlyName(i) || (pair[i] >= 0 && pair[i] < i)) continue;
       const proposed = await api.evaluate(api.call(heads[i], promptCell, i, linksCell, viewCell), hearing);
       if (!isCall(proposed) || proposed.head !== "List") {
         deaf.add(i);

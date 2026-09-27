@@ -11,7 +11,7 @@ async (args, bindings, api) => {
   const right = [];
   const pair = [];
   const inside = [];
-  const leader = [];
+  const heads = [];
   const tagged = (tags, head) => {
     const t = tags.find((x) => isCall(x) && x.head === head);
     return t ? t.args[0].value : -1;
@@ -26,7 +26,12 @@ async (args, bindings, api) => {
     right.push(b ? b.args.length > 1 : false);
     pair.push(tagged(tags, "Pairs"));
     inside.push(tagged(tags, "Inside"));
-    leader.push(tagged(tags, "Leader"));
+    const heard = tags.find((t) => isCall(t) && t.head === "Heard");
+    heads.push(heard ? heard.args[0].value.head : null);
+  }
+  // A word that closes a bracket ("a ? b : c", "A<T>") is only that bracket's end.
+  for (let i = 0; i < n; i++) {
+    if (pair[i] >= 0 && pair[i] < i && !kinds[i].includes("Closer")) kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator" && k !== "Prefix"), "Closer"];
   }
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
   const scope = kinds.map((_, i) => is(i, "Scope"));
@@ -34,7 +39,7 @@ async (args, bindings, api) => {
   const prefix = kinds.map((_, i) => is(i, "Prefix"));
   // What binds as an operator does, for what waits on it: operators, and an index after a thing.
   // A block after an operator is the operator's thing: it stands alone, as a value does.
-  const alone = kinds.map((_, i) => scope[i] && leader[i] < 0 && infix[i - 1]);
+  const alone = kinds.map((_, i) => scope[i] && infix[i - 1]);
   // A thing can end here: a name that is not an operator, a value, a closed group (not a block).
   // A closed group ends a thing, but not a block, a header ("if (x)"), or a question's ":".
   const plainEnd = (i) =>
@@ -82,5 +87,5 @@ async (args, bindings, api) => {
       hi[p] = Math.max(hi[p], i);
     }
   }
-  return api.fromHost({ after, operator, stray, kinds, binds, right, pair, inside, leader, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation, parent, role, lo, hi });
+  return api.fromHost({ after, operator, stray, kinds, binds, right, pair, inside, heads, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation, parent, role, lo, hi });
 }

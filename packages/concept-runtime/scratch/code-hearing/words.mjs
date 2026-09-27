@@ -116,7 +116,7 @@ export const WORDS = [
   ["Indent", ["Scope"]],
   ["Index", ["Opener", "Postfix"], undefined, "Binds(200)"],
   ["Apply", ["Opener", "Postfix", "Round"], undefined, "Binds(200)"],
-  ["Angles", ["Opener", "Attached"], undefined, undefined, ["ClosedBy(AngleEnd())"]],
+  ["Angles", ["Opener", "Attached"]],
   ["Template", ["Opener", "Juxtaposed"], undefined, undefined, ["ClosedBy(TemplateEnd())"]],
   ["Interpolation", ["Opener", "Transparent"], "${"],
   ["Question", ["Opener", "Infix"], "?", "Binds(25, Right())", ["ClosedBy(Colon())"], TS],
@@ -124,10 +124,11 @@ export const WORDS = [
   ["CloseBracket", ["Closer"], "]"],
   ["CloseBrace", ["Closer"], "}"],
   ["Dedent", ["Closer"]],
-  ["AngleEnd", ["Closer"]],
   ["TemplateEnd", ["Closer"]],
   // Separators and layout.
   ["Comma", ["Separator"], ","],
   ["Semicolon", ["Separator"], ";"],
   ["Newline", ["Separator"]],
+  // A ":" that opens a block only separates it from what leads it.
+  ["BlockColon", ["Separator"], undefined, undefined, PY],
 ];

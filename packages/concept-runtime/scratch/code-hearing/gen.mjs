@@ -33,6 +33,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const HEARS = "Hearing(Code($language))";
 const READS = "Context(Code($language), Reading())";
 const hears = (file) => `Realization($word, context = ${HEARS}, evaluateArguments = false, body = ${js(file)})`;
+const SENSES = "Sensing(Code($language))";
+const senses = (file) => `Realization($word, context = ${SENSES}, evaluateArguments = false, body = ${js(file)})`;
 
 const out = [];
 const say = (s) => out.push(s);
@@ -56,13 +58,22 @@ Concept(CodeWord(), IsA(Category()))`);
 
 say(`// Code heard: its words, the links they find in rounds, each word written as its Concept.
 Concept(Hear(), Realization(Hear($text), context = Context(Execution(), Code($language)), evaluateArguments = false, body = ${js("hear.js")}))`);
+say(`// What a word says about itself, here (hearing): Sense(position, Concept).
+Concept(Sense(), IsA(Data()))
+
+// "}" closes "{": the link a bracket's end has to it.
+Concept(Closes(), IsA(LinkRole()))
+
+// Before the links, what each word is here: a word says it under Sensing(), and nothing it does
+// elsewhere runs.
+Concept(Sensing(), IsA(ContextFacet()), Exclusive())`);
 say(`// What a word hearing code sees: the kinds around it and the groups the links have made.
 Concept(CodeView(), Realization(CodeView($prompt, $links), context = ${HEARS}, evaluateArguments = false, body = ${js("view.js")}))`);
 const kinds = {
-  Infix: `// Between two things: takes them by how tightly it binds.\nConcept(Infix(), IsA(CodeWord()), ${hears("infix.js")})`,
-  Prefix: `// Before a thing: takes what follows.\nConcept(Prefix(), IsA(CodeWord()), ${hears("prefix.js")})`,
-  Opener: `// A bracket: groups what it holds, for whoever it belongs to.\nConcept(Opener(), IsA(CodeWord()), ${hears("opener.js")})`,
-  Continues: `// Goes on from the statement before it.\nConcept(Continues(), IsA(Prefix()), IsA(CodeWord()), ${hears("else.js")})`,
+  Infix: `// Between two things: takes them by how tightly it binds. A word of the language used as a\n// name ("x.in", "{ from: 1 }") says it is only a name.\nConcept(Infix(), IsA(CodeWord()), ${senses("asname.js")}, ${hears("infix.js")})`,
+  Prefix: `// Before a thing: takes what follows. Used as a name, only a name.\nConcept(Prefix(), IsA(CodeWord()), ${senses("asname.js")}, ${hears("prefix.js")})`,
+  Opener: `// A bracket: finds what closes it, then groups what it holds, for whoever it belongs to.\nConcept(Opener(), IsA(CodeWord()), ${senses("pair.js")}, ${hears("opener.js")})`,
+  Continues: `// Goes on from the statement before it. Used as a name, only a name.\nConcept(Continues(), IsA(Prefix()), IsA(CodeWord()), ${senses("asname.js")}, ${hears("else.js")})`,
   Scope: "// A block of statements.\nConcept(Scope(), IsA(Opener()), IsA(CodeWord()))",
   Closer: "Concept(Closer(), IsA(CodeWord()))",
   Separator: "Concept(Separator(), IsA(CodeWord()))",
@@ -92,6 +103,9 @@ for (const entry of WORDS) {
   parts.push(...(Array.isArray(binds) ? binds : []), ...(Array.isArray(extra) ? extra.map((x) => (x.startsWith("Relation(") ? x : here(x))) : []));
   // Derived from the grammar, preferred in its language over what is written here.
   parts.push(...(derived.get(head) ?? []));
+  // What a word says it is here, where only it can tell (Sensing), and its own hearing.
+  const SENSE = { Question: "question-pair.js", Less: "less.js", Colon: "colon.js", Braces: "braces.js", Brackets: "brackets.js", Parens: "parens.js" };
+  if (SENSE[head]) parts.push(senses(SENSE[head]));
   if (head === "Question") parts.push(hears("question.js"));
   parts.push(...(READINGS[head] ?? []));
   say(`Concept(${head}(), ${parts.join(", ")})`);
