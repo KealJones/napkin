@@ -168,10 +168,14 @@ const pyStatements = async (text) => {
   return out;
 };
 
+// --at <commit>: the corpus as it was at that commit, so a change to the files it reads does not
+// change what is measured.
+const AT = flag("--at", undefined);
+const source = (f) => (AT ? execSync(`git -C ${root} show ${AT}:${f.slice(join(root, "../..").length + 1)}`, { maxBuffer: 1 << 26 }).toString() : readFileSync(f, "utf8"));
 const tokens = (text) => (text.match(/[\p{L}\p{N}_$]+|[^\s\p{L}\p{N}_$]/gu) ?? []).length;
 
 if (what === "ts" || what === "all") {
-  const statements = tsFiles().flatMap((f) => tsStatements(readFileSync(f, "utf8")));
+  const statements = tsFiles().flatMap((f) => tsStatements(source(f)));
   await score(`TypeScript (${tsFiles().length} files, ${statements.length} statements)`, statements, async (t) => importTypeScript(t), "TypeScript");
 }
 if (what === "py" || what === "all") {
@@ -181,7 +185,7 @@ if (what === "py" || what === "all") {
   await score(`Python (${PY.length} stdlib files, ${statements.length} statements)`, statements, async (t) => importSource(t, "Python"), "Python");
 }
 if (what === "speed" || what === "all") {
-  const pool = tsFiles().flatMap((f) => tsStatements(readFileSync(f, "utf8"))).filter((s) => !hasUnsupported(importTypeScript(s).expression));
+  const pool = tsFiles().flatMap((f) => tsStatements(source(f))).filter((s) => !hasUnsupported(importTypeScript(s).expression));
   const parser = await (async () => {
     const loaded = await import("web-tree-sitter");
     const T = loaded.default ?? loaded;

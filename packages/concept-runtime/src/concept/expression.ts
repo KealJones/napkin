@@ -207,6 +207,7 @@ export function format(e: Expr): string {
 
 /** Structural equality. */
 export function equal(a: Expr, b: Expr): boolean {
+  if (a === b) return true;
   if (isCall(a)) {
     if (!isCall(b) || a.head !== b.head || a.args.length !== b.args.length) return false;
     return a.args.every((x, i) => x.name === b.args[i].name && equal(x.value, b.args[i].value));

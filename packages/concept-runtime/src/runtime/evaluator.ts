@@ -317,9 +317,11 @@ export class Runtime {
       return this.step(expression, context, caller, parent, depth, within);
     }
     if (this.inert.has(expression)) return expression;
-    const key = `${format(expression)}@${context === undefined ? "" : format(context)}`;
-    for (let a = within; a; a = a.up) if (a.key === key) return expression;
-    return this.step(expression, context, caller, parent, depth, { key, up: within });
+    // Compared where a head matches, not written out as a key for every call.
+    for (let a = within; a; a = a.up) {
+      if (a.expression.head === expression.head && equal(a.expression, expression) && (a.context === context || (a.context !== undefined && context !== undefined && equal(a.context, context)))) return expression;
+    }
+    return this.step(expression, context, caller, parent, depth, { expression, context, up: within });
   }
 
   private async step(
@@ -599,7 +601,8 @@ export class Runtime {
 
 /** The calls a call is being evaluated inside, innermost first. */
 interface Ancestry {
-  readonly key: string;
+  readonly expression: Call;
+  readonly context: Expr | undefined;
   readonly up?: Ancestry;
 }
 
