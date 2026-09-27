@@ -1,2 +1,3 @@
 step | TS identical | Py identical | ms 10/100/1000 lines | host TS / JS bodies / .ncon lines
 0 baseline be0e711 | 44/1425 3.1% (150 stmts >300 tokens not tried: OOM) | 160/201 79.6% (243 ref gaps) | 27 / 7163 / OOM(4GB) | 131 / 440 / 2076
+1 cells+dirty re-hearing, O(n) emit | 48/1575 3.0% (all tried, 6.0s) | 160/201 79.6% | 15 / 59 / 561 (5000: error) | 131 / 494 / 2203

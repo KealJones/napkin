@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { c, call, format, type Expr } from "../concept/expression.js";
+import { c, call, format, isCall, type Expr } from "../concept/expression.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
 import { Runtime } from "../runtime/evaluator.js";
@@ -14,7 +14,11 @@ const heard = async (text: string, language: string): Promise<Expr> =>
   new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Context", c("Execution"), c("Code", c(language))));
 const read = async (text: string, language: string): Promise<Expr> =>
   new Runtime(store).evaluate(await heard(text, language), c("Context", c("Code", c(language)), c("Reading")));
-const hear = async (text: string, language: string) => format(await heard(text, language));
+/** The words as heard, without how many rounds it took. */
+const hear = async (text: string, language: string) => {
+  const e = await heard(text, language);
+  return format(isCall(e) ? { head: e.head, args: e.args.filter((a) => a.name !== "rounds") } : e);
+};
 const both = async (ts: string, py: string) => {
   const [a, b] = [format(await read(ts, "TypeScript")), format(await read(py, "Python"))];
   assert.equal(a, b);

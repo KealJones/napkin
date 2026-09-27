@@ -2,7 +2,7 @@ async (args, bindings, api) => {
   // What a word hearing code needs to see: what each word is, and what the links so far make
   // of the words around it (where each group of words starts and ends).
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const words = args[0].value.args.map((a) => a.value);
+  const words = api.cells.read(args[0].value).args.map((a) => a.value);
   const n = words.length;
   const kinds = [];
   const binds = [];
@@ -36,7 +36,7 @@ async (args, bindings, api) => {
   const punctuation = kinds.map((_, i) => is(i, "Separator") || is(i, "Closer") || is(i, "Opener"));
   const parent = new Array(n).fill(-1);
   const role = new Array(n).fill("");
-  for (const l of args[1].value.args) {
+  for (const l of api.cells.read(args[1].value).args) {
     const [from, to, r] = l.value.args.map((a) => a.value);
     parent[from] = to;
     role[from] = r.head;

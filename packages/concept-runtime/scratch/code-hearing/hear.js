@@ -28,12 +28,15 @@ async (args, bindings, api) => {
     }
   }
   const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside });
+  const n = said.length;
   // A name is its Concept ("print" is Print); layout is a word too (Newline, Indent, Dedent).
   const upper = (t) => t[0].toUpperCase() + t.slice(1);
   const LAYOUT = { newline: "Newline", indent: "Indent", dedent: "Dedent" };
   const heads = said.map((w) => (w.kind === "name" ? upper(w.text) : w.kind === "symbol" ? spelled.get(w.text) : LAYOUT[w.kind]));
   // What the graph knows a word is, as code: its kinds, and how tightly it binds.
+  const known = new Map();
   const kindsOf = (head) => {
+    if (known.has(head)) return known.get(head);
     const out = [];
     const seen = new Set();
     let frontier = head ? [head] : [];
@@ -52,6 +55,7 @@ async (args, bindings, api) => {
       }
       frontier = next;
     }
+    known.set(head, out);
     return out;
   };
   const SHAPE = { name: "Name", number: "Number", text: "Text", comment: "Comment", symbol: "Symbol", newline: "Symbol", indent: "Symbol", dedent: "Symbol" };
@@ -60,7 +64,7 @@ async (args, bindings, api) => {
   const pair = said.map(() => -1);
   const inside = said.map(() => -1);
   const open = [];
-  for (let i = 0; i < said.length; i++) {
+  for (let i = 0; i < n; i++) {
     inside[i] = open.length ? open[open.length - 1] : -1;
     if (kinds[i].includes("Closer") && open.length) {
       const o = open.pop();
@@ -70,26 +74,46 @@ async (args, bindings, api) => {
     }
     if (kinds[i].includes("Opener")) open.push(i);
   }
+  const bindsOf = new Map();
   const words = said.map((w, i) => {
     const tags = kinds[i].map((k) => api.call(k));
-    const binds = claims(heads[i] || "", "Binds")[0];
+    if (!bindsOf.has(heads[i])) bindsOf.set(heads[i], claims(heads[i] || "", "Binds")[0]);
+    const binds = bindsOf.get(heads[i]);
     if (binds) tags.push(binds);
     if (pair[i] >= 0) tags.push(api.call("Pairs", pair[i]));
     if (inside[i] >= 0) tags.push(api.call("Inside", inside[i]));
     return api.call("Word", w.text, i, api.call("List", ...tags));
   });
   const prompt = api.call("Prompt", ...words);
-  // Rounds until nothing changes: every word hears, proposals settle, one parent per word.
+  // Rounds until nothing changes. What each word sees (CodeView: the kinds around it and the
+  // groups the links have made) is worked out once a round, held in a cell, and handed over by
+  // reference, so a word's hearing costs what it looks at, not the length of the code. A word
+  // with no hearing of its own (it answered with itself) is not asked again, and a word is
+  // asked again only where a link was just made: beside a group whose edges moved, or in a
+  // bracket that just gained one.
   let links = [];
-  const linked = () => api.call("List", ...links.map((l) => api.call("Link", l.from, l.to, api.call(l.role))));
+  const parent = new Array(n).fill(-1);
+  const promptCell = api.cells.allocate(prompt);
+  const linksCell = api.cells.allocate(api.call("List"));
+  const viewCell = api.cells.allocate(api.call("List"));
   const RANK = { Absorbs: 1, Takes: 2 };
-  for (let round = 0; round < said.length + 2; round++) {
-    const current = linked();
+  const deaf = new Set();
+  let dirty = new Set(said.map((_, i) => i));
+  const lo = [...Array(n).keys()];
+  const hi = [...Array(n).keys()];
+  let rounds = 0;
+  for (let round = 0; round < n + 2 && dirty.size; round++) {
+    rounds++;
+    api.cells.write(linksCell, api.call("List", ...links.map((l) => api.call("Link", l.from, l.to, api.call(l.role)))));
+    api.cells.write(viewCell, await api.evaluate(api.call("CodeView", promptCell, linksCell), hearing));
     const proposals = [];
-    for (let i = 0; i < said.length; i++) {
-      if (!heads[i]) continue;
-      const proposed = await api.evaluate(api.call(heads[i], prompt, i, current), hearing);
-      if (!isCall(proposed) || proposed.head !== "List") continue;
+    for (const i of [...dirty].sort((a, b) => a - b)) {
+      if (!heads[i] || deaf.has(i)) continue;
+      const proposed = await api.evaluate(api.call(heads[i], promptCell, i, linksCell, viewCell), hearing);
+      if (!isCall(proposed) || proposed.head !== "List") {
+        deaf.add(i);
+        continue;
+      }
       for (const a of proposed.args) {
         const p = a.value;
         if (!isCall(p) || p.head !== "Link") continue;
@@ -97,32 +121,49 @@ async (args, bindings, api) => {
       }
     }
     proposals.sort((a, b) => (RANK[a.role] ?? 3) - (RANK[b.role] ?? 3));
-    const up = new Map(links.map((l) => [l.from, l.to]));
     const above = (i, j) => {
-      for (let k = i, n = 0; k !== undefined && n < 512; k = up.get(k), n++) {
+      for (let k = i, g = 0; k >= 0 && g < n; k = parent[k], g++) {
         if (k === j) return true;
       }
       return false;
     };
     const accepted = [];
     for (const p of proposals) {
-      if (up.has(p.from) || p.from === p.to || above(p.to, p.from)) continue;
+      if (parent[p.from] >= 0 || p.from === p.to || above(p.to, p.from)) continue;
       accepted.push(p);
-      up.set(p.from, p.to);
+      parent[p.from] = p.to;
     }
-    if (!accepted.length) break;
+    // A waiting word waits on the edges of the groups beside it, or on its bracket's parts.
+    const next = new Set();
+    const touch = (i) => {
+      if (i >= 0 && i < n) next.add(i);
+    };
+    for (const p of accepted) {
+      touch(p.from);
+      touch(inside[p.from]);
+      for (let k = p.to, g = 0; k >= 0 && g < n; k = parent[k], g++) {
+        lo[k] = Math.min(lo[k], lo[p.from]);
+        hi[k] = Math.max(hi[k], hi[p.from]);
+        touch(k);
+        touch(lo[k] - 1);
+        touch(hi[k] + 1);
+        touch(inside[k]);
+      }
+    }
     links = links.concat(accepted);
+    dirty = next;
   }
   // Each word written as its Concept, the words it took as its arguments, in the order said.
   // A name keeps how it was typed when its Concept's name does not say it: MyClass(said="MyClass").
-  const parentOf = new Map(links.map((l) => [l.from, l]));
+  const children = said.map(() => []);
+  const absorbed = new Set();
+  for (const l of [...links].sort((a, b) => a.from - b.from)) {
+    if (l.role === "Absorbs") absorbed.add(l.from);
+    else children[l.to].push(l.from);
+  }
   const lower = (t) => t[0].toLowerCase() + t.slice(1);
   const build = (i) => {
-    const kids = [];
-    for (let j = 0; j < said.length; j++) {
-      const l = parentOf.get(j);
-      if (l && l.to === i && l.role !== "Absorbs") kids.push({ value: build(j) });
-    }
+    const kids = children[i].map((j) => ({ value: build(j) }));
     const w = said[i];
     if (w.kind === "number") return String(Number(w.text)) === w.text ? Number(w.text) : api.call("Number", w.text);
     if (w.kind === "text") return w.value;
@@ -134,8 +175,8 @@ async (args, bindings, api) => {
   // What stands alone is heard; punctuation nobody took adds nothing.
   const PUNCTUATION = ["Opener", "Closer", "Separator"];
   const roots = [];
-  for (let i = 0; i < said.length; i++) {
-    if (!parentOf.has(i) && !PUNCTUATION.some((k) => kinds[i].includes(k))) roots.push(build(i));
+  for (let i = 0; i < n; i++) {
+    if (parent[i] < 0 && !PUNCTUATION.some((k) => kinds[i].includes(k))) roots.push({ value: build(i) });
   }
-  return api.call("Phrases", ...roots);
+  return { head: "Phrases", args: [...roots, { name: "rounds", value: rounds }] };
 }
