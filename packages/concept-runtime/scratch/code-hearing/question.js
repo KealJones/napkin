@@ -32,6 +32,8 @@ async (args, bindings, api) => {
   if (v("operandStart", r)) {
     while (v("parent", r) >= 0 && v("lo", v("parent", r)) > close) r = v("parent", r);
     const e = v("hi", r) + 1;
+    // Its own closing bracket, not yet absorbed, is not where it ends.
+    if (v("punctuation", e) && v("pair", e) >= r && v("pair", e) < e) return api.call("List", ...out);
     const next = v("operator", e) && !v("unary", e) ? holding(e) : undefined;
     if (v("boundary", e) || (next !== undefined && next !== null && next < mine)) link(r, "Takes");
   }

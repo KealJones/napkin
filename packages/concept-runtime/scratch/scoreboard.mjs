@@ -21,7 +21,9 @@ const args = process.argv.slice(2);
 const what = args[0] ?? "all";
 const flag = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const LIMIT = Number(flag("--limit", "100000"));
-const SHOW = flag("--show", undefined);
+const SHOW = flag("--show", undefined)?.split("|");
+const shown = new Map();
+const wants = (category) => SHOW && SHOW.some((x) => category.startsWith(x)) && (shown.set(category, (shown.get(category) ?? 0) + 1), shown.get(category) <= 3);
 const MAX_TOKENS = Number(flag("--max-tokens", "1000000"));
 
 const store = new ConceptStore();
@@ -35,17 +37,24 @@ const hearRead = async (text, lang) => {
   return { heard: h, read: r, steps: rt.steps ?? 0 };
 };
 const hasUnsupported = (e) => isCall(e) && (e.head === "Unsupported" || e.args.some((a) => hasUnsupported(a.value)));
-// A Float(n) stated in the source counts as the reference's plain n: kept on purpose.
-const plain = (e) => (!isCall(e) ? e : e.head === "Float" && e.args.length === 1 ? e.args[0].value : { head: e.head, args: e.args.map((a) => ({ ...a, value: plain(a.value) })) });
+// Kept on purpose, where the reference erases it: a Float(n) stated in the source counts as
+// the reference's plain n, and a declared type (type=...) is set aside.
+const plain = (e) =>
+  !isCall(e) ? e : e.head === "Float" && e.args.length === 1 ? e.args[0].value : { head: e.head, args: e.args.filter((a) => a.name !== "type").map((a) => ({ ...a, value: plain(a.value) })) };
 const unwrap = (e) => (isCall(e) && e.head === "Module" && e.args.length === 1 ? e.args[0].value : e);
 // Where two readings first part: the reference's head there names the failure.
 const diverge = (a, b) => {
-  if (!isCall(a) || !isCall(b)) return isCall(a) ? a.head : isCall(b) ? `value vs ${b.head}` : "value";
-  if (a.head !== b.head || a.args.length !== b.args.length) return `${a.head}${a.head === b.head ? " (arity)" : ` vs ${b.head}`}`;
-  for (let i = 0; i < a.args.length; i++) {
-    if (format(a.args[i].value) !== format(b.args[i].value) || a.args[i].name !== b.args[i].name) return diverge(a.args[i].value, b.args[i].value);
+  const at = (category, x, y) => ({ category, ref: format(x).slice(0, 260), mine: format(y).slice(0, 260) });
+  if (!isCall(a) || !isCall(b)) return at(isCall(a) ? a.head : isCall(b) ? `value vs ${b.head}` : "value", a, b);
+  if (a.head !== b.head) return at(`${a.head} vs ${b.head}`, a, b);
+  const n = Math.min(a.args.length, b.args.length);
+  for (let i = 0; i < n; i++) {
+    if (format(a.args[i].value) !== format(b.args[i].value) || a.args[i].name !== b.args[i].name) {
+      const inner = diverge(a.args[i].value, b.args[i].value);
+      return a.args.length === b.args.length ? inner : { ...inner, category: `${a.head} (arity) > ${inner.category}` };
+    }
   }
-  return "?";
+  return at(`${a.head} (arity)`, a, b);
 };
 
 async function score(name, statements, reference, lang) {
@@ -84,18 +93,19 @@ async function score(name, statements, reference, lang) {
         same++;
         continue;
       }
-      category = diverge(unwrap(ref.expression), unwrap(read));
-      if (SHOW && category.startsWith(SHOW) && !examples.has(text)) examples.set(text, [format(unwrap(ref.expression)).slice(0, 300), format(unwrap(read)).slice(0, 300)]);
+      const d = diverge(unwrap(ref.expression), unwrap(read));
+      category = d.category;
+      if (wants(category) && !examples.has(text)) examples.set(text, [d.ref, d.mine]);
     } catch (e) {
       category = `error: ${String(e.message).slice(0, 60)}`;
-      if (SHOW && category.startsWith(SHOW) && !examples.has(text)) examples.set(text, [String(e.stack).split("\n").slice(0, 3).join(" | "), ""]);
+      if (wants(category) && !examples.has(text)) examples.set(text, [String(e.stack).split("\n").slice(0, 3).join(" | "), ""]);
     }
     categories.set(category, (categories.get(category) ?? 0) + 1);
   }
   const ms = performance.now() - t0;
   console.log(`\n${name}: ${same}/${counted} statements identical (${((100 * same) / Math.max(counted, 1)).toFixed(1)}%), ${refGaps} skipped where the reference itself has gaps, ${tooBig} over ${MAX_TOKENS} tokens not tried, ${erased} type-only (erased by the reader), ${(ms / 1000).toFixed(1)}s`);
-  for (const [k, n] of [...categories].sort((a, b) => b[1] - a[1]).slice(0, 10)) console.log(`  ${String(n).padStart(4)}  ${k}`);
-  for (const [text, [r, m]] of [...examples].slice(0, 6)) console.log(`\n--- ${text.slice(0, 200)}\n  ref:  ${r}\n  mine: ${m}`);
+  for (const [k, n] of [...categories].sort((a, b) => b[1] - a[1]).slice(0, Number(flag("--top", "10")))) console.log(`  ${String(n).padStart(4)}  ${k}`);
+  for (const [text, [r, m]] of [...examples].slice(0, 30)) console.log(`\n--- ${text.slice(0, 120).replace(/\n/g, " ")}\n  ref:  ${r}\n  mine: ${m}`);
   return { same, counted };
 }
 

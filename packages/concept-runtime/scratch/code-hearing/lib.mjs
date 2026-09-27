@@ -40,6 +40,16 @@ const PRELUDE = `
   const nameOf = (e) => { if (typeof e === "string") return e; if (!isCall(e)) return String(e); const said = e.args.find((a) => a.name === "said"); return said ? said.value : e.head[0].toLowerCase() + e.head.slice(1); };
   const variable = (e) => api.fromHost({ variable: nameOf(e) });
   const is = (e, head) => isCall(e) && e.head === head;
+  // A word typed other than as its plain name ("Set" beside "set") is only a name here.
+  if (named("said") !== undefined) {
+    const xs = [];
+    let called = false;
+    for (const p of parts) {
+      if (is(p, "Parens") && p.args.length === 0) called = true;
+      else if (!is(p, "Angles")) xs.push(await read(p));
+    }
+    return xs.length || called ? api.call("Call", variable(self), ...xs) : variable(self);
+  }
 `;
 export const snippet = (comment, code) => jsText(`async (args, bindings, api) => {\n  // ${comment}\n${PRELUDE}\n${code}\n}`);
 // A reading on $word whose parts are not read first: the snippet reads what it needs.

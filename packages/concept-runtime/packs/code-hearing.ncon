@@ -263,6 +263,65 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("A word typed other than as its Concept's plain name (\"Set\" beside \"set\"), a member's name"),
+            Comment("(\"x.set\"), or a key (\"{ default: 1 }\") is a name, whatever the word is elsewhere."),
+            For(
+              Var($i, 0),
+              LessThan($i, $n),
+              PostIncrement($i),
+              Sequence(
+                Bind($w, Index($said, $i)),
+                If(
+                  Or(NotEquals(Member($w, "kind"), "name"), Equals(Length(Index($kinds, $i)), 1)),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($member,
+                  And(
+                    And(GreaterThan($i, 0), Equals(Member(Index($said, Subtract($i, 1)), "kind"), "symbol")),
+                    Or(
+                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "."),
+                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "?.")
+                    )
+                  )
+                ),
+                Bind($key,
+                  And(
+                    And(
+                      And(
+                        And(
+                          And(LessThan(Add($i, 1), $n), Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")),
+                          Equals(Member(Index($said, Add($i, 1)), "text"), ":")
+                        ),
+                        GreaterThan($i, 0)
+                      ),
+                      Equals(Member(Index($said, Subtract($i, 1)), "kind"), "symbol")
+                    ),
+                    Or(
+                      Equals(Member(Index($said, Subtract($i, 1)), "text"), "{"),
+                      Equals(Member(Index($said, Subtract($i, 1)), "text"), ",")
+                    )
+                  )
+                ),
+                If(
+                  Or(
+                    Or(
+                      NotEquals(
+                        Member($w, "text"),
+                        Add(
+                          Call(Member(Index(Index($heads, $i), 0), "toLowerCase")),
+                          Call(Member(Index($heads, $i), "slice"), 1)
+                        )
+                      ),
+                      $member
+                    ),
+                    $key
+                  ),
+                  Assign(Index($kinds, $i), List("Name")),
+                  Undefined()
+                )
+              )
+            ),
             Bind($is, Lambda(List($i, $k), And(And(AtLeast($i, 0), LessThan($i, $n)), Includes(Index($kinds, $i), $k)))),
             Bind($become,
               Lambda(List($i, $head),
@@ -433,9 +492,18 @@ Concept(Hear(),
                     ),
                     Undefined()
                   ),
+                  Comment("After round brackets, a block, or angles (\"f(x) {\", \"} {\", \"A<T> {\"): a block."),
                   If(
                     Call($is, $p, "Closer"),
-                    Return(Not(And(AtLeast(Index($pair, $p), 0), Equals(Index($heads, Index($pair, $p)), "Braces")))),
+                    Return(
+                      And(
+                        AtLeast(Index($pair, $p), 0),
+                        Or(
+                          Or(Call($is, Index($pair, $p), "Round"), Call($is, Index($pair, $p), "Scope")),
+                          Call($is, Index($pair, $p), "Attached")
+                        )
+                      )
+                    ),
                     Undefined()
                   ),
                   If(
@@ -1390,6 +1458,15 @@ Concept(Infix(),
                   Assign($r, Call($v, "parent", $r))
                 ),
                 Bind($e, Add(Call($v, "hi", $r), 1)),
+                Comment("Its own closing bracket, not yet absorbed, is not where it ends."),
+                If(
+                  And(
+                    And(Call($v, "punctuation", $e), AtLeast(Call($v, "pair", $e), $r)),
+                    LessThan(Call($v, "pair", $e), $e)
+                  ),
+                  Return(Call(Member($api, "call"), "List", Spread($out))),
+                  Undefined()
+                ),
                 Bind($next,
                   If(
                     And(Call($v, "operator", $e), Not(Call($v, "unary", $e))),
@@ -1545,6 +1622,15 @@ Concept(Prefix(),
                     Undefined()
                   ),
                   Bind($e, Add(Call($v, "hi", $r), 1)),
+                  Comment("Its own closing bracket, not yet absorbed, is not where it ends."),
+                  If(
+                    And(
+                      And(Call($v, "punctuation", $e), AtLeast(Call($v, "pair", $e), $r)),
+                      LessThan(Call($v, "pair", $e), $e)
+                    ),
+                    Return(List()),
+                    Undefined()
+                  ),
                   Bind($next,
                     If(
                       And(Call($v, "operator", $e), Not(Call($v, "unary", $e))),
@@ -2542,6 +2628,40 @@ Concept(OptionalDot(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($owner, $member), $parts),
             Bind($o, Await(Call($read, $owner))),
             Bind($got,
@@ -2706,6 +2826,40 @@ Concept(As(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(Call($read, Index($parts, 0)))
           )
         )
@@ -2783,6 +2937,40 @@ Concept(Satisfies(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(Call($read, Index($parts, 0)))
           )
         )
@@ -2926,6 +3114,40 @@ Concept(Assign(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($place, $value), $parts),
             Bind($DECLARES, Object(Const = "Bind", Let = "Var", Var = "Var")),
             If(
@@ -3028,6 +3250,40 @@ Concept(Assign(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($place, $value), $parts),
             Bind($p, Await(Call($read, $place))),
             Bind($bare, And(And(NotEquals($p, null), Equals(TypeOf($p), "object")), In("variable", $p))),
@@ -3183,6 +3439,40 @@ Concept(Arrow(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($ps, $b), $parts),
             Var($head, $ps),
             Var($async, false),
@@ -3288,6 +3578,40 @@ Concept(Colon(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($place, $rest), $parts),
             Bind($DECLARES, Object(Const = "Bind", Let = "Var", Var = "Var")),
             If(
@@ -3437,6 +3761,40 @@ Concept(Increment(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               Call(
                 Member($api, "call"),
@@ -3522,6 +3880,40 @@ Concept(Decrement(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               Call(
                 Member($api, "call"),
@@ -3609,6 +4001,40 @@ Concept(Not(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Call($named, "after"),
@@ -3647,7 +4073,7 @@ Concept(Delete(),
 
 Concept(New(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
-  Relation(Binds(190), context = Code(TypeScript())),
+  Relation(Binds(210), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -3714,6 +4140,40 @@ Concept(New(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($made, Await(Call($read, Index($parts, 0)))),
             Return(
               If(
@@ -3813,6 +4273,40 @@ Concept(Let(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Equals(Length($parts), 1),
@@ -3901,6 +4395,40 @@ Concept(Var(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Equals(Length($parts), 1),
@@ -4021,6 +4549,40 @@ Concept(Declare(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Length($parts),
@@ -4167,6 +4729,40 @@ Concept(Import(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Var($e, Index($parts, 0)),
             If(
               Call($is, $e, "Type"),
@@ -4311,6 +4907,40 @@ Concept(Export(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($e, Index($parts, 0)),
             Bind($names,
               Lambda(List($b),
@@ -4465,6 +5095,40 @@ Concept(Type(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Length($parts),
@@ -4548,6 +5212,40 @@ Concept(Interface(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               If(
                 Length($parts),
@@ -4641,6 +5339,40 @@ Concept(Class(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Var(List($head, Spread($members)), $parts),
             Var($base, Undefined()),
             If(
@@ -4902,6 +5634,40 @@ Concept(Function(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Var($sig, Index($parts, 0)),
             Var($block, List()),
             If(
@@ -5026,6 +5792,40 @@ Concept(Def(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($sig, Index($parts, 0)),
             Bind($ps, Call($positional, $sig)),
             Bind($blk, Call(Member($ps, "find"), Lambda(List($x), Call($is, $x, "Block")))),
@@ -5158,6 +5958,40 @@ Concept(Try(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($done,
               Filter($parts, Lambda(List($x), And(Not(Call($is, $x, "Catch")), Not(Call($is, $x, "Finally")))))
             ),
@@ -5311,6 +6145,40 @@ Concept(If(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($condition, Spread($rest)), $parts),
             Bind($last, Index($rest, Subtract(Length($rest), 1))),
             Bind($otherwise,
@@ -5408,6 +6276,40 @@ Concept(For(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($header, Spread($rest)), $parts),
             Bind($body, Await(Call($ask, "CodeStatements", Spread($rest)))),
             Bind($LOOPS, Object(Of = "ForOf", In = "ForIn")),
@@ -5531,6 +6433,40 @@ Concept(For(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind(List($header, Spread($rest)), $parts),
             If(
               Call($is, $header, "In"),
@@ -5629,6 +6565,40 @@ Concept(While(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               Call(
                 Member($api, "call"),
@@ -5710,7 +6680,7 @@ Concept(Brackets(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Comment("\"[1, 2]\": a list."),
+            Comment("\"[1, 2]\": a list; with spreads, the lists joined: [...a, x] is Concat(a, List(x))."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($self, Call(Member($bindings, "get"), "word")),
             Bind($positional,
@@ -5769,13 +6739,72 @@ Concept(Brackets(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
-            Bind($xs, List()),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($runs, List()),
+            Var($run, List()),
+            Var($spread, false),
             ForOf(
               $x,
               $parts,
-              Call(Member($xs, "push"), Await(Call($read, $x)))
+              If(
+                Call($is, $x, "Spread"),
+                Sequence(
+                  If(
+                    Length($run),
+                    Call(Member($runs, "push"), Call(Member($api, "call"), "List", Spread($run))),
+                    Undefined()
+                  ),
+                  Assign($run, List()),
+                  Assign($spread, true),
+                  Call(Member($runs, "push"), Await(Call($read, Index(Call($positional, $x), 0))))
+                ),
+                Call(Member($run, "push"), Await(Call($read, $x)))
+              )
             ),
-            Return(Call(Member($api, "call"), "List", Spread($xs)))
+            If(
+              Not($spread),
+              Return(Call(Member($api, "call"), "List", Spread($run))),
+              Undefined()
+            ),
+            If(
+              Length($run),
+              Call(Member($runs, "push"), Call(Member($api, "call"), "List", Spread($run))),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "Concat", Spread($runs)))
           )
         )
       )
@@ -5852,6 +6881,40 @@ Concept(Braces(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($NAME, Regex("^[A-Za-z_$][A-Za-z0-9_$]*$", "")),
             Bind($items, List()),
             Bind($put,
@@ -6003,6 +7066,40 @@ Concept(Index(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(
               Call(
                 Member($api, "call"),
@@ -6099,6 +7196,40 @@ Concept(Template(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Var($acc, Await(Call($read, Index($parts, 0)))),
             For(
               Var($i, 1),
@@ -6261,6 +7392,15 @@ Concept(Question(),
                   Assign($r, Call($v, "parent", $r))
                 ),
                 Bind($e, Add(Call($v, "hi", $r), 1)),
+                Comment("Its own closing bracket, not yet absorbed, is not where it ends."),
+                If(
+                  And(
+                    And(Call($v, "punctuation", $e), AtLeast(Call($v, "pair", $e), $r)),
+                    LessThan(Call($v, "pair", $e), $e)
+                  ),
+                  Return(Call(Member($api, "call"), "List", Spread($out))),
+                  Undefined()
+                ),
                 Bind($next,
                   If(
                     And(Call($v, "operator", $e), Not(Call($v, "unary", $e))),
@@ -6323,23 +7463,68 @@ Concept(Infix(),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($self, Call(Member($bindings, "get"), "word")),
             Bind($values, Filter(Member($self, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
+            Bind($said,
+              Call(Member(Member($self, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+            ),
+            If(
+              $said,
+              Sequence(
+                Comment("Typed other than as its plain name (\"Set\" beside \"set\"): only a name here."),
+                Bind($passed,
+                  Filter(
+                    Map($values, Lambda(List($a), Member($a, "value"))),
+                    Lambda(List($v),
+                      Not(
+                        And(
+                          Call($isCall, $v),
+                          Or(
+                            Equals(Member($v, "head"), "Angles"),
+                            And(Equals(Member($v, "head"), "Parens"), Equals(Length(Member($v, "args")), 0))
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($called,
+                  Call(
+                    Member($values, "some"),
+                    Lambda(List($a),
+                      And(
+                        And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Parens")),
+                        Equals(Length(Member(Member($a, "value"), "args")), 0)
+                      )
+                    )
+                  )
+                ),
+                Bind($variable, Call(Member($api, "fromHost"), Object(variable = Member($said, "value")))),
+                Return(
+                  If(
+                    Or(Length($passed), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      $variable,
+                      Spread($passed)
+                    ),
+                    $variable
+                  )
+                )
+              ),
+              Undefined()
+            ),
             If(
               Not(Length($values)),
-              Sequence(
-                Bind($said,
-                  Call(Member(Member($self, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
-                ),
-                Return(
-                  Call(
-                    Member($api, "fromHost"),
-                    Object(
-                      variable = If(
-                        $said,
-                        Member($said, "value"),
-                        Add(
-                          Call(Member(Index(Member($self, "head"), 0), "toLowerCase")),
-                          Call(Member(Member($self, "head"), "slice"), 1)
-                        )
+              Return(
+                Call(
+                  Member($api, "fromHost"),
+                  Object(
+                    variable = If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($self, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($self, "head"), "slice"), 1)
                       )
                     )
                   )
@@ -6392,23 +7577,68 @@ Concept(Prefix(),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($self, Call(Member($bindings, "get"), "word")),
             Bind($values, Filter(Member($self, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
+            Bind($said,
+              Call(Member(Member($self, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+            ),
+            If(
+              $said,
+              Sequence(
+                Comment("Typed other than as its plain name (\"Set\" beside \"set\"): only a name here."),
+                Bind($passed,
+                  Filter(
+                    Map($values, Lambda(List($a), Member($a, "value"))),
+                    Lambda(List($v),
+                      Not(
+                        And(
+                          Call($isCall, $v),
+                          Or(
+                            Equals(Member($v, "head"), "Angles"),
+                            And(Equals(Member($v, "head"), "Parens"), Equals(Length(Member($v, "args")), 0))
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($called,
+                  Call(
+                    Member($values, "some"),
+                    Lambda(List($a),
+                      And(
+                        And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Parens")),
+                        Equals(Length(Member(Member($a, "value"), "args")), 0)
+                      )
+                    )
+                  )
+                ),
+                Bind($variable, Call(Member($api, "fromHost"), Object(variable = Member($said, "value")))),
+                Return(
+                  If(
+                    Or(Length($passed), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      $variable,
+                      Spread($passed)
+                    ),
+                    $variable
+                  )
+                )
+              ),
+              Undefined()
+            ),
             If(
               Not(Length($values)),
-              Sequence(
-                Bind($said,
-                  Call(Member(Member($self, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
-                ),
-                Return(
-                  Call(
-                    Member($api, "fromHost"),
-                    Object(
-                      variable = If(
-                        $said,
-                        Member($said, "value"),
-                        Add(
-                          Call(Member(Index(Member($self, "head"), 0), "toLowerCase")),
-                          Call(Member(Member($self, "head"), "slice"), 1)
-                        )
+              Return(
+                Call(
+                  Member($api, "fromHost"),
+                  Object(
+                    variable = If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($self, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($self, "head"), "slice"), 1)
                       )
                     )
                   )
@@ -6741,12 +7971,57 @@ Concept(CodeTarget(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($e, Index($parts, 0)),
             If(Not(Call($isCall, $e)), Return($e), Undefined()),
             Bind($p, Call($positional, $e)),
             If(
               And(Or(Call($is, $e, "Colon"), Call($is, $e, "OptionalColon")), Equals(Length($p), 2)),
-              Return(Call($ask, "CodeTarget", Index($p, 0))),
+              Return(
+                If(
+                  And(Call($is, Index($p, 1), "Assign"), Equals(Length(Call($positional, Index($p, 1))), 2)),
+                  Call(
+                    Member($api, "call"),
+                    "Default",
+                    Await(Call($ask, "CodeTarget", Index($p, 0))),
+                    Await(Call($read, Index(Call($positional, Index($p, 1)), 1)))
+                  ),
+                  Call($ask, "CodeTarget", Index($p, 0))
+                )
+              ),
               Undefined()
             ),
             If(
@@ -6908,6 +8183,40 @@ Concept(CodeParams(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($list,
               If(
                 Call($is, Index($parts, 0), "Parens"),
@@ -6996,6 +8305,40 @@ Concept(CodeBody(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($steps, List()),
             ForOf(
               $s,
@@ -7096,6 +8439,40 @@ Concept(CodeStatements(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($xs, List()),
             ForOf(
               $s,
@@ -7227,6 +8604,40 @@ Concept(Super(),
             ),
             Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
             Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($xs, List()),
             ForOf(
               $x,

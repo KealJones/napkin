@@ -25,7 +25,7 @@ export const READINGS = {
       `const e = parts[0];
   if (!isCall(e)) return e;
   const p = positional(e);
-  if ((is(e, "Colon") || is(e, "OptionalColon")) && p.length === 2) return ask("CodeTarget", p[0]);
+  if ((is(e, "Colon") || is(e, "OptionalColon")) && p.length === 2) return is(p[1], "Assign") && positional(p[1]).length === 2 ? api.call("Default", await ask("CodeTarget", p[0]), await read(positional(p[1])[1])) : ask("CodeTarget", p[0]);
   if (is(e, "Spread")) return api.call("Spread", await ask("CodeTarget", p[0]));
   if (is(e, "Assign") && p.length === 2) return api.call("Default", await ask("CodeTarget", p[0]), await read(p[1]));
   if (is(e, "Brackets")) { const xs = []; for (const x of p) xs.push(await ask("CodeTarget", x)); return api.call("List", ...xs); }
@@ -232,7 +232,25 @@ export const READINGS = {
   return { head: "Object", args: items };`,
     ),
   ],
-  Brackets: [w('"[1, 2]": a list.', `const xs = []; for (const x of parts) xs.push(await read(x)); return api.call("List", ...xs);`)],
+  Brackets: [
+    w(
+      '"[1, 2]": a list; with spreads, the lists joined: [...a, x] is Concat(a, List(x)).',
+      `const runs = [];
+  let run = [];
+  let spread = false;
+  for (const x of parts) {
+    if (is(x, "Spread")) {
+      if (run.length) runs.push(api.call("List", ...run));
+      run = [];
+      spread = true;
+      runs.push(await read(positional(x)[0]));
+    } else run.push(await read(x));
+  }
+  if (!spread) return api.call("List", ...run);
+  if (run.length) runs.push(api.call("List", ...run));
+  return api.call("Concat", ...runs);`,
+    ),
+  ],
   Index: [w('"a[0]": what a holds at 0.', `return api.call("Index", await read(parts[0]), await read(parts[1]));`)],
   OptionalDot: [
     w(

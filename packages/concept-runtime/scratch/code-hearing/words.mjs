@@ -58,7 +58,7 @@ export const WORDS = [
   ["Await", ["Prefix"], undefined, "Binds(150)"],
   ["Void", ["Prefix"], undefined, "Binds(150)", TS],
   ["Delete", ["Prefix"], undefined, "Binds(150)", TS],
-  ["New", ["Prefix"], undefined, "Binds(190)", TS],
+  ["New", ["Prefix"], undefined, "Binds(210)", TS],
   ["Spread", ["Prefix"], "...", "Binds(20)", TS],
   ["Const", ["Prefix"], undefined, "Binds(180)", TS],
   ["Let", ["Prefix"], undefined, "Binds(180)", TS],
