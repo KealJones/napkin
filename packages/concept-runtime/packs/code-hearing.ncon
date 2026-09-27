@@ -1,10 +1,10 @@
-// SPIKE (spike/hear-code-words): code heard the way a message is. Each word of the code is
+// Code heard the way a message is. Each word of the code is
 // its own Concept (packs/codewords.ncon). Before the links, each says what it is here under
 // Sensing(Code(<language>)); then each hears under Hearing(Code(<language>)): an operator takes
 // the things either side of it, a leading word takes what follows, a bracket groups, a block
 // belongs to the word that leads it. The heard words then realize, under
 // Context(Code(<language>), Reading()), as the code IR (ForOf, Func, If, Call ...), which the
-// language packs write out. Bodies written from the JavaScript in scratch/code-hearing by gen.mjs.
+// language packs write out. Bodies written from the JavaScript in sources/code-hearing by gen.mjs.
 Requires(
   Hearing(),
   Code(),

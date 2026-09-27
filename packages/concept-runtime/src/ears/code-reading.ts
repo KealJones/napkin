@@ -23,7 +23,7 @@ function readable(): string[] {
 const LANGUAGE: Record<string, string> = { ts: "TypeScript", typescript: "TypeScript", js: "TypeScript", javascript: "TypeScript", py: "Python", python: "Python" };
 
 /** The code as Concepts, with the language it read as, or undefined when nothing reads it. */
-export async function readCode(code: string, named?: string): Promise<{ ir: Expr; language: string } | undefined> {
+async function readCode(code: string, named?: string): Promise<{ ir: Expr; language: string } | undefined> {
   const first = named ? LANGUAGE[named.toLowerCase()] ?? named[0].toUpperCase() + named.slice(1) : undefined;
   const tried = first ? [first, ...readable().filter((l) => l !== first)] : readable();
   for (const language of tried) {

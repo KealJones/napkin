@@ -1,4 +1,4 @@
-// SPIKE: how tightly each operator binds, derived from a tree-sitter grammar.json instead of
+// How tightly each operator binds, derived from a tree-sitter grammar.json instead of
 // written by hand. A rule that is an operator between two things (SEQ(left, "op", right) under
 // PREC_LEFT/PREC_RIGHT) gives the operator its precedence: a number (Python's grammar), or a
 // name ordered by the grammar's `precedences` lists, earliest tightest (TypeScript's). A rule

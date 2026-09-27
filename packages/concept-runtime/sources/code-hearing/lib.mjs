@@ -1,4 +1,4 @@
-// SPIKE helpers for gen.mjs: a JavaScript body as Code(ir=...), and realization shapes.
+// Helpers for gen.mjs: a JavaScript body as Code(ir=...), and realization shapes.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

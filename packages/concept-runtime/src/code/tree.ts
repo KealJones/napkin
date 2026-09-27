@@ -13,7 +13,7 @@
  * `def f():  # ...` or a comment on the line before the body) it is moved to the front of
  * that block, so it stays among the statements it is about.
  */
-import { exists, moduleFile } from "#platform";
+import { moduleFile } from "#platform";
 import { type Argument, type Expr, call } from "../concept/expression.js";
 
 /** Loaded when first needed, and never bundled: a browser host without it reads no grammar. */
@@ -56,14 +56,6 @@ const camel = (type: string): string =>
     .map((p) => p[0].toUpperCase() + p.slice(1))
     .join("");
 
-/** Whether tree-sitter has a grammar by this name ("python", "rust", "bash"). */
-export function hasGrammar(grammar: string): boolean {
-  try {
-    return exists(grammarFile(grammar));
-  } catch {
-    return false;
-  }
-}
 
 /** Source as syntax nodes named `<prefix><Type>`, for From rules. */
 export async function readTree(text: string, grammar: string, prefix: string): Promise<Expr> {

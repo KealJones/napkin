@@ -1,6 +1,6 @@
-// SPIKE: writes packs/code-hearing.ncon from the JavaScript bodies beside this file (the words
+// Writes packs/code-hearing.ncon from the JavaScript bodies beside this file (the words
 // themselves are packs/codewords.ncon, written by hand), and packs/codebinds.ncon from the
-// languages' tree-sitter grammars. Run after `pnpm build`: node scratch/code-hearing/gen.mjs
+// languages' tree-sitter grammars. Run after `pnpm build`: node sources/code-hearing/gen.mjs
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +52,7 @@ const senses = (file) => `Realization($word, context = ${SENSES}, evaluateArgume
 
 // What the grammars say, as data: packs/codebinds.ncon.
 const binds = [`// How tightly operators bind in each language, from its tree-sitter grammar (grammar.json),
-// written by scratch/code-hearing/gen.mjs. Do not edit by hand; derive it again. Where a
+// written by sources/code-hearing/gen.mjs. Do not edit by hand; derive it again. Where a
 // language says, it wins over what packs/codewords.ncon says for every language.
 Requires(CodeWords())`];
 for (const [head, rs] of derived) binds.push(`Concept(${head}(), ${rs.join(", ")})`);
@@ -60,13 +60,13 @@ writeFileSync(join(here, "../../packs/codebinds.ncon"), formatNcon(binds.join("\
 
 const out = [];
 const say = (s) => out.push(s);
-say(`// SPIKE (spike/hear-code-words): code heard the way a message is. Each word of the code is
+say(`// Code heard the way a message is. Each word of the code is
 // its own Concept (packs/codewords.ncon). Before the links, each says what it is here under
 // Sensing(Code(<language>)); then each hears under Hearing(Code(<language>)): an operator takes
 // the things either side of it, a leading word takes what follows, a bracket groups, a block
 // belongs to the word that leads it. The heard words then realize, under
 // Context(Code(<language>), Reading()), as the code IR (ForOf, Func, If, Call ...), which the
-// language packs write out. Bodies written from the JavaScript in scratch/code-hearing by gen.mjs.
+// language packs write out. Bodies written from the JavaScript in sources/code-hearing by gen.mjs.
 Requires(Hearing(), Code(), Python(), TypeScript(), CodeWords(), CodeBinds(), CodeReadings())
 
 // What a word says about itself, here: Sense(position, Concept).

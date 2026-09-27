@@ -21,7 +21,7 @@
 import { type Argument, type Call, type Expr, c, call, format, isCall, isVariable } from "../concept/expression.js";
 import type { Realization } from "../concept/unit.js";
 
-export class Unlowerable extends Error {}
+class Unlowerable extends Error {}
 
 const U = c("Undefined");
 const nope = (why: string): never => {
@@ -994,4 +994,3 @@ function listOf(items: Expr[], scope: Scope): Expr {
   return parts.length === 1 ? parts[0] : call("Concat", parts.map((value) => ({ value })));
 }
 
-export { format };

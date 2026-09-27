@@ -46,7 +46,7 @@ interface Item {
   value: Node;
 }
 
-export class FormatError extends Error {}
+class FormatError extends Error {}
 
 function parse(text: string): { items: Item[]; trailing: Comment[] } {
   let i = 0;

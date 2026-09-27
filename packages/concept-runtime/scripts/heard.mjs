@@ -1,4 +1,4 @@
-// Heard trees for a list of snippets: node scratch/heard.mjs [TypeScript|Python] [snippet...]
+// Heard trees for a list of snippets: node scripts/heard.mjs [TypeScript|Python] [snippet...]
 import { ConceptStore } from "../dist/store/store.js";
 import { seed } from "../dist/seed/seed.js";
 import { Runtime } from "../dist/runtime/evaluator.js";

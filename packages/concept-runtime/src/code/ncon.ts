@@ -29,7 +29,7 @@ export interface Pack {
   readonly units: readonly ConceptUnit[];
 }
 
-export class PackError extends Error {
+class PackError extends Error {
   constructor(pack: string, message: string) {
     super(`${pack}.ncon: ${message}`);
     this.name = "PackError";
@@ -46,7 +46,7 @@ const positional = (e: Call): Expr[] => e.args.filter((a) => a.name === undefine
  * JavaScript with `$name` where the code for an argument goes, as `Text(...)` parts: the
  * body of a template realization, read as a template and never run.
  */
-export function templateParts(template: string): Call {
+function templateParts(template: string): Call {
   const parts: Expr[] = [];
   const re = /\$([a-z][A-Za-z0-9]*)/g;
   let at = 0;
@@ -213,8 +213,6 @@ const flat = (e: Expr): string => {
   return `${e.head}(${e.args.map((a) => (a.name === undefined ? flat(a.value) : `${a.name}=${flat(a.value)}`)).join(", ")})`;
 };
 
-/** An expression as a pack writes it, laid out by the .ncon rules (code/format.ts). */
-export const pretty = (e: Expr): string => formatNcon(flat(e)).trimEnd();
 
 /** A realization as the expression a pack writes it as, settings before its body. */
 export function realizationExpr(r: Realization): Expr {

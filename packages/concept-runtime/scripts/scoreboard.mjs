@@ -1,5 +1,5 @@
 // SPIKE scoreboard (spike/hear-code-words): how accurate and how fast code hearing is.
-//   node scratch/scoreboard.mjs [ts|py|speed|size|all] [--limit N] [--show CATEGORY]
+//   node scripts/scoreboard.mjs [ts|py|speed|size|all] [--limit N] [--show CATEGORY]
 // Accuracy: every top-level statement of the corpus is heard and read, and compared with the
 // existing reader of that statement (importTypeScript, or importSource for Python).
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -132,7 +132,7 @@ async function score(name, statements, reference, lang) {
 }
 
 const tsFiles = () =>
-  (flag("--file", undefined) ? flag("--file") + "\n" : readFileSync(join(here, "corpus-9d08be4.txt"), "utf8"))
+  (flag("--file", undefined) ? flag("--file") + "\n" : readFileSync(join(here, "corpus.txt"), "utf8"))
     .split("\n")
     .filter((f) => f.endsWith(".ts"))
     .map((f) => join(root, "../..", f))
@@ -232,9 +232,9 @@ if (what === "speed" || what === "all") {
 }
 if (what === "size" || what === "all") {
   const count = (f) => readFileSync(f, "utf8").split("\n").length;
-  const body = readdirSync(join(here, "code-hearing")).filter((f) => f.endsWith(".js")).reduce((n, f) => n + count(join(here, "code-hearing", f)), 0);
-  const readingFiles = readdirSync(join(here, "code-hearing", "read")).filter((f) => f.endsWith(".js"));
-  const readings = readingFiles.reduce((n, f) => n + count(join(here, "code-hearing", "read", f)), 0);
+  const body = readdirSync(join(here, "../sources/code-hearing")).filter((f) => f.endsWith(".js")).reduce((n, f) => n + count(join(here, "../sources/code-hearing", f)), 0);
+  const readingFiles = readdirSync(join(here, "../sources/code-hearing", "read")).filter((f) => f.endsWith(".js"));
+  const readings = readingFiles.reduce((n, f) => n + count(join(here, "../sources/code-hearing", "read", f)), 0);
   const composed = readFileSync(join(root, "packs/codereadings.ncon"), "utf8");
   const pack = readFileSync(join(root, "packs/code-hearing.ncon"), "utf8");
   const words = readFileSync(join(root, "packs/codewords.ncon"), "utf8");

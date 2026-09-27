@@ -46,7 +46,7 @@ interface Rule {
 const HOLE = /([$@%#&])([a-z][A-Za-z0-9]*)/g;
 const KINDS = { $: "expression", "@": "statement", "%": "block", "#": "name", "&": "source" } as const;
 
-export function templatePieces(template: string): Part[] {
+function templatePieces(template: string): Part[] {
   const out: Part[] = [];
   let at = 0;
   for (let m = HOLE.exec(template); m; m = HOLE.exec(template)) {

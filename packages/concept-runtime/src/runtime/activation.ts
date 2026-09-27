@@ -32,7 +32,7 @@ import { matchContext } from "./context.js";
  * thing is dormant (Part 10.2): with d = 0.5, one use about two weeks ago. `Budget` is how
  * many Concepts spreading may expand.
  */
-export const ACTIVATION_DEFAULTS = { Decay: 0.5, Strength: 2, DormantBelow: -7, Budget: 64 } as const;
+const ACTIVATION_DEFAULTS = { Decay: 0.5, Strength: 2, DormantBelow: -7, Budget: 64 } as const;
 
 export type ActivationParameters = { -readonly [K in keyof typeof ACTIVATION_DEFAULTS]: number };
 

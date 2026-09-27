@@ -1,6 +1,6 @@
 // SPIKE: hearing time only, median of REPS runs, at the given line counts (the scoreboard's pool).
 // The hash of what was heard shows a change kept the result.
-//   node scratch/bench-hear.mjs [--lines 1000,5000] [--reps 5]
+//   node scripts/bench-hear.mjs [--lines 1000,5000] [--reps 5]
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +23,7 @@ seed(store);
 // does not change what is measured.
 const AT = flag("--at", "efee07a");
 const source = (f) => execSync(`git -C ${root} show ${AT}:${f.slice(join(root, "../..").length + 1)}`, { maxBuffer: 1 << 26 }).toString();
-const files = readFileSync(join(here, "corpus-9d08be4.txt"), "utf8")
+const files = readFileSync(join(here, "corpus.txt"), "utf8")
   .split("\n")
   .filter((f) => f.endsWith(".ts"))
   .map((f) => join(root, "../..", f))

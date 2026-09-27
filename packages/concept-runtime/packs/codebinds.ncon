@@ -1,5 +1,5 @@
 // How tightly operators bind in each language, from its tree-sitter grammar (grammar.json),
-// written by scratch/code-hearing/gen.mjs. Do not edit by hand; derive it again. Where a
+// written by sources/code-hearing/gen.mjs. Do not edit by hand; derive it again. Where a
 // language says, it wins over what packs/codewords.ncon says for every language.
 Requires(CodeWords())
 

@@ -6,7 +6,7 @@ import { ConceptStore } from "../store/store.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { importSource, importTypeScript, writeJavaScript } from "./import.js";
 
-// SPIKE (spike/hear-code-words, packs/code-hearing.ncon): code heard word by word, as a message
+// packs/code-hearing.ncon: code heard word by word, as a message
 // is, in the language's context, then read as the code IR by the heard words' realizations.
 const store = new ConceptStore();
 seed(store);

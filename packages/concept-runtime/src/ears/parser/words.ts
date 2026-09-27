@@ -48,7 +48,6 @@ export function expandBare(text: string): string {
     .replace(/\byour\b(?=\s+(not|so|welcome|right|wrong|the best|a|an|going|gonna|being))/gi, "you are");
 }
 
-export const isWord = (w: string): boolean => ENGLISH.has(w) || LEXICON[w] !== undefined || known.has(w);
 
 /** Stripping a regular ending leaves a known word: "memes", "tried", "dropping". */
 function inflects(w: string): boolean {
@@ -182,16 +181,6 @@ export function spelling(word: string, prev = ""): string | undefined {
   return options[0].term;
 }
 
-/**
- * A message none of whose words are words: "asdkjh qwe zzz". Letters run into digits are a
- * code, not a word to judge: "b2" is a board square, the way "a1" already read.
- */
-export function unclear(text: string): boolean {
-  const words = text.toLowerCase().match(/\b[a-z]+\b/g) ?? [];
-  if (!words.length) return false;
-  const real = words.filter((w) => isWord(w) || /^(i|a|an|to|of|in|on|at|is|it|me|my|no|ok|hi|yo)$/.test(w));
-  return real.length / words.length < 0.34 && !words.some((w) => w.length > 3 && COMMON.has(w));
-}
 
 /**
  * Correct the spelling of a sentence before tagging, so the grammar reads the word meant.

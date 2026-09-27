@@ -22,7 +22,7 @@ const KIND = new Map<number, string>();
 for (const [name, value] of Object.entries(ts.SyntaxKind)) {
   if (typeof value === "number" && !/^(First|Last)/.test(name)) KIND.set(value, name);
 }
-export const kindName = (kind: number): string => KIND.get(kind) ?? String(kind);
+const kindName = (kind: number): string => KIND.get(kind) ?? String(kind);
 
 /** Fields that are not the program: bookkeeping, and types. */
 const SKIP = new Set(["parent", "type", "typeArguments", "typeParameters", "jsDoc", "illegalDecorators", "original", "emitNode"]);
