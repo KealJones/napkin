@@ -647,9 +647,11 @@ per realization, its first line the realization's pattern and context).
 | "explain this", "what does this do?" | `Explain`, `What(Does($x, Do()))` | `Explained(code, "a function add that takes a and b, and gives back a plus b")` |
 | "what's wrong with", "check", "review" | `Check` | `Findings(code, List(Finding("...")))` |
 | "fix" | `Fix` | `Fixed(SourceCode(...), changes = List(...))` |
-| "run ... with 21" | `Run` | `Ran(42)` |
-| "convert to javascript" | `Convert` | `Converted(SourceCode(..., language = JavaScript()))` |
+| "run ... with 21", "what does `x` give" | `Run` | `Ran(42, code)` |
+| "convert to python" | `Convert` | `Converted(SourceCode(..., language = Python()))` |
 | "save it to x.js" | `Save` (`Effectful()`) | `Written(File("x.js"))` |
+| "write f where f(1) is 2, f(2) is 4" | `Examples` | `Derived(SourceCode(...), "f", fits = 2)` |
+| "write a function that adds two numbers" | `WriteDoing` | `Derived(SourceCode(...), "add")` |
 
 - **`CodeOf`** finds the code any of these is about, whatever shape the words took: code shown
   (`InlineCode`, `Block`), a file named (`File`, read from the workspace or `~/`), or code an
@@ -664,10 +666,16 @@ per realization, its first line the realization's pattern and context).
   not give (`GlobalName("console")` on a Concept, per language), an assignment where a condition
   is tested, steps after a return, a value set and never used, a thing compared with or set to
   itself. **Fix** repairs the ones with a plain repair and writes the code back in its language.
+- **Fix keeps layout.** `api.patchText(original, before, after)` (`code/patch.ts`) compares the
+  writing before the repair with the writing after it, token by token, and makes each difference
+  at the matching place in the original text, so a fixed file changes only where it was fixed.
+- **Examples** finds a function the way Predict finds a sequence's rule: every two-place
+  operation the graph can work out and the code writer can write is tried under `Hypothetical()`,
+  simplest rule first.
 - **Run** runs code apart from the host: `api.runCode` is a fresh `node:vm` context with no
   `require`, no `process`, no files, stopped after a second.
 - Host facilities, generic: `readFile`, `writeFile` (only under the workspace), `readCode`,
-  `writeCode`, `runCode`.
+  `writeCode`, `runCode`, `patchText`.
 
 ---
 

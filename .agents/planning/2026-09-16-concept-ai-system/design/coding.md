@@ -1,6 +1,6 @@
 # Napkin working on code
 
-Status: 2026-09-27. What is built (`packs/coding.ncon`, `sources/coding`) and where the existing
+Status: 2026-09-27 (evening). What is built (`packs/coding.ncon`, `sources/coding`) and where the existing
 mechanisms (Judge, Predict, Pursue, Plan) take it next. See `ir-guide.md` 8.5 and 8.6 for how it
 runs.
 
@@ -14,10 +14,12 @@ request, and `CodeOf` finds the code whatever shape the words took. Then:
 |---|---|---|
 | explain / what does this do | `Explain` | each code-IR construct has a wording under `Explaining()`; a file is said as what it is made of |
 | what's wrong / check / review | `Check` | the same checks over the code IR for any program |
-| fix | `Fix` | repairs what has a plain repair, writes the code back in its language |
-| run ... with 21 | `Run` | writes JavaScript, runs it in an isolated `node:vm` context |
-| convert to javascript | `Convert` | writes the code IR in another TargetLanguage |
-| save it to x.js | `Save` | writes under the workspace only, `Effectful()` |
+| fix | `Fix` | repairs what has a plain repair, made in the text itself so the rest keeps its layout (`code/patch.ts`) |
+| run ... with 21, what does `x` give, what is `x` | `Run` | writes JavaScript, runs it in an isolated `node:vm` context |
+| convert to python / javascript | `Convert` | writes the code IR in another TargetLanguage |
+| save it (to x.js) | `Save` | writes back to the file it came from or the one named, under the workspace only, `Effectful()` |
+| write f where f(1) is 2, f(2) is 4 | `Examples` | the simplest rule over the graph's own operations that fits every example, written as a function |
+| write a function that adds two numbers | `WriteDoing` | a function whose body is the Concept the verb is (Adds is Add) |
 
 Everything is a Concept; host code only adds generic facilities (`readFile`, `writeFile`,
 `readCode`, `writeCode`, `runCode`). Nothing names a particular program.
@@ -27,12 +29,10 @@ Everything is a Concept; host code only adds generic facilities (`readFile`, `wr
 These are the next steps, in the order they pay off. Each reuses a mechanism already in the
 graph rather than adding a code-only one.
 
-1. **Predict writes a function from examples.** Predict already fills a hole in a sequence by
-   trying the graph's own two-argument operations under `Hypothetical()`, simplest first, and
-   gives the rule it found (`Predicted(32, Multiply(Previous(), 2))`). Asked "write f where
-   f(1) is 2, f(2) is 4, f(3) is 6", the same search over `Op($x, constant)` finds
-   `Multiply($x, 2)`, and the rule is the body of a `Func` written out as code. Programming by
-   example with no model, and the rule is sourced: it is the one that fit every example.
+1. **Predict writes a function from examples.** Done (`Examples`): the same search Predict uses,
+   over `Op($x, k)`, `Op($a, $b)` and two steps, with constants from the examples themselves.
+   "g(2) = 5, g(3) = 7, g(10) = 21" gives `(x * 2) + 1`. A rule that ignores an argument is
+   passed over, and nothing fitting is said so.
 
 2. **Judge picks between two ways to write it.** Judge sets two options side by side on what
    they share and differ on and says what each is better for ("if you want X, A; if Y, B").
@@ -54,10 +54,9 @@ graph rather than adding a code-only one.
    wording for it is a realization under `Explaining()`, so it can be learned the way anything
    is: told once ("a Try is: try this, and if it fails do that"), saved, used from then on.
 
-6. **Writing Python.** `Convert` and `Fix` write back in the code's own language when the
-   language pack has `To` rules. Python has `From` rules only, so Python is written as
-   JavaScript today and says so. Python `To` rules need the writer to lay out blocks by
-   indentation rather than braces.
+6. **Writing Python.** Done: `packs/python.ncon` has `To` rules. The writer lays a block out in
+   lines when a template starts it on a line of its own (`"def $n($ps):\n    %b"`), and a
+   language writes values its own way with `To(Literal(true), "True")`.
 
 ## Honest limits
 
