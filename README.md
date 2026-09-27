@@ -87,7 +87,7 @@ learn Backgammon
 Nothing invents a goal for it. **The agenda is already written down**: every residual is
 something it could not realize, every orphan a cluster attached to nothing. It reads its own
 trace for what it could not do, and works on that. Unattended work is bounded by a budget,
-and its envelope is narrow — it may research and learn, and nothing else.
+and its envelope is narrow: it may research and learn, and nothing else.
 
 Some repairs need nothing from outside at all. A Concept whose synonym relation was never turned into
 behaviour gets the forwarding realization derived, and `Multiplication(6, 7)` starts
@@ -97,13 +97,34 @@ answering 42.
 
 ```
 $ napkin --forget
-nothing to forget — an only-way-to-do-something is never collected
+nothing to forget: an only-way-to-do-something is never collected
 ```
 
 Append-only would grow without limit, and a brain does not keep every habit it ever formed.
 A realization is collected only when another covers the same pattern and context, it is the
 older of the pair, and it has gone unused. That middle condition is the safety property:
 forgetting can lose an alternative, never a capability.
+
+### It works on code
+
+```
+> explain this code: `function add(a, b) { return a + b }`
+Here's what it does: a function add that takes a and b, and gives back a plus b.
+
+> fix this `if (x = 5) { go() }`
+Fixed: `x = 5` compares now: `x === 5`.
+
+> run `function f(n) { return n * 2 }` with 21
+It gives 42.
+
+> explain src/code/tree.ts
+Here's what it does: it says it is Source in any language tree-sitter has a grammar for ...;
+it defines functions parserFor(grammar) and readTree(text, grammar, prefix); it gives out readTree.
+```
+
+Code in a message, a file named in it, or a file attached in the studio is read as the code IR,
+then explained, checked, fixed, run (in an isolated context), converted to another language, or
+saved, each by a Concept in `packs/coding.ncon`.
 
 ## Running it
 
@@ -142,16 +163,16 @@ apps/studio/   browse the graph and watch a turn happen
 
 The specs came first and the runtime was written from them, not the other way round.
 
-- **[concept-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/concept-spec.md)** —
+- **[concept-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/concept-spec.md)**:
   what a Concept is; realization, evaluation, context, search, relations, persistence.
   Part 18 tabulates 27 contradictions found in the requirements and how each resolves.
-- **[ir-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec.md)** —
+- **[ir-spec.md](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec.md)**:
   the expression language and the parser contract.
-- **[seed-concepts.md](.agents/planning/2026-09-16-concept-ai-system/design/seed-concepts.md)** —
+- **[seed-concepts.md](.agents/planning/2026-09-16-concept-ai-system/design/seed-concepts.md)**:
   what the network starts with, and what is deliberately omitted.
-- **[the code appendix](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec-appendix-code.md)** —
+- **[the code appendix](.agents/planning/2026-09-16-concept-ai-system/design/ir-spec-appendix-code.md)**:
   234 lines of real JavaScript translated node for node, machine-validated.
-- **[the experiments](.agents/planning/2026-09-16-concept-ai-system/research/ir-parser-experiments/)** —
+- **[the experiments](.agents/planning/2026-09-16-concept-ai-system/research/ir-parser-experiments/)**:
   the parser contract is measured, not argued. Raw per-sample output included.
 
 ### Nothing is privileged
@@ -161,8 +182,8 @@ The rule that the three prior attempts failed, stated as a check you can run:
 > Can you change the system's behaviour by editing ordinary Concepts, without editing a
 > registry, a router, a dispatch switch, a model seat, or an evaluator special case?
 
-The evaluation loop knows exactly six identities — `Concept`, `Realization`, `Code`,
-`Context`, `Suppresses`, `IsA` — and every one is **structural**, about the form of a unit,
+The evaluation loop knows exactly six identities (`Concept`, `Realization`, `Code`,
+`Context`, `Suppresses`, `IsA`), and every one is **structural**, about the form of a unit,
 never semantic. It does not know that `Multiply` exists. A test asserts this.
 
 Six is not zero, and pretending otherwise is how the earlier attempts drifted. The list is

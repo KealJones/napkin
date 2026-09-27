@@ -492,7 +492,7 @@ function add(a, b) { return a + b; }       def add(a, b):
 
 Anything no rule reads becomes `Unsupported(kind, source)`, never silently dropped.
 
-### 8.3 Reading code by hearing it **(spike)**
+### 8.3 Reading code by hearing it
 
 The direction the user set: code is heard the way English is, each token its own word's Concept,
 with the language as context. No per-language syntax Concepts.
@@ -628,7 +628,46 @@ fix `foo()` please
 ```
 
 A comment inside a code block is also heard as words. Code-shaped text no language reads goes
-back in as words.
+back in as words. A file path in a message (`src/code/tree.ts`, `./notes.md`, `~/x.py`) is one
+thing, `File("...")`, and arithmetic in symbols (`(2+3)*4`, `2^10`) is the sum it writes, read as
+the code IR's arithmetic.
+
+Hearing joins what is said about code into one request: "this" is the code the message shows
+("explain this code: \`f(1)\`" is `Explain(InlineCode(...))`), what is said of a span stays with
+it ("run \`f\` with 21" is `Run(InlineCode(...), With(21))`), and a lone order's verb takes what
+follows.
+
+### 8.6 Working on code
+
+`packs/coding.ncon`, written by `scripts/pack.mjs` from `sources/coding` (one JavaScript file
+per realization, its first line the realization's pattern and context).
+
+| Asked | Concept | Result |
+|---|---|---|
+| "explain this", "what does this do?" | `Explain`, `What(Does($x, Do()))` | `Explained(code, "a function add that takes a and b, and gives back a plus b")` |
+| "what's wrong with", "check", "review" | `Check` | `Findings(code, List(Finding("...")))` |
+| "fix" | `Fix` | `Fixed(SourceCode(...), changes = List(...))` |
+| "run ... with 21" | `Run` | `Ran(42)` |
+| "convert to javascript" | `Convert` | `Converted(SourceCode(..., language = JavaScript()))` |
+| "save it to x.js" | `Save` (`Effectful()`) | `Written(File("x.js"))` |
+
+- **`CodeOf`** finds the code any of these is about, whatever shape the words took: code shown
+  (`InlineCode`, `Block`), a file named (`File`, read from the workspace or `~/`), or code an
+  earlier answer held; code shown in the message comes first. It gives `SourceCode(text,
+  language = L(), ir = IR, file = "...")`.
+- **Explaining** is a context: each construct of the code IR has a wording under `Explaining()`
+  (`Realization(ForOf($x, $xs, $b), context = Explaining(), body = Text("for each ", $x, ...))`),
+  so a construct the graph learns a wording for is explained without touching `Explain`. Longer
+  code (a file) is said as what it is made of: its first comment, what it takes in, what it
+  defines and gives out.
+- **Check** finds the same things for any program: a name nothing defines and the language does
+  not give (`GlobalName("console")` on a Concept, per language), an assignment where a condition
+  is tested, steps after a return, a value set and never used, a thing compared with or set to
+  itself. **Fix** repairs the ones with a plain repair and writes the code back in its language.
+- **Run** runs code apart from the host: `api.runCode` is a fresh `node:vm` context with no
+  `require`, no `process`, no files, stopped after a second.
+- Host facilities, generic: `readFile`, `writeFile` (only under the workspace), `readCode`,
+  `writeCode`, `runCode`.
 
 ---
 
@@ -640,6 +679,11 @@ A mechanism is a Concept whose realization body is a `Code(ir=...)` program:
 2. Convert it with `importTypeScript` into IR.
 3. Put `Realization(pattern, context = ..., body = Code(ir = ...))` in a pack.
 4. It runs as native JavaScript (5.4), reaching the graph only through `api`.
+
+Two scripts do steps 2 and 3: `node scripts/body.mjs show <pack> <Concept> [n]` prints a pack's
+body as JavaScript and `put` writes edited JavaScript back; `node scripts/pack.mjs <dir> <pack>`
+writes a whole pack from a directory of bodies, each file headed by its
+`// @realization Pattern(...), context = ...` line (how `packs/coding.ncon` is made).
 
 Keep each piece its own Concept (`Pursue`, `Predict`, `Extends`, `Mentions`) so it can be called,
 traced and replaced alone. A new result Concept needs an English wording in

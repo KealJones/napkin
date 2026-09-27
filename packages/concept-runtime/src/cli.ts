@@ -122,7 +122,7 @@ if (flag("--forget")) {
       ? `${gone.length} realization(s) ${dryRun ? "would be" : "were"} forgotten:\n` +
           gone.map((g) => `  ${g.identity}  ${g.pattern}  [${g.context}]  ${g.reason}`).join("\n") +
           (dryRun ? "\n\nre-run with --commit to apply" : "")
-      : "nothing to forget — an only-way-to-do-something is never collected",
+      : "nothing to forget: an only-way-to-do-something is never collected",
   );
   process.exit(0);
 }
