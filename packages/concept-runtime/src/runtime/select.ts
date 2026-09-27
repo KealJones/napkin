@@ -123,14 +123,23 @@ interface Reachable {
   readonly order: number;
 }
 const reachables = new WeakMap<ConceptStore, { version: number; byKey: Map<string, Reachable[]> }>();
+// The facet heads a context names, once per context: a context is one object, asked about again and again.
+const activeHeads = new WeakMap<object, string[]>();
+function active(context: Expr | undefined): string[] {
+  const held = context !== null && typeof context === "object" ? activeHeads.get(context) : undefined;
+  if (held) return held;
+  const found = [...new Set(facets(context).flatMap((f) => (isCall(f) ? [f.head] : [])))].sort();
+  if (context !== null && typeof context === "object") activeHeads.set(context, found);
+  return found;
+}
 function reachable(store: ConceptStore, head: string, context: Expr | undefined): Reachable[] {
-  const active = [...new Set(facets(context).flatMap((f) => (isCall(f) ? [f.head] : [])))].sort();
+  const facetHeadsHere = active(context);
   let cache = reachables.get(store);
   if (!cache || cache.version !== store.version) reachables.set(store, (cache = { version: store.version, byKey: new Map() }));
-  const key = `${head} ${active.join(" ")}`;
+  const key = `${head} ${facetHeadsHere.join(" ")}`;
   const known = cache.byKey.get(key);
   if (known) return known;
-  const has = new Set(active);
+  const has = new Set(facetHeadsHere);
   const out: Reachable[] = [];
   lineage(store, head).forEach((unit, distance) => {
     unit.realizations.forEach((realization, order) => {
