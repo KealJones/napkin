@@ -280,7 +280,8 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
     const backend = readerOf(body.backend);
 
     return stream(async (send) => {
-      const runtime = new Runtime(store, { tracePath });
+      // NAPKIN_TRACE_QUIET=1 traces what quiet facets keep out (hearing's rounds), to debug them.
+      const runtime = new Runtime(store, { tracePath, traceQuiet: process.env.NAPKIN_TRACE_QUIET === "1" });
       // Heard before it is read, so the trace and anything learned point at it.
       const heard = conversations.receive();
       runtime.trace.said(heard.seq);
