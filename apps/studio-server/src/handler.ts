@@ -24,6 +24,7 @@ import {
   turn as runTurn,
 } from "@napkin/concept-runtime";
 import { concept, realization } from "@napkin/concept-runtime";
+import { codeLanguages, formatNcon, importSource, writeSource } from "@napkin/concept-runtime";
 import {
   compareEars,
   earsCases,
@@ -177,6 +178,8 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
     if (method === "POST" && path === "/api/chat/turn") return runChatTurn(request);
 
     if (path.startsWith("/api/ears/")) return handleEarsLab(path, url, request);
+
+    if (path.startsWith("/api/code/")) return handleCode(path, request);
 
     return json(404, { error: "Not found" });
   }
@@ -398,6 +401,40 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
         expect: def?.expect ?? null,
       };
     });
+  }
+
+  /**
+   * The code playground: source in a language read as Concepts by its pack's From rules, and
+   * Concepts written as a language by its To rules, so either side can be edited.
+   */
+  async function handleCode(path: string, request: Request): Promise<Response> {
+    const method = request.method;
+    if (path === "/api/code/languages" && method === "GET") return json(200, { languages: codeLanguages() });
+    const body = await readJson(request);
+    if (!isRecord(body) || typeof body.language !== "string") return json(400, { error: "A language is required" });
+    const language = body.language;
+    if (path === "/api/code/read" && method === "POST") {
+      if (typeof body.source !== "string") return json(400, { error: "source is required" });
+      try {
+        const read = await importSource(body.source, language);
+        if (!read) return json(400, { error: `No pack says how to read ${language}` });
+        return json(200, { ir: formatNcon(format(read.expression)).trimEnd(), unsupported: read.unsupported });
+      } catch (caught) {
+        return json(200, { error: caught instanceof Error ? caught.message : String(caught) });
+      }
+    }
+    if (path === "/api/code/write" && method === "POST") {
+      if (typeof body.ir !== "string") return json(400, { error: "ir is required" });
+      let expression;
+      try {
+        expression = parse(body.ir);
+      } catch (caught) {
+        return json(200, { error: `Not a Concept expression: ${caught instanceof Error ? caught.message : String(caught)}` });
+      }
+      const written = writeSource(expression, language);
+      return json(200, { source: written.text, unwritable: written.unwritable });
+    }
+    return json(404, { error: "Unknown code endpoint" });
   }
 
   async function handleEarsLab(path: string, url: URL, request: Request): Promise<Response> {

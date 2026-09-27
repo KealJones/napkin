@@ -10,9 +10,10 @@ import {
 import type { TraceEvent } from "@napkin/concept-runtime";
 import "./styles.css";
 import { EarsLab } from "./EarsLab";
+import { CodePlayground } from "./CodePlayground";
 import { request, useHost, type Reader } from "./transport";
 
-type Page = "chat" | "concepts" | "traces" | "ears";
+type Page = "chat" | "concepts" | "traces" | "ears" | "code";
 type ConversationSummary = {
   id: string;
   persistent: boolean;
@@ -821,6 +822,13 @@ function App() {
               <span>◎</span>
               <b className="nav-label">Ears lab</b>
             </button>
+            <button
+              className={page === "code" ? "active" : ""}
+              onClick={() => setPage("code")}
+            >
+              <span>⌘</span>
+              <b className="nav-label">Code playground</b>
+            </button>
           </nav>
         </div>
         <div className="side-bottom">
@@ -839,7 +847,9 @@ function App() {
                 ? "Concept network"
                 : page === "ears"
                   ? "Ears lab"
-                  : "Trace history"}
+                  : page === "code"
+                    ? "Code playground"
+                    : "Trace history"}
           </h1>
           <div className="topmeta">
             <span>
@@ -850,7 +860,9 @@ function App() {
             <span className="badge">LOCAL</span>
           </div>
         </header>
-        {page === "ears" ? (
+        {page === "code" ? (
+          <CodePlayground />
+        ) : page === "ears" ? (
           <EarsLab />
         ) : page === "chat" ? (
           <section className="page active">

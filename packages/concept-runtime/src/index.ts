@@ -52,3 +52,4 @@ export function createRuntime(): Runtime {
   seed(store);
   return new Runtime(store);
 }
+export { formatNcon } from "./code/format.js";

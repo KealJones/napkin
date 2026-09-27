@@ -75,3 +75,32 @@ export async function importSource(source: string, language: string, options: Im
   const tree = await readTree(source, grammar, prefix);
   return readWith(readingRules(store, language), source, `input.${grammar}`, { tree, prefix });
 }
+
+/** Concepts written as source in a language, by its pack's To rules (and those it extends). */
+export function writeSource(expression: Expr, language: string, options: ImportOptions = {}): Writing {
+  return writeWith(writingRules(options.store ?? languagePackStore(), language), expression);
+}
+
+export interface CodeLanguage {
+  readonly name: string;
+  /** A pack says how its source reads as Concepts. */
+  readonly reads: boolean;
+  /** A pack says how Concepts are written as its source. */
+  readonly writes: boolean;
+}
+
+/** The languages the packs read or write, from the packs themselves. */
+export function codeLanguages(options: ImportOptions = {}): CodeLanguage[] {
+  const store = options.store ?? languagePackStore();
+  const languages = store
+    .all()
+    .filter((u) => u.relations.some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && r.claim.args[0].value.head === "TargetLanguage"))
+    .map((u) => u.identity);
+  return languages
+    .map((name) => ({
+      name,
+      reads: name === "TypeScript" || name === "JavaScript" || store.get(name)!.relations.some((r) => isCall(r.claim) && r.claim.head === "Grammar"),
+      writes: writingRules(store, name).size > 0,
+    }))
+    .filter((l) => l.reads || l.writes);
+}

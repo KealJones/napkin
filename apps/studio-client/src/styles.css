@@ -1245,3 +1245,9 @@ button.ghost {
 .lab-runs td { font-size: 12px; white-space: nowrap; }
 .lab-selected td { color: var(--pink); }
 details > summary { cursor: pointer; }
+
+/* Code playground: source and its Concepts side by side, both editable. */
+.code-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.code-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.code-editor { width: 100%; flex: 1; min-height: 60vh; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; tab-size: 2; white-space: pre; }
+.code-note { white-space: pre-wrap; }
