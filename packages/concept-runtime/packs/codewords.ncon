@@ -695,3 +695,18 @@ Concept(Semicolon(), IsA(Separator()), Spelled(";"))
 Concept(Newline(), IsA(Separator()))
 
 Concept(BlockColon(), Relation(IsA(Separator()), context = Code(Python())))
+
+// What a member of a thing is, as the code IR's Concepts, in a language: xs.map(f) is Map(xs, f).
+// Method(name, how many it is given, Passes(how many its callback is given)): a callback taking
+// more than that (the index, the array) stays a method call.
+Concept(Length(), Relation(Property("length"), context = Code(TypeScript())))
+
+Concept(Map(), Relation(Method("map", 1, Passes(1)), context = Code(TypeScript())))
+
+Concept(Filter(), Relation(Method("filter", 1, Passes(1)), context = Code(TypeScript())))
+
+Concept(FlatMap(), Relation(Method("flatMap", 1, Passes(1)), context = Code(TypeScript())))
+
+Concept(Reduce(), Relation(Method("reduce", 2, Passes(2)), context = Code(TypeScript())))
+
+Concept(Includes(), Relation(Method("includes", 1), context = Code(TypeScript())))

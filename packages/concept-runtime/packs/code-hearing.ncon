@@ -5315,34 +5315,9 @@ Concept(Dot(),
                 )
               )
             ),
-            Comment("The language's reading rules for members by name (javascript.ncon's From rules)."),
-            Bind($field,
-              Lambda(List($e, $k),
-                If(
-                  Call($isCall, $e),
-                  Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), $k))),
-                  Undefined()
-                )
-              )
-            ),
-            Bind($text,
-              Lambda(List($e),
-                Sequence(
-                  Bind($n, Call($field, $e, "name")),
-                  Bind($t,
-                    If(
-                      And(
-                        And($n, Call($isCall, Member($n, "value"))),
-                        Equals(Member(Member($n, "value"), "head"), "JsIdentifier")
-                      ),
-                      Call($field, Member($n, "value"), "text"),
-                      Undefined()
-                    )
-                  ),
-                  Return(If($t, Member($t, "value"), Undefined()))
-                )
-              )
-            ),
+            Comment("What the graph says a member by this name is, in this language: xs.map(f) is Map(xs, f)"),
+            Comment("(Method(\"map\", 1, Passes(1)) on Map), xs.length is Length(xs) (Property(\"length\")). A"),
+            Comment("callback given more than the Concept passes it (the index, the array) stays a method call."),
             Bind($code,
               Call(
                 Member(
@@ -5352,208 +5327,77 @@ Concept(Dot(),
                 Lambda(List($f), And(Call($isCall, $f), Equals(Member($f, "head"), "Code")))
               )
             ),
-            Bind($language,
-              If(
-                And($code, Call($isCall, Member(Index(Member($code, "args"), 0), "value"))),
-                Member(Member(Index(Member($code, "args"), 0), "value"), "head"),
-                ""
+            Bind($here,
+              Lambda(List($r),
+                Or(
+                  Equals(Member($r, "context"), Undefined()),
+                  And(
+                    NotEquals($code, Undefined()),
+                    Equals(Call(Member($api, "format"), Member($r, "context")), Call(Member($api, "format"), $code))
+                  )
+                )
               )
             ),
-            Bind($rulesOf,
+            Bind($named,
               Lambda(List($head),
-                Sequence(
-                  Bind($unit, Call(Member(Member($api, "store"), "get"), $head)),
-                  Return(
-                    If(
-                      $unit,
-                      Filter(
-                        Member($unit, "realizations"),
-                        Lambda(List($r),
-                          And(
-                            And(
-                              And(Not(Member($r, "retired")), Call($isCall, Member($r, "context"))),
-                              Call(
-                                Member(Member(Member($r, "context"), "args"), "some"),
-                                Lambda(List($a),
-                                  And(
-                                    Call($isCall, Member($a, "value")),
-                                    Equals(Member(Member($a, "value"), "head"), "Reading")
-                                  )
-                                )
-                              )
-                            ),
-                            Call(
-                              Member(Member(Member($r, "context"), "args"), "some"),
-                              Lambda(List($a),
-                                And(
-                                  Call($isCall, Member($a, "value")),
-                                  Includes(
-                                    List("JavaScript", "TypeScript", $language),
-                                    Member(Member($a, "value"), "head")
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
+                Filter(
+                  Call(Member(Member($api, "store"), "mentioning"), $name),
+                  Lambda(List($m),
+                    And(
+                      And(
+                        And(Call($here, Member($m, "relation")), Call($isCall, Member(Member($m, "relation"), "claim"))),
+                        Equals(Member(Member(Member($m, "relation"), "claim"), "head"), $head)
                       ),
-                      List()
+                      Equals(Member(Index(Member(Member(Member($m, "relation"), "claim"), "args"), 0), "value"), $name)
                     )
                   )
                 )
               )
             ),
-            Bind($isVar,
-              Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("variable", $e)))
-            ),
             If(
               Or(Length($values), $called),
               Sequence(
-                Comment("A callback taking more than the Concept passes stays a method call (the Capture rules)."),
                 ForOf(
-                  $r,
-                  Call($rulesOf, "JsCallExpression"),
+                  $m,
+                  Call($named, "Method"),
                   Sequence(
-                    Bind($ex, Call($field, Member($r, "pattern"), "expression")),
-                    Bind($inner,
-                      If(
-                        And(
-                          And($ex, Call($isCall, Member($ex, "value"))),
-                          Equals(Member(Member($ex, "value"), "head"), "Capture")
-                        ),
-                        Member(Index(Member(Member($ex, "value"), "args"), 1), "value"),
-                        Undefined()
+                    Bind(List(Hole(), $count, $passes),
+                      Map(
+                        Member(Member(Member($m, "relation"), "claim"), "args"),
+                        Lambda(List($a), Member($a, "value"))
                       )
                     ),
                     If(
-                      Or(Not($inner), NotEquals(Call($text, $inner), $name)),
+                      NotEquals($count, Length($values)),
                       Continue(),
                       Undefined()
                     ),
-                    Bind($as, Call($field, Member($r, "pattern"), "arguments")),
-                    Bind($first,
-                      If(
-                        And($as, Call($isCall, Member($as, "value"))),
-                        Index(Member(Member($as, "value"), "args"), 0),
-                        Undefined()
-                      )
-                    ),
-                    Bind($fn,
+                    Bind($f, Index($values, 0)),
+                    Bind($given,
                       If(
                         And(
-                          And($first, Call($isCall, Member($first, "value"))),
-                          Equals(Member(Member($first, "value"), "head"), "Capture")
+                          And(Call($isCall, $f), Equals(Member($f, "head"), "Lambda")),
+                          Call($isCall, Member(Index(Member($f, "args"), 0), "value"))
                         ),
-                        Member(Index(Member(Member($first, "value"), "args"), 1), "value"),
-                        Undefined()
-                      )
-                    ),
-                    Bind($ps, If($fn, Call($field, $fn, "parameters"), Undefined())),
-                    Bind($least,
-                      If(
-                        And($ps, Call($isCall, Member($ps, "value"))),
-                        Length(
-                          Filter(
-                            Member(Member($ps, "value"), "args"),
-                            Lambda(List($a),
-                              And(
-                                Call($isVar, Member($a, "value")),
-                                Equals(Member(Member($a, "value"), "variable"), "_")
-                              )
-                            )
-                          )
-                        ),
+                        Length(Member(Member(Index(Member($f, "args"), 0), "value"), "args")),
                         0
                       )
                     ),
-                    Bind($f, Index($values, 0)),
                     If(
                       And(
-                        And(
-                          And(And($least, Call($isCall, $f)), Equals(Member($f, "head"), "Lambda")),
-                          Call($isCall, Member(Index(Member($f, "args"), 0), "value"))
-                        ),
-                        AtLeast(Length(Member(Member(Index(Member($f, "args"), 0), "value"), "args")), $least)
-                      ),
-                      Return(Call(Member($api, "call"), "Call", $got, Spread($values))),
-                      Undefined()
-                    )
-                  )
-                ),
-                ForOf(
-                  $r,
-                  Call($rulesOf, "JsCallExpression"),
-                  Sequence(
-                    Bind($ex, Call($field, Member($r, "pattern"), "expression")),
-                    If(
-                      Or(
-                        Or(
-                          Or(Not($ex), Not(Call($isCall, Member($ex, "value")))),
-                          NotEquals(Member(Member($ex, "value"), "head"), "JsPropertyAccessExpression")
-                        ),
-                        NotEquals(Call($text, Member($ex, "value")), $name)
+                        And(Call($isCall, $passes), Equals(Member($passes, "head"), "Passes")),
+                        GreaterThan($given, Member(Index(Member($passes, "args"), 0), "value"))
                       ),
                       Continue(),
                       Undefined()
                     ),
-                    Bind($as, Call($field, Member($r, "pattern"), "arguments")),
-                    Bind($wanted,
-                      If(
-                        And($as, Call($isCall, Member($as, "value"))),
-                        Map(Member(Member($as, "value"), "args"), Lambda(List($a), Member($a, "value"))),
-                        List()
-                      )
-                    ),
-                    Bind($o, Call($field, Member($ex, "value"), "expression")),
-                    If(
-                      Or(
-                        Or(
-                          Or(
-                            Or(Not($o), Not(Call($isVar, Member($o, "value")))),
-                            NotEquals(Length($wanted), Length($values))
-                          ),
-                          Not(Call(Member($wanted, "every"), $isVar))
-                        ),
-                        Not(Call($isCall, Member($r, "body")))
-                      ),
-                      Continue(),
-                      Undefined()
-                    ),
-                    Bind($bound,
-                      New(
-                        $Map,
-                        Concat(
-                          List(List(Member(Member($o, "value"), "variable"), $of)),
-                          Call(
-                            Member($wanted, "map"),
-                            Lambda(List($v, $i), List(Member($v, "variable"), Index($values, $i)))
-                          )
-                        )
-                      )
-                    ),
-                    If(
+                    Return(
                       Call(
-                        Member(Member(Member($r, "body"), "args"), "every"),
-                        Lambda(List($a),
-                          And(
-                            Call($isVar, Member($a, "value")),
-                            Call(Member($bound, "has"), Member(Member($a, "value"), "variable"))
-                          )
-                        )
-                      ),
-                      Return(
-                        Call(
-                          Member($api, "call"),
-                          Member(Member($r, "body"), "head"),
-                          Spread(
-                            Map(
-                              Member(Member($r, "body"), "args"),
-                              Lambda(List($a), Call(Member($bound, "get"), Member(Member($a, "value"), "variable")))
-                            )
-                          )
-                        )
-                      ),
-                      Undefined()
+                        Member($api, "call"),
+                        Member($m, "identity"),
+                        $of,
+                        Spread($values)
+                      )
                     )
                   )
                 ),
@@ -5562,39 +5406,9 @@ Concept(Dot(),
               Undefined()
             ),
             ForOf(
-              $r,
-              Call($rulesOf, "JsPropertyAccessExpression"),
-              Sequence(
-                If(
-                  NotEquals(Call($text, Member($r, "pattern")), $name),
-                  Continue(),
-                  Undefined()
-                ),
-                Bind($o, Call($field, Member($r, "pattern"), "expression")),
-                If(
-                  And(
-                    And(
-                      And(
-                        And(And($o, Call($isVar, Member($o, "value"))), Call($isCall, Member($r, "body"))),
-                        Equals(Length(Member(Member($r, "body"), "args")), 1)
-                      ),
-                      Call($isVar, Member(Index(Member(Member($r, "body"), "args"), 0), "value"))
-                    ),
-                    Equals(
-                      Member(Member(Index(Member(Member($r, "body"), "args"), 0), "value"), "variable"),
-                      Member(Member($o, "value"), "variable")
-                    )
-                  ),
-                  Return(
-                    Call(
-                      Member($api, "call"),
-                      Member(Member($r, "body"), "head"),
-                      $of
-                    )
-                  ),
-                  Undefined()
-                )
-              )
+              $m,
+              Call($named, "Property"),
+              Return(Call(Member($api, "call"), Member($m, "identity"), $of))
             ),
             Return($got)
           )
