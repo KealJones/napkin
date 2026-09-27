@@ -8,3 +8,5 @@ step | TS identical | Py identical | ms 10/100/1000 lines | host TS / JS bodies 
 6 readings round 2, BindsAfter (as), contextual keywords, inside-bracket fix | 1417/1469 96.5% | 179/201 89.1% | 19 / 81 / 783 hear (+114 read); 5000: 3778 hear | 208 / 875 JS + 520 tables / 9496
 7 switch/case, idle leading words (void types), stray only with nothing after | 1431/1469 97.4% | 179/201 89.1% | - | -
 8 member modifiers in return types, call-of-call, Python if/assign/string prefixes | 1432/1469 97.5% | 192/201 95.5% | - | -
+9 Binds derived from tree-sitter grammar.json (43 relations, 28 words; authored generic Binds dropped where both grammars say) | 1431/1469 97.4% | 192/201 95.5% | 20 / 76+26 / 783+114; 5000 lines: 3794 hear + 538 read (importTypeScript 105, tree-sitter 37) | 214 / 883 JS + 580 tables / 10415
+(no dirty re-hearing, all words every round: same 1432 identical, 1000 lines 1860 ms hear)

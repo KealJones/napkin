@@ -17,7 +17,7 @@ async (args, bindings, api) => {
     const e = v("hi", r) + 1;
     // Its own closing bracket, not yet absorbed, is not where it ends.
     if (v("punctuation", e) && v("pair", e) >= v("lo", r) && v("pair", e) < e) return [];
-    const next = v("operator", e) && !v("unary", e) ? v("binds", e) : undefined;
+    const next = v("operator", e) && !v("unary", e) ? (v("postfix", e) ? 160 : v("binds", e)) : undefined;
     return v("boundary", e) || (next !== undefined && next !== null && next <= mine) ? [api.call("Link", r, at, api.call("Takes"))] : [];
   };
   const out = take(at + 1, at);

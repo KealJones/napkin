@@ -7,6 +7,27 @@ import { formatNcon } from "../../dist/code/format.js";
 import { WORDS } from "./words.mjs";
 import { READINGS } from "./readings.mjs";
 import { js } from "./lib.mjs";
+import { deriveBinds } from "./binds.mjs";
+
+// How tightly operators bind in each language, from its tree-sitter grammar (binds.mjs): an
+// operator between two things whose binding falls among the ones written here (not assignments,
+// which the words below say, nor "as"), and a leading word before one thing.
+const GRAMMARS = { "Code(TypeScript())": "tree-sitter-typescript/typescript/src/grammar.json", "Code(Python())": "tree-sitter-python/src/grammar.json" };
+const derived = new Map(); // head -> [relation]
+const spelledAs = (op) => WORDS.find((w) => w[2] === op || (w[2] === undefined && w[0] === op[0].toUpperCase() + op.slice(1)))?.[0];
+for (const [lang, file] of Object.entries(GRAMMARS)) {
+  const d = deriveBinds(file);
+  for (const [op, x] of d.infix) {
+    const head = spelledAs(op);
+    if (!head || x.binds < 30 || x.binds > 200 || (/=$/.test(op) && !/^(==|!=|===|!==|<=|>=)$/.test(op)) || ["As", "Satisfies", "Colon"].includes(head)) continue;
+    derived.set(head, [...(derived.get(head) ?? []), `Relation(Binds(${x.binds}${x.right ? ", Right()" : ""}), context = ${lang})`]);
+  }
+  for (const [op, x] of d.prefix) {
+    const head = spelledAs(op);
+    if (!head || x.binds < 30 || x.binds > 200 || WORDS.find((w) => w[0] === head)?.[1].includes("Infix")) continue;
+    derived.set(head, [...(derived.get(head) ?? []), `Relation(Binds(${x.binds}), context = ${lang})`]);
+  }
+}
 const here = dirname(fileURLToPath(import.meta.url));
 
 const HEARS = "Hearing(Code($language))";
@@ -65,8 +86,12 @@ for (const entry of WORDS) {
   const here = (claim) => (only ? `Relation(${claim}, context = ${only})` : claim);
   const parts = ks.map((k) => here(k === "Keyword" ? "Keyword()" : `IsA(${k}())`));
   if (sym) parts.push(here(`Spelled(${JSON.stringify(sym)})`));
-  if (typeof binds === "string") parts.push(here(binds));
+  // Written here only where no grammar says it for every language the word is in.
+  const both = Object.keys(GRAMMARS).every((lang) => (derived.get(head) ?? []).some((r) => r.includes(lang)) || (only && only !== lang));
+  if (typeof binds === "string" && !both) parts.push(here(binds));
   parts.push(...(Array.isArray(binds) ? binds : []), ...(Array.isArray(extra) ? extra.map((x) => (x.startsWith("Relation(") ? x : here(x))) : []));
+  // Derived from the grammar, preferred in its language over what is written here.
+  parts.push(...(derived.get(head) ?? []));
   if (head === "Question") parts.push(hears("question.js"));
   parts.push(...(READINGS[head] ?? []));
   say(`Concept(${head}(), ${parts.join(", ")})`);
@@ -76,4 +101,5 @@ for (const [head, rs] of Object.entries(READINGS)) {
   if (!WORDS.some((w) => w[0] === head)) say(`Concept(${head}(), ${rs.join(", ")})`);
 }
 writeFileSync(join(here, "../../packs/code-hearing.ncon"), formatNcon(out.join("\n\n") + "\n"));
+console.log("derived Binds:", [...derived.values()].flat().length, "relations on", derived.size, "words");
 console.log("wrote packs/code-hearing.ncon");

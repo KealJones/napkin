@@ -17,7 +17,7 @@ async (args, bindings, api) => {
   const mine = unary ? alone(at) : postfix ? ALONE + 10 : v("binds", at) ?? 0;
   const mineAfter = unary || postfix ? mine : v("after", at) ?? mine;
   const rightToLeft = v("right", at);
-  const holding = (b) => (v("unary", b) ? alone(b) : v("binds", b));
+  const holding = (b) => (v("unary", b) ? alone(b) : v("postfix", b) ? ALONE + 10 : v("binds", b));
   const holdingAfter = (b) => (v("unary", b) ? alone(b) : v("after", b));
   const out = [];
   // What follows: the whole thing that starts after me, once what comes after it is not held

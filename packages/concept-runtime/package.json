@@ -18,7 +18,9 @@
     "eval:ears": "npm run build && node dist/ears/eval/run.js"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2"
   },
   "exports": {
     ".": {

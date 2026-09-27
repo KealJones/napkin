@@ -1769,7 +1769,11 @@ Concept(Infix(),
                 If(
                   Call($v, "unary", $b),
                   Call($alone, $b),
-                  Call($v, "binds", $b)
+                  If(
+                    Call($v, "postfix", $b),
+                    Add($ALONE, 10),
+                    Call($v, "binds", $b)
+                  )
                 )
               )
             ),
@@ -1981,7 +1985,7 @@ Concept(Prefix(),
                   Bind($next,
                     If(
                       And(Call($v, "operator", $e), Not(Call($v, "unary", $e))),
-                      Call($v, "binds", $e),
+                      If(Call($v, "postfix", $e), 160, Call($v, "binds", $e)),
                       Undefined()
                     )
                   ),
@@ -2546,6 +2550,7 @@ Concept(Dot(),
   IsA(Infix()),
   Spelled("."),
   Binds(200),
+  Relation(Binds(200), context = Code(Python())),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -3104,20 +3109,37 @@ Concept(OptionalDot(),
 Concept(Power(),
   IsA(Infix()),
   Spelled("**"),
-  Binds(140, Right())
+  Relation(Binds(140, Right()), context = Code(TypeScript())),
+  Relation(Binds(186, Right()), context = Code(Python()))
 )
 
-Concept(Times(), IsA(Infix()), Spelled("*"), Binds(120))
+Concept(Times(),
+  IsA(Infix()),
+  Spelled("*"),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
 
-Concept(Over(), IsA(Infix()), Spelled("/"), Binds(120))
+Concept(Over(),
+  IsA(Infix()),
+  Spelled("/"),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
 
-Concept(Modulo(), IsA(Infix()), Spelled("%"), Binds(120))
+Concept(Modulo(),
+  IsA(Infix()),
+  Spelled("%"),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
 
 Concept(Plus(),
   IsA(Infix()),
   IsA(Unary()),
   Spelled("+"),
-  Binds(110),
+  Relation(Binds(120), context = Code(TypeScript())),
+  Relation(Binds(143), context = Code(Python())),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -3240,14 +3262,16 @@ Concept(Plus(),
 Concept(ShiftLeft(),
   IsA(Infix()),
   Spelled("<<"),
-  Binds(100)
+  Relation(Binds(110), context = Code(TypeScript())),
+  Relation(Binds(129), context = Code(Python()))
 )
 
 Concept(Minus(),
   IsA(Infix()),
   IsA(Unary()),
   Spelled("-"),
-  Binds(110),
+  Relation(Binds(120), context = Code(TypeScript())),
+  Relation(Binds(143), context = Code(Python())),
   Realization(Minus($a),
     context = Context(Code($language), Reading()),
     resultContext = Code(),
@@ -3258,28 +3282,45 @@ Concept(Minus(),
 Concept(Greater(),
   IsA(Infix()),
   Spelled(">"),
-  Binds(90),
-  SynonymOf(GreaterThan())
+  SynonymOf(GreaterThan()),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
 )
 
 Concept(Less(),
   IsA(Infix()),
   Spelled("<"),
-  Binds(90),
-  SynonymOf(LessThan())
+  SynonymOf(LessThan()),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
 )
 
-Concept(AtLeast(), IsA(Infix()), Spelled(">="), Binds(90))
+Concept(AtLeast(),
+  IsA(Infix()),
+  Spelled(">="),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
 
-Concept(AtMost(), IsA(Infix()), Spelled("<="), Binds(90))
+Concept(AtMost(),
+  IsA(Infix()),
+  Spelled("<="),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
 
-Concept(In(), IsA(Infix()), Keyword(), Binds(90))
+Concept(In(),
+  IsA(Infix()),
+  Keyword(),
+  Binds(90),
+  Relation(Binds(73), context = Code(Python()))
+)
 
 Concept(Instanceof(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
   Relation(Keyword(), context = Code(TypeScript())),
-  Relation(Binds(90), context = Code(TypeScript())),
-  Relation(SynonymOf(InstanceOf()), context = Code(TypeScript()))
+  Relation(SynonymOf(InstanceOf()), context = Code(TypeScript())),
+  Relation(Binds(90), context = Code(TypeScript()))
 )
 
 Concept(As(),
@@ -3514,21 +3555,24 @@ Concept(Is(),
   IsA(Infix()),
   Keyword(),
   IsA(Contextual()),
-  Binds(90)
+  Binds(90),
+  Relation(Binds(73), context = Code(Python()))
 )
 
 Concept(Equals(),
   IsA(Infix()),
   Spelled("==="),
   Binds(80),
-  Relation(Spelled("=="), context = Code(Python()))
+  Relation(Spelled("=="), context = Code(Python())),
+  Relation(Binds(80), context = Code(TypeScript()))
 )
 
 Concept(NotEquals(),
   IsA(Infix()),
   Spelled("!=="),
   Binds(80),
-  Relation(Spelled("!="), context = Code(Python()))
+  Relation(Spelled("!="), context = Code(Python())),
+  Relation(Binds(80), context = Code(TypeScript()))
 )
 
 Concept(LooseEquals(),
@@ -3548,36 +3592,41 @@ Concept(LooseNotEquals(),
 Concept(Ampersand(),
   IsA(Infix()),
   Spelled("&"),
-  Binds(70),
-  SynonymOf(BitAnd())
+  SynonymOf(BitAnd()),
+  Relation(Binds(70), context = Code(TypeScript())),
+  Relation(Binds(101), context = Code(Python()))
 )
 
 Concept(Caret(),
   IsA(Infix()),
   Spelled("^"),
-  Binds(60),
-  SynonymOf(BitXor())
+  SynonymOf(BitXor()),
+  Relation(Binds(60), context = Code(TypeScript())),
+  Relation(Binds(115), context = Code(Python()))
 )
 
 Concept(Bar(),
   IsA(Infix()),
   Spelled("|"),
-  Binds(50),
-  SynonymOf(BitOr())
+  SynonymOf(BitOr()),
+  Relation(Binds(50), context = Code(TypeScript())),
+  Relation(Binds(87), context = Code(Python()))
 )
 
 Concept(And(),
   IsA(Infix()),
   Spelled("&&"),
   Binds(40),
-  Relation(Keyword(), context = Code(Python()))
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(40), context = Code(TypeScript()))
 )
 
 Concept(Or(),
   IsA(Infix()),
   Spelled("||"),
   Binds(30),
-  Relation(Keyword(), context = Code(Python()))
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(30), context = Code(TypeScript()))
 )
 
 Concept(Otherwise(), IsA(Infix()), Spelled("??"), Binds(30))
@@ -4485,6 +4534,7 @@ Concept(Not(),
   Binds(150),
   Relation(Binds(60), context = Code(Python())),
   Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(190), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -4606,11 +4656,16 @@ Concept(Not(),
 Concept(Typeof(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
   Relation(Keyword(), context = Code(TypeScript())),
-  Relation(Binds(150), context = Code(TypeScript())),
-  Relation(SynonymOf(TypeOf()), context = Code(TypeScript()))
+  Relation(SynonymOf(TypeOf()), context = Code(TypeScript())),
+  Relation(Binds(150), context = Code(TypeScript()))
 )
 
-Concept(Await(), IsA(Prefix()), Keyword(), Binds(150))
+Concept(Await(),
+  IsA(Prefix()),
+  Keyword(),
+  Relation(Binds(150), context = Code(TypeScript())),
+  Relation(Binds(172), context = Code(Python()))
+)
 
 Concept(Void(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
@@ -4750,7 +4805,7 @@ Concept(New(),
 Concept(Spread(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
   Relation(Spelled("..."), context = Code(TypeScript())),
-  Relation(Binds(20), context = Code(TypeScript()))
+  Relation(Binds(190), context = Code(TypeScript()))
 )
 
 Concept(Const(),
