@@ -1,0 +1,697 @@
+// The words code is heard as (packs/code-hearing.ncon hears them): what each is, how it is
+// spelled when it is a symbol, and how tightly it holds what is beside it (Binds, higher is
+// tighter; packs/codebinds.ncon has what the languages' grammars say, which wins). A relation
+// that holds only in one language says so with its context.
+Requires(Hearing(), Code(), Python(), TypeScript())
+
+// How a language lays its words out.
+Concept(Python(),
+  Comments("#"),
+  Offside(),
+  StringPrefixes()
+)
+
+Concept(JavaScript(),
+  Comments("//", "/*"),
+  Templates("`"),
+  RegexLiterals()
+)
+
+Concept(TypeScript(),
+  Comments("//", "/*"),
+  Templates("`"),
+  RegexLiterals()
+)
+
+// What code's words are, for hearing.
+Concept(CodeWord(), IsA(Category()))
+
+// Between two things.
+Concept(Infix(), IsA(CodeWord()))
+
+// Before a thing.
+Concept(Prefix(), IsA(CodeWord()))
+
+// A bracket.
+Concept(Opener(), IsA(CodeWord()))
+
+// Goes on from the statement before it.
+Concept(Continues(), IsA(Prefix()), IsA(CodeWord()))
+
+// A block of statements.
+Concept(Scope(), IsA(Opener()), IsA(CodeWord()))
+
+Concept(Closer(), IsA(CodeWord()))
+
+Concept(Separator(), IsA(CodeWord()))
+
+// Round brackets: after a name, its arguments.
+Concept(Round(), IsA(CodeWord()))
+
+// Takes the thing before it too.
+Concept(Postfix(), IsA(CodeWord()))
+
+// Belongs to the name before it.
+Concept(Attached(), IsA(CodeWord()))
+
+// Takes each thing inside it, with nothing between them.
+Concept(Juxtaposed(), IsA(CodeWord()))
+
+// Only how its one thing is said.
+Concept(Transparent(), IsA(CodeWord()))
+
+// Heads a statement: a bracketed header, then what it heads.
+Concept(Heads(), IsA(CodeWord()))
+
+// Can stand before a thing alone: "-x".
+Concept(Unary(), IsA(CodeWord()))
+
+// Leads, and can also be called: "import(...)".
+Concept(Callable(), IsA(CodeWord()))
+
+// A word of the language only where it is not used as a name: "get(x)" calls get.
+Concept(Contextual(), IsA(CodeWord()))
+
+// A brace after it opens a block.
+Concept(TakesBlock(), IsA(CodeWord()))
+
+// Operators between two things.
+Concept(Dot(), IsA(Infix()), Spelled("."), Binds(200))
+
+Concept(OptionalDot(),
+  IsA(Infix()),
+  Spelled("?."),
+  Binds(200)
+)
+
+Concept(Power(),
+  IsA(Infix()),
+  Spelled("**"),
+  Binds(140, Right())
+)
+
+Concept(Times(), IsA(Infix()), Spelled("*"), Binds(120))
+
+Concept(Over(), IsA(Infix()), Spelled("/"), Binds(120))
+
+Concept(Modulo(), IsA(Infix()), Spelled("%"), Binds(120))
+
+Concept(Plus(),
+  IsA(Infix()),
+  IsA(Unary()),
+  Spelled("+"),
+  Binds(110)
+)
+
+Concept(ShiftLeft(),
+  IsA(Infix()),
+  Spelled("<<"),
+  Binds(100)
+)
+
+Concept(Minus(),
+  IsA(Infix()),
+  IsA(Unary()),
+  Spelled("-"),
+  Binds(110)
+)
+
+Concept(Greater(),
+  IsA(Infix()),
+  Spelled(">"),
+  Binds(90),
+  SynonymOf(GreaterThan())
+)
+
+Concept(Less(),
+  IsA(Infix()),
+  Spelled("<"),
+  Binds(90),
+  SynonymOf(LessThan())
+)
+
+Concept(AtLeast(), IsA(Infix()), Spelled(">="), Binds(90))
+
+Concept(AtMost(), IsA(Infix()), Spelled("<="), Binds(90))
+
+Concept(In(), IsA(Infix()), Keyword(), Binds(90))
+
+Concept(Instanceof(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(90), context = Code(TypeScript()))
+)
+
+Concept(As(),
+  IsA(Infix()),
+  Keyword(),
+  IsA(Contextual()),
+  Binds(90),
+  BindsAfter(45)
+)
+
+Concept(Satisfies(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(BindsAfter(45), context = Code(TypeScript()))
+)
+
+Concept(Is(),
+  IsA(Infix()),
+  Keyword(),
+  IsA(Contextual()),
+  Binds(90)
+)
+
+Concept(Equals(),
+  IsA(Infix()),
+  Spelled("==="),
+  Binds(80),
+  Relation(Spelled("=="), context = Code(Python()))
+)
+
+Concept(NotEquals(),
+  IsA(Infix()),
+  Spelled("!=="),
+  Binds(80),
+  Relation(Spelled("!="), context = Code(Python()))
+)
+
+Concept(LooseEquals(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(80), context = Code(TypeScript())),
+  Relation(Spelled("=="), context = Code(TypeScript()))
+)
+
+Concept(LooseNotEquals(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(80), context = Code(TypeScript())),
+  Relation(Spelled("!="), context = Code(TypeScript()))
+)
+
+Concept(BitAnd(), IsA(Infix()), Spelled("&"), Binds(70))
+
+Concept(BitXor(), IsA(Infix()), Spelled("^"), Binds(60))
+
+Concept(BitOr(), IsA(Infix()), Spelled("|"), Binds(50))
+
+Concept(And(),
+  IsA(Infix()),
+  Spelled("&&"),
+  Binds(40),
+  Relation(Keyword(), context = Code(Python()))
+)
+
+Concept(Or(),
+  IsA(Infix()),
+  Spelled("||"),
+  Binds(30),
+  Relation(Keyword(), context = Code(Python()))
+)
+
+Concept(Otherwise(), IsA(Infix()), Spelled("??"), Binds(30))
+
+Concept(Of(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(22), context = Code(TypeScript()))
+)
+
+Concept(Assign(),
+  IsA(Infix()),
+  Spelled("="),
+  Binds(20, Right())
+)
+
+Concept(PlusAssign(),
+  IsA(Infix()),
+  Spelled("+="),
+  Binds(20, Right())
+)
+
+Concept(MinusAssign(),
+  IsA(Infix()),
+  Spelled("-="),
+  Binds(20, Right())
+)
+
+Concept(TimesAssign(),
+  IsA(Infix()),
+  Spelled("*="),
+  Binds(20, Right())
+)
+
+Concept(OrAssign(),
+  IsA(Infix()),
+  Spelled("||="),
+  Binds(20, Right())
+)
+
+Concept(AndAssign(),
+  IsA(Infix()),
+  Spelled("&&="),
+  Binds(20, Right())
+)
+
+Concept(OtherwiseAssign(),
+  IsA(Infix()),
+  Spelled("??="),
+  Binds(20, Right())
+)
+
+Concept(Arrow(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Spelled("=>"), context = Code(TypeScript())),
+  Relation(Binds(20, Right()), context = Code(TypeScript()))
+)
+
+Concept(Colon(), IsA(Infix()), Spelled(":"), Binds(15))
+
+Concept(OptionalColon(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Spelled("?:"), context = Code(TypeScript())),
+  Relation(Binds(15), context = Code(TypeScript()))
+)
+
+Concept(Returns(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Binds(25), context = Code(TypeScript()))
+)
+
+Concept(From(),
+  IsA(Infix()),
+  Keyword(),
+  IsA(Contextual()),
+  Binds(10),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Extends(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(10), context = Code(TypeScript()))
+)
+
+Concept(Implements(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(10), context = Code(TypeScript()))
+)
+
+Concept(Increment(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(IsA(Unary()), context = Code(TypeScript())),
+  Relation(Spelled("++"), context = Code(TypeScript())),
+  Relation(Binds(160), context = Code(TypeScript()))
+)
+
+Concept(Decrement(),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(IsA(Unary()), context = Code(TypeScript())),
+  Relation(Spelled("--"), context = Code(TypeScript())),
+  Relation(Binds(160), context = Code(TypeScript()))
+)
+
+// Words that lead: each takes what follows it, as far as its Binds lets it.
+Concept(Not(),
+  IsA(Infix()),
+  IsA(Prefix()),
+  IsA(Unary()),
+  Spelled("!"),
+  Binds(150),
+  Relation(Binds(60), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python()))
+)
+
+Concept(Typeof(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(150), context = Code(TypeScript()))
+)
+
+Concept(Await(), IsA(Prefix()), Keyword(), Binds(150))
+
+Concept(Void(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(150), context = Code(TypeScript()))
+)
+
+Concept(Delete(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(150), context = Code(TypeScript()))
+)
+
+Concept(New(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(210), context = Code(TypeScript()))
+)
+
+Concept(Spread(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Spelled("..."), context = Code(TypeScript())),
+  Relation(Binds(20), context = Code(TypeScript()))
+)
+
+Concept(Const(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Let(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Var(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Async(), IsA(Prefix()), Keyword(), Binds(180))
+
+Concept(Static(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Readonly(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Private(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Public(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Protected(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Abstract(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Declare(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Get(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Set(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(180), context = Code(TypeScript()))
+)
+
+Concept(Return(), IsA(Prefix()), Keyword(), Binds(0))
+
+Concept(Throw(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Raise(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Yield(), IsA(Prefix()), Keyword(), Binds(0))
+
+Concept(Break(), IsA(Prefix()), Keyword(), Binds(0))
+
+Concept(Continue(), IsA(Prefix()), Keyword(), Binds(0))
+
+Concept(Import(),
+  IsA(Prefix()),
+  IsA(Callable()),
+  Keyword(),
+  Binds(0),
+  Relation(IsA(Infix()), context = Code(Python())),
+  Relation(Binds(10), context = Code(Python()))
+)
+
+Concept(Export(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Default(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Case(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(16), context = Code(TypeScript()))
+)
+
+Concept(Type(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(IsA(Contextual()), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Interface(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Enum(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Namespace(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Class(), IsA(Prefix()), Keyword(), Binds(0))
+
+Concept(Function(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Def(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Lambda(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(20), context = Code(Python()))
+)
+
+Concept(With(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Assert(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Global(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Del(),
+  Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Try(),
+  IsA(Prefix()),
+  IsA(TakesBlock()),
+  Keyword(),
+  Binds(0)
+)
+
+Concept(Do(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(If(),
+  IsA(Prefix()),
+  IsA(Heads()),
+  Keyword(),
+  Binds(0)
+)
+
+Concept(For(),
+  IsA(Prefix()),
+  IsA(Heads()),
+  Keyword(),
+  Binds(0)
+)
+
+Concept(While(),
+  IsA(Prefix()),
+  IsA(Heads()),
+  Keyword(),
+  Binds(0)
+)
+
+Concept(Switch(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(IsA(Heads()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+// Words that go on from the statement before them.
+Concept(Else(),
+  IsA(Continues()),
+  IsA(TakesBlock()),
+  Keyword(),
+  Binds(0)
+)
+
+Concept(Elif(),
+  Relation(IsA(Continues()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Catch(),
+  Relation(IsA(Continues()), context = Code(TypeScript())),
+  Relation(IsA(Callable()), context = Code(TypeScript())),
+  Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+Concept(Except(),
+  Relation(IsA(Continues()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
+  Relation(Binds(0), context = Code(Python()))
+)
+
+Concept(Finally(),
+  Relation(IsA(Continues()), context = Code(TypeScript())),
+  Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(0), context = Code(TypeScript()))
+)
+
+// Brackets.
+Concept(Parens(), IsA(Opener()), IsA(Round()), Spelled("("))
+
+Concept(Brackets(), IsA(Opener()), Spelled("["))
+
+Concept(Braces(), IsA(Opener()), Spelled("{"))
+
+Concept(Block(), IsA(Scope()))
+
+Concept(Indent(), IsA(Scope()))
+
+Concept(Index(), IsA(Opener()), IsA(Postfix()), Binds(200))
+
+Concept(Apply(),
+  IsA(Opener()),
+  IsA(Postfix()),
+  IsA(Round()),
+  Binds(200)
+)
+
+Concept(Angles(), IsA(Opener()), IsA(Attached()))
+
+Concept(Template(),
+  IsA(Opener()),
+  IsA(Juxtaposed()),
+  ClosedBy(TemplateEnd())
+)
+
+Concept(Interpolation(),
+  IsA(Opener()),
+  IsA(Transparent()),
+  Spelled("${")
+)
+
+Concept(Question(),
+  Relation(IsA(Opener()), context = Code(TypeScript())),
+  Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Spelled("?"), context = Code(TypeScript())),
+  Relation(Binds(25, Right()), context = Code(TypeScript())),
+  Relation(ClosedBy(Colon()), context = Code(TypeScript()))
+)
+
+Concept(CloseParen(), IsA(Closer()), Spelled(")"))
+
+Concept(CloseBracket(), IsA(Closer()), Spelled("]"))
+
+Concept(CloseBrace(), IsA(Closer()), Spelled("}"))
+
+Concept(Dedent(), IsA(Closer()))
+
+Concept(TemplateEnd(), IsA(Closer()))
+
+// Separators and layout.
+Concept(Comma(), IsA(Separator()), Spelled(","))
+
+Concept(Semicolon(), IsA(Separator()), Spelled(";"))
+
+Concept(Newline(), IsA(Separator()))
+
+Concept(BlockColon(), Relation(IsA(Separator()), context = Code(Python())))

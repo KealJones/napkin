@@ -229,9 +229,11 @@ if (what === "speed" || what === "all") {
 if (what === "size" || what === "all") {
   const count = (f) => readFileSync(f, "utf8").split("\n").length;
   const body = readdirSync(join(here, "code-hearing")).filter((f) => f.endsWith(".js")).reduce((n, f) => n + count(join(here, "code-hearing", f)), 0);
-  const tables = ["words.mjs", "readings.mjs"].reduce((n, f) => n + count(join(here, "code-hearing", f)), 0);
+  const readings = count(join(here, "code-hearing", "readings.mjs"));
   const pack = readFileSync(join(root, "packs/code-hearing.ncon"), "utf8");
+  const words = readFileSync(join(root, "packs/codewords.ncon"), "utf8");
+  const derived = readFileSync(join(root, "packs/codebinds.ncon"), "utf8");
   const host = execSync(`git -C ${root} diff 4f21c2e --numstat -- src/runtime/host.ts src/runtime/evaluator.ts src/seed/seed.ts src/runtime/context.ts src/runtime/select.ts`).toString().trim().split("\n").filter(Boolean).reduce((n, l) => n + Number(l.split("\t")[0]), 0);
-  const n = (re) => (pack.match(re) ?? []).length;
-  console.log(`\nsize: host TS +${host} lines, JS bodies ${body} lines, words+readings tables ${tables} lines, code-hearing.ncon ${pack.split("\n").length} lines, Binds ${n(/Binds\(/g)}, Spelled ${n(/Spelled\(/g)}, Realizations ${n(/Realization\(/g)}, Concepts ${n(/^Concept\(/gm)}`);
+  const n = (text, re) => (text.match(re) ?? []).length;
+  console.log(`\nsize: host TS +${host} lines, JS bodies ${body} lines, readings table ${readings} lines, codewords.ncon ${words.split("\n").length} lines (hand-written: ${n(words, /^Concept\(/gm)} Concepts, Binds ${n(words, /Binds\(/g)}, Spelled ${n(words, /Spelled\(/g)}), codebinds.ncon ${derived.split("\n").length} lines (derived: Binds ${n(derived, /Binds\(/g)}), code-hearing.ncon ${pack.split("\n").length} lines (Realizations ${n(pack, /Realization\(/g)})`);
 }

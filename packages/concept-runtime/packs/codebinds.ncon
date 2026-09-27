@@ -1,0 +1,121 @@
+// How tightly operators bind in each language, from its tree-sitter grammar (grammar.json),
+// written by scratch/code-hearing/gen.mjs. Do not edit by hand; derive it again. Where a
+// language says, it wins over what packs/codewords.ncon says for every language.
+Requires(CodeWords())
+
+Concept(Not(), Relation(Binds(190), context = Code(TypeScript())))
+
+Concept(And(),
+  Relation(Binds(40), context = Code(TypeScript())),
+  Relation(Binds(44), context = Code(Python()))
+)
+
+Concept(Or(),
+  Relation(Binds(30), context = Code(TypeScript())),
+  Relation(Binds(30), context = Code(Python()))
+)
+
+Concept(ShiftLeft(),
+  Relation(Binds(110), context = Code(TypeScript())),
+  Relation(Binds(129), context = Code(Python()))
+)
+
+Concept(BitAnd(),
+  Relation(Binds(70), context = Code(TypeScript())),
+  Relation(Binds(101), context = Code(Python()))
+)
+
+Concept(BitXor(),
+  Relation(Binds(60), context = Code(TypeScript())),
+  Relation(Binds(115), context = Code(Python()))
+)
+
+Concept(BitOr(),
+  Relation(Binds(50), context = Code(TypeScript())),
+  Relation(Binds(87), context = Code(Python()))
+)
+
+Concept(Plus(),
+  Relation(Binds(120), context = Code(TypeScript())),
+  Relation(Binds(143), context = Code(Python()))
+)
+
+Concept(Minus(),
+  Relation(Binds(120), context = Code(TypeScript())),
+  Relation(Binds(143), context = Code(Python()))
+)
+
+Concept(Times(),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
+
+Concept(Over(),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
+
+Concept(Modulo(),
+  Relation(Binds(130), context = Code(TypeScript())),
+  Relation(Binds(158), context = Code(Python()))
+)
+
+Concept(Power(),
+  Relation(Binds(140, Right()), context = Code(TypeScript())),
+  Relation(Binds(186, Right()), context = Code(Python()))
+)
+
+Concept(Less(),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(AtMost(),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(LooseEquals(),
+  Relation(Binds(80), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(Equals(), Relation(Binds(80), context = Code(TypeScript())))
+
+Concept(LooseNotEquals(),
+  Relation(Binds(80), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(NotEquals(), Relation(Binds(80), context = Code(TypeScript())))
+
+Concept(AtLeast(),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(Greater(),
+  Relation(Binds(90), context = Code(TypeScript())),
+  Relation(Binds(73), context = Code(Python()))
+)
+
+Concept(Instanceof(), Relation(Binds(90), context = Code(TypeScript())))
+
+Concept(Await(),
+  Relation(Binds(150), context = Code(TypeScript())),
+  Relation(Binds(172), context = Code(Python()))
+)
+
+Concept(Typeof(), Relation(Binds(150), context = Code(TypeScript())))
+
+Concept(Void(), Relation(Binds(150), context = Code(TypeScript())))
+
+Concept(Delete(), Relation(Binds(150), context = Code(TypeScript())))
+
+Concept(Spread(), Relation(Binds(190), context = Code(TypeScript())))
+
+Concept(In(), Relation(Binds(73), context = Code(Python())))
+
+Concept(Is(), Relation(Binds(73), context = Code(Python())))
+
+Concept(Dot(), Relation(Binds(200), context = Code(Python())))
