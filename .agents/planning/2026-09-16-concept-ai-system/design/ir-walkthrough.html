@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Napkin: how a thought gets worked out</title>
+<style>
+  :root {
+    --paper: #fbf7ee;
+    --paper-2: #f3ecdc;
+    --ink: #2b2a33;
+    --soft: #6b6878;
+    --blue: #3b6fd8;
+    --red: #e0533d;
+    --green: #2f9e6e;
+    --gold: #e8a33a;
+    --purple: #8b5cd6;
+    --line: rgba(59, 111, 216, 0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font: 18px/1.55 "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    overflow-x: hidden;
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, var(--line) 31px 32px);
+  }
+  code, .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, monospace; font-size: 0.86em; }
+
+  /* progress */
+  #progress { position: fixed; top: 0; left: 0; height: 5px; width: 0; z-index: 50;
+    background: linear-gradient(90deg, var(--blue), var(--purple), var(--red), var(--gold)); }
+  #nav { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 40;
+    display: flex; flex-direction: column; gap: 10px; }
+  #nav a { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink);
+    background: transparent; display: block; transition: transform .2s, background .2s; }
+  #nav a.on { background: var(--ink); transform: scale(1.25); }
+
+  /* scenes */
+  section { position: relative; min-height: 100vh; padding: 14vh 8vw; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center; }
+  .layer { position: absolute; pointer-events: none; will-change: transform; }
+  .content { position: relative; z-index: 5; max-width: 860px; }
+  .content.right { margin-left: auto; }
+  h1 { font: 800 clamp(48px, 8vw, 104px)/0.95 "Avenir Next", system-ui, sans-serif; margin: 0 0 20px; letter-spacing: -2px; }
+  h2 { font: 800 clamp(34px, 5vw, 60px)/1 "Avenir Next", system-ui, sans-serif; margin: 0 0 18px; letter-spacing: -1px; }
+  .kicker { font: 700 14px/1 system-ui; letter-spacing: 3px; text-transform: uppercase; color: var(--red); margin-bottom: 14px; }
+  p { margin: 0 0 16px; max-width: 640px; }
+  .big { font-size: 22px; }
+  .muted { color: var(--soft); }
+
+  /* doodles */
+  .blob { border-radius: 50%; filter: blur(2px); opacity: .5; }
+  .scribble { font: 700 20px/1 "Marker Felt", "Comic Sans MS", cursive; color: var(--soft); transform: rotate(-6deg); }
+  .napkin { width: 260px; height: 260px; background: #fff; border-radius: 6px;
+    box-shadow: 0 18px 40px rgba(43, 42, 51, .15);
+    background-image: repeating-linear-gradient(45deg, #fff 0 10px, #f7f4ec 10px 11px); }
+
+  /* cards and chips */
+  .card { background: #fff; border: 2.5px solid var(--ink); border-radius: 16px; padding: 18px 22px;
+    box-shadow: 6px 6px 0 var(--ink); margin: 14px 0; }
+  .chip { display: inline-block; padding: 6px 12px; margin: 4px; border-radius: 999px; border: 2px solid var(--ink);
+    background: #fff; font: 600 16px/1.2 "SF Mono", Menlo, monospace; box-shadow: 3px 3px 0 var(--ink); }
+  .chip.b { background: #dfe8fb; } .chip.r { background: #fbe0da; } .chip.g { background: #d8f1e5; }
+  .chip.y { background: #fcecd0; } .chip.p { background: #ebe1fa; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .arrow { font: 800 30px/1 system-ui; color: var(--red); margin: 0 6px; }
+  .expr { font: 600 clamp(15px, 1.7vw, 20px)/1.5 "SF Mono", Menlo, monospace; background: var(--ink); color: #fdfcf7;
+    padding: 14px 18px; border-radius: 12px; display: inline-block; margin: 8px 0; box-shadow: 6px 6px 0 var(--gold); }
+  .expr .h { color: #8fb3ff; } .expr .v { color: #ffb38a; } .expr .s { color: #9be3b8; } .expr .n { color: #ffd580; }
+
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(40px) rotate(-1deg); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1.2); }
+  .reveal.in { opacity: 1; transform: none; }
+  .d1 { transition-delay: .12s; } .d2 { transition-delay: .24s; } .d3 { transition-delay: .36s; }
+  .d4 { transition-delay: .48s; } .d5 { transition-delay: .6s; }
+
+  /* pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(5, auto); align-items: center; gap: 10px; margin: 22px 0; }
+  .station { background: #fff; border: 2.5px solid var(--ink); border-radius: 14px; padding: 14px; text-align: center;
+    box-shadow: 5px 5px 0 var(--ink); min-width: 140px; }
+  .station b { display: block; font-size: 20px; }
+  .station small { color: var(--soft); }
+
+  /* lineage ladder */
+  .ladder { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+  .rung { display: flex; align-items: center; gap: 14px; }
+  .rung .chip { min-width: 150px; text-align: center; }
+  .rung span { color: var(--soft); }
+
+  /* context stage */
+  .stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 16px; }
+  .ctx { border-radius: 16px; padding: 16px; border: 2.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: #fff; }
+  .ctx .tag { font: 700 13px/1 "SF Mono", Menlo, monospace; display: inline-block; padding: 5px 9px; border-radius: 8px; color: #fff; margin-bottom: 10px; }
+  .ctx .out { font: 700 22px/1.2 "SF Mono", Menlo, monospace; }
+
+  /* token flight */
+  .tokens { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+  .tok { padding: 8px 12px; border-radius: 10px; border: 2px solid var(--ink); background: #fff; font: 700 17px/1 "SF Mono", Menlo, monospace;
+    box-shadow: 3px 3px 0 var(--ink); transition: transform .8s cubic-bezier(.2,.9,.3,1.3), opacity .6s; }
+  .tokens.gather .tok { transform: translateY(var(--dy, 0)) rotate(var(--rot, 0)); }
+  .tree { font: 600 17px/1.9 "SF Mono", Menlo, monospace; white-space: pre; background: #fff; border: 2.5px dashed var(--ink);
+    border-radius: 14px; padding: 16px 20px; display: inline-block; }
+
+  /* residual loop */
+  .loop { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; counter-reset: step; }
+  .loop .chip { position: relative; padding-left: 38px; }
+  .loop .chip::before { counter-increment: step; content: counter(step); position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font: 700 12px/22px system-ui; text-align: center; }
+
+  .spin { animation: spin 18s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .bob { animation: bob 4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-14px); } }
+  .scroll-hint { margin-top: 40px; font: 700 14px/1 system-ui; letter-spacing: 3px; text-transform: uppercase; color: var(--soft); }
+  .scroll-hint span { display: inline-block; animation: bob 1.6s ease-in-out infinite; }
+
+  footer { padding: 60px 8vw 90px; text-align: center; color: var(--soft); }
+  @media (max-width: 760px) {
+    .pipe { grid-template-columns: 1fr; }
+    .pipe .arrow { transform: rotate(90deg); justify-self: center; }
+    #nav { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .tok { transition: none; } .spin, .bob, .scroll-hint span { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<nav id="nav"></nav>
+
+<!-- 0. Title -->
+<section id="s0">
+  <div class="layer blob" data-speed="-0.25" style="width:520px;height:520px;background:#dfe8fb;right:-120px;top:-80px"></div>
+  <div class="layer blob" data-speed="0.35" style="width:340px;height:340px;background:#fbe0da;left:-80px;bottom:-60px"></div>
+  <div class="layer napkin" data-speed="-0.5" style="right:12vw;bottom:14vh;transform:rotate(8deg)"></div>
+  <div class="layer scribble" data-speed="-0.8" style="right:16vw;bottom:30vh">Times(5, 3)?</div>
+  <div class="layer scribble" data-speed="-0.6" style="right:9vw;bottom:22vh;color:var(--red)">= 15 !</div>
+  <div class="content">
+    <div class="kicker reveal">A walkthrough</div>
+    <h1 class="reveal d1">How Napkin<br>works it out.</h1>
+    <p class="big reveal d2">Napkin is a graph of Concepts that works answers out, like doodling on a napkin until it clicks.
+      This is the whole machine in about eight scrolls.</p>
+    <div class="scroll-hint reveal d3">scroll <span>&darr;</span></div>
+  </div>
+</section>
+
+<!-- 1. Big picture -->
+<section id="s1">
+  <div class="layer blob" data-speed="0.3" style="width:420px;height:420px;background:#d8f1e5;right:-100px;top:10vh"></div>
+  <div class="layer scribble" data-speed="-0.4" style="left:8vw;top:12vh">hear &rarr; work out &rarr; say</div>
+  <div class="content">
+    <div class="kicker reveal">1 &middot; The big picture</div>
+    <h2 class="reveal d1">Three moves. That's it.</h2>
+    <div class="pipe reveal d2">
+      <div class="station"><b>&#128066; Hear</b><small>text becomes structure:<br>who goes with whom</small></div>
+      <div class="arrow">&rarr;</div>
+      <div class="station"><b>&#129504; Work out</b><small>run Concepts<br>in a context</small></div>
+      <div class="arrow">&rarr;</div>
+      <div class="station"><b>&#128483;&#65039; Say</b><small>English out,<br>or code out</small></div>
+    </div>
+    <p class="reveal d3">It's the same machine for a question in English and a <code>for</code> loop in Python.
+      Only one thing changes between them: the <b>context</b>. Hold that thought.</p>
+  </div>
+</section>
+
+<!-- 2. Expressions -->
+<section id="s2">
+  <div class="layer" data-speed="-0.35" style="right:6vw;top:14vh;font:800 200px/1 system-ui;color:#ebe1fa">( )</div>
+  <div class="layer blob" data-speed="0.25" style="width:300px;height:300px;background:#fcecd0;left:-60px;bottom:6vh"></div>
+  <div class="content">
+    <div class="kicker reveal">2 &middot; The one shape</div>
+    <h2 class="reveal d1">Everything is <code>Head(args)</code>.</h2>
+    <p class="reveal d2">Every value, every thought, every line of code is written the same way: a capitalized head and its arguments.</p>
+    <div class="reveal d3"><span class="expr"><span class="h">Times</span>(<span class="n">5</span>, <span class="n">3</span>)</span></div>
+    <div class="reveal d3"><span class="expr"><span class="h">Film</span>(<span class="n">1999</span>, <span class="h">American</span>(), <span class="h">Comedy</span>())</span></div>
+    <div class="reveal d4"><span class="expr"><span class="h">Bind</span>(<span class="v">$x</span>, <span class="n">1.5</span>)</span> <span class="muted">&nbsp;&larr; that's code: <code>const x = 1.5</code></span></div>
+    <p class="reveal d5 muted">A lowercase word on its own is not allowed. <code>Pie()</code> is a Concept; <code>pie</code> is nothing. <code>$x</code> is a hole a pattern can fill.</p>
+  </div>
+</section>
+
+<!-- 3. Concepts -->
+<section id="s3">
+  <div class="layer blob" data-speed="-0.3" style="width:460px;height:460px;background:#dfe8fb;left:-140px;top:-40px"></div>
+  <div class="layer scribble" data-speed="0.5" style="right:10vw;top:18vh">what it IS / what it DOES</div>
+  <div class="content right">
+    <div class="kicker reveal">3 &middot; Concepts</div>
+    <h2 class="reveal d1">A Concept is facts plus tricks.</h2>
+    <div class="card reveal d2">
+      <div class="mono"><b>Concept</b>(<b>Pie</b>(),</div>
+      <div class="mono">&nbsp;&nbsp;<span style="color:var(--blue)">IsA(Food())</span> &nbsp;<span class="muted">// a relation: what it is</span></div>
+      <div class="mono">)</div>
+    </div>
+    <div class="card reveal d3">
+      <div class="mono"><b>Concept</b>(<b>Multiply</b>(),</div>
+      <div class="mono">&nbsp;&nbsp;<span style="color:var(--green)">Realization(Multiply(), context = Speaking(), body = "times")</span></div>
+      <div class="mono">)&nbsp;<span class="muted">// a realization: what it does, and where</span></div>
+    </div>
+    <p class="reveal d4"><b>Relations</b> are claims (<code>IsA</code>, <code>SynonymOf</code>...). <b>Realizations</b> are behaviour, each with a pattern, a context and a body.
+      Everything learned carries a stamp saying where it came from, so it can be traced and deleted.</p>
+  </div>
+</section>
+
+<!-- 4. Selection -->
+<section id="s4">
+  <div class="layer" data-speed="-0.45" style="right:8vw;top:10vh;font:800 150px/1 system-ui;color:#fcecd0">&#8593;</div>
+  <div class="layer blob" data-speed="0.3" style="width:320px;height:320px;background:#fbe0da;right:-60px;bottom:4vh"></div>
+  <div class="content">
+    <div class="kicker reveal">4 &middot; Picking a move</div>
+    <h2 class="reveal d1">Nobody dispatches. It climbs the family tree.</h2>
+    <p class="reveal d2">To run <code>Plus(A(), B())</code>, Napkin looks for a realization, starting with the word itself and climbing what it <code>IsA</code>, all the way up to the universal parent, <code>Concept</code>.</p>
+    <div class="ladder reveal d3">
+      <div class="rung"><span class="chip r">Plus</span><span>its own tricks win</span></div>
+      <div class="rung"><span class="chip y">Infix</span><span>then its kind's</span></div>
+      <div class="rung"><span class="chip g">CodeWord</span><span>then its kind's kind</span></div>
+      <div class="rung"><span class="chip b">Concept</span><span>the fallback everyone inherits</span></div>
+    </div>
+    <p class="reveal d4">Ties break by: nearer beats farther, a more specific context beats a vaguer one, what worked before, then newest.
+      If <b>nothing</b> matches, the call comes back as itself. That's a <b>residual</b>, and it's not an error (see scene 8).</p>
+  </div>
+</section>
+
+<!-- 5. Context -->
+<section id="s5">
+  <div class="layer blob spin" data-speed="-0.2" style="width:560px;height:560px;background:conic-gradient(#dfe8fb,#fbe0da,#d8f1e5,#fcecd0,#ebe1fa,#dfe8fb);left:50%;top:-180px;opacity:.35"></div>
+  <div class="content" style="max-width:1080px">
+    <div class="kicker reveal">5 &middot; Context</div>
+    <h2 class="reveal d1">Same word. Different room. Different move.</h2>
+    <p class="reveal d2">A context is a set of facets. A realization only runs in the contexts it names. That's how one Concept can mean different things without any if-statements.</p>
+    <div class="stage">
+      <div class="ctx reveal d2"><span class="tag" style="background:var(--blue)">Execution()</span><div class="mono">Times(5, 3)</div><div class="out">&rarr; 15</div><small class="muted">working it out</small></div>
+      <div class="ctx reveal d3"><span class="tag" style="background:var(--green)">Speaking()</span><div class="mono">Multiply()</div><div class="out">&rarr; "times"</div><small class="muted">saying it</small></div>
+      <div class="ctx reveal d4"><span class="tag" style="background:var(--purple)">Hearing()</span><div class="mono">"add"</div><div class="out">&rarr; links</div><small class="muted">hearing: "add" must not add!</small></div>
+      <div class="ctx reveal d5"><span class="tag" style="background:var(--red)">Hypothetical()</span><div class="mono">Save(...)</div><div class="out">&rarr; skipped</div><small class="muted">trying without doing</small></div>
+    </div>
+    <p class="reveal d5" style="margin-top:22px"><b>Mood</b> is a facet too. "what is 17 times 4" reads as <code>Mood(Interrogative(), What(Is(Times(17, 4))))</code>, and <code>Interrogative</code> has one realization that every question word inherits.</p>
+  </div>
+</section>
+
+<!-- 6. Words journey -->
+<section id="s6">
+  <div class="layer scribble" data-speed="-0.5" style="right:8vw;top:12vh;font-size:26px">"what is 17 times 4"</div>
+  <div class="layer blob" data-speed="0.3" style="width:380px;height:380px;background:#d8f1e5;left:-100px;bottom:0"></div>
+  <div class="content right">
+    <div class="kicker reveal">6 &middot; A question, start to finish</div>
+    <h2 class="reveal d1">Follow one message.</h2>
+    <div class="row reveal d2"><span class="chip">"what is 17 times 4"</span></div>
+    <div class="row reveal d2"><span class="arrow">&darr;</span><span class="muted">hear: words find each other (Takes, Joins, Absorbs...)</span></div>
+    <div class="row reveal d3"><span class="chip b">What(Is(Times(17, 4)))</span></div>
+    <div class="row reveal d3"><span class="arrow">&darr;</span><span class="muted">work out in Execution(): What IsA Interrogative, Times SynonymOf Multiply</span></div>
+    <div class="row reveal d4"><span class="chip g">Answer(68)</span></div>
+    <div class="row reveal d4"><span class="arrow">&darr;</span><span class="muted">say it under Speaking()</span></div>
+    <div class="row reveal d5"><span class="chip y">"68."</span></div>
+    <p class="reveal d5 muted" style="margin-top:14px">No model heard it, and no model said it. Just Concepts.</p>
+  </div>
+</section>
+
+<!-- 7. Code journey -->
+<section id="s7">
+  <div class="layer" data-speed="-0.4" style="left:6vw;top:8vh;font:800 120px/1 'SF Mono',monospace;color:#ebe1fa">{ }</div>
+  <div class="layer blob" data-speed="0.25" style="width:360px;height:360px;background:#fcecd0;right:-80px;top:20vh"></div>
+  <div class="content" style="max-width:1000px">
+    <div class="kicker reveal">7 &middot; Code is just more words</div>
+    <h2 class="reveal d1">A loop gets heard like a sentence.</h2>
+    <p class="reveal d2">Each token is its own word's Concept. The language is the context: <code>Code(TypeScript())</code>.</p>
+    <div class="tokens" id="tokens">
+      <span class="tok" style="--dy:0;--rot:-3deg">for</span><span class="tok">(</span><span class="tok">const</span><span class="tok">element</span><span class="tok">of</span><span class="tok">object</span><span class="tok">)</span><span class="tok">{</span><span class="tok">print</span><span class="tok">(</span><span class="tok">element</span><span class="tok">)</span><span class="tok">}</span>
+    </div>
+    <div class="row reveal d2"><span class="arrow">&darr;</span><span class="muted"><b>sense:</b> each word says what it is here (this <code>{</code> is a block, these brackets pair)</span></div>
+    <div class="row reveal d3"><span class="arrow">&darr;</span><span class="muted"><b>link:</b> For takes its header and its block, Of joins two sides</span></div>
+    <div class="tree reveal d3">For(
+  Of(Const(Element()), Object()),
+  Print(Element())
+)</div>
+    <div class="row reveal d4"><span class="arrow">&darr;</span><span class="muted"><b>read</b> under <code>Context(Code(TypeScript()), Reading())</code></span></div>
+    <div class="reveal d4"><span class="expr"><span class="h">Module</span>(<span class="h">ForOf</span>(<span class="v">$element</span>, <span class="v">$object</span>, <span class="h">Call</span>(<span class="v">$print</span>, <span class="v">$element</span>)))</span></div>
+    <p class="reveal d5">Python says <code>for element in object:</code>, gets heard as <code>For(In(...))</code>, and reads to the <b>exact same</b> IR.
+      Then <code>To</code> rules write it back out in any language. Intent in, any language out.</p>
+  </div>
+</section>
+
+<!-- 8. Residuals -->
+<section id="s8">
+  <div class="layer blob bob" data-speed="-0.3" style="width:400px;height:400px;background:#ebe1fa;right:6vw;top:10vh"></div>
+  <div class="layer scribble" data-speed="0.4" style="left:10vw;top:14vh">&#129300; "Dune author?"</div>
+  <div class="content">
+    <div class="kicker reveal">8 &middot; Not knowing is useful</div>
+    <h2 class="reveal d1">A residual means "look further".</h2>
+    <p class="reveal d2">When something evaluates to itself, Napkin doesn't guess. It goes looking, in this order:</p>
+    <div class="loop reveal d3">
+      <span class="chip b">what the graph holds</span>
+      <span class="chip g">what you told it</span>
+      <span class="chip y">behaviour the question names</span>
+      <span class="chip p">the world: Wikidata, Wiktionary, the web</span>
+      <span class="chip r">a model, last resort</span>
+    </div>
+    <p class="reveal d4">Whatever it finds is kept with a stamp saying where it came from. And if it's truly stuck, it says so: <code>Unknown</code> beats a confident guess.</p>
+  </div>
+</section>
+
+<!-- 9. End -->
+<section id="s9">
+  <div class="layer napkin" data-speed="-0.35" style="left:10vw;top:16vh;transform:rotate(-7deg)"></div>
+  <div class="layer scribble" data-speed="-0.55" style="left:13vw;top:26vh">Concept</div>
+  <div class="layer scribble" data-speed="-0.7" style="left:15vw;top:33vh;color:var(--blue)">+ context</div>
+  <div class="layer scribble" data-speed="-0.85" style="left:12vw;top:40vh;color:var(--red)">= behaviour</div>
+  <div class="content right">
+    <div class="kicker reveal">The whole napkin</div>
+    <h2 class="reveal d1">One shape. One climb. One room at a time.</h2>
+    <p class="big reveal d2">Everything is <code>Head(args)</code>. Behaviour comes from what a Concept is and the context it's in, never from dispatch.
+      Hearing gives structure, working out gives meaning, and not knowing is a signal, not a failure.</p>
+    <p class="reveal d3 muted">Want the long version? Read <code>ir-guide.md</code> right next to this file.</p>
+  </div>
+</section>
+
+<footer>Napkin &middot; a concept graph that works answers out</footer>
+
+<script>
+  const sections = [...document.querySelectorAll("section")];
+  const nav = document.getElementById("nav");
+  sections.forEach((s) => { const a = document.createElement("a"); a.href = "#" + s.id; nav.appendChild(a); });
+  const dots = [...nav.children];
+  const layers = [...document.querySelectorAll(".layer[data-speed]")];
+  const base = new Map(layers.map((l) => [l, l.style.transform || ""]));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function frame() {
+    const y = scrollY, h = innerHeight;
+    document.getElementById("progress").style.width = (y / (document.body.scrollHeight - h)) * 100 + "%";
+    if (!reduce) for (const l of layers) {
+      const sec = l.closest("section");
+      const off = y - sec.offsetTop;
+      if (Math.abs(off) > h * 1.5) continue;
+      l.style.transform = `translate3d(0, ${off * Number(l.dataset.speed)}px, 0) ${base.get(l)}`;
+    }
+    let cur = 0;
+    sections.forEach((s, i) => { if (s.offsetTop - h / 2 <= y) cur = i; });
+    dots.forEach((d, i) => d.classList.toggle("on", i === cur));
+  }
+  addEventListener("scroll", () => requestAnimationFrame(frame), { passive: true });
+  addEventListener("resize", frame);
+  frame();
+
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }), { threshold: 0.2 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // tokens tumble in, then settle
+  const toks = [...document.querySelectorAll("#tokens .tok")];
+  toks.forEach((t) => { t.style.transform = `translateY(${-60 - Math.random() * 120}px) rotate(${(Math.random() * 40 - 20).toFixed(0)}deg)`; t.style.opacity = 0; });
+  new IntersectionObserver((es, o) => es.forEach((e) => {
+    if (!e.isIntersecting) return;
+    toks.forEach((t, i) => setTimeout(() => { t.style.transform = "none"; t.style.opacity = 1; }, i * 90));
+    o.disconnect();
+  }), { threshold: 0.4 }).observe(document.getElementById("tokens"));
+</script>
+</body>
+</html>
