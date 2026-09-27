@@ -4346,6 +4346,69 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("What an order is to work from, said after it (\"write a function | where f(1) is 2, ...\"):"),
+            Comment("a phrase holding code, a file or examples the message shows goes to the order before it."),
+            Bind($holdsShown,
+              Lambda(List($e),
+                Or(
+                  Includes(Member($kept, "spans"), $e),
+                  And(
+                    Call($isCall, $e),
+                    Call(Member(Member($e, "args"), "some"), Lambda(List($a), Call($holdsShown, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Bind($ordered,
+              Lambda(List($e),
+                And(
+                  And(
+                    And(
+                      And(
+                        And(Call($isCall, $e), Equals(Member($e, "head"), "Mood")),
+                        Call($isCall, Member(Index(Member($e, "args"), 0), "value"))
+                      ),
+                      Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Imperative")
+                    ),
+                    Call($isCall, Call($inner, $e))
+                  ),
+                  Not(Call($holdsShown, Call($inner, $e)))
+                )
+              )
+            ),
+            For(
+              Var($k, 1),
+              LessThan($k, Length($joined)),
+              PostIncrement($k),
+              Sequence(
+                If(
+                  Or(Not(Call($holdsShown, Index($joined, $k))), Not(Call($ordered, Index($joined, Subtract($k, 1))))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($order, Call($inner, Index($joined, Subtract($k, 1)))),
+                Bind($merged,
+                  Call(
+                    Member($api, "call"),
+                    "Mood",
+                    Member(Index(Member(Index($joined, Subtract($k, 1)), "args"), 0), "value"),
+                    Object(
+                      head = Member($order, "head"),
+                      args = Concat(Member($order, "args"), List(Object(value = Call($inner, Index($joined, $k)))))
+                    )
+                  )
+                ),
+                Assign(
+                  $joined,
+                  Concat(
+                    Call(Member($joined, "slice"), 0, Subtract($k, 1)),
+                    List($merged),
+                    Call(Member($joined, "slice"), Add($k, 1))
+                  )
+                ),
+                PostDecrement($k)
+              )
+            ),
             Return(
               Call(
                 Member($api, "call"),

@@ -54,3 +54,13 @@ test("code is written in another language, and saved where it is asked to be", a
   rmSync(path, { force: true });
   assert.ok(!existsSync(path));
 });
+
+test("a function is found from examples of what it gives, the simplest rule that fits them all", async () => {
+  const f = await ask("write a function where f(1) is 2, f(2) is 4 and f(3) is 6");
+  assert.equal(f.said, "Here's f, which gives back every example you gave:\n\n```javascript\nfunction f(x) { return (x * 2) }\n```");
+  assert.match((await ask("make g so that g(2) = 5, g(3) = 7, g(10) = 21")).said, /function g\(x\) \{ return \(\(x \* 2\) \+ 1\) \}/);
+  assert.match((await ask("write avg where avg(2, 4) is 3, avg(10, 20) is 15")).said, /function avg\(a, b\) \{ return \(\(a \+ b\) \* 0\.5\) \}/);
+  assert.match((await ask("what function gives f(1) = 1, f(2) = 4, f(3) = 9?")).said, /return \(x \*\* 2\)/);
+  assert.match((await ask("write f where f(1) is 7, f(2) is 1, f(3) is 100")).said, /^I couldn't find one rule for f/);
+  assert.equal((await ask("run it with 21", [{ message: "write", result: f.result }])).said, "It gives 42.");
+});

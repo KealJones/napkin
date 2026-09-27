@@ -18,6 +18,6 @@ async (args, bindings, api) => {
   for (const a of args) find(a.value);
   target = target ?? "JavaScript";
   const written = api.writeCode(ir, target);
-  if (written.unwritable.length) return api.call("CannotWrite", api.call(target), api.call("List", ...written.unwritable));
+  if (written.unwritable.length) return api.call("CannotWrite", target, api.call("List", ...written.unwritable));
   return api.call("Converted", { head: "SourceCode", args: [{ value: written.text }, { name: "language", value: api.call(target) }, { name: "ir", value: ir }] });
 };

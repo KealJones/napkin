@@ -120,11 +120,17 @@ It gives 42.
 > explain src/code/tree.ts
 Here's what it does: it says it is Source in any language tree-sitter has a grammar for ...;
 it defines functions parserFor(grammar) and readTree(text, grammar, prefix); it gives out readTree.
+
+> make g so that g(2) = 5, g(3) = 7, g(10) = 21
+Here's g, which gives back every example you gave:
+function g(x) { return ((x * 2) + 1) }
 ```
 
 Code in a message, a file named in it, or a file attached in the studio is read as the code IR,
 then explained, checked, fixed, run (in an isolated context), converted to another language, or
-saved, each by a Concept in `packs/coding.ncon`.
+saved, each by a Concept in `packs/coding.ncon`. A function can also be asked for by examples of
+what it gives: every operation the graph can work out is tried on them, the way Predict finds a
+sequence's rule, and the simplest rule that fits them all is written out.
 
 ## Running it
 

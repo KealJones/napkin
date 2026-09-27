@@ -25,6 +25,18 @@ Concept(Ran(), IsA(Data()))
 // Code written in another language.
 Concept(Converted(), IsA(Data()))
 
+Concept(Derived(), IsA(Result()))
+
+Concept(NoRule(), IsA(Data()))
+
+Concept(Examples(), IsA(Data()))
+
+Concept(Example(), IsA(Data()))
+
+Concept(Make(), SynonymOf(Write()))
+
+Concept(Create(), SynonymOf(Write()))
+
 // A file written, and a file that could not be read or written.
 Concept(Written(), IsA(Data()))
 
@@ -462,6 +474,17 @@ Concept(CannotWrite(),
     context = Speaking(),
     evaluateArguments = false,
     body = Text("I can't write that in ", $language, " yet.")
+  )
+)
+
+Concept(NoRule(),
+  Realization(NoRule($name),
+    context = Speaking(),
+    body = Text(
+      "I couldn't find one rule for ",
+      $name,
+      " that gives every example. Another example, or the rule in words, would help."
+    )
   )
 )
 
@@ -1310,7 +1333,7 @@ Concept(Convert(),
                 Call(
                   Member($api, "call"),
                   "CannotWrite",
-                  Call(Member($api, "call"), $target),
+                  $target,
                   Call(
                     Member($api, "call"),
                     "List",
@@ -1334,6 +1357,482 @@ Concept(Convert(),
                 )
               )
             )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A function found from what it gives ("f(1) is 2, f(2) is 4"), the way Predict finds a sequence's
+// rule: every two-place operation the graph can work out and the code writer can write is tried
+// on the examples (under Hypothetical, so nothing is changed), simplest rule first: a constant, an
+// argument, one operation with a constant or between arguments, then two operations. The constants
+// come from the examples themselves. Derived(SourceCode(...)), or NoRule when nothing fits them all.
+Concept(Examples(),
+  Realization(Examples($name, Rest($examples)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($name, Call(Member($bindings, "get"), "name")),
+            Bind($examples,
+              Filter(
+                Map(Call(Member($args, "slice"), 1), Lambda(List($a), Member($a, "value"))),
+                Lambda(List($e),
+                  And(
+                    And(Call($isCall, $e), Equals(Member($e, "head"), "Example")),
+                    Call($isCall, Member(Index(Member($e, "args"), 0), "value"))
+                  )
+                )
+              )
+            ),
+            Comment("Fewer than two examples is not enough to find a rule from: it stays itself."),
+            If(
+              Or(NotEquals(TypeOf($name), "string"), LessThan(Length($examples), 2)),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Examples",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($ins,
+              Map(
+                $examples,
+                Lambda(List($e),
+                  Map(
+                    Member(Member(Index(Member($e, "args"), 0), "value"), "args"),
+                    Lambda(List($a), Member($a, "value"))
+                  )
+                )
+              )
+            ),
+            Bind($outs, Map($examples, Lambda(List($e), Member(Index(Member($e, "args"), 1), "value")))),
+            Bind($arity, Length(Index($ins, 0))),
+            If(
+              Not(Call(Member($ins, "every"), Lambda(List($i), Equals(Length($i), $arity)))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Examples",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($names,
+              If(
+                Equals($arity, 1),
+                List("x"),
+                Call(
+                  Member(List("a", "b", "c", "d", "e"), "slice"),
+                  0,
+                  $arity
+                )
+              )
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Bind($ctx,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Hypothetical")
+              )
+            ),
+            Bind($tried, New($Map)),
+            Bind($run,
+              Async(
+                Lambda(List($op, $a, $b),
+                  Sequence(
+                    Bind($e, Call(Member($api, "call"), $op, $a, $b)),
+                    Bind($key, Call(Member($api, "format"), $e)),
+                    If(
+                      Not(Call(Member($tried, "has"), $key)),
+                      Sequence(
+                        Var($r, Undefined()),
+                        Try(
+                          Assign($r, Await(Call(Member($api, "evaluate"), $e, $ctx))),
+                          Catch($error, Assign($r, Undefined()))
+                        ),
+                        Call(
+                          Member($tried, "set"),
+                          $key,
+                          If(
+                            And(Equals(TypeOf($r), "number"), Call(Member($Number, "isFinite"), $r)),
+                            $r,
+                            Undefined()
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Return(Call(Member($tried, "get"), $key))
+                  )
+                )
+              )
+            ),
+            Bind($fn,
+              Lambda(List($rule),
+                Object(
+                  head = "Module",
+                  args = List(
+                    Object(
+                      value = Object(
+                        head = "Func",
+                        args = List(
+                          Object(value = Object(variable = $name)),
+                          Object(
+                            value = Call(
+                              Member($api, "call"),
+                              "List",
+                              Spread(Map($names, Lambda(List($n), Object(variable = $n))))
+                            )
+                          ),
+                          Object(value = Call(Member($api, "call"), "Return", $rule))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("The operations: two-place Concepts that work numbers out and that code can be written for."),
+            Bind($ops, List()),
+            ForOf(
+              $u,
+              Call(Member(Member($api, "store"), "all")),
+              Sequence(
+                Bind($two,
+                  Call(
+                    Member(Member($u, "realizations"), "some"),
+                    Lambda(List($r),
+                      And(
+                        And(
+                          And(
+                            And(
+                              And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                              Equals(Member(Member($r, "pattern"), "head"), Member($u, "identity"))
+                            ),
+                            Equals(Length(Member(Member($r, "pattern"), "args")), 2)
+                          ),
+                          Call(
+                            Member(Member(Member($r, "pattern"), "args"), "every"),
+                            Lambda(List($p),
+                              And(
+                                And(NotEquals(Member($p, "value"), null), Equals(TypeOf(Member($p, "value")), "object")),
+                                In("variable", Member($p, "value"))
+                              )
+                            )
+                          )
+                        ),
+                        Not(
+                          Call(
+                            Member(Member($r, "properties"), "some"),
+                            Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Effectful")))
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Or(Not($two), Equals(Await(Call($run, Member($u, "identity"), 7, 3)), Undefined())),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($written,
+                  Call(
+                    Member($api, "writeCode"),
+                    Call(
+                      $fn,
+                      Call(
+                        Member($api, "call"),
+                        Member($u, "identity"),
+                        Object(variable = Index($names, 0)),
+                        3
+                      )
+                    ),
+                    "JavaScript"
+                  )
+                ),
+                If(
+                  Or(
+                    Length(Member($written, "unwritable")),
+                    Includes(Member($written, "text"), Add(Member($u, "identity"), "("))
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($r, Await(Call($run, Member($u, "identity"), 7, 3))),
+                If(
+                  Not(Call(Member($ops, "some"), Lambda(List($o), Equals(Member($o, "r"), $r)))),
+                  Call(Member($ops, "push"), Object(op = Member($u, "identity"), r = $r)),
+                  Undefined()
+                )
+              )
+            ),
+            Comment("A candidate is [rule, value of it for each example]. Operands are the arguments and constants."),
+            Bind($done,
+              Lambda(List($rule),
+                Sequence(
+                  Bind($code, Call($fn, $rule)),
+                  Bind($written, Call(Member($api, "writeCode"), $code, "JavaScript")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Derived",
+                      Object(
+                        head = "SourceCode",
+                        args = List(
+                          Object(value = Member($written, "text")),
+                          Object(name = "language", value = Call(Member($api, "call"), "JavaScript")),
+                          Object(name = "ir", value = $code)
+                        )
+                      ),
+                      $name
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($mentions,
+              Lambda(List($e, $n),
+                If(
+                  And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("variable", $e)),
+                  Equals(Member($e, "variable"), $n),
+                  And(
+                    Call($isCall, $e),
+                    Call(Member(Member($e, "args"), "some"), Lambda(List($a), Call($mentions, Member($a, "value"), $n)))
+                  )
+                )
+              )
+            ),
+            Comment(
+              "With more than one argument a rule uses them all: a rule that ignores one fits the examples by chance."
+            ),
+            Bind($uses,
+              Lambda(List($rule), Call(Member($names, "every"), Lambda(List($n), Call($mentions, $rule, $n))))
+            ),
+            Bind($fits,
+              Lambda(List($values),
+                Call(
+                  Member($values, "every"),
+                  Lambda(List($v, $i), And(NotEquals($v, Undefined()), Call($same, $v, Index($outs, $i))))
+                )
+              )
+            ),
+            If(
+              Call(Member($outs, "every"), Lambda(List($o), Call($same, $o, Index($outs, 0)))),
+              Return(Call($done, Index($outs, 0))),
+              Undefined()
+            ),
+            Bind($vars,
+              Call(
+                Member($names, "map"),
+                Lambda(List($n, $k), List(Object(variable = $n), Map($ins, Lambda(List($i), Index($i, $k)))))
+              )
+            ),
+            If(
+              And(Equals($arity, 1), Call($fits, Index(Index($vars, 0), 1))),
+              Return(Call($done, Index(Index($vars, 0), 0))),
+              Undefined()
+            ),
+            Bind($apply,
+              Async(
+                Lambda(List($op, $x, $y),
+                  Sequence(
+                    Bind($values, List()),
+                    For(
+                      Var($i, 0),
+                      LessThan($i, Length($outs)),
+                      PostIncrement($i),
+                      Call(
+                        Member($values, "push"),
+                        If(
+                          Or(Equals(Index(Index($x, 1), $i), Undefined()), Equals(Index(Index($y, 1), $i), Undefined())),
+                          Undefined(),
+                          Await(
+                            Call(
+                              $run,
+                              $op,
+                              Index(Index($x, 1), $i),
+                              Index(Index($y, 1), $i)
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Return(List(Call(Member($api, "call"), $op, Index($x, 0), Index($y, 0)), $values))
+                  )
+                )
+              )
+            ),
+            Bind($constant, Lambda(List($k), List($k, Map($outs, Lambda(List(), $k))))),
+            Comment("Constants that turn a value into the first answer, by any operation, either way round."),
+            Bind($constantsFor,
+              Async(
+                Lambda(List($x),
+                  Sequence(
+                    Bind($found, List()),
+                    ForOf(
+                      Object(op = $op),
+                      $ops,
+                      ForOf(
+                        $k,
+                        List(
+                          Await(Call($run, $op, Index($outs, 0), Index(Index($x, 1), 0))),
+                          Await(Call($run, $op, Index(Index($x, 1), 0), Index($outs, 0)))
+                        ),
+                        If(
+                          And(
+                            And(NotEquals($k, Undefined()), Call(Member($Number, "isInteger"), Multiply($k, 1000))),
+                            Not(Call(Member($found, "some"), Lambda(List($f), Call($same, $f, $k))))
+                          ),
+                          Call(Member($found, "push"), $k),
+                          Undefined()
+                        )
+                      )
+                    ),
+                    Return($found)
+                  )
+                )
+              )
+            ),
+            Bind($oneStep,
+              Async(
+                Lambda(List($x),
+                  Sequence(
+                    ForOf(
+                      Object(op = $op),
+                      $ops,
+                      ForOf(
+                        $k,
+                        Await(Call($constantsFor, $x)),
+                        ForOf(
+                          List($p, $q),
+                          List(List($x, Call($constant, $k)), List(Call($constant, $k), $x)),
+                          Sequence(
+                            Bind($c, Await(Call($apply, $op, $p, $q))),
+                            If(
+                              And(Call($uses, Index($c, 0)), Call($fits, Index($c, 1))),
+                              Return($c),
+                              Undefined()
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Return(Undefined())
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $v,
+              If(Equals($arity, 1), $vars, List()),
+              Sequence(Bind($c, Await(Call($oneStep, $v))), If($c, Return(Call($done, Index($c, 0))), Undefined()))
+            ),
+            Bind($pairs, List()),
+            ForOf(
+              $p,
+              $vars,
+              ForOf(
+                $q,
+                $vars,
+                ForOf(
+                  Object(op = $op),
+                  $ops,
+                  Call(Member($pairs, "push"), Await(Call($apply, $op, $p, $q)))
+                )
+              )
+            ),
+            ForOf(
+              $c,
+              $pairs,
+              If(
+                And(Call($uses, Index($c, 0)), Call($fits, Index($c, 1))),
+                Return(Call($done, Index($c, 0))),
+                Undefined()
+              )
+            ),
+            Comment(
+              "Two operations: a first step on the arguments (with a small constant, or between them), then one more."
+            ),
+            Bind($firsts, List()),
+            ForOf(
+              $v,
+              $vars,
+              ForOf(
+                Object(op = $op),
+                $ops,
+                ForOf(
+                  $k,
+                  List(1, 2, 3, 10),
+                  Call(Member($firsts, "push"), Await(Call($apply, $op, $v, Call($constant, $k))))
+                )
+              )
+            ),
+            Call(Member($firsts, "push"), Spread($pairs)),
+            Bind($useful,
+              Filter(
+                $firsts,
+                Lambda(List($f),
+                  And(
+                    Not(Call(Member(Index($f, 1), "some"), Lambda(List($x), Equals($x, Undefined())))),
+                    Not(
+                      Call(
+                        Member($vars, "some"),
+                        Lambda(List($v),
+                          Equals(
+                            Call(Member($JSON, "stringify"), Index($v, 1)),
+                            Call(Member($JSON, "stringify"), Index($f, 1))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $f,
+              $useful,
+              Sequence(Bind($c, Await(Call($oneStep, $f))), If($c, Return(Call($done, Index($c, 0))), Undefined()))
+            ),
+            ForOf(
+              $f,
+              $useful,
+              ForOf(
+                $v,
+                $vars,
+                ForOf(
+                  Object(op = $op),
+                  $ops,
+                  ForOf(
+                    List($p, $q),
+                    List(List($f, $v), List($v, $f)),
+                    Sequence(
+                      Bind($d, Await(Call($apply, $op, $p, $q))),
+                      If(
+                        And(Call($uses, Index($d, 0)), Call($fits, Index($d, 1))),
+                        Return(Call($done, Index($d, 0))),
+                        Undefined()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "NoRule", $name))
           )
         )
       )
@@ -2182,7 +2681,7 @@ Concept(Run(),
                     If(
                       And(
                         Call($isCall, $e),
-                        Not(Includes(List("InlineCode", "Block", "File", "SourceCode"), Member($e, "head")))
+                        Not(Includes(List("InlineCode", "Block", "File", "SourceCode", "Ref"), Member($e, "head")))
                       ),
                       ForOf(
                         $a,
@@ -2522,6 +3021,40 @@ Concept(Converted(),
   )
 )
 
+// A function found from examples: its name, then the code.
+Concept(Derived(),
+  Realization(Derived($code, $name),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($shown,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($bindings, "get"), "code"),
+                  Call(Member($api, "call"), "Speaking")
+                )
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  Add("Here's ", Call($String, Call(Member($bindings, "get"), "name"))),
+                  ", which gives back every example you gave:\n\n"
+                ),
+                If(Equals(TypeOf($shown), "string"), $shown, "")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // What looks wrong in code, one finding a line; that nothing does, when nothing does.
 Concept(Findings(),
   Realization(Findings($code, $found),
@@ -2769,6 +3302,180 @@ Concept(What(),
                   Call(Member($bindings, "get"), "thing")
                 ),
                 Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Code written from examples the message shows ("write a function where f(1) is 2, f(2) is 4"),
+// in the language said, if one is (a TargetLanguage the graph holds), else JavaScript. With no
+// examples, Write stays itself, for whatever else can take it.
+Concept(Write(),
+  Realization(Write(Rest($said)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($languages,
+              Map(
+                Filter(
+                  Call(Member(Member($api, "store"), "all")),
+                  Lambda(List($u),
+                    Call(
+                      Member(Member($u, "relations"), "some"),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                            Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                          ),
+                          Equals(
+                            Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                            "TargetLanguage"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Lambda(List($u), Member($u, "identity"))
+              )
+            ),
+            Var($examples, Undefined()),
+            Var($target, Undefined()),
+            Bind($find,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    Equals(Member($e, "head"), "Examples"),
+                    Assign($examples, Otherwise($examples, $e)),
+                    Undefined()
+                  ),
+                  Bind($hit,
+                    Call(
+                      Member($languages, "find"),
+                      Lambda(List($l),
+                        Equals(Call(Member($l, "toLowerCase")), Call(Member(Member($e, "head"), "toLowerCase")))
+                      )
+                    )
+                  ),
+                  If(
+                    $hit,
+                    Assign($target, Otherwise($target, $hit)),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($find, Member($a, "value"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf($a, $args, Call($find, Member($a, "value"))),
+            Comment(
+              "A language said may have been lifted into the context the order runs in (TargetLanguage is a facet)."
+            ),
+            Bind($inContext,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  Bind($hit, Call(Member($languages, "find"), Lambda(List($l), Equals($l, Member($e, "head"))))),
+                  If(
+                    $hit,
+                    Assign($target, Otherwise($target, $hit)),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($inContext, Member($a, "value"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              $examples,
+              Call($inContext, Member($api, "context")),
+              Undefined()
+            ),
+            If(
+              Not($examples),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Write",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($derived,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $examples,
+                  Member($api, "context")
+                )
+              )
+            ),
+            If(
+              Or(
+                Or(Or(Not($target), Equals($target, "JavaScript")), Not(Call($isCall, $derived))),
+                NotEquals(Member($derived, "head"), "Derived")
+              ),
+              Return($derived),
+              Undefined()
+            ),
+            Bind($ir,
+              Member(
+                Call(
+                  Member(Member(Member(Index(Member($derived, "args"), 0), "value"), "args"), "find"),
+                  Lambda(List($a), Equals(Member($a, "name"), "ir"))
+                ),
+                "value"
+              )
+            ),
+            Bind($written, Call(Member($api, "writeCode"), $ir, $target)),
+            If(
+              Length(Member($written, "unwritable")),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "CannotWrite",
+                  $target,
+                  Call(
+                    Member($api, "call"),
+                    "List",
+                    Spread(Member($written, "unwritable"))
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Derived",
+                Object(
+                  head = "SourceCode",
+                  args = List(
+                    Object(value = Member($written, "text")),
+                    Object(name = "language", value = Call(Member($api, "call"), $target)),
+                    Object(name = "ir", value = $ir)
+                  )
+                ),
+                Member(Index(Member($derived, "args"), 1), "value")
               )
             )
           )

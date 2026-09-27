@@ -12,7 +12,7 @@ async (args, bindings, api) => {
   const values = [];
   const collect = (e) => {
     if (typeof e === "number" || typeof e === "string") values.push(e);
-    else if (isCall(e) && !["InlineCode", "Block", "File", "SourceCode"].includes(e.head)) for (const a of e.args) if (a.name === undefined) collect(a.value);
+    else if (isCall(e) && !["InlineCode", "Block", "File", "SourceCode", "Ref"].includes(e.head)) for (const a of e.args) if (a.name === undefined) collect(a.value);
   };
   for (const a of args) collect(a.value);
   const body = isCall(ir) && ir.head === "Module" ? ir.args[0].value : ir;

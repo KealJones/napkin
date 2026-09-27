@@ -59,6 +59,15 @@ export function verbatimSpans(message: string): { text: string; spans: Expr[]; t
   // one line, inline code, before the line around it is judged ("whats wrong with `if (x = 5)`").
   text = text.replace(/`([^`]*\n[^`]*)`/g, (_m, code: string) => keep(c("Block", code)));
   text = text.replace(/`([^`\n]+)`/g, (_m, code: string) => keep(c("InlineCode", code)));
+  // Examples of a function ("f(1) is 2, f(2) = 4 and f(3) -> 6"): what it gives for what it is
+  // given, one thing, for Write to find the function from.
+  const EXAMPLE = /\b([A-Za-z_]\w*)\(\s*(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)*)\s*\)\s*(?:is|=|==|->|=>|gives|returns)\s*(-?\d+(?:\.\d+)?)/g;
+  text = text.replace(new RegExp(`${EXAMPLE.source}(?:(?:\\s*,\\s*|\\s*,?\\s*and\\s+)${EXAMPLE.source})+`, "g"), (run: string) => {
+    const found = [...run.matchAll(EXAMPLE)];
+    if (found.length < 2 || new Set(found.map((m) => m[1])).size !== 1) return run;
+    const examples = found.map((m) => c("Example", c("List", ...m[2].split(",").map((x) => Number(x.trim()))), Number(m[3])));
+    return keep(c("Examples", found[0][1], ...examples));
+  });
   // Arithmetic written in symbols with grouping or powers ("(2+3)*4", "2^10", "3/4") is one
   // thing, the sum it writes (code-reading.ts reads it as the code IR's arithmetic).
   text = text.replace(/(^|[\s=:(])((?:[-(]\s*)*\d+(?:\.\d+)?(?:\s*[)]*\s*[-+*/^×÷]\s*[(\s]*-?\d+(?:\.\d+)?\s*[)]*)+)(?=$|[\s?.!,])/g, (m, before: string, sum: string) =>

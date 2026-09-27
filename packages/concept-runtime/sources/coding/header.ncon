@@ -25,6 +25,18 @@ Concept(Ran(), IsA(Data()))
 // Code written in another language.
 Concept(Converted(), IsA(Data()))
 
+Concept(Derived(), IsA(Result()))
+
+Concept(NoRule(), IsA(Data()))
+
+Concept(Examples(), IsA(Data()))
+
+Concept(Example(), IsA(Data()))
+
+Concept(Make(), SynonymOf(Write()))
+
+Concept(Create(), SynonymOf(Write()))
+
 // A file written, and a file that could not be read or written.
 Concept(Written(), IsA(Data()))
 
@@ -216,3 +228,5 @@ Concept(NoFile(), Realization(NoFile($code), context = Speaking(), body = "Where
 Concept(NoCode(), Realization(NoCode(), context = Speaking(), body = "I don't see any code in that. Put it in backticks or a ``` block, or name a file."))
 
 Concept(CannotWrite(), Realization(CannotWrite($language, $what), context = Speaking(), evaluateArguments = false, body = Text("I can't write that in ", $language, " yet.")))
+
+Concept(NoRule(), Realization(NoRule($name), context = Speaking(), body = Text("I couldn't find one rule for ", $name, " that gives every example. Another example, or the rule in words, would help.")))
