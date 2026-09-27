@@ -2329,7 +2329,8 @@ Concept(File(),
 
 // Code with what Check finds that has one plain repair repaired: a comparison written as an
 // assignment, steps after a return, a thing set to itself. Written back in its language when
-// Napkin can write it (else in JavaScript, said so): Fixed(SourceCode(...), changes=List(...)).
+// Napkin can write it (else in JavaScript, said so), the repair made in the text so the rest keeps
+// its layout: Fixed(SourceCode(...), changes=List(...)).
 // What has no plain repair is left as Check found it.
 Concept(Fix(),
   Realization(Fix(Rest($said)),
@@ -2551,13 +2552,32 @@ Concept(Fix(),
               ),
               Undefined()
             ),
+            Comment(
+              "In the language it was written in, the repair is made in the text itself, so the rest keeps its layout."
+            ),
+            Bind($original, Member(Index(Member($code, "args"), 0), "value")),
+            Bind($text,
+              If(
+                And(Equals($as, $wanted), Equals(TypeOf($original), "string")),
+                Otherwise(
+                  Call(
+                    Member($api, "patchText"),
+                    $original,
+                    Member(Call(Member($api, "writeCode"), $ir, $as), "text"),
+                    Member($written, "text")
+                  ),
+                  Member($written, "text")
+                ),
+                Member($written, "text")
+              )
+            ),
             Bind($file,
               Call(Member(Member($code, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "file")))
             ),
             Bind($out,
               Concat(
                 List(
-                  Object(value = Member($written, "text")),
+                  Object(value = $text),
                   Object(name = "language", value = Call(Member($api, "call"), $as)),
                   Object(name = "ir", value = $fixed)
                 ),
@@ -2651,7 +2671,7 @@ Concept(List(),
 
 // Code run, apart from the host (api.runCode: no require, no files, a second at most): its
 // first function called with the values said beside it ("run `f` with 21"), or the code itself
-// when it defines none. Ran(value), or Ran(error = "...") when it failed.
+// when it defines none. Ran(value, code), or Ran(code, error = "...") when it failed.
 Concept(Run(),
   Realization(Run(Rest($said)),
     context = Execution(),
@@ -2788,14 +2808,19 @@ Concept(Run(),
               )
             ),
             Bind($ran, Call(Member($api, "runCode"), $source)),
+            Comment("The code run goes with what it gave, so \"it\" said next can still mean the code."),
             Return(
               If(
                 NotEquals(Member($ran, "error"), Undefined()),
-                Object(head = "Ran", args = List(Object(name = "error", value = Member($ran, "error")))),
+                Object(
+                  head = "Ran",
+                  args = List(Object(value = $code), Object(name = "error", value = Member($ran, "error")))
+                ),
                 Call(
                   Member($api, "call"),
                   "Ran",
-                  Call(Member($api, "fromHost"), Member($ran, "value"))
+                  Call(Member($api, "fromHost"), Member($ran, "value")),
+                  $code
                 )
               )
             )
@@ -3205,12 +3230,15 @@ Concept(Ran(),
               Return(Add(Add("Running it failed: ", Call($String, $error)), ".")),
               Undefined()
             ),
-            Bind($v,
-              OptionalMember(
+            If(
+              Equals(
                 Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
-                "value"
-              )
+                Undefined()
+              ),
+              Return("It ran."),
+              Undefined()
             ),
+            Bind($v, Member(Index($args, 0), "value")),
             Bind($said,
               If(
                 Equals(TypeOf($v), "string"),

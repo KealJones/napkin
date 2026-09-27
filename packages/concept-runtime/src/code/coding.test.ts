@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { c } from "../concept/expression.js";
 import { seed } from "../seed/seed.js";
@@ -35,7 +35,7 @@ test("what looks wrong is found the same way for any code, and what has a plain 
   assert.equal((await ask("check `const y = 2; console.log(y)`")).said, "Nothing in it looks wrong to me.");
   const fixed = await ask("fix this `if (x = 5) { go() }`");
   assert.match(fixed.said, /^Fixed: `x = 5` compares now: `x === 5`\./);
-  assert.match(fixed.said, /```typescript\nif \(\(x === 5\)\) \{ go\(\) \}\n```/);
+  assert.match(fixed.said, /```typescript\nif \(x === 5\) \{ go\(\) \}\n```/);
 });
 
 test("code is run apart from the host, with the values said beside it", async () => {
@@ -78,4 +78,16 @@ test("code is written as Python, in lines, and reads back as the same Concepts",
   assert.equal(format(writeSource(back!.ir, "JavaScript").text), format(writeSource(ir, "JavaScript").text));
   assert.match((await ask("write a python function where h(1) is 3, h(2) is 5, h(4) is 9")).said, /```python\ndef h\(x\):\n    return \(\(x \* 2\) \+ 1\)\n```/);
   assert.equal((await ask("translate `let a = 1` into python")).said, "In Python:\n\n```python\na = 1\n```");
+});
+
+test("a file is fixed in place and saved back where it came from, keeping its layout", async () => {
+  const path = "dist/coding-test-fix.js";
+  writeFileSync(path, 'function check(x) {\n  if (x = 5) { return "five" }\n  return "other"\n}\n');
+  const fixed = await ask(`fix ${path}`);
+  assert.match(fixed.said, /```typescript\nfunction check\(x\) \{\n  if \(x === 5\) \{ return "five" \}\n  return "other"\n\}\n```/);
+  assert.equal((await ask("save it", [{ message: "fix", result: fixed.result }])).said, `Saved to ${path}.`);
+  assert.equal(readFileSync(path, "utf8"), 'function check(x) {\n  if (x === 5) { return "five" }\n  return "other"\n}\n');
+  rmSync(path, { force: true });
+  const ran = await ask("run `function f(n) { return n * 2 }` with 21");
+  assert.match((await ask("convert it to python", [{ message: "run", result: ran.result }])).said, /def f\(n\):\n    return \(n \* 2\)/);
 });

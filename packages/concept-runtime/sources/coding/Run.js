@@ -1,7 +1,7 @@
 // @realization Run(Rest($said)), context = Execution(), evaluateArguments = false
 // Code run, apart from the host (api.runCode: no require, no files, a second at most): its
 // first function called with the values said beside it ("run `f` with 21"), or the code itself
-// when it defines none. Ran(value), or Ran(error = "...") when it failed.
+// when it defines none. Ran(value, code), or Ran(code, error = "...") when it failed.
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const code = await api.evaluate(api.call("CodeOf", ...args.map((a) => a.value)), api.context);
@@ -23,5 +23,6 @@ async (args, bindings, api) => {
   const name = fn && fn.args[0].value !== null && typeof fn.args[0].value === "object" && "variable" in fn.args[0].value ? fn.args[0].value.variable : undefined;
   const source = name ? written.text + "\n;(" + name + ")(" + values.map((v) => JSON.stringify(v)).join(", ") + ")" : written.text;
   const ran = api.runCode(source);
-  return ran.error !== undefined ? ({ head: "Ran", args: [{ name: "error", value: ran.error }] }) : api.call("Ran", api.fromHost(ran.value));
+  // The code run goes with what it gave, so "it" said next can still mean the code.
+  return ran.error !== undefined ? ({ head: "Ran", args: [{ value: code }, { name: "error", value: ran.error }] }) : api.call("Ran", api.fromHost(ran.value), code);
 };

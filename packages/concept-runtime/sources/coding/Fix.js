@@ -1,7 +1,8 @@
 // @realization Fix(Rest($said)), context = Execution(), evaluateArguments = false
 // Code with what Check finds that has one plain repair repaired: a comparison written as an
 // assignment, steps after a return, a thing set to itself. Written back in its language when
-// Napkin can write it (else in JavaScript, said so): Fixed(SourceCode(...), changes=List(...)).
+// Napkin can write it (else in JavaScript, said so), the repair made in the text so the rest keeps
+// its layout: Fixed(SourceCode(...), changes=List(...)).
 // What has no plain repair is left as Check found it.
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
@@ -49,7 +50,10 @@ async (args, bindings, api) => {
     written = api.writeCode(fixed, "JavaScript");
     as = "JavaScript";
   }
+  // In the language it was written in, the repair is made in the text itself, so the rest keeps its layout.
+  const original = code.args[0].value;
+  const text = as === wanted && typeof original === "string" ? api.patchText(original, api.writeCode(ir, as).text, written.text) ?? written.text : written.text;
   const file = code.args.find((a) => a.name === "file");
-  const out = [{ value: written.text }, { name: "language", value: api.call(as) }, { name: "ir", value: fixed }, ...(file ? [file] : [])];
+  const out = [{ value: text }, { name: "language", value: api.call(as) }, { name: "ir", value: fixed }, ...(file ? [file] : [])];
   return { head: "Fixed", args: [{ value: { head: "SourceCode", args: out } }, { name: "changes", value: api.call("List", ...changes) }, ...(as !== wanted ? [{ name: "writtenAs", value: api.call(as) }] : [])] };
 };

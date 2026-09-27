@@ -24,6 +24,7 @@ import {
 import { ANON, type Bindings, match, substitute } from "../concept/match.js";
 import { claims, codeLanguage, codeSource, declares, isCodeBody, type Realization } from "../concept/unit.js";
 import { writeWith, writingRules } from "../code/write.js";
+import { patchText } from "../code/patch.js";
 import { languagePackStore } from "../code/import.js";
 import { type CodeWord, codeWords, fromHost, lemma, properNoun, readFile, readText, runIsolated, toHost, words, writeFile } from "./host.js";
 import { readCode, verbatim } from "../ears/code-reading.js";
@@ -148,6 +149,8 @@ export interface CodeApi {
   runCode(source: string): { value?: unknown; error?: string };
   /** The code IR written as a language: its text, and what could not be written. */
   writeCode(ir: Expr, language: string): { text: string; unwritable: string[] };
+  /** A change from one writing of code to another made in the text it was read from, keeping its layout (code/patch.ts). */
+  patchText(original: string, before: string, after: string): string | undefined;
   /** A word's base form: a verb's infinitive, a noun's singular ("ate" is "eat"). */
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
@@ -604,6 +607,7 @@ export class Runtime {
       writeFile,
       readCode,
       runCode: (source) => runIsolated(source),
+      patchText,
       writeCode: (ir, language) => {
         const w = writeSource(ir, language);
         return { text: w.text, unwritable: w.unwritable };
