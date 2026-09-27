@@ -206,6 +206,9 @@ Concept(From(), IsA(Preposition()))
 
 Concept(By(), IsA(Preposition()))
 
+// "From" marks the first of two values: subtract 3 from 10 is 10 minus 3.
+Concept(From(), MarksFirst())
+
 Concept(Into(), IsA(Preposition()))
 
 Concept(Onto(), IsA(Preposition()))

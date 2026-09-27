@@ -222,4 +222,8 @@ test("what a doing is done to, said with of, and a number with the doing said af
   assert.equal(await ask("min of 4, 17, 2"), "Answer(2)");
   assert.equal(await ask("square root of 144"), "Answer(12)");
   assert.equal(await ask("whats 2 to the power of 10"), "Answer(1024)");
+  assert.equal(await ask("what is 12 multiplied by 3"), "Answer(36)");
+  assert.equal(await ask("what is 100 divided by 4"), "Answer(25)");
+  assert.equal(await ask("subtract 3 from 10"), "7");
+  assert.equal(await ask("divide 100 by 4"), "25");
 });

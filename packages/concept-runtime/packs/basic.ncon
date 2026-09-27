@@ -1665,50 +1665,17 @@ Concept(Read(),
                 )
               )
             ),
-            Comment("A doing of two values, by its own realization: Power($a, $b)."),
-            Bind($twoPlace,
-              Lambda(List($h),
-                Call(
-                  Member(
-                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "realizations"), List()),
-                    "some"
-                  ),
-                  Lambda(List($r),
-                    And(
-                      And(
-                        And(
-                          And(
-                            And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
-                            Equals(Member(Member($r, "pattern"), "head"), $h)
-                          ),
-                          Equals(Length(Member(Member($r, "pattern"), "args")), 2)
-                        ),
-                        Call(
-                          Member(Member(Member($r, "pattern"), "args"), "every"),
-                          Lambda(List($p), Call($isVar, Member($p, "value")))
-                        )
-                      ),
-                      Not(
-                        Call(
-                          Member(Member($r, "properties"), "some"),
-                          Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Effectful")))
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            ),
-            Comment("A doing of one value, with no way of its own to take an Of."),
-            Bind($onePlace,
+            Comment("The doing a word names, and how many values it takes: its own realization of plain"),
+            Comment("values, or its synonym's, or its base form's (\"multiplied\" is Multiply)."),
+            Bind($doing,
               Lambda(List($h, Default($seen, 0)),
                 Sequence(
-                  Comment("A synonym takes what what it forwards to takes."),
+                  Bind($unit, Call(Member(Member($api, "store"), "get"), $h)),
                   Bind($same,
                     Call(
                       Member(
                         Map(
-                          Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                          Otherwise(OptionalMember($unit, "relations"), List()),
                           Lambda(List($r), Member($r, "claim"))
                         ),
                         "find"
@@ -1725,7 +1692,7 @@ Concept(Read(),
                     And($same, LessThan($seen, 3)),
                     Return(
                       Call(
-                        $onePlace,
+                        $doing,
                         Member(Member(Index(Member($same, "args"), 0), "value"), "head"),
                         Add($seen, 1)
                       )
@@ -1734,56 +1701,124 @@ Concept(Read(),
                   ),
                   Bind($live,
                     Filter(
-                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "realizations"), List()),
+                      Otherwise(OptionalMember($unit, "realizations"), List()),
                       Lambda(List($r),
                         And(
-                          And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
-                          Equals(Member(Member($r, "pattern"), "head"), $h)
+                          And(
+                            And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                            Equals(Member(Member($r, "pattern"), "head"), $h)
+                          ),
+                          Not(
+                            Call(
+                              Member(Member($r, "properties"), "some"),
+                              Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Effectful")))
+                            )
+                          )
                         )
                       )
                     )
                   ),
-                  Return(
-                    And(
-                      Call(
-                        Member($live, "some"),
-                        Lambda(List($r),
-                          And(
-                            And(
-                              Equals(Length(Member(Member($r, "pattern"), "args")), 1),
-                              Call($isVar, Member(Index(Member(Member($r, "pattern"), "args"), 0), "value"))
-                            ),
-                            Not(
-                              Call(
-                                Member(Member($r, "properties"), "some"),
-                                Lambda(List($p), And(Call($isCall, $p), Equals(Member($p, "head"), "Effectful")))
+                  Bind($plain,
+                    Call(
+                      Member($live, "find"),
+                      Lambda(List($r),
+                        And(
+                          GreaterThan(Length(Member(Member($r, "pattern"), "args")), 0),
+                          Call(
+                            Member(Member(Member($r, "pattern"), "args"), "every"),
+                            Lambda(List($p),
+                              And(Equals(Member($p, "name"), Undefined()), Call($isVar, Member($p, "value")))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  If(
+                    $plain,
+                    Sequence(
+                      Comment("The words a realization of its own takes as they are (\"percent of\" has one)."),
+                      Bind($own,
+                        New(
+                          $Set,
+                          FlatMap(
+                            $live,
+                            Lambda(List($r),
+                              Map(
+                                Filter(
+                                  Member(Member($r, "pattern"), "args"),
+                                  Lambda(List($a), Call($isCall, Member($a, "value")))
+                                ),
+                                Lambda(List($a), Member(Member($a, "value"), "head"))
                               )
                             )
                           )
                         )
                       ),
-                      Not(
-                        Call(
-                          Member($live, "some"),
-                          Lambda(List($r),
-                            Call(
-                              Member(Member(Member($r, "pattern"), "args"), "some"),
-                              Lambda(List($a),
-                                And(
-                                  Call($isCall, Member($a, "value")),
-                                  Equals(Member(Member($a, "value"), "head"), "Of")
-                                )
-                              )
-                            )
-                          )
+                      Return(
+                        Object(
+                          head = $h,
+                          arity = Length(Member(Member($plain, "pattern"), "args")),
+                          own = $own
                         )
                       )
+                    ),
+                    Undefined()
+                  ),
+                  Bind($base, Call(Member($api, "lemma"), Call(Member($h, "toLowerCase")))),
+                  Bind($named, Add(Call(Member(Index($base, 0), "toUpperCase")), Call(Member($base, "slice"), 1))),
+                  Return(
+                    If(
+                      And(NotEquals($named, $h), LessThan($seen, 3)),
+                      Call($doing, $named, Add($seen, 1)),
+                      Undefined()
                     )
                   )
                 )
               )
             ),
-            Bind($marker,
+            Comment(
+              "Where a realization anywhere takes a word as a word (\"how many days until\" has Days(Until(...))):"
+            ),
+            Comment("there the word is kept."),
+            Bind($takenAsWords, New($Set)),
+            Bind($note,
+              Lambda(List($p),
+                Sequence(
+                  If(Not(Call($isCall, $p)), Return(), Undefined()),
+                  ForOf(
+                    $a,
+                    Member($p, "args"),
+                    Sequence(
+                      If(
+                        And(Call($isCall, Member($a, "value")), Length(Member(Member($a, "value"), "args"))),
+                        Call(
+                          Member($takenAsWords, "add"),
+                          Add(Add(Member($p, "head"), " "), Member(Member($a, "value"), "head"))
+                        ),
+                        Undefined()
+                      ),
+                      Call($note, Member($a, "value"))
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf(
+              $u,
+              Call(Member(Member($api, "store"), "all")),
+              ForOf(
+                $r,
+                Member($u, "realizations"),
+                If(
+                  Not(Member($r, "retired")),
+                  Call($note, Member($r, "pattern")),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($kindsOf,
               Async(
                 Lambda(List($h),
                   Sequence(
@@ -1797,63 +1832,111 @@ Concept(Read(),
                       )
                     ),
                     Return(
-                      And(
+                      If(
                         Call($isCall, $kinds),
-                        Call(
-                          Member(Member($kinds, "args"), "some"),
+                        Map(
+                          Member($kinds, "args"),
                           Lambda(List($a),
-                            And(
+                            If(
                               Call($isCall, Member($a, "value")),
-                              Includes(List("Marker", "Preposition", "Article"), Member(Member($a, "value"), "head"))
+                              Member(Member($a, "value"), "head"),
+                              ""
                             )
                           )
-                        )
+                        ),
+                        List()
                       )
                     )
                   )
                 )
               )
             ),
-            Comment("A number with a phrase naming a doing and a second value (\"2 to the power of 10\") is that"),
-            Comment("doing of the two."),
-            Bind($numberDoing,
+            Comment("A word that only marks a value (\"of\", \"by\"), and whether it marks the first (\"from\")."),
+            Bind($marking,
               Async(
                 Lambda(List($e),
                   Sequence(
-                    Bind($text, OptionalMember(Index(Member($e, "args"), 0), "value")),
-                    Bind($n,
-                      If(
-                        Equals(TypeOf($text), "number"),
-                        $text,
-                        If(
-                          And(
-                            Equals(TypeOf($text), "string"),
-                            Call(Member(Regex("^-?\\d+(\\.\\d+)?$", ""), "test"), $text)
-                          ),
-                          Call($Number, $text),
-                          Undefined()
-                        )
-                      )
-                    ),
                     If(
-                      Or(NotEquals(Length(Member($e, "args")), 2), Equals($n, Undefined())),
+                      Or(
+                        Or(Not(Call($isCall, $e)), NotEquals(Length(Member($e, "args")), 1)),
+                        NotEquals(Member(Index(Member($e, "args"), 0), "name"), Undefined())
+                      ),
                       Return(Undefined()),
                       Undefined()
                     ),
-                    Var($at, Member(Index(Member($e, "args"), 1), "value")),
-                    Var($doing, Undefined()),
+                    Bind($kinds, Await(Call($kindsOf, Member($e, "head")))),
+                    If(
+                      Not(Call(Member($kinds, "some"), Lambda(List($k), Includes(List("Marker", "Preposition"), $k)))),
+                      Return(Undefined()),
+                      Undefined()
+                    ),
+                    Bind($first,
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(Call(Member(Member($api, "store"), "get"), Member($e, "head")), "relations"),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r),
+                          And(
+                            Call($isCall, Member($r, "claim")),
+                            Equals(Member(Member($r, "claim"), "head"), "MarksFirst")
+                          )
+                        )
+                      )
+                    ),
+                    Return(
+                      Object(
+                        word = Member($e, "head"),
+                        value = Member(Index(Member($e, "args"), 0), "value"),
+                        first = $first
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($number,
+              Lambda(List($v),
+                If(
+                  Equals(TypeOf($v), "number"),
+                  $v,
+                  If(
+                    And(Equals(TypeOf($v), "string"), Call(Member(Regex("^-?\\d+(\\.\\d+)?$", ""), "test"), $v)),
+                    Call($Number, $v),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Comment("A number with a phrase naming a doing and a second value after it (\"2 to the power of 10\","),
+            Comment("\"12 multiplied by 3\") is that doing of the two."),
+            Bind($numberDoing,
+              Async(
+                Lambda(List($n, $phrase),
+                  Sequence(
+                    Var($at, $phrase),
+                    Var($found, Undefined()),
                     While(
                       And(
                         And(Call($isCall, $at), Equals(Length(Member($at, "args")), 1)),
                         Equals(Member(Index(Member($at, "args"), 0), "name"), Undefined())
                       ),
                       Sequence(
+                        Bind($d, If($found, Undefined(), Call($doing, Member($at, "head")))),
                         If(
                           And(
-                            And(Not($doing), Not(Await(Call($marker, Member($at, "head"))))),
-                            Call($twoPlace, Member($at, "head"))
+                            And($d, Equals(Member($d, "arity"), 2)),
+                            Not(
+                              Call(
+                                Member(Await(Call($kindsOf, Member($at, "head"))), "some"),
+                                Lambda(List($k), Includes(List("Marker", "Preposition", "Article"), $k))
+                              )
+                            )
                           ),
-                          Assign($doing, Member($at, "head")),
+                          Assign($found, Member($d, "head")),
                           Undefined()
                         ),
                         Assign($at, Member(Index(Member($at, "args"), 0), "value"))
@@ -1861,11 +1944,51 @@ Concept(Read(),
                     ),
                     Return(
                       If(
-                        And($doing, Equals(TypeOf($at), "number")),
-                        Call(Member($api, "call"), $doing, $n, $at),
+                        And($found, NotEquals(Call($number, $at), Undefined())),
+                        Call(Member($api, "call"), $found, $n, Call($number, $at)),
                         Undefined()
                       )
                     )
+                  )
+                )
+              )
+            ),
+            Bind($plainValue,
+              Lambda(List($v),
+                Or(
+                  Or(Or(Equals(TypeOf($v), "number"), Equals(TypeOf($v), "string")), Equals(TypeOf($v), "boolean")),
+                  And(
+                    And(Call($isCall, $v), Equals(Member($v, "head"), "List")),
+                    Call(Member(Member($v, "args"), "every"), Lambda(List($a), Call($plainValue, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Bind($worksOut,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Try(
+                      Return(
+                        Call(
+                          $plainValue,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              $e,
+                              Call(
+                                Member($api, "call"),
+                                "Context",
+                                Call(Member($api, "call"), "Execution"),
+                                Call(Member($api, "call"), "Hypothetical")
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Catch($error, Return(false))
+                    ),
+                    Undefined()
                   )
                 )
               )
@@ -1897,48 +2020,141 @@ Concept(Read(),
                 Lambda(List($e),
                   Sequence(
                     If(Not(Call($isCall, $e)), Return($e), Undefined()),
-                    Comment(
-                      "\"The largest of 4, 17 and 2\" is Largest(Of(List(4, 17, 2))): \"of\" marks what a doing of"
+                    Bind($positional,
+                      Map(
+                        Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                        Lambda(List($a), Member($a, "value"))
+                      )
                     ),
-                    Comment("one value is done to."),
                     If(
-                      And(
-                        And(
+                      Equals(Length($positional), Length(Member($e, "args"))),
+                      Sequence(
+                        Comment(
+                          "\"12 multiplied by 3\", \"2 to the power of 10\": a number and the doing said after it."
+                        ),
+                        If(
+                          And(
+                            And(
+                              Or(Equals(Member($e, "head"), "Typed"), Equals(Member($e, "head"), "Is")),
+                              Equals(Length($positional), 2)
+                            ),
+                            NotEquals(Call($number, Index($positional, 0)), Undefined())
+                          ),
+                          Sequence(
+                            Bind($done,
+                              Await(
+                                Call(
+                                  $numberDoing,
+                                  Call($number, Index($positional, 0)),
+                                  Index($positional, 1)
+                                )
+                              )
+                            ),
+                            If($done, Return(Call($read, $done)), Undefined())
+                          ),
+                          Undefined()
+                        ),
+                        Bind($d, Call($doing, Member($e, "head"))),
+                        Comment(
+                          "\"divide by 4 100\" heard as Divide(Ref(\"\"), Typed(100, By(4))): the number and its mark."
+                        ),
+                        If(
                           And(
                             And(
                               And(
-                                Equals(Length(Member($e, "args")), 1),
-                                Equals(Member(Index(Member($e, "args"), 0), "name"), Undefined())
+                                And(
+                                  And(
+                                    And(
+                                      And(And($d, Equals(Member($d, "arity"), 2)), Equals(Length($positional), 2)),
+                                      Call($isCall, Index($positional, 0))
+                                    ),
+                                    Equals(Member(Index($positional, 0), "head"), "Ref")
+                                  ),
+                                  Equals(OptionalMember(Index(Member(Index($positional, 0), "args"), 0), "value"), "")
+                                ),
+                                Call($isCall, Index($positional, 1))
                               ),
-                              Call($isCall, Member(Index(Member($e, "args"), 0), "value"))
+                              Equals(Member(Index($positional, 1), "head"), "Typed")
                             ),
-                            Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Of")
+                            Equals(Length(Member(Index($positional, 1), "args")), 2)
                           ),
-                          Equals(Length(Member(Member(Index(Member($e, "args"), 0), "value"), "args")), 1)
-                        ),
-                        Call($onePlace, Member($e, "head"))
-                      ),
-                      Return(
-                        Call(
-                          $read,
-                          Object(
-                            head = Member($e, "head"),
-                            args = List(
+                          Return(
+                            Call(
+                              $read,
                               Object(
-                                value = Member(
-                                  Index(Member(Member(Index(Member($e, "args"), 0), "value"), "args"), 0),
-                                  "value"
+                                head = Member($e, "head"),
+                                args = List(
+                                  Object(value = Member(Index(Member(Index($positional, 1), "args"), 0), "value")),
+                                  Object(value = Member(Index(Member(Index($positional, 1), "args"), 1), "value"))
                                 )
                               )
                             )
-                          )
+                          ),
+                          Undefined()
+                        ),
+                        Comment("What a doing is done to, marked by a word its realizations don't take as a word:"),
+                        Comment("\"the largest of 4, 17 and 2\", \"100 divided by 7\", \"subtract 3 from 10\"."),
+                        If(
+                          And($d, Equals(Length($positional), Member($d, "arity"))),
+                          Sequence(
+                            Bind($marks, List()),
+                            ForOf(
+                              $v,
+                              $positional,
+                              Call(Member($marks, "push"), Await(Call($marking, $v)))
+                            ),
+                            Bind($k,
+                              Call(
+                                Member($marks, "findIndex"),
+                                Lambda(List($m),
+                                  And(
+                                    And($m, Not(Call(Member(Member($d, "own"), "has"), Member($m, "word")))),
+                                    Not(
+                                      Call(
+                                        Member($takenAsWords, "has"),
+                                        Add(Add(Member($e, "head"), " "), Member($m, "word"))
+                                      )
+                                    )
+                                  )
+                                )
+                              )
+                            ),
+                            If(
+                              AtLeast($k, 0),
+                              Sequence(
+                                Bind($values, Call(Member($positional, "slice"))),
+                                Assign(Index($values, $k), Member(Index($marks, $k), "value")),
+                                If(
+                                  And(Member(Index($marks, $k), "first"), GreaterThan($k, 0)),
+                                  Call(Member($values, "unshift"), Index(Call(Member($values, "splice"), $k, 1), 0)),
+                                  Undefined()
+                                ),
+                                Comment(
+                                  "Only where that works out to a value: \"in 5 days\" is not what \"be\" is done to."
+                                ),
+                                Bind($taken,
+                                  Await(
+                                    Call(
+                                      $read,
+                                      Object(
+                                        head = Member($e, "head"),
+                                        args = Map($values, Lambda(List($value), Object(value = $value)))
+                                      )
+                                    )
+                                  )
+                                ),
+                                If(
+                                  Await(Call($worksOut, $taken)),
+                                  Return($taken),
+                                  Undefined()
+                                )
+                              ),
+                              Undefined()
+                            )
+                          ),
+                          Undefined()
                         )
                       ),
-                      Undefined()
-                    ),
-                    If(
-                      Equals(Member($e, "head"), "Typed"),
-                      Sequence(Bind($done, Await(Call($numberDoing, $e))), If($done, Return($done), Undefined())),
                       Undefined()
                     ),
                     ForOf(
