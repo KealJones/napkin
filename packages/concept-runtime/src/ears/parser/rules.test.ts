@@ -63,6 +63,8 @@ test("misspellings are corrected before tagging and kept as said", () => {
   assert.equal(read("whats the wether in pittsburgh"), 'What(Is(MarkMisspelling("wether", Weather(In(Pittsburgh())))))');
   assert.equal(read("book a flight to pheonix"), 'Book(Flight(), To(MarkMisspelling("pheonix", Phoenix())))');
   assert.equal(read("colorless green ideas sleep furiously"), "Colorless(Green(Ideas(Sleep(Furiously()))))", "a spelling variant is not a typo");
+  // Corrected to a contraction typed without its apostrophe, it is the words it stands for.
+  assert.match(read("wahts the date?") ?? "", /^What\(Is\(.*Date\(\)/);
   assert.equal(lines("asdkjh qwe zzz"), 'Unclear("asdkjh qwe zzz")');
 });
 

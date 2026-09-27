@@ -209,8 +209,11 @@ export function correct(text: string): { text: string; typed: Map<string, string
     const prev = text.slice(0, at).trim().split(/\s+/).pop()?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
     const meant = spelling(raw, prev);
     if (!meant) return raw;
-    typed.set(meant, raw);
-    return meant;
+    // Corrected to a contraction written without its apostrophe ("wahts" to "whats"): the words
+    // it stands for, as expandBare gives them before correction.
+    const expanded = BARE[meant];
+    typed.set(expanded ? expanded.split(" ")[0] : meant, raw);
+    return expanded ?? meant;
   });
   return { text: out, typed };
 }
