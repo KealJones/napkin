@@ -24,7 +24,7 @@ say(`// SPIKE (spike/hear-code-words): code heard the way a message is. Each wor
 Requires(Hearing(), Code(), Python(), TypeScript())
 
 // How a language lays its words out.
-Concept(Python(), Comments("#"), Offside())
+Concept(Python(), Comments("#"), Offside(), StringPrefixes())
 
 Concept(JavaScript(), Comments("//", "/*"), Templates("\`"), RegexLiterals())
 

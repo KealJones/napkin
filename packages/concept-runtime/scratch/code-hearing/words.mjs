@@ -115,6 +115,7 @@ export const WORDS = [
   ["Block", ["Scope"]],
   ["Indent", ["Scope"]],
   ["Index", ["Opener", "Postfix"], undefined, "Binds(200)"],
+  ["Apply", ["Opener", "Postfix", "Round"], undefined, "Binds(200)"],
   ["Angles", ["Opener", "Attached"], undefined, undefined, ["ClosedBy(AngleEnd())"]],
   ["Template", ["Opener", "Juxtaposed"], undefined, undefined, ["ClosedBy(TemplateEnd())"]],
   ["Interpolation", ["Opener", "Transparent"], "${"],

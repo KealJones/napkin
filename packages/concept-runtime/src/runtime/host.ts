@@ -117,7 +117,7 @@ export interface CodeWord {
  */
 export function codeWords(
   text: string,
-  options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean; regexAfter?: readonly string[] } = {},
+  options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean; regexAfter?: readonly string[]; stringPrefixes?: boolean } = {},
 ): CodeWord[] {
   const spellings = [...(options.spellings ?? [])].sort((a, b) => b.length - a.length);
   const comments = options.comments ?? [];
@@ -235,12 +235,18 @@ export function codeWords(
       templateText();
       continue;
     }
+    // A letter or two right before a quote says how the text is read (Python's r"", b"").
+    const prefix = options.stringPrefixes ? /[rRbBuUfF]{1,2}(?="|')/y : undefined;
+    const lead = prefix ? at(prefix) : undefined;
+    if (lead) i += lead.length;
     const quote = at(QUOTE);
+    if (lead && !quote) i -= lead.length;
     if (quote) {
       let k = i + quote.length;
       while (k < text.length && !text.startsWith(quote, k)) k += text[k] === "\\" ? 2 : 1;
       const said = text.slice(i, k + quote.length);
-      push({ text: said, kind: "text", value: unescape(said.slice(quote.length, -quote.length)) });
+      const inner = said.slice(quote.length, -quote.length);
+      push({ text: (lead ?? "") + said, kind: "text", value: lead && /r/i.test(lead) ? inner : unescape(inner) });
       i += said.length;
       continue;
     }

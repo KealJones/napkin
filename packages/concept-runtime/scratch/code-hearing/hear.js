@@ -24,6 +24,7 @@ async (args, bindings, api) => {
   const offside = claims(language.head, "Offside").length > 0;
   const templates = first(language.head, "Templates");
   const regex = claims(language.head, "RegexLiterals").length > 0;
+  const stringPrefixes = claims(language.head, "StringPrefixes").length > 0;
   // A symbol is the word the graph says it spells: "+" is Plus.
   const spelled = new Map();
   for (const unit of api.store.all()) {
@@ -39,7 +40,7 @@ async (args, bindings, api) => {
   for (const unit of api.store.all()) {
     if (unit.relations.some((r) => isCall(r.claim) && r.claim.head === "Keyword" && holds(r))) leading.push(unit.identity[0].toLowerCase() + unit.identity.slice(1));
   }
-  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside, templates, regex: regex, regexAfter: leading });
+  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside, templates, regex: regex, regexAfter: leading, stringPrefixes });
   const n = said.length;
   // A name is its Concept ("print" is Print); layout is a word too (Newline, Indent, Dedent).
   const upper = (t) => t[0].toUpperCase() + t.slice(1);
@@ -177,6 +178,8 @@ async (args, bindings, api) => {
   for (let i = 1; i < n; i++) {
     const header = is(i - 1, "Closer") && pair[i - 1] > 0 && is(pair[i - 1] - 1, "Heads");
     if (heads[i] === "Brackets" && ends(i - 1) && !header) become(i, "Index");
+    // "(" right after a closed group that is not a header: what it gives, called ("f(x)(y)").
+    if (heads[i] === "Parens" && is(i - 1, "Closer") && !header && heads[i - 1] !== undefined && pair[i - 1] >= 0 && !is(pair[i - 1], "Scope") && !is(pair[i - 1], "Attached")) become(i, "Apply");
   }
   // Who a block belongs to: the name whose brackets come just before it (a function, a
   // method; with its return type, that type's colon), else the word that leads what is

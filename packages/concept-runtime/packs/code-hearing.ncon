@@ -7,7 +7,11 @@
 Requires(Hearing(), Code(), Python(), TypeScript())
 
 // How a language lays its words out.
-Concept(Python(), Comments("#"), Offside())
+Concept(Python(),
+  Comments("#"),
+  Offside(),
+  StringPrefixes()
+)
 
 Concept(JavaScript(),
   Comments("//", "/*"),
@@ -116,6 +120,7 @@ Concept(Hear(),
             Bind($offside, GreaterThan(Length(Call($claims, Member($language, "head"), "Offside")), 0)),
             Bind($templates, Call($first, Member($language, "head"), "Templates")),
             Bind($regex, GreaterThan(Length(Call($claims, Member($language, "head"), "RegexLiterals")), 0)),
+            Bind($stringPrefixes, GreaterThan(Length(Call($claims, Member($language, "head"), "StringPrefixes")), 0)),
             Comment("A symbol is the word the graph says it spells: \"+\" is Plus."),
             Bind($spelled, New($Map)),
             ForOf(
@@ -181,7 +186,8 @@ Concept(Hear(),
                   offside = $offside,
                   templates = $templates,
                   regex = $regex,
-                  regexAfter = $leading
+                  regexAfter = $leading,
+                  stringPrefixes = $stringPrefixes
                 )
               )
             ),
@@ -754,6 +760,27 @@ Concept(Hear(),
                 If(
                   And(And(Equals(Index($heads, $i), "Brackets"), Call($ends, Subtract($i, 1))), Not($header)),
                   Call($become, $i, "Index"),
+                  Undefined()
+                ),
+                Comment("\"(\" right after a closed group that is not a header: what it gives, called (\"f(x)(y)\")."),
+                If(
+                  And(
+                    And(
+                      And(
+                        And(
+                          And(
+                            And(Equals(Index($heads, $i), "Parens"), Call($is, Subtract($i, 1), "Closer")),
+                            Not($header)
+                          ),
+                          NotEquals(Index($heads, Subtract($i, 1)), Undefined())
+                        ),
+                        AtLeast(Index($pair, Subtract($i, 1)), 0)
+                      ),
+                      Not(Call($is, Index($pair, Subtract($i, 1)), "Scope"))
+                    ),
+                    Not(Call($is, Index($pair, Subtract($i, 1)), "Attached"))
+                  ),
+                  Call($become, $i, "Apply"),
                   Undefined()
                 )
               )
@@ -3711,7 +3738,7 @@ Concept(Assign(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Comment("In Python, \"x = 1\" to a bare name is where x begins: a variable that can change (Var)."),
+            Comment("In Python, \"x = 1\" is where x begins, or begins again: a variable that can change (Var)."),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($self, Call(Member($bindings, "get"), "word")),
             Bind($positional,
@@ -3804,15 +3831,12 @@ Concept(Assign(),
               ),
               Undefined()
             ),
-            Bind(List($place, $value), $parts),
-            Bind($p, Await(Call($read, $place))),
-            Bind($bare, And(And(NotEquals($p, null), Equals(TypeOf($p), "object")), In("variable", $p))),
             Return(
               Call(
                 Member($api, "call"),
-                If($bare, "Var", "Assign"),
-                $p,
-                Await(Call($read, $value))
+                "Var",
+                Await(Call($read, Index($parts, 0))),
+                Await(Call($read, Index($parts, 1)))
               )
             )
           )
@@ -5973,6 +5997,81 @@ Concept(Class(),
               Async(
                 Lambda(List($m),
                   Sequence(
+                    Comment("A method's return type holds its signature: its modifiers are inside (\"get x(): T {\")."),
+                    If(
+                      Call($is, $m, "Returns"),
+                      Sequence(
+                        Bind(List($sig, Spread($rest)), Call($positional, $m)),
+                        Bind($blk, Call(Member($rest, "find"), Lambda(List($x), Call($is, $x, "Block")))),
+                        Var($inner, $sig),
+                        Bind($mods, List()),
+                        While(
+                          And(
+                            And(
+                              Call($isCall, $inner),
+                              Includes(
+                                List(
+                                  "Static",
+                                  "Private",
+                                  "Readonly",
+                                  "Public",
+                                  "Protected",
+                                  "Abstract",
+                                  "Async",
+                                  "Get",
+                                  "Set"
+                                ),
+                                Member($inner, "head")
+                              )
+                            ),
+                            Equals(Length(Call($positional, $inner)), 1)
+                          ),
+                          Sequence(
+                            Call(Member($mods, "push"), Member($inner, "head")),
+                            Assign($inner, Index(Call($positional, $inner), 0))
+                          )
+                        ),
+                        Var(
+                          $out,
+                          Await(
+                            Call(
+                              $member,
+                              If(
+                                And($blk, Call($isCall, $inner)),
+                                Object(
+                                  head = Member($inner, "head"),
+                                  args = Concat(Member($inner, "args"), List(Object(value = $blk)))
+                                ),
+                                $inner
+                              )
+                            )
+                          )
+                        ),
+                        ForOf(
+                          $mod,
+                          Call(Member($mods, "reverse")),
+                          If(
+                            And(Equals($mod, "Get"), Call($is, $out, "Method")),
+                            Assign(
+                              $out,
+                              Call(
+                                Member($api, "call"),
+                                "Getter",
+                                Index(Call($positional, $out), 0),
+                                Index(Call($positional, $out), 2)
+                              )
+                            ),
+                            If(
+                              Not(Includes(List("Public", "Protected", "Abstract"), $mod)),
+                              Assign($out, Call(Member($api, "call"), $mod, $out)),
+                              Undefined()
+                            )
+                          )
+                        ),
+                        Return($out)
+                      ),
+                      Undefined()
+                    ),
                     Bind($p, If(Call($isCall, $m), Call($positional, $m), List())),
                     ForOf(
                       $wrap,
@@ -6835,6 +6934,155 @@ Concept(If(),
                 Await(Call($read, $condition)),
                 Await(Call($ask, "CodeStatements", Spread($rest))),
                 Await(Call($ask, "CodeStatements", Spread($otherwise)))
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
+  Realization($word,
+    context = Context(Code(Python()), Reading()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("In Python an \"if\" with no \"else\" has no otherwise; \"elif\" goes on as another if."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($positional,
+              Lambda(List($e),
+                Map(
+                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            Bind($parts, Call($positional, $self)),
+            Bind($named,
+              Lambda(List($k),
+                Sequence(
+                  Bind($a,
+                    Call(Member(Member($self, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $k)))
+                  ),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($read, Lambda(List($e), Call(Member($api, "evaluate"), $e, Member($api, "context")))),
+            Bind($ask,
+              Lambda(List($head, Spread($xs)),
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), $head, Spread($xs)),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($nameOf,
+              Lambda(List($e),
+                Sequence(
+                  If(Equals(TypeOf($e), "string"), Return($e), Undefined()),
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Bind($said,
+                    Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+                  ),
+                  Return(
+                    If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($e, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($e, "head"), "slice"), 1)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
+            Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind(List($condition, Spread($rest)), $parts),
+            Bind($last, Index($rest, Subtract(Length($rest), 1))),
+            Bind($tail,
+              If(
+                Or(Call($is, $last, "Else"), Call($is, $last, "Elif")),
+                Call(Member($rest, "pop")),
+                Undefined()
+              )
+            ),
+            Bind($then, Await(Call($ask, "CodeStatements", Spread($rest)))),
+            If(
+              Not($tail),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "If",
+                  Await(Call($read, $condition)),
+                  $then
+                )
+              ),
+              Undefined()
+            ),
+            Bind($otherwise,
+              If(
+                Call($is, $tail, "Elif"),
+                Await(Call($read, Object(head = "If", args = Member($tail, "args")))),
+                Await(
+                  Call(
+                    $ask,
+                    "CodeStatements",
+                    Spread(Call($positional, $tail))
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "If",
+                Await(Call($read, $condition)),
+                $then,
+                $otherwise
               )
             )
           )
@@ -8063,6 +8311,132 @@ Concept(Index(),
   )
 )
 
+Concept(Apply(),
+  IsA(Opener()),
+  IsA(Postfix()),
+  IsA(Round()),
+  Binds(200),
+  Realization($word,
+    context = Context(Code($language), Reading()),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("What the thing before gives, called."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($positional,
+              Lambda(List($e),
+                Map(
+                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            Bind($parts, Call($positional, $self)),
+            Bind($named,
+              Lambda(List($k),
+                Sequence(
+                  Bind($a,
+                    Call(Member(Member($self, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $k)))
+                  ),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($read, Lambda(List($e), Call(Member($api, "evaluate"), $e, Member($api, "context")))),
+            Bind($ask,
+              Lambda(List($head, Spread($xs)),
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), $head, Spread($xs)),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($nameOf,
+              Lambda(List($e),
+                Sequence(
+                  If(Equals(TypeOf($e), "string"), Return($e), Undefined()),
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Bind($said,
+                    Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+                  ),
+                  Return(
+                    If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($e, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($e, "head"), "slice"), 1)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
+            Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($xs, List()),
+            ForOf(
+              $x,
+              Call(Member($parts, "slice"), 1),
+              Call(Member($xs, "push"), Await(Call($read, $x)))
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Call",
+                Await(Call($read, Index($parts, 0))),
+                Spread($xs)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 Concept(Angles(),
   IsA(Opener()),
   IsA(Attached()),
@@ -8952,18 +9326,232 @@ Concept(Numeral(),
 )
 
 Concept(Comment(),
-  Realization(Comment(Rest($xs)),
+  Realization($word,
     context = Context(Code($language), Reading()),
-    resultContext = Code(),
-    body = Comment(Rest($xs))
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A comment, kept where it was written."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($positional,
+              Lambda(List($e),
+                Map(
+                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            Bind($parts, Call($positional, $self)),
+            Bind($named,
+              Lambda(List($k),
+                Sequence(
+                  Bind($a,
+                    Call(Member(Member($self, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $k)))
+                  ),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($read, Lambda(List($e), Call(Member($api, "evaluate"), $e, Member($api, "context")))),
+            Bind($ask,
+              Lambda(List($head, Spread($xs)),
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), $head, Spread($xs)),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($nameOf,
+              Lambda(List($e),
+                Sequence(
+                  If(Equals(TypeOf($e), "string"), Return($e), Undefined()),
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Bind($said,
+                    Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+                  ),
+                  Return(
+                    If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($e, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($e, "head"), "slice"), 1)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
+            Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              If(
+                Equals(TypeOf(Index($parts, 0)), "string"),
+                $self,
+                Call($variable, $self)
+              )
+            )
+          )
+        )
+      )
+    )
   )
 )
 
 Concept(Regex(),
-  Realization(Regex(Rest($xs)),
+  Realization($word,
     context = Context(Code($language), Reading()),
-    resultContext = Code(),
-    body = Regex(Rest($xs))
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A regular expression, as written."),
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($self, Call(Member($bindings, "get"), "word")),
+            Bind($positional,
+              Lambda(List($e),
+                Map(
+                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            Bind($parts, Call($positional, $self)),
+            Bind($named,
+              Lambda(List($k),
+                Sequence(
+                  Bind($a,
+                    Call(Member(Member($self, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $k)))
+                  ),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($read, Lambda(List($e), Call(Member($api, "evaluate"), $e, Member($api, "context")))),
+            Bind($ask,
+              Lambda(List($head, Spread($xs)),
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), $head, Spread($xs)),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($nameOf,
+              Lambda(List($e),
+                Sequence(
+                  If(Equals(TypeOf($e), "string"), Return($e), Undefined()),
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Bind($said,
+                    Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))
+                  ),
+                  Return(
+                    If(
+                      $said,
+                      Member($said, "value"),
+                      Add(
+                        Call(Member(Index(Member($e, "head"), 0), "toLowerCase")),
+                        Call(Member(Member($e, "head"), "slice"), 1)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($variable, Lambda(List($e), Call(Member($api, "fromHost"), Object(variable = Call($nameOf, $e))))),
+            Bind($is, Lambda(List($e, $head), And(Call($isCall, $e), Equals(Member($e, "head"), $head)))),
+            Comment("A word typed other than as its plain name (\"Set\" beside \"set\") is only a name here."),
+            If(
+              NotEquals(Call($named, "said"), Undefined()),
+              Sequence(
+                Bind($xs, List()),
+                Var($called, false),
+                ForOf(
+                  $p,
+                  $parts,
+                  If(
+                    And(Call($is, $p, "Parens"), Equals(Length(Member($p, "args")), 0)),
+                    Assign($called, true),
+                    If(
+                      Not(Call($is, $p, "Angles")),
+                      Call(Member($xs, "push"), Await(Call($read, $p))),
+                      Undefined()
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    Or(Length($xs), $called),
+                    Call(
+                      Member($api, "call"),
+                      "Call",
+                      Call($variable, $self),
+                      Spread($xs)
+                    ),
+                    Call($variable, $self)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              If(
+                Equals(TypeOf(Index($parts, 0)), "string"),
+                $self,
+                Call($variable, $self)
+              )
+            )
+          )
+        )
+      )
+    )
   )
 )
 

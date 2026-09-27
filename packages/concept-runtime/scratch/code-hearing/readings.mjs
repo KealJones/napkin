@@ -15,7 +15,13 @@ export const READINGS = {
   Concept: [reads("$word", js("read-default.js"))],
   Phrases: [reads("Phrases(Rest($statements))", js("phrases.js"))],
   Numeral: [reads("Numeral($said)", js("number.js", { __SUFFIX__: '{ n: "BigInt" }' })), reads("Numeral($said)", js("number.js", { __SUFFIX__: "{}" }), PY)],
-  ...keepAll(["Comment", "Regex", "Else", "Break", "Continue", "Return", "Yield"]),
+  ...keepAll(["Else", "Break", "Continue", "Return", "Yield"]),
+  // What was written as a comment or a regular expression; a name that only looks like one
+  // ("comment") is a name.
+  Comment: [w("A comment, kept where it was written.", `return typeof parts[0] === "string" ? self : variable(self);`)],
+  Regex: [w("A regular expression, as written.", `return typeof parts[0] === "string" ? self : variable(self);`)],
+  // "f(x)(y)": what f(x) gives, called with y.
+  Apply: [w("What the thing before gives, called.", `const xs = []; for (const x of parts.slice(1)) xs.push(await read(x)); return api.call("Call", await read(parts[0]), ...xs);`)],
   Parens: [w('"(a, b)" as a value: a then b, giving b.', `if (parts.length < 2) return self; const xs = []; for (const x of parts) xs.push(await read(x)); return api.call("Sequence", ...xs);`)],
   Plus: [w('"+x" is x as a number, as the language reads it; "a + b" adds.', `return parts.length === 1 ? read(parts[0]) : api.call("Add", await read(parts[0]), await read(parts[1]));`)],
   // Angles say at what types a name is used: kept as said, not read as code.
@@ -94,11 +100,8 @@ export const READINGS = {
   return api.call("Assign", await read(place), await read(value));`,
     ),
     w(
-      'In Python, "x = 1" to a bare name is where x begins: a variable that can change (Var).',
-      `const [place, value] = parts;
-  const p = await read(place);
-  const bare = p !== null && typeof p === "object" && "variable" in p;
-  return api.call(bare ? "Var" : "Assign", p, await read(value));`,
+      'In Python, "x = 1" is where x begins, or begins again: a variable that can change (Var).',
+      `return api.call("Var", await read(parts[0]), await read(parts[1]));`,
       READS_PY,
     ),
   ],
@@ -178,6 +181,17 @@ export const READINGS = {
   const last = rest[rest.length - 1];
   const otherwise = is(last, "Else") ? positional(rest.pop()) : [];
   return api.call("If", await read(condition), await ask("CodeStatements", ...rest), await ask("CodeStatements", ...otherwise));`,
+    ),
+    w(
+      'In Python an "if" with no "else" has no otherwise; "elif" goes on as another if.',
+      `const [condition, ...rest] = parts;
+  const last = rest[rest.length - 1];
+  const tail = is(last, "Else") || is(last, "Elif") ? rest.pop() : undefined;
+  const then = await ask("CodeStatements", ...rest);
+  if (!tail) return api.call("If", await read(condition), then);
+  const otherwise = is(tail, "Elif") ? await read({ head: "If", args: tail.args }) : await ask("CodeStatements", ...positional(tail));
+  return api.call("If", await read(condition), then, otherwise);`,
+      READS_PY,
     ),
   ],
   Question: [reads("Question($a, $b, $c)", "If($a, $b, $c)")],
@@ -368,6 +382,23 @@ export const READINGS = {
   if (is(head, "Extends")) { base = positional(head)[1]; head = positional(head)[0]; }
   if (is(head, "Implements")) head = positional(head)[0];
   const member = async (m) => {
+    // A method's return type holds its signature: its modifiers are inside ("get x(): T {").
+    if (is(m, "Returns")) {
+      const [sig, ...rest] = positional(m);
+      const blk = rest.find((x) => is(x, "Block"));
+      let inner = sig;
+      const mods = [];
+      while (isCall(inner) && ["Static", "Private", "Readonly", "Public", "Protected", "Abstract", "Async", "Get", "Set"].includes(inner.head) && positional(inner).length === 1) {
+        mods.push(inner.head);
+        inner = positional(inner)[0];
+      }
+      let out = await member(blk && isCall(inner) ? { head: inner.head, args: [...inner.args, { value: blk }] } : inner);
+      for (const mod of mods.reverse()) {
+        if (mod === "Get" && is(out, "Method")) out = api.call("Getter", positional(out)[0], positional(out)[2]);
+        else if (!["Public", "Protected", "Abstract"].includes(mod)) out = api.call(mod, out);
+      }
+      return out;
+    }
     const p = isCall(m) ? positional(m) : [];
     for (const wrap of ["Static", "Private", "Readonly", "Public", "Protected", "Abstract", "Async"]) if (is(m, wrap)) {
       const inner = await member(p[0]);
