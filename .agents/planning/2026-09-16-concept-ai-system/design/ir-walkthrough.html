@@ -91,7 +91,7 @@
   .stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 16px; }
   .ctx { border-radius: 16px; padding: 16px; border: 2.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: #fff; }
   .ctx .tag { font: 700 13px/1 "SF Mono", Menlo, monospace; display: inline-block; padding: 5px 9px; border-radius: 8px; color: #fff; margin-bottom: 10px; }
-  .ctx .out { font: 700 22px/1.2 "SF Mono", Menlo, monospace; }
+  .ctx .out { font: 700 18px/1.3 "SF Mono", Menlo, monospace; }
 
   /* token flight */
   .tokens { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
@@ -226,12 +226,13 @@
   <div class="content" style="max-width:1080px">
     <div class="kicker reveal">5 &middot; Context</div>
     <h2 class="reveal d1">Same word. Different room. Different move.</h2>
-    <p class="reveal d2">A context is a set of facets. A realization only runs in the contexts it names. That's how one Concept can mean different things without any if-statements.</p>
+    <p class="reveal d2">A context is a set of facets. A realization only runs in the contexts it names. Here is one Concept, <code>Times</code>, in five rooms, with no if-statements anywhere.</p>
     <div class="stage">
-      <div class="ctx reveal d2"><span class="tag" style="background:var(--blue)">Execution()</span><div class="mono">Times(5, 3)</div><div class="out">&rarr; 15</div><small class="muted">working it out</small></div>
-      <div class="ctx reveal d3"><span class="tag" style="background:var(--green)">Speaking()</span><div class="mono">Multiply()</div><div class="out">&rarr; "times"</div><small class="muted">saying it</small></div>
-      <div class="ctx reveal d4"><span class="tag" style="background:var(--purple)">Hearing()</span><div class="mono">"add"</div><div class="out">&rarr; links</div><small class="muted">hearing: "add" must not add!</small></div>
-      <div class="ctx reveal d5"><span class="tag" style="background:var(--red)">Hypothetical()</span><div class="mono">Save(...)</div><div class="out">&rarr; skipped</div><small class="muted">trying without doing</small></div>
+      <div class="ctx reveal d1"><span class="tag" style="background:var(--purple)">Hearing()</span><div class="mono">"5 times 3"</div><div class="out">&rarr; Times(5, 3)</div><small class="muted">hearing English: the word finds its numbers, it doesn't multiply</small></div>
+      <div class="ctx reveal d2"><span class="tag" style="background:var(--purple)">Hearing(Code(TypeScript()))</span><div class="mono">a * b</div><div class="out">&rarr; Times(A(), B())</div><small class="muted">hearing code: "*" is Times too</small></div>
+      <div class="ctx reveal d3"><span class="tag" style="background:var(--blue)">Execution()</span><div class="mono">Times(5, 3)</div><div class="out">&rarr; 15</div><small class="muted">working it out</small></div>
+      <div class="ctx reveal d4"><span class="tag" style="background:var(--green)">Speaking()</span><div class="mono">Times()</div><div class="out">&rarr; "times"</div><small class="muted">saying it</small></div>
+      <div class="ctx reveal d5"><span class="tag" style="background:var(--red)">Code(TypeScript()), Reading()</span><div class="mono">Times(A(), B())</div><div class="out">&rarr; Multiply($a, $b)</div><small class="muted">reading code into the IR</small></div>
     </div>
     <p class="reveal d5" style="margin-top:22px"><b>Mood</b> is a facet too. "what is 17 times 4" reads as <code>Mood(Interrogative(), What(Is(Times(17, 4))))</code>, and <code>Interrogative</code> has one realization that every question word inherits.</p>
   </div>
