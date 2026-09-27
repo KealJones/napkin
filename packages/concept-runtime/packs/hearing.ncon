@@ -6,8 +6,13 @@ Requires(Basic())
 // kind, its word class, the tagger's tags), then as the universal parent. What each hears is
 // a proposal of links to other words, settled in rounds until nothing changes.
 
-// Under Hearing(), a word hears, and nothing it does elsewhere runs: "add" must not add.
-Concept(Hearing(), IsA(ContextFacet()), Exclusive())
+// Under Hearing(), a word hears, and nothing it does elsewhere runs: "add" must not add. Its
+// rounds are quiet: not traced unless asked for (Quiet()).
+Concept(Hearing(),
+  IsA(ContextFacet()),
+  Exclusive(),
+  Quiet()
+)
 
 // A message as its words, in order, each as typed with what it is known or tagged to be.
 Concept(Prompt(), IsA(Data()))

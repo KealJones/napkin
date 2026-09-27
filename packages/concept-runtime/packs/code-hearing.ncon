@@ -22,8 +22,12 @@ Concept(Sense(), IsA(Data()))
 Concept(Closes(), IsA(LinkRole()))
 
 // Before the links, what each word is here: a word says it under Sensing(), and nothing it does
-// elsewhere runs.
-Concept(Sensing(), IsA(ContextFacet()), Exclusive())
+// elsewhere runs. Quiet, as hearing is.
+Concept(Sensing(),
+  IsA(ContextFacet()),
+  Exclusive(),
+  Quiet()
+)
 
 // Code heard: what each word is, the links they find in rounds, each word written as its Concept.
 Concept(Hear(),

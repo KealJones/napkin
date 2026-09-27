@@ -46,6 +46,10 @@ Concept(ContextFacet(), IsA(Category()))
 // word hears and nothing it does elsewhere runs (runtime/context.ts, exclusiveFacets).
 Concept(Exclusive(), IsA(Category()))
 
+// A facet holding Quiet() keeps its workings out of the trace: steps under it run and count but
+// are not traced, unless the runtime is asked to (traceQuiet, napkin --trace-quiet).
+Concept(Quiet(), IsA(Category()))
+
 // Reading what was said as the graph names it: folds realize here and nothing else runs, so
 // reading a phrase finds the Concept it spells, or leaves the phrase as said.
 Concept(Reading(), IsA(ContextFacet()))

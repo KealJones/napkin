@@ -315,6 +315,7 @@ async function graphText(runtime: Runtime, identity: string, input: Expr): Promi
     maximumDepth: runtime.maximumDepth,
     maximumSteps: runtime.maximumSteps,
     speaks: runtime.speaks,
+    traceQuiet: runtime.traceQuiet,
   });
   for (const [key, value] of runtime.context) hook.context.set(key, value);
   const result = await hook.evaluate(c(identity, input), c("Execution"));

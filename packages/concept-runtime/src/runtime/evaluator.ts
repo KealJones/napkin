@@ -31,7 +31,7 @@ import { CellStore } from "../store/cells.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
 import { dropTurns, realizationHash, type StoredTraceEvent } from "../store/traces.js";
-import { exclusiveFacets, facets, suppressedProperties } from "./context.js";
+import { exclusiveFacets, facets, isQuiet, suppressedProperties } from "./context.js";
 import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { activation } from "./activation.js";
@@ -74,6 +74,11 @@ export interface RuntimeOptions {
    * `api.events`. Absent means no persisted trace: recency alone, as before Phase 1.
    */
   tracePath?: string;
+  /**
+   * Trace the steps a facet holding `Quiet()` keeps out of the trace (hearing's rounds, which
+   * are thousands of steps for a page of code). Off by default; on to debug hearing.
+   */
+  traceQuiet?: boolean;
 }
 
 /** What a Code(...) body receives. Every realization reaches the host the same way. */
@@ -153,6 +158,7 @@ export class Runtime {
   readonly maximumSteps: number;
   /** This host is a JavaScript one. A Rust host would say so and select its own bodies. */
   readonly speaks: readonly string[];
+  readonly traceQuiet: boolean;
   /** Undefined when no `tracePath` was given: recency alone decides tier 3 (pre-Phase 1). */
   private readonly evidence: EvidenceStore | undefined;
   private readonly tracePath: string | undefined;
@@ -177,6 +183,7 @@ export class Runtime {
     this.maximumDepth = options.maximumDepth ?? 64;
     this.maximumSteps = options.maximumSteps ?? 4000;
     this.speaks = options.speaks ?? ["JavaScript"];
+    this.traceQuiet = options.traceQuiet ?? false;
     this.tracePath = options.tracePath;
     this.evidence = options.tracePath === undefined ? undefined : evidenceStoreFor(options.tracePath);
   }
@@ -338,10 +345,13 @@ export class Runtime {
     // where CodePrimitive OperatesIn, wherever the program was reached, and is not a step of thought, so its
     // work is neither counted nor traced, as a JavaScript body's never was. What it calls is.
     const operation = this.code.has(target) && this.primitive(target.head);
-    const trace = operation ? QUIET : this.trace;
+    const relationsOf = (identity: string) => claims({ relations: this.store.get(identity)?.relations ?? [] });
+    // A facet's quiet workings (Quiet()) are counted but not traced, unless asked for.
+    const quiet = operation || (!this.traceQuiet && isQuiet(context, relationsOf));
+    const trace = quiet ? QUIET : this.trace;
     // Nor a level of depth: what it runs is as deep as the program is.
     const inner = operation ? depth - 1 : depth;
-    const id = operation ? parent ?? "" : trace.start({
+    const id = quiet ? parent ?? "" : trace.start({
       parentEventId: parent,
       concept: target.head,
       caller,
@@ -356,7 +366,6 @@ export class Runtime {
       if (depth > this.maximumDepth) budget("depth", this.maximumDepth);
       if (this.steps > this.maximumSteps) budget("steps", this.maximumSteps);
 
-      const relationsOf = (identity: string) => claims({ relations: this.store.get(identity)?.relations ?? [] });
       const suppressed = suppressedProperties(context, relationsOf);
       const exclusive = operation ? new Set<string>() : exclusiveFacets(context, relationsOf);
 

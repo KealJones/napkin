@@ -68,6 +68,14 @@ export function matchContext(
  * and nothing it would do elsewhere runs ("add" must not add). A facet is one by holding
  * `Exclusive()`, so the evaluator never learns which facets those are.
  */
+/**
+ * Whether a step is one of a facet's quiet workings: under a facet holding `Quiet()` (hearing's
+ * rounds), steps run and count but are not traced, unless the runtime is asked to trace them.
+ */
+export function isQuiet(active: Expr | undefined, relationsOf: (identity: string) => Expr[]): boolean {
+  return facets(active).some((facet) => isCall(facet) && relationsOf(facet.head).some((r) => isCall(r) && r.head === "Quiet"));
+}
+
 export function exclusiveFacets(active: Expr | undefined, relationsOf: (identity: string) => Expr[]): Set<string> {
   const out = new Set<string>();
   for (const facet of facets(active)) {

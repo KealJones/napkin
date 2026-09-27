@@ -53,7 +53,8 @@ for (const [pack, n] of Object.entries(journal?.overMissing ?? {})) console.erro
 if (journal?.skipped.length) console.error(`Skipped ${journal.skipped.length} unreadable line(s) in ${graphPath}:\n  ${journal.skipped.slice(0, 5).join("\n  ")}`);
 // The third store, beside the graph it joins to by `saidSeq` (concept-spec Part 13).
 const tracePath = resolve(dirname(graphPath), "trace.jsonl");
-const runtime = new Runtime(store, { tracePath });
+// --trace-quiet: trace what quiet facets keep out (hearing's rounds), to debug them.
+const runtime = new Runtime(store, { tracePath, traceQuiet: flag("--trace-quiet") });
 const context = c("Execution");
 /** Every change is appended as it is made; a JSON graph is written whole. Answers the size. */
 const persist = () => {

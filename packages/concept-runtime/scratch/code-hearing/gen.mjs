@@ -76,8 +76,8 @@ Concept(Sense(), IsA(Data()))
 Concept(Closes(), IsA(LinkRole()))
 
 // Before the links, what each word is here: a word says it under Sensing(), and nothing it does
-// elsewhere runs.
-Concept(Sensing(), IsA(ContextFacet()), Exclusive())`);
+// elsewhere runs. Quiet, as hearing is.
+Concept(Sensing(), IsA(ContextFacet()), Exclusive(), Quiet())`);
 say(`// Code heard: what each word is, the links they find in rounds, each word written as its Concept.
 Concept(Hear(), Realization(Hear($text), context = Context(Execution(), Code($language)), evaluateArguments = false, body = ${js("hear.js")}))`);
 say(`// What a word hearing code sees: the kinds around it and the groups the links have made.
