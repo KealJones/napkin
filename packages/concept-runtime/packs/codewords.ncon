@@ -336,6 +336,13 @@ Concept(Typeof(),
   Relation(Binds(150), context = Code(TypeScript()))
 )
 
+// "keyof T": the keys of a type, a word of TypeScript's types.
+Concept(Keyof(),
+  Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
+  Relation(Binds(150), context = Code(TypeScript()))
+)
+
 Concept(Await(), IsA(Prefix()), Keyword(), Binds(150))
 
 Concept(Void(),

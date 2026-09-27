@@ -12,7 +12,7 @@ for (const item of parts) {
   else if (isCall(item) && p.some((x) => is(x, "Block"))) {
     const blk = p.find((x) => is(x, "Block"));
     const ps = [];
-    for (const x of p.filter((x) => !is(x, "Block") && !is(x, "Parens"))) ps.push(await ask("CodeTarget", x));
+    for (const x of p.filter((x) => !is(x, "Block") && !is(x, "Comment") && !is(x, "Parens"))) ps.push(await ask("CodeTarget", x));
     items.push({ value: api.call("Method", nameOf(item), api.call("List", ...ps), await ask("CodeBody", ...positional(blk))) });
   } else if (is(item, "Identifier") && p.length === 0) put(nameOf(item), await read(item));
   else items.push({ value: await read(item) });

@@ -6,7 +6,7 @@ if (!isCall(sig)) return api.call("Func", ...parts);
 const ps = positional(sig);
 const own = ps.filter((x) => is(x, "Block"));
 const blk = [...own, ...block][0];
-const params = ps.filter((x) => !is(x, "Block") && !is(x, "Parens") && !is(x, "Angles"));
+const params = ps.filter((x) => !is(x, "Block") && !is(x, "Comment") && !is(x, "Parens") && !is(x, "Angles"));
 const out = [];
 for (const x of params) out.push(await ask("CodeTarget", x));
 const statements = blk ? positional(blk) : parts.slice(1);

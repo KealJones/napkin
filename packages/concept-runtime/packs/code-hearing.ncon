@@ -4868,7 +4868,15 @@ Concept(Braces(),
                         Bind($ps, List()),
                         ForOf(
                           $x,
-                          Filter($p, Lambda(List($x), And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Parens"))))),
+                          Filter(
+                            $p,
+                            Lambda(List($x),
+                              And(
+                                And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Comment"))),
+                                Not(Call($is, $x, "Parens"))
+                              )
+                            )
+                          ),
                           Call(Member($ps, "push"), Await(Call($ask, "CodeTarget", $x)))
                         ),
                         Call(
@@ -5323,7 +5331,10 @@ Concept(Class(),
                         $sp,
                         Lambda(List($x),
                           And(
-                            And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Parens"))),
+                            And(
+                              And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Comment"))),
+                              Not(Call($is, $x, "Parens"))
+                            ),
                             Not(Call($is, $x, "Angles"))
                           )
                         )
@@ -6715,7 +6726,12 @@ Concept(Def(),
             Bind($out, List()),
             ForOf(
               $x,
-              Filter($ps, Lambda(List($x), And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Parens"))))),
+              Filter(
+                $ps,
+                Lambda(List($x),
+                  And(And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Comment"))), Not(Call($is, $x, "Parens")))
+                )
+              ),
               Call(Member($out, "push"), Await(Call($ask, "CodeTarget", $x)))
             ),
             Return(
@@ -7498,7 +7514,10 @@ Concept(Function(),
               Filter(
                 $ps,
                 Lambda(List($x),
-                  And(And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Parens"))), Not(Call($is, $x, "Angles")))
+                  And(
+                    And(And(Not(Call($is, $x, "Block")), Not(Call($is, $x, "Comment"))), Not(Call($is, $x, "Parens"))),
+                    Not(Call($is, $x, "Angles"))
+                  )
                 )
               )
             ),
