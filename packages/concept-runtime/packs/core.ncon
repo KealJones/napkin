@@ -743,8 +743,9 @@ Concept(Mood(),
                   )
                 ),
                 Var($value, Undefined()),
+                Bind($read, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
                 Try(
-                  Assign($value, Await(Call(Member($api, "evaluate"), $line, $asked))),
+                  Assign($value, Await(Call(Member($api, "evaluate"), $read, $asked))),
                   Catch($error, Assign($value, Undefined()))
                 ),
                 Bind($plain,
@@ -765,7 +766,7 @@ Concept(Mood(),
                       Await(
                         Call(
                           Member($api, "evaluate"),
-                          $line,
+                          $read,
                           Call(
                             Member($api, "call"),
                             "Context",

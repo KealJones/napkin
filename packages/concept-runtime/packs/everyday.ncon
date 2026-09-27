@@ -1739,6 +1739,21 @@ Concept(Explain(), SynonymOf(What()))
 // "calculate 10 / 4 + 1": worked out, as what it is.
 Concept(Calculate(), SynonymOf(What()))
 
+// The most and the least of values, by the words people use for them.
+Concept(Biggest(), SynonymOf(Largest()))
+
+Concept(Greatest(), SynonymOf(Largest()))
+
+Concept(Max(), SynonymOf(Largest()))
+
+Concept(Maximum(), SynonymOf(Largest()))
+
+Concept(Min(), SynonymOf(Smallest()))
+
+Concept(Minimum(), SynonymOf(Smallest()))
+
+Concept(Lowest(), SynonymOf(Smallest()))
+
 Concept(Compute(), SynonymOf(What()))
 
 Concept(Solve(), SynonymOf(What()))

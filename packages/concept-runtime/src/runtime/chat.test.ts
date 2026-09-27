@@ -216,3 +216,10 @@ test("a thing named that works out to a value is answered, and lists and counts 
   assert.equal(await spoken('reverse "hello"'), "olleh");
   assert.match(await spoken("how many days until christmas"), /^\d+ days\.$/);
 });
+
+test("what a doing is done to, said with of, and a number with the doing said after it", async () => {
+  assert.equal(await ask("what is the largest of 4, 17, 2"), "Answer(17)");
+  assert.equal(await ask("min of 4, 17, 2"), "Answer(2)");
+  assert.equal(await ask("square root of 144"), "Answer(12)");
+  assert.equal(await ask("whats 2 to the power of 10"), "Answer(1024)");
+});
