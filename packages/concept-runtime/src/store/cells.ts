@@ -11,39 +11,37 @@ import { type Expr, c, isCall } from "../concept/expression.js";
 export const CELL_REF = "CellRef";
 
 export class CellStore {
-  private readonly cells = new Map<string, Expr>();
-  private next = 0;
+  // A cell is a numbered slot: CellRef(n) is the slot's index, so reading one is an array
+  // access, not a string key looked up in a Map.
+  private readonly slots: Expr[] = [];
 
   allocate(initial: Expr): Expr {
-    const id = `c${(this.next += 1)}`;
-    this.cells.set(id, initial);
-    return c(CELL_REF, id);
+    this.slots.push(initial);
+    return c(CELL_REF, this.slots.length - 1);
   }
 
   read(ref: Expr): Expr {
-    const id = refId(ref);
-    if (id === undefined || !this.cells.has(id)) {
-      throw new Error(`Not a cell reference: ${JSON.stringify(ref)}`);
-    }
-    return this.cells.get(id)!;
+    return this.slots[this.slot(ref)];
   }
 
   write(ref: Expr, value: Expr): Expr {
-    const id = refId(ref);
-    if (id === undefined || !this.cells.has(id)) {
-      throw new Error(`Not a cell reference: ${JSON.stringify(ref)}`);
-    }
-    this.cells.set(id, value);
+    this.slots[this.slot(ref)] = value;
     return value;
   }
 
   size(): number {
-    return this.cells.size;
+    return this.slots.length;
+  }
+
+  private slot(ref: Expr): number {
+    const id = refId(ref);
+    if (id === undefined || id >= this.slots.length) throw new Error(`Not a cell reference: ${JSON.stringify(ref)}`);
+    return id;
   }
 }
 
-export function refId(ref: Expr): string | undefined {
+export function refId(ref: Expr): number | undefined {
   if (!isCall(ref) || ref.head !== CELL_REF) return undefined;
   const id = ref.args[0]?.value;
-  return typeof id === "string" ? id : undefined;
+  return typeof id === "number" && id >= 0 && Number.isInteger(id) ? id : undefined;
 }
