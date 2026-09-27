@@ -1217,3 +1217,39 @@ details > summary { cursor: pointer; }
   min-height: calc(100vh - 64px);
   border: 0;
 }
+
+/* Code in a reply, and attaching a file to a message. */
+.message .content code {
+  font: 12px ui-monospace, Menlo, monospace;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.message .content .code-block {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #151515;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.message .content .code-block code {
+  background: none;
+  padding: 0;
+}
+.composer.dragging {
+  outline: 2px dashed var(--pink);
+  outline-offset: 4px;
+}
+.attach {
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 8px;
+}
+.attach input {
+  display: none;
+}

@@ -11,6 +11,7 @@ import type { TraceEvent } from "@napkin/concept-runtime";
 import "./styles.css";
 import { CodePlayground } from "./CodePlayground";
 import { Walkthrough } from "./Walkthrough";
+import { Text } from "./Text";
 import { request } from "./transport";
 
 type Page = "chat" | "concepts" | "traces" | "code" | "guide";
@@ -273,6 +274,20 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [prompt, setPrompt] = useState(initialPrompt);
+  const [dragging, setDragging] = useState(false);
+  /** Files attached go into the message as fenced code, named, with their language by extension. */
+  const attach = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const LANGUAGE: Record<string, string> = { ts: "typescript", tsx: "typescript", js: "javascript", mjs: "javascript", jsx: "javascript", py: "python", json: "json", md: "markdown" };
+    const blocks: string[] = [];
+    for (const file of Array.from(files)) {
+      const text = await file.text();
+      const ext = (/\.([A-Za-z0-9]+)$/.exec(file.name) ?? [])[1]?.toLowerCase() ?? "";
+      blocks.push(`${file.name}:\n\`\`\`${LANGUAGE[ext] ?? ""}\n${text.replace(/\n$/, "")}\n\`\`\``);
+    }
+    setPrompt((current) => (current.trim() ? current.trimEnd() + "\n" : "explain this ") + blocks.join("\n"));
+    promptRef.current?.focus();
+  };
   const [newPersistent, setNewPersistent] = useState(true);
   const [persistentTurn, setPersistentTurn] = useState(true);
   const [title, setTitle] = useState("New conversation");
@@ -868,7 +883,9 @@ function App() {
                           {message.role === "Assistant" && (
                             <div className="role">napkin</div>
                           )}
-                          <div className="content">{message.content}</div>
+                          <div className="content">
+                            <Text value={message.content} />
+                          </div>
                         </div>
                         {message.role === "User" && message.activity && (
                           <ActivityPanel activity={message.activity} />
@@ -878,7 +895,21 @@ function App() {
                   )}
                 </div>
                 <div className="composer-wrap">
-                  <div className="composer">
+                  <div
+                    className={`composer${dragging ? " dragging" : ""}`}
+                    onDragOver={(event) => {
+                      if (event.dataTransfer.types.includes("Files")) {
+                        event.preventDefault();
+                        setDragging(true);
+                      }
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setDragging(false);
+                      void attach(event.dataTransfer.files);
+                    }}
+                  >
                     <textarea
                       ref={promptRef}
                       value={prompt}
@@ -902,6 +933,17 @@ function App() {
                           }
                         />{" "}
                         Persist chat
+                      </label>
+                      <label className="attach" title="Attach a file: its text goes into the message as code">
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(event) => {
+                            void attach(event.target.files);
+                            event.target.value = "";
+                          }}
+                        />
+                        Attach file
                       </label>
                       <span className="spacer" />
                       <button
