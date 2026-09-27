@@ -307,9 +307,11 @@ Concept(Hear(),
             Bind($is, Lambda(List($i, $k), And(And(AtLeast($i, 0), LessThan($i, $n)), Includes(Index($kinds, $i), $k)))),
             Comment("What a word says it is here (Sense): \"<\" after a name is its angles, \"{\" after a signature"),
             Comment("is a block, \"get\" in \"x.get\" is only a name. Its Concept, with only the kinds it has."),
+            Bind($saying, New($Set)),
             Bind($become,
               Lambda(List($i, $head),
                 Sequence(
+                  Call(Member($saying, "add"), $i),
                   If(
                     Equals($head, "Name"),
                     Assign(Index($kinds, $i), List("Name")),
@@ -394,10 +396,10 @@ Concept(Hear(),
               )
             ),
             Comment("What each word sees while hearing, as Concepts. The words as said, once (Prompt). What each"),
-            Comment("is, how tightly it holds and what pairs it, as the view's lists, remade in the few sensing"),
-            Comment("rounds when a word says what it is; CodeView adds what that makes of the words around each."),
-            Comment("Who took whom changes every linking round, so each word's parent, role and the edges of the"),
-            Comment("group it heads are cells, written as links are made (the view holds the cells)."),
+            Comment("is, how tightly it holds and what pairs it, as the view's lists, changed where a word says"),
+            Comment("what it is in the few sensing rounds; CodeView adds what that makes of the words around"),
+            Comment("each. Who took whom changes every linking round: each word's parent, role and the edges of"),
+            Comment("the group it heads are lists too, a new one each round with only what moved changed."),
             Bind($bindsOf, New($Map)),
             Bind($tight,
               Lambda(List($head, $which),
@@ -446,15 +448,76 @@ Concept(Hear(),
             Bind($parent, Call(Member(New($Array, $n), "fill"), Negate(1))),
             Bind($lo, Concat(Call(Member(Call($Array, $n), "keys")))),
             Bind($hi, Concat(Call(Member(Call($Array, $n), "keys")))),
-            Bind($cellsOf,
-              Lambda(List($values), Map($values, Lambda(List($x), Call(Member(Member($api, "cells"), "allocate"), $x))))
-            ),
-            Bind($moving,
+            Bind($b, Lambda(List($h), Call($tight, $h, 0))),
+            Bind($a, Lambda(List($h), Call($tight, $h, 1))),
+            Bind($entry,
               Object(
-                parent = Call($cellsOf, $parent),
-                role = Call($cellsOf, Map($said, Lambda(List(), ""))),
-                lo = Call($cellsOf, $lo),
-                hi = Call($cellsOf, $hi)
+                kinds = Lambda(List($i),
+                  Call(
+                    Member($api, "call"),
+                    "List",
+                    Spread(Index($kinds, $i))
+                  )
+                ),
+                heads = Lambda(List($i), Otherwise(Index($heads, $i), null)),
+                binds = Lambda(List($i),
+                  If(
+                    Call($b, Index($heads, $i)),
+                    Member(Index(Member(Call($b, Index($heads, $i)), "args"), 0), "value"),
+                    null
+                  )
+                ),
+                after = Lambda(List($i),
+                  If(
+                    Call($a, Index($heads, $i)),
+                    Member(Index(Member(Call($a, Index($heads, $i)), "args"), 0), "value"),
+                    If(
+                      Call($b, Index($heads, $i)),
+                      Member(Index(Member(Call($b, Index($heads, $i)), "args"), 0), "value"),
+                      null
+                    )
+                  )
+                ),
+                right = Lambda(List($i),
+                  If(
+                    Call($b, Index($heads, $i)),
+                    GreaterThan(Length(Member(Call($b, Index($heads, $i)), "args")), 1),
+                    false
+                  )
+                ),
+                pair = Lambda(List($i), Index($pair, $i)),
+                inside = Lambda(List($i), Index($inside, $i))
+              )
+            ),
+            Bind($lists,
+              Object(
+                parent = Call(Member(Member($api, "lists"), "of"), $parent),
+                role = Call(Member(Member($api, "lists"), "of"), Map($said, Lambda(List(), ""))),
+                lo = Call(Member(Member($api, "lists"), "of"), $lo),
+                hi = Call(Member(Member($api, "lists"), "of"), $hi)
+              )
+            ),
+            Var($seen, Undefined()),
+            Comment("The view with these of its lists as they are now."),
+            Bind($show,
+              Lambda(List($view, $names),
+                Call(
+                  Member(Member($api, "cells"), "write"),
+                  $viewCell,
+                  Object(
+                    head = "Record",
+                    args = Map(
+                      Member($view, "args"),
+                      Lambda(List($x),
+                        If(
+                          Includes($names, Member($x, "name")),
+                          Object(name = Member($x, "name"), value = Index($lists, Member($x, "name"))),
+                          $x
+                        )
+                      )
+                    )
+                  )
+                )
               )
             ),
             Bind($refresh,
@@ -462,71 +525,64 @@ Concept(Hear(),
                 Lambda(List(),
                   Sequence(
                     Call($structure),
-                    Bind($b, Lambda(List($h), Call($tight, $h, 0))),
-                    Bind($a, Lambda(List($h), Call($tight, $h, 1))),
-                    Bind($view,
-                      Call(
-                        Member($api, "fromHost"),
-                        Object(
-                          kinds = Map($kinds, Lambda(List($k), Call(Member($k, "slice")))),
-                          heads = Map($heads, Lambda(List($h), Otherwise($h, null))),
-                          binds = Map(
-                            $heads,
-                            Lambda(List($h),
-                              If(
-                                Call($b, $h),
-                                Member(Index(Member(Call($b, $h), "args"), 0), "value"),
-                                null
-                              )
-                            )
-                          ),
-                          after = Map(
-                            $heads,
-                            Lambda(List($h),
-                              If(
-                                Call($a, $h),
-                                Member(Index(Member(Call($a, $h), "args"), 0), "value"),
-                                If(
-                                  Call($b, $h),
-                                  Member(Index(Member(Call($b, $h), "args"), 0), "value"),
-                                  null
+                    ForOf(
+                      List($k, $f),
+                      Call(Member($Object, "entries"), $entry),
+                      If(
+                        Not($seen),
+                        Assign(
+                          Index($lists, $k),
+                          Call(
+                            Member(Member($api, "lists"), "of"),
+                            Call(Member($said, "map"), Lambda(List($_, $i), Call($f, $i)))
+                          )
+                        ),
+                        Sequence(
+                          Bind($moved,
+                            If(
+                              Or(Equals($k, "pair"), Equals($k, "inside")),
+                              Filter(
+                                Call(Member($said, "map"), Lambda(List($_, $i), $i)),
+                                Lambda(List($i),
+                                  NotEquals(
+                                    Call(
+                                      Member(Member($api, "lists"), "at"),
+                                      Index($lists, $k),
+                                      $i
+                                    ),
+                                    Call($f, $i)
+                                  )
                                 )
-                              )
+                              ),
+                              Concat($saying)
                             )
                           ),
-                          right = Map(
-                            $heads,
-                            Lambda(List($h),
-                              If(
-                                Call($b, $h),
-                                GreaterThan(Length(Member(Call($b, $h), "args")), 1),
-                                false
-                              )
-                            )
-                          ),
-                          pair = $pair,
-                          inside = $inside
-                        )
-                      )
-                    ),
-                    Bind($withCells,
-                      Object(
-                        head = Member($view, "head"),
-                        args = Concat(
-                          Member($view, "args"),
-                          Map(
-                            Call(Member($Object, "entries"), $moving),
-                            Lambda(List(List($name, $refs)),
-                              Object(name = $name, value = Call(Member($api, "call"), "List", Spread($refs)))
+                          Assign(
+                            Index($lists, $k),
+                            Call(
+                              Member(Member($api, "lists"), "with"),
+                              Index($lists, $k),
+                              Map($moved, Lambda(List($i), List($i, Call($f, $i))))
                             )
                           )
                         )
                       )
                     ),
+                    Call(Member($saying, "clear")),
+                    Assign($seen, true),
                     Call(
                       Member(Member($api, "cells"), "write"),
                       $viewCell,
-                      $withCells
+                      Object(
+                        head = "Record",
+                        args = Map(
+                          Call(Member($Object, "keys"), $lists),
+                          Lambda(List($name), Object(name = $name, value = Index($lists, $name)))
+                        )
+                      )
+                    ),
+                    Comment(
+                      "What CodeView makes of the words is its own lists; the view keeps them until it is asked again."
                     ),
                     Call(
                       Member(Member($api, "cells"), "write"),
@@ -773,6 +829,14 @@ Concept(Hear(),
                   )
                 ),
                 Bind($accepted, List()),
+                Bind($moved,
+                  Object(
+                    parent = New($Map),
+                    role = New($Map),
+                    lo = New($Map),
+                    hi = New($Map)
+                  )
+                ),
                 ForOf(
                   $p,
                   $proposals,
@@ -788,13 +852,13 @@ Concept(Hear(),
                     Call(Member($accepted, "push"), $p),
                     Assign(Index($parent, Member($p, "from")), Member($p, "to")),
                     Call(
-                      Member(Member($api, "cells"), "write"),
-                      Index(Member($moving, "parent"), Member($p, "from")),
+                      Member(Member($moved, "parent"), "set"),
+                      Member($p, "from"),
                       Member($p, "to")
                     ),
                     Call(
-                      Member(Member($api, "cells"), "write"),
-                      Index(Member($moving, "role"), Member($p, "from")),
+                      Member(Member($moved, "role"), "set"),
+                      Member($p, "from"),
                       Member($p, "role")
                     )
                   )
@@ -841,13 +905,13 @@ Concept(Hear(),
                           )
                         ),
                         Call(
-                          Member(Member($api, "cells"), "write"),
-                          Index(Member($moving, "lo"), $k),
+                          Member(Member($moved, "lo"), "set"),
+                          $k,
                           Index($lo, $k)
                         ),
                         Call(
-                          Member(Member($api, "cells"), "write"),
-                          Index(Member($moving, "hi"), $k),
+                          Member(Member($moved, "hi"), "set"),
+                          $k,
                           Index($hi, $k)
                         ),
                         Call($touch, $k),
@@ -886,6 +950,23 @@ Concept(Hear(),
                       )
                     )
                   )
+                ),
+                ForOf(
+                  $k,
+                  Call(Member($Object, "keys"), $moved),
+                  Assign(
+                    Index($lists, $k),
+                    Call(
+                      Member(Member($api, "lists"), "with"),
+                      Index($lists, $k),
+                      Index($moved, $k)
+                    )
+                  )
+                ),
+                Call(
+                  $show,
+                  Call(Member(Member($api, "cells"), "read"), $viewCell),
+                  Call(Member($Object, "keys"), $moved)
                 ),
                 Assign($links, Call(Member($links, "concat"), $accepted)),
                 Assign($dirty, $next)
@@ -1023,7 +1104,7 @@ Concept(CodeView(),
               Member($view, "args"),
               Assign(
                 Index($field, Member($a, "name")),
-                Map(Member(Member($a, "value"), "args"), Lambda(List($x), Member($x, "value")))
+                Call(Member(Member($api, "lists"), "values"), Member($a, "value"))
               )
             ),
             Bind($n, Length(Member($field, "heads"))),
@@ -1036,6 +1117,8 @@ Concept(CodeView(),
             Bind(Object(binds = $binds, after = $after, right = $right, pair = $pair, inside = $inside),
               $field
             ),
+            Comment("The words whose kinds this changes, and only those, get a new list of kinds."),
+            Bind($changed, New($Map)),
             Comment("A word that closes a bracket (\"a ? b : c\", \"A<T>\") is only that bracket's end."),
             For(
               Var($i, 0),
@@ -1046,16 +1129,27 @@ Concept(CodeView(),
                   And(AtLeast(Index($pair, $i), 0), LessThan(Index($pair, $i), $i)),
                   Not(Includes(Index($kinds, $i), "Closer"))
                 ),
-                Assign(
-                  Index($kinds, $i),
-                  Concat(
-                    Filter(
-                      Index($kinds, $i),
-                      Lambda(List($k),
-                        And(And(NotEquals($k, "Infix"), NotEquals($k, "Separator")), NotEquals($k, "Prefix"))
-                      )
-                    ),
-                    List("Closer")
+                Sequence(
+                  Assign(
+                    Index($kinds, $i),
+                    Concat(
+                      Filter(
+                        Index($kinds, $i),
+                        Lambda(List($k),
+                          And(And(NotEquals($k, "Infix"), NotEquals($k, "Separator")), NotEquals($k, "Prefix"))
+                        )
+                      ),
+                      List("Closer")
+                    )
+                  ),
+                  Call(
+                    Member($changed, "set"),
+                    $i,
+                    Call(
+                      Member($api, "call"),
+                      "List",
+                      Spread(Index($kinds, $i))
+                    )
                   )
                 ),
                 Undefined()
@@ -1304,33 +1398,61 @@ Concept(CodeView(),
             Bind($punctuation,
               Call(Member($kinds, "map"), Lambda(List($_, $i), Or(Call($is, $i, "Separator"), Call($is, $i, "Closer"))))
             ),
+            Bind($made,
+              Object(
+                operator = $operator,
+                stray = $stray,
+                scope = $scope,
+                alone = $alone,
+                infix = $infix,
+                prefix = $prefix,
+                unary = $unary,
+                postfix = $postfix,
+                operandEnd = $operandEnd,
+                operandStart = $operandStart,
+                boundary = $boundary,
+                punctuation = $punctuation
+              )
+            ),
             Bind($derived,
-              Call(
-                Member($api, "fromHost"),
-                Object(
-                  kinds = $kinds,
-                  operator = $operator,
-                  stray = $stray,
-                  scope = $scope,
-                  alone = $alone,
-                  infix = $infix,
-                  prefix = $prefix,
-                  unary = $unary,
-                  postfix = $postfix,
-                  operandEnd = $operandEnd,
-                  operandStart = $operandStart,
-                  boundary = $boundary,
-                  punctuation = $punctuation
+              Concat(
+                List(
+                  Object(
+                    name = "kinds",
+                    value = Call(
+                      Member(Member($api, "lists"), "with"),
+                      Member(
+                        Call(
+                          Member(Member($view, "args"), "find"),
+                          Lambda(List($a), Equals(Member($a, "name"), "kinds"))
+                        ),
+                        "value"
+                      ),
+                      $changed
+                    )
+                  )
+                ),
+                Map(
+                  Call(Member($Object, "entries"), $made),
+                  Lambda(List(List($name, $xs)),
+                    Object(
+                      name = $name,
+                      value = Call(
+                        Member(Member($api, "lists"), "of"),
+                        Map($xs, Lambda(List($x), Call(Member($api, "fromHost"), $x)))
+                      )
+                    )
+                  )
                 )
               )
             ),
-            Bind($own, New($Set, Map(Member($derived, "args"), Lambda(List($a), Member($a, "name"))))),
+            Bind($own, New($Set, Map($derived, Lambda(List($a), Member($a, "name"))))),
             Return(
               Object(
                 head = Member($view, "head"),
                 args = Concat(
                   Filter(Member($view, "args"), Lambda(List($a), Not(Call(Member($own, "has"), Member($a, "name"))))),
-                  Member($derived, "args")
+                  $derived
                 )
               )
             )
@@ -1372,32 +1494,25 @@ Concept(Infix(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -1477,25 +1592,15 @@ Concept(Infix(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
@@ -1710,32 +1815,25 @@ Concept(Prefix(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -1813,32 +1911,25 @@ Concept(Prefix(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -1959,32 +2050,25 @@ Concept(Opener(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -1993,7 +2077,7 @@ Concept(Opener(),
               )
             ),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($head, Lambda(List($i), Call($v, "heads", $i))),
             Bind($claim,
               Lambda(List($h, $k),
@@ -2150,32 +2234,25 @@ Concept(Opener(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -2184,7 +2261,7 @@ Concept(Opener(),
               )
             ),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($head, Lambda(List($i), Call($v, "heads", $i))),
             Bind($claim,
               Lambda(List($h, $k),
@@ -2667,32 +2744,25 @@ Concept(Continues(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -2769,32 +2839,25 @@ Concept(Continues(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
             Bind($is,
               Lambda(List($i, $k),
                 And(
-                  And(AtLeast($i, 0), LessThan($i, Length(Member($field, "kinds")))),
+                  And(
+                    AtLeast($i, 0),
+                    LessThan($i, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds")))
+                  ),
                   Call(
                     Member(Member(Call($v, "kinds", $i), "args"), "some"),
                     Lambda(List($a), Equals(Member($a, "value"), $k))
@@ -2873,25 +2936,15 @@ Concept(Question(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
@@ -2903,7 +2956,7 @@ Concept(Question(),
             Sequence(
               Comment("Its \":\": the first where the brackets between have closed and any question asked between"),
               Comment("has had its own."),
-              Bind($n, Length(Member($field, "kinds"))),
+              Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
               Bind($is,
                 Lambda(List($i, $k),
                   And(
@@ -3000,25 +3053,15 @@ Concept(Question(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
@@ -3180,29 +3223,19 @@ Concept(Less(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($is,
               Lambda(List($i, $k),
                 And(
@@ -3427,29 +3460,19 @@ Concept(Colon(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($is,
               Lambda(List($i, $k),
                 And(
@@ -3583,29 +3606,19 @@ Concept(Braces(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($is,
               Lambda(List($i, $k),
                 And(
@@ -3854,29 +3867,19 @@ Concept(Brackets(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($is,
               Lambda(List($i, $k),
                 And(
@@ -4017,29 +4020,19 @@ Concept(Parens(),
                 Call(Member(Member($api, "cells"), "read"), Member(Index(Member($self, "args"), 3), "value")),
                 "args"
               ),
-              Assign(Index($field, Member($a, "name")), Member(Member($a, "value"), "args"))
+              Assign(Index($field, Member($a, "name")), Member($a, "value"))
             ),
-            Comment("An entry that changes as links are made is a cell: read what it holds now."),
+            Comment("Each field is a List, one entry a word."),
             Bind($v,
               Lambda(List($k, $i),
-                Sequence(
-                  If(
-                    Not(And(AtLeast($i, 0), LessThan($i, Length(Index($field, $k))))),
-                    Return(Undefined()),
-                    Undefined()
-                  ),
-                  Bind($x, Member(Index(Index($field, $k), $i), "value")),
-                  Return(
-                    If(
-                      And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "CellRef")),
-                      Call(Member(Member($api, "cells"), "read"), $x),
-                      $x
-                    )
-                  )
+                Call(
+                  Member(Member($api, "lists"), "at"),
+                  Index($field, $k),
+                  $i
                 )
               )
             ),
-            Bind($n, Length(Member($field, "kinds"))),
+            Bind($n, Call(Member(Member($api, "lists"), "size"), Member($field, "kinds"))),
             Bind($is,
               Lambda(List($i, $k),
                 And(

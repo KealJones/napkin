@@ -13,16 +13,12 @@ async (args, bindings, api) => {
   const self = bindings.get("word");
   const at = self.args[1].value;
   const field = {};
-  for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value.args;
-  // An entry that changes as links are made is a cell: read what it holds now.
-  const v = (k, i) => {
-    if (!(i >= 0 && i < field[k].length)) return undefined;
-    const x = field[k][i].value;
-    return x !== null && typeof x === "object" && x.head === "CellRef" ? api.cells.read(x) : x;
-  };
-  const is = (i, k) => i >= 0 && i < field.kinds.length && v("kinds", i).args.some((a) => a.value === k);
+  for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value;
+  // Each field is a List, one entry a word.
+  const v = (k, i) => api.lists.at(field[k], i);
+  const is = (i, k) => i >= 0 && i < api.lists.size(field.kinds) && v("kinds", i).args.some((a) => a.value === k);
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const n = field.kinds.length;
+  const n = api.lists.size(field.kinds);
   const head = (i) => v("heads", i);
   const claim = (h, k) => {
     const unit = h ? api.store.get(h) : undefined;

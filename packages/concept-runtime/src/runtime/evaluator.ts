@@ -28,6 +28,7 @@ import { languagePackStore } from "../code/import.js";
 import { type CodeWord, codeWords, fromHost, lemma, properNoun, readText, toHost, words } from "./host.js";
 import { verbatim } from "../ears/code-reading.js";
 import { CellStore } from "../store/cells.js";
+import { listAt, listSize, listValues, listWith, PersistentList } from "../concept/list.js";
 import { Relations } from "../store/relations.js";
 import { ConceptStore } from "../store/store.js";
 import { dropTurns, realizationHash, type StoredTraceEvent } from "../store/traces.js";
@@ -85,6 +86,8 @@ export interface RuntimeOptions {
 export interface CodeApi {
   readonly store: ConceptStore;
   readonly cells: CellStore;
+  /** Lists that change by making a new List, sharing what did not change (concept/list.ts). */
+  readonly lists: typeof LISTS;
   readonly relations: Relations;
   readonly trace: Trace;
   evaluate(expression: Expr, context?: Expr): Promise<Expr>;
@@ -540,6 +543,7 @@ export class Runtime {
     return {
       store: this.store,
       cells: this.cells,
+      lists: LISTS,
       relations: this.relations,
       trace: this.trace,
       // Asked for explicitly, a held value is evaluated after all.
@@ -598,6 +602,14 @@ export class Runtime {
     };
   }
 }
+
+const LISTS = {
+  of: (values: readonly Expr[]): Call => PersistentList.of(values),
+  at: listAt,
+  size: listSize,
+  values: listValues,
+  with: listWith,
+};
 
 /** The calls a call is being evaluated inside, innermost first. */
 interface Ancestry {

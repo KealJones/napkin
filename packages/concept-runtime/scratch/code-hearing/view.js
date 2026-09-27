@@ -6,13 +6,18 @@ async (args, bindings, api) => {
   // and gives it back with what that makes of the words around each added.
   const view = api.cells.read(args[0].value);
   const field = {};
-  for (const a of view.args) field[a.name] = a.value.args.map((x) => x.value);
+  for (const a of view.args) field[a.name] = api.lists.values(a.value);
   const n = field.heads.length;
   const kinds = field.kinds.map((k) => k.args.map((a) => a.value));
   const { binds, after, right, pair, inside } = field;
+  // The words whose kinds this changes, and only those, get a new list of kinds.
+  const changed = new Map();
   // A word that closes a bracket ("a ? b : c", "A<T>") is only that bracket's end.
   for (let i = 0; i < n; i++) {
-    if (pair[i] >= 0 && pair[i] < i && !kinds[i].includes("Closer")) kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator" && k !== "Prefix"), "Closer"];
+    if (pair[i] >= 0 && pair[i] < i && !kinds[i].includes("Closer")) {
+      kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator" && k !== "Prefix"), "Closer"];
+      changed.set(i, api.call("List", ...kinds[i]));
+    }
   }
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
   const scope = kinds.map((_, i) => is(i, "Scope"));
@@ -53,7 +58,8 @@ async (args, bindings, api) => {
   // Where what is being said stops: a separator, a closer, a block, a comment, the end.
   const boundary = [...kinds.map((_, i) => is(i, "Separator") || is(i, "Closer") || (scope[i] && !alone[i]) || is(i, "Comment")), true];
   const punctuation = kinds.map((_, i) => is(i, "Separator") || is(i, "Closer"));
-  const derived = api.fromHost({ kinds, operator, stray, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation });
-  const own = new Set(derived.args.map((a) => a.name));
-  return { head: view.head, args: [...view.args.filter((a) => !own.has(a.name)), ...derived.args] };
+  const made = { operator, stray, scope, alone, infix, prefix, unary, postfix, operandEnd, operandStart, boundary, punctuation };
+  const derived = [{ name: "kinds", value: api.lists.with(view.args.find((a) => a.name === "kinds").value, changed) }, ...Object.entries(made).map(([name, xs]) => ({ name, value: api.lists.of(xs.map((x) => api.fromHost(x))) }))];
+  const own = new Set(derived.map((a) => a.name));
+  return { head: view.head, args: [...view.args.filter((a) => !own.has(a.name)), ...derived] };
 }

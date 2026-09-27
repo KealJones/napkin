@@ -77,7 +77,9 @@ async (args, bindings, api) => {
   const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
   // What a word says it is here (Sense): "<" after a name is its angles, "{" after a signature
   // is a block, "get" in "x.get" is only a name. Its Concept, with only the kinds it has.
+  const saying = new Set();
   const become = (i, head) => {
+    saying.add(i);
     if (head === "Name") kinds[i] = ["Name"];
     else {
       heads[i] = head;
@@ -111,10 +113,10 @@ async (args, bindings, api) => {
     }
   };
   // What each word sees while hearing, as Concepts. The words as said, once (Prompt). What each
-  // is, how tightly it holds and what pairs it, as the view's lists, remade in the few sensing
-  // rounds when a word says what it is; CodeView adds what that makes of the words around each.
-  // Who took whom changes every linking round, so each word's parent, role and the edges of the
-  // group it heads are cells, written as links are made (the view holds the cells).
+  // is, how tightly it holds and what pairs it, as the view's lists, changed where a word says
+  // what it is in the few sensing rounds; CodeView adds what that makes of the words around
+  // each. Who took whom changes every linking round: each word's parent, role and the edges of
+  // the group it heads are lists too, a new one each round with only what moved changed.
   const bindsOf = new Map();
   const tight = (head, which) => {
     if (!bindsOf.has(head)) bindsOf.set(head, [claims(head || "", "Binds")[0], claims(head || "", "BindsAfter")[0]]);
@@ -126,23 +128,34 @@ async (args, bindings, api) => {
   const parent = new Array(n).fill(-1);
   const lo = [...Array(n).keys()];
   const hi = [...Array(n).keys()];
-  const cellsOf = (values) => values.map((x) => api.cells.allocate(x));
-  const moving = { parent: cellsOf(parent), role: cellsOf(said.map(() => "")), lo: cellsOf(lo), hi: cellsOf(hi) };
+  const b = (h) => tight(h, 0);
+  const a = (h) => tight(h, 1);
+  const entry = {
+    kinds: (i) => api.call("List", ...kinds[i]),
+    heads: (i) => heads[i] ?? null,
+    binds: (i) => (b(heads[i]) ? b(heads[i]).args[0].value : null),
+    after: (i) => (a(heads[i]) ? a(heads[i]).args[0].value : b(heads[i]) ? b(heads[i]).args[0].value : null),
+    right: (i) => (b(heads[i]) ? b(heads[i]).args.length > 1 : false),
+    pair: (i) => pair[i],
+    inside: (i) => inside[i],
+  };
+  const lists = { parent: api.lists.of(parent), role: api.lists.of(said.map(() => "")), lo: api.lists.of(lo), hi: api.lists.of(hi) };
+  let seen;
+  // The view with these of its lists as they are now.
+  const show = (view, names) => api.cells.write(viewCell, { head: "Record", args: view.args.map((x) => (names.includes(x.name) ? { name: x.name, value: lists[x.name] } : x)) });
   const refresh = async () => {
     structure();
-    const b = (h) => tight(h, 0);
-    const a = (h) => tight(h, 1);
-    const view = api.fromHost({
-      kinds: kinds.map((k) => k.slice()),
-      heads: heads.map((h) => h ?? null),
-      binds: heads.map((h) => (b(h) ? b(h).args[0].value : null)),
-      after: heads.map((h) => (a(h) ? a(h).args[0].value : b(h) ? b(h).args[0].value : null)),
-      right: heads.map((h) => (b(h) ? b(h).args.length > 1 : false)),
-      pair,
-      inside,
-    });
-    const withCells = { head: view.head, args: [...view.args, ...Object.entries(moving).map(([name, refs]) => ({ name, value: api.call("List", ...refs) }))] };
-    api.cells.write(viewCell, withCells);
+    for (const [k, f] of Object.entries(entry)) {
+      if (!seen) lists[k] = api.lists.of(said.map((_, i) => f(i)));
+      else {
+        const moved = k === "pair" || k === "inside" ? said.map((_, i) => i).filter((i) => api.lists.at(lists[k], i) !== f(i)) : [...saying];
+        lists[k] = api.lists.with(lists[k], moved.map((i) => [i, f(i)]));
+      }
+    }
+    saying.clear();
+    seen = true;
+    api.cells.write(viewCell, { head: "Record", args: Object.keys(lists).map((name) => ({ name, value: lists[name] })) });
+    // What CodeView makes of the words is its own lists; the view keeps them until it is asked again.
     api.cells.write(viewCell, await api.evaluate(api.call("CodeView", viewCell), hearing));
   };
   // First, what each word is here. A word says it (Sense, about itself only: "<" after a name
@@ -223,12 +236,13 @@ async (args, bindings, api) => {
       return false;
     };
     const accepted = [];
+    const moved = { parent: new Map(), role: new Map(), lo: new Map(), hi: new Map() };
     for (const p of proposals) {
       if (parent[p.from] >= 0 || p.from === p.to || above(p.to, p.from)) continue;
       accepted.push(p);
       parent[p.from] = p.to;
-      api.cells.write(moving.parent[p.from], p.to);
-      api.cells.write(moving.role[p.from], p.role);
+      moved.parent.set(p.from, p.to);
+      moved.role.set(p.from, p.role);
     }
     // A waiting word waits on the edges of the groups beside it, or on its bracket's parts.
     const next = new Set();
@@ -241,8 +255,8 @@ async (args, bindings, api) => {
       for (let k = p.to, g = 0; k >= 0 && g < n; k = parent[k], g++) {
         lo[k] = Math.min(lo[k], lo[p.from]);
         hi[k] = Math.max(hi[k], hi[p.from]);
-        api.cells.write(moving.lo[k], lo[k]);
-        api.cells.write(moving.hi[k], hi[k]);
+        moved.lo.set(k, lo[k]);
+        moved.hi.set(k, hi[k]);
         touch(k);
         touch(lo[k] - 1);
         touch(hi[k] + 1);
@@ -257,6 +271,8 @@ async (args, bindings, api) => {
         }
       }
     }
+    for (const k of Object.keys(moved)) lists[k] = api.lists.with(lists[k], moved[k]);
+    show(api.cells.read(viewCell), Object.keys(moved));
     links = links.concat(accepted);
     dirty = next;
   }

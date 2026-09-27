@@ -15,6 +15,7 @@ import nlp from "compromise";
 import { exists, home, moduleFile, mtime, read, resolve, runtimeRoot } from "#platform";
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
 import type { CellStore } from "../store/cells.js";
+import { PersistentList } from "../concept/list.js";
 
 const isExprObject = (v: unknown): v is Call =>
   typeof v === "object" && v !== null && typeof (v as Call).head === "string" && Array.isArray((v as Call).args);
@@ -25,6 +26,7 @@ export function toHost(v: unknown, cells?: CellStore): unknown {
   if (!isCall(v as Expr)) return v;
   const e = v as Call;
   if (e.head === "Undefined" && !e.args.length) return undefined;
+  if (e instanceof PersistentList) return e.toArray().map((x) => toHost(x, cells));
   if (e.head === "List") return e.args.map((a) => toHost(a.value, cells));
   if (e.head === "Record" || e.head === "Argument") return Object.fromEntries(e.args.map((a) => [a.name ?? "", toHost(a.value, cells)]));
   if (e.head === "Instant" && typeof e.args[0]?.value === "number") return new Date(e.args[0].value);

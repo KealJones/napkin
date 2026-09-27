@@ -5,14 +5,10 @@ async (args, bindings, api) => {
   const at = self.args[1].value;
   const words = api.cells.read(self.args[0].value).args;
   const field = {};
-  for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value.args;
-  // An entry that changes as links are made is a cell: read what it holds now.
-  const v = (k, i) => {
-    if (!(i >= 0 && i < field[k].length)) return undefined;
-    const x = field[k][i].value;
-    return x !== null && typeof x === "object" && x.head === "CellRef" ? api.cells.read(x) : x;
-  };
-  const n = field.kinds.length;
+  for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value;
+  // Each field is a List, one entry a word.
+  const v = (k, i) => api.lists.at(field[k], i);
+  const n = api.lists.size(field.kinds);
   const is = (i, k) => i >= 0 && i < n && v("kinds", i).args.some((a) => a.value === k);
   const text = (i) => (i >= 0 && i < n ? words[i].value.args[0].value : "");
   const head = (i) => v("heads", i);
