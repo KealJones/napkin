@@ -117,7 +117,7 @@ export interface CodeWord {
  */
 export function codeWords(
   text: string,
-  options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean } = {},
+  options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean; regexAfter?: readonly string[] } = {},
 ): CodeWord[] {
   const spellings = [...(options.spellings ?? [])].sort((a, b) => b.length - a.length);
   const comments = options.comments ?? [];
@@ -239,7 +239,8 @@ export function codeWords(
       i += said.length;
       continue;
     }
-    if (options.regex && ch === "/" && !ends()) {
+    const last = out[out.length - 1];
+    if (options.regex && ch === "/" && (!ends() || (last?.kind === "name" && (options.regexAfter ?? []).includes(last.text)))) {
       let k = i + 1;
       let inClass = false;
       while (k < text.length && text[k] !== "\n" && (inClass || text[k] !== "/")) {

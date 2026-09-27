@@ -62,7 +62,7 @@ for (const entry of WORDS) {
   const only = typeof entry[entry.length - 1] === "string" && entry[entry.length - 1].startsWith("Code(") ? entry[entry.length - 1] : undefined;
   const [head, ks, sym, binds, extra] = only ? entry.slice(0, -1) : entry;
   const here = (claim) => (only ? `Relation(${claim}, context = ${only})` : claim);
-  const parts = ks.map((k) => here(`IsA(${k}())`));
+  const parts = ks.map((k) => here(k === "Keyword" ? "Keyword()" : `IsA(${k}())`));
   if (sym) parts.push(here(`Spelled(${JSON.stringify(sym)})`));
   if (typeof binds === "string") parts.push(here(binds));
   parts.push(...(Array.isArray(binds) ? binds : []), ...(Array.isArray(extra) ? extra.map((x) => (x.startsWith("Relation(") ? x : here(x))) : []));

@@ -33,9 +33,13 @@ async (args, bindings, api) => {
   // A block after an operator is the operator's thing: it stands alone, as a value does.
   const alone = kinds.map((_, i) => scope[i] && leader[i] < 0 && infix[i - 1]);
   // A thing can end here: a name that is not an operator, a value, a closed group (not a block).
-  const plainEnd = (i) => (is(i, "Name") && !infix[i] && !prefix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && (!scope[pair[i]] || alone[pair[i]]) && !is(pair[i] - 1, "Heads"));
-  // An operator that cannot stand alone, found where a thing should be, is a thing ("import *").
-  const stray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1]);
+  // A closed group ends a thing, but not a block, a header ("if (x)"), or a question's ":".
+  const plainEnd = (i) =>
+    (is(i, "Name") && !infix[i] && !prefix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && (!scope[pair[i]] || alone[pair[i]]) && !is(pair[i] - 1, "Heads") && !infix[pair[i]]);
+  // An operator that cannot stand alone, found where a thing should be, is a thing ("import *");
+  // a word that joins, found where a thing should be, is only a name ("(from: number)").
+  const symbolStray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1]);
+  const stray = kinds.map((_, i) => symbolStray[i] || (infix[i] && is(i, "Name") && !is(i, "Unary") && !prefix[i] && !plainEnd(i - 1) && !symbolStray[i - 1]));
   const ends = (i) => plainEnd(i) || !!stray[i];
   // A thing can start here: a name, a value, a group, an operator standing alone.
   const attached = (i) => is(i, "Postfix") || is(i, "Attached");

@@ -4,3 +4,4 @@ step | TS identical | Py identical | ms 10/100/1000 lines | host TS / JS bodies 
 2 brackets as words, TS words+readings, contextual keywords, idioms from JS From rules | 1028/1469 70.0% (106 type-only skipped) | 180/201 89.6% | 18 / 77 / 665 hear (+read); 5000 lines: 3403 hear | 202 / 798 JS + 476 tables / 7274
 3 fixes: brace after ?:, member/key names, said names, defaults, Concat, New binds | 1212/1469 82.5% | see next | - | -
 4 settle fixes (left unit whole, header closers, ?: closer silent, sig type blocks) | 1297/1469 88.3% | 180/201 89.6% | - | -
+5 keywords by language (Keyword), class members, else-if, stray join-words | 1353/1469 92.1% | - | - | -

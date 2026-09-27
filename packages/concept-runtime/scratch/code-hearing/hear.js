@@ -33,7 +33,13 @@ async (args, bindings, api) => {
       if (!spelled.has(s) || r.context !== undefined) spelled.set(s, unit.identity);
     }
   }
-  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside, templates, regex: regex });
+  // Where a "/" may begin a regular expression after a name: after the language's words that
+  // lead or join ("return /x/").
+  const leading = [];
+  for (const unit of api.store.all()) {
+    if (unit.relations.some((r) => isCall(r.claim) && r.claim.head === "Keyword" && holds(r))) leading.push(unit.identity[0].toLowerCase() + unit.identity.slice(1));
+  }
+  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside, templates, regex: regex, regexAfter: leading });
   const n = said.length;
   // A name is its Concept ("print" is Print); layout is a word too (Newline, Indent, Dedent).
   const upper = (t) => t[0].toUpperCase() + t.slice(1);
@@ -63,7 +69,10 @@ async (args, bindings, api) => {
     return out;
   };
   const SHAPE = { name: "Name", number: "Number", text: "Text", comment: "Comment", regex: "Regex" };
-  const kinds = said.map((w, i) => [SHAPE[w.kind] ?? "Symbol", ...kindsOf(heads[i])]);
+  // A name is a word of the language only where the language says it is one (Keyword):
+  // "comma" and "not" are names in TypeScript, "not" a word in Python.
+  const keyword = (head) => claims(head || "", "Keyword").length > 0;
+  const kinds = said.map((w, i) => [SHAPE[w.kind] ?? "Symbol", ...(w.kind !== "name" || keyword(heads[i]) ? kindsOf(heads[i]) : [])]);
   // A word typed other than as its Concept's plain name ("Set" beside "set"), a member's name
   // ("x.set"), or a key ("{ default: 1 }") is a name, whatever the word is elsewhere.
   const is0 = (i, k) => kinds[i].includes(k);
@@ -81,7 +90,8 @@ async (args, bindings, api) => {
     kinds[i] = [SHAPE[said[i].kind] ?? "Symbol", ...kindsOf(head)];
   };
   // A thing ends here: a name that is no operator, a value, a closed bracket.
-  const ends = (i) => (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && !is(i, "Dedent"));
+  const ends = (i) =>
+    (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && !is(i, "Dedent") && heads[i] !== undefined) || (is(i, "Unary") && said[i].kind === "symbol" && i > 0 && ends(i - 1) && said[i + 1] && said[i + 1].kind === "symbol" && "[.(".includes(said[i + 1].text[0]));
   // Where a bracket stands says which it is. "[" after a thing is that thing's index. "<"
   // right after a name, closing on ">" around nothing that computes, is the name's angles.
   // A "{" where a thing can start is a value; where a statement starts, or after what a
@@ -92,7 +102,6 @@ async (args, bindings, api) => {
     if (heads[i] === "Colon" && is(i + 1, "Scope")) kinds[i] = ["Symbol", "Separator"];
   }
   for (let i = 1; i < n; i++) {
-    if (is(i, "Opener") && heads[i] === "Brackets" && ends(i - 1)) become(i, "Index");
     // A colon right after round brackets says what they give: "(x): number".
     if (heads[i] === "Colon" && is(i, "Infix") && said[i - 1].text === ")") become(i, "Returns");
     if (heads[i] === "Less" && is(i - 1, "Name") && !is(i - 1, "Infix")) {
@@ -126,6 +135,8 @@ async (args, bindings, api) => {
     if (is(p, "Opener")) return is(p, "Scope");
     // After a signature's type ("f(): string[] {", "(): void {"), a brace is the block the
     // type is of: look back along what is said for the colon that follows round brackets.
+    // Right after the colon, the brace is the type itself ("(): { a: T } {").
+    if (heads[p] === "Returns") return false;
     for (let j = p; j >= 0; j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
       if (heads[j] === "Returns") return true;
       if (is(j, "Separator") || is(j, "Scope") || (is(j, "Opener") && !(pair[j] >= 0 && pair[j] < i)) || heads[j] === "Arrow" || heads[j] === "Assign") break;
@@ -159,6 +170,11 @@ async (args, bindings, api) => {
       inside[i] = open.length ? open[open.length - 1] : -1;
     }
     if (is(i, "Opener")) open.push(i);
+  }
+  // "[" after a thing (not after a header, "if (x) [a, b] = ...") is that thing's index.
+  for (let i = 1; i < n; i++) {
+    const header = is(i - 1, "Closer") && pair[i - 1] > 0 && is(pair[i - 1] - 1, "Heads");
+    if (heads[i] === "Brackets" && ends(i - 1) && !header) become(i, "Index");
   }
   // Who a block belongs to: the name whose brackets come just before it (a function, a
   // method; with its return type, that type's colon), else the word that leads what is
@@ -276,6 +292,7 @@ async (args, bindings, api) => {
         touch(inside[k]);
         if (pair[hi[k] + 1] >= 0) touch(pair[hi[k] + 1]);
         if (lo[k] > 0 && pair[lo[k] - 1] >= 0) touch(pair[lo[k] - 1]);
+        if (lo[k] > 0 && parent[lo[k] - 1] >= 0) touch(parent[lo[k] - 1]);
       }
     }
     links = links.concat(accepted);

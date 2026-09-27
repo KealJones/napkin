@@ -145,6 +145,32 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("Where a \"/\" may begin a regular expression after a name: after the language's words that"),
+            Comment("lead or join (\"return /x/\")."),
+            Bind($leading, List()),
+            ForOf(
+              $unit,
+              Call(Member(Member($api, "store"), "all")),
+              If(
+                Call(
+                  Member(Member($unit, "relations"), "some"),
+                  Lambda(List($r),
+                    And(
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Keyword")),
+                      Call($holds, $r)
+                    )
+                  )
+                ),
+                Call(
+                  Member($leading, "push"),
+                  Add(
+                    Call(Member(Index(Member($unit, "identity"), 0), "toLowerCase")),
+                    Call(Member(Member($unit, "identity"), "slice"), 1)
+                  )
+                ),
+                Undefined()
+              )
+            ),
             Bind($said,
               Call(
                 Member($api, "codeWords"),
@@ -154,7 +180,8 @@ Concept(Hear(),
                   comments = $comments,
                   offside = $offside,
                   templates = $templates,
-                  regex = $regex
+                  regex = $regex,
+                  regexAfter = $leading
                 )
               )
             ),
@@ -252,13 +279,20 @@ Concept(Hear(),
                 regex = "Regex"
               )
             ),
+            Comment("A name is a word of the language only where the language says it is one (Keyword):"),
+            Comment("\"comma\" and \"not\" are names in TypeScript, \"not\" a word in Python."),
+            Bind($keyword, Lambda(List($head), GreaterThan(Length(Call($claims, Or($head, ""), "Keyword")), 0))),
             Bind($kinds,
               Call(
                 Member($said, "map"),
                 Lambda(List($w, $i),
                   Concat(
                     List(Otherwise(Index($SHAPE, Member($w, "kind")), "Symbol")),
-                    Call($kindsOf, Index($heads, $i))
+                    If(
+                      Or(NotEquals(Member($w, "kind"), "name"), Call($keyword, Index($heads, $i))),
+                      Call($kindsOf, Index($heads, $i)),
+                      List()
+                    )
                   )
                 )
               )
@@ -358,14 +392,35 @@ Concept(Hear(),
                   Or(
                     Or(
                       Or(
-                        And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
-                        Call($is, $i, "Number")
+                        Or(
+                          And(And(Call($is, $i, "Name"), Not(Call($is, $i, "Infix"))), Not(Call($is, $i, "Prefix"))),
+                          Call($is, $i, "Number")
+                        ),
+                        Call($is, $i, "Text")
                       ),
-                      Call($is, $i, "Text")
+                      Call($is, $i, "Regex")
                     ),
-                    Call($is, $i, "Regex")
+                    And(
+                      And(Call($is, $i, "Closer"), Not(Call($is, $i, "Dedent"))),
+                      NotEquals(Index($heads, $i), Undefined())
+                    )
                   ),
-                  And(Call($is, $i, "Closer"), Not(Call($is, $i, "Dedent")))
+                  And(
+                    And(
+                      And(
+                        And(
+                          And(
+                            And(Call($is, $i, "Unary"), Equals(Member(Index($said, $i), "kind"), "symbol")),
+                            GreaterThan($i, 0)
+                          ),
+                          Call($ends, Subtract($i, 1))
+                        ),
+                        Index($said, Add($i, 1))
+                      ),
+                      Equals(Member(Index($said, Add($i, 1)), "kind"), "symbol")
+                    ),
+                    Includes("[.(", Index(Member(Index($said, Add($i, 1)), "text"), 0))
+                  )
                 )
               )
             ),
@@ -417,11 +472,6 @@ Concept(Hear(),
               LessThan($i, $n),
               PostIncrement($i),
               Sequence(
-                If(
-                  And(And(Call($is, $i, "Opener"), Equals(Index($heads, $i), "Brackets")), Call($ends, Subtract($i, 1))),
-                  Call($become, $i, "Index"),
-                  Undefined()
-                ),
                 Comment("A colon right after round brackets says what they give: \"(x): number\"."),
                 If(
                   And(
@@ -512,6 +562,12 @@ Concept(Hear(),
                   ),
                   Comment("After a signature's type (\"f(): string[] {\", \"(): void {\"), a brace is the block the"),
                   Comment("type is of: look back along what is said for the colon that follows round brackets."),
+                  Comment("Right after the colon, the brace is the type itself (\"(): { a: T } {\")."),
+                  If(
+                    Equals(Index($heads, $p), "Returns"),
+                    Return(false),
+                    Undefined()
+                  ),
                   For(
                     Var($j, $p),
                     AtLeast($j, 0),
@@ -662,6 +718,29 @@ Concept(Hear(),
                 If(
                   Call($is, $i, "Opener"),
                   Call(Member($open, "push"), $i),
+                  Undefined()
+                )
+              )
+            ),
+            Comment("\"[\" after a thing (not after a header, \"if (x) [a, b] = ...\") is that thing's index."),
+            For(
+              Var($i, 1),
+              LessThan($i, $n),
+              PostIncrement($i),
+              Sequence(
+                Bind($header,
+                  And(
+                    And(Call($is, Subtract($i, 1), "Closer"), GreaterThan(Index($pair, Subtract($i, 1)), 0)),
+                    Call(
+                      $is,
+                      Subtract(Index($pair, Subtract($i, 1)), 1),
+                      "Heads"
+                    )
+                  )
+                ),
+                If(
+                  And(And(Equals(Index($heads, $i), "Brackets"), Call($ends, Subtract($i, 1))), Not($header)),
+                  Call($become, $i, "Index"),
                   Undefined()
                 )
               )
@@ -1029,6 +1108,11 @@ Concept(Hear(),
                           And(GreaterThan(Index($lo, $k), 0), AtLeast(Index($pair, Subtract(Index($lo, $k), 1)), 0)),
                           Call($touch, Index($pair, Subtract(Index($lo, $k), 1))),
                           Undefined()
+                        ),
+                        If(
+                          And(GreaterThan(Index($lo, $k), 0), AtLeast(Index($parent, Subtract(Index($lo, $k), 1)), 0)),
+                          Call($touch, Index($parent, Subtract(Index($lo, $k), 1))),
+                          Undefined()
                         )
                       )
                     )
@@ -1234,6 +1318,7 @@ Concept(CodeView(),
               )
             ),
             Comment("A thing can end here: a name that is not an operator, a value, a closed group (not a block)."),
+            Comment("A closed group ends a thing, but not a block, a header (\"if (x)\"), or a question's \":\"."),
             Bind($plainEnd,
               Lambda(List($i),
                 Or(
@@ -1249,16 +1334,20 @@ Concept(CodeView(),
                   ),
                   And(
                     And(
-                      Call($is, $i, "Closer"),
-                      Or(Not(Index($scope, Index($pair, $i))), Index($alone, Index($pair, $i)))
+                      And(
+                        Call($is, $i, "Closer"),
+                        Or(Not(Index($scope, Index($pair, $i))), Index($alone, Index($pair, $i)))
+                      ),
+                      Not(Call($is, Subtract(Index($pair, $i), 1), "Heads"))
                     ),
-                    Not(Call($is, Subtract(Index($pair, $i), 1), "Heads"))
+                    Not(Index($infix, Index($pair, $i)))
                   )
                 )
               )
             ),
-            Comment("An operator that cannot stand alone, found where a thing should be, is a thing (\"import *\")."),
-            Bind($stray,
+            Comment("An operator that cannot stand alone, found where a thing should be, is a thing (\"import *\");"),
+            Comment("a word that joins, found where a thing should be, is only a name (\"(from: number)\")."),
+            Bind($symbolStray,
               Call(
                 Member($kinds, "map"),
                 Lambda(List($_, $i),
@@ -1274,6 +1363,26 @@ Concept(CodeView(),
                       Not(Call($plainEnd, Subtract($i, 1)))
                     ),
                     Not(Index($infix, Subtract($i, 1)))
+                  )
+                )
+              )
+            ),
+            Bind($stray,
+              Call(
+                Member($kinds, "map"),
+                Lambda(List($_, $i),
+                  Or(
+                    Index($symbolStray, $i),
+                    And(
+                      And(
+                        And(
+                          And(And(Index($infix, $i), Call($is, $i, "Name")), Not(Call($is, $i, "Unary"))),
+                          Not(Index($prefix, $i))
+                        ),
+                        Not(Call($plainEnd, Subtract($i, 1)))
+                      ),
+                      Not(Index($symbolStray, Subtract($i, 1)))
+                    )
                   )
                 )
               )
@@ -2825,16 +2934,18 @@ Concept(AtLeast(), IsA(Infix()), Spelled(">="), Binds(90))
 
 Concept(AtMost(), IsA(Infix()), Spelled("<="), Binds(90))
 
-Concept(In(), IsA(Infix()), Binds(90))
+Concept(In(), IsA(Infix()), Keyword(), Binds(90))
 
 Concept(Instanceof(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(90), context = Code(TypeScript())),
   Relation(SynonymOf(InstanceOf()), context = Code(TypeScript()))
 )
 
 Concept(As(),
   IsA(Infix()),
+  Keyword(),
   Binds(90),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -2946,6 +3057,7 @@ Concept(As(),
 
 Concept(Satisfies(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(90), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -3055,7 +3167,7 @@ Concept(Satisfies(),
   )
 )
 
-Concept(Is(), IsA(Infix()), Binds(90))
+Concept(Is(), IsA(Infix()), Keyword(), Binds(90))
 
 Concept(Equals(),
   IsA(Infix()),
@@ -3073,12 +3185,14 @@ Concept(NotEquals(),
 
 Concept(LooseEquals(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(80), context = Code(TypeScript())),
   Relation(Spelled("=="), context = Code(TypeScript()))
 )
 
 Concept(LooseNotEquals(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(80), context = Code(TypeScript())),
   Relation(Spelled("!="), context = Code(TypeScript()))
 )
@@ -3104,14 +3218,25 @@ Concept(Bar(),
   SynonymOf(BitOr())
 )
 
-Concept(And(), IsA(Infix()), Spelled("&&"), Binds(40))
+Concept(And(),
+  IsA(Infix()),
+  Spelled("&&"),
+  Binds(40),
+  Relation(Keyword(), context = Code(Python()))
+)
 
-Concept(Or(), IsA(Infix()), Spelled("||"), Binds(30))
+Concept(Or(),
+  IsA(Infix()),
+  Spelled("||"),
+  Binds(30),
+  Relation(Keyword(), context = Code(Python()))
+)
 
 Concept(Otherwise(), IsA(Infix()), Spelled("??"), Binds(30))
 
 Concept(Of(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(22), context = Code(TypeScript()))
 )
 
@@ -3748,6 +3873,7 @@ Concept(Returns(),
 
 Concept(From(),
   IsA(Infix()),
+  Keyword(),
   Binds(10),
   Relation(IsA(Prefix()), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
@@ -3755,11 +3881,13 @@ Concept(From(),
 
 Concept(Extends(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(10), context = Code(TypeScript()))
 )
 
 Concept(Implements(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(10), context = Code(TypeScript()))
 )
 
@@ -4008,6 +4136,7 @@ Concept(Not(),
   Spelled("!"),
   Binds(150),
   Relation(Binds(60), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Realization($word,
     context = Context(Code($language), Reading()),
     evaluateArguments = false,
@@ -4128,24 +4257,28 @@ Concept(Not(),
 
 Concept(Typeof(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(150), context = Code(TypeScript())),
   Relation(SynonymOf(TypeOf()), context = Code(TypeScript()))
 )
 
-Concept(Await(), IsA(Prefix()), Binds(150))
+Concept(Await(), IsA(Prefix()), Keyword(), Binds(150))
 
 Concept(Void(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(150), context = Code(TypeScript()))
 )
 
 Concept(Delete(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(150), context = Code(TypeScript()))
 )
 
 Concept(New(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(210), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -4274,11 +4407,13 @@ Concept(Spread(),
 
 Concept(Const(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Let(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -4401,6 +4536,7 @@ Concept(Let(),
 
 Concept(Var(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -4521,40 +4657,47 @@ Concept(Var(),
   )
 )
 
-Concept(Async(), IsA(Prefix()), Binds(180))
+Concept(Async(), IsA(Prefix()), Keyword(), Binds(180))
 
 Concept(Static(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Readonly(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Private(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Public(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Protected(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Abstract(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Declare(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -4672,16 +4815,19 @@ Concept(Declare(),
 
 Concept(Get(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Set(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(180), context = Code(TypeScript()))
 )
 
 Concept(Return(),
   IsA(Prefix()),
+  Keyword(),
   Binds(0),
   Realization(Return(Rest($xs)),
     context = Context(Code($language), Reading()),
@@ -4692,16 +4838,19 @@ Concept(Return(),
 
 Concept(Throw(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Raise(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Yield(),
   IsA(Prefix()),
+  Keyword(),
   Binds(0),
   Realization(Yield(Rest($xs)),
     context = Context(Code($language), Reading()),
@@ -4712,6 +4861,7 @@ Concept(Yield(),
 
 Concept(Break(),
   IsA(Prefix()),
+  Keyword(),
   Binds(0),
   Realization(Break(Rest($xs)),
     context = Context(Code($language), Reading()),
@@ -4722,6 +4872,7 @@ Concept(Break(),
 
 Concept(Continue(),
   IsA(Prefix()),
+  Keyword(),
   Binds(0),
   Realization(Continue(Rest($xs)),
     context = Context(Code($language), Reading()),
@@ -4733,6 +4884,7 @@ Concept(Continue(),
 Concept(Import(),
   IsA(Prefix()),
   IsA(Callable()),
+  Keyword(),
   Binds(0),
   Relation(IsA(Infix()), context = Code(Python())),
   Relation(Binds(10), context = Code(Python())),
@@ -4913,6 +5065,7 @@ Concept(Import(),
 
 Concept(Export(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -5096,11 +5249,13 @@ Concept(Export(),
 
 Concept(Default(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Type(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -5218,6 +5373,7 @@ Concept(Type(),
 
 Concept(Interface(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -5335,16 +5491,19 @@ Concept(Interface(),
 
 Concept(Enum(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Namespace(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Class(),
   IsA(Prefix()),
+  Keyword(),
   Binds(0),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -5514,35 +5673,70 @@ Concept(Class(),
                       ),
                       Undefined()
                     ),
+                    Comment("A field: its modifiers are said on its name (\"private readonly x: T = v\")."),
                     If(
-                      Call($is, $m, "Assign"),
-                      Return(
-                        Call(
-                          Member($api, "call"),
-                          "Field",
-                          Call($nameOf, Await(Call($ask, "CodeTarget", Index($p, 0)))),
-                          Await(Call($read, Index($p, 1)))
-                        )
-                      ),
-                      Undefined()
-                    ),
-                    If(
-                      Call($is, $m, "Colon"),
-                      Return(
-                        If(
-                          Call($is, Index($p, 1), "Assign"),
-                          Call(
-                            Member($api, "call"),
-                            "Field",
-                            Call($nameOf, Index($p, 0)),
-                            Await(Call($read, Index(Call($positional, Index($p, 1)), 1)))
+                      Or(Or(Call($is, $m, "Assign"), Call($is, $m, "Colon")), Call($is, $m, "OptionalColon")),
+                      Sequence(
+                        Var($target, Index($p, 0)),
+                        Bind($mods, List()),
+                        While(
+                          And(
+                            Call($isCall, $target),
+                            Includes(
+                              List(
+                                "Static",
+                                "Private",
+                                "Readonly",
+                                "Public",
+                                "Protected",
+                                "Abstract",
+                                "Declare"
+                              ),
+                              Member($target, "head")
+                            )
                           ),
+                          Sequence(
+                            Call(Member($mods, "push"), Member($target, "head")),
+                            Assign($target, Index(Call($positional, $target), 0))
+                          )
+                        ),
+                        Bind($value,
+                          If(
+                            Call($is, $m, "Assign"),
+                            Await(Call($read, Index($p, 1))),
+                            If(
+                              Call($is, Index($p, 1), "Assign"),
+                              Await(Call($read, Index(Call($positional, Index($p, 1)), 1))),
+                              Call(Member($api, "call"), "Undefined")
+                            )
+                          )
+                        ),
+                        Var(
+                          $field,
                           Call(
                             Member($api, "call"),
                             "Field",
-                            Call($nameOf, Index($p, 0))
+                            Call(
+                              $nameOf,
+                              If(
+                                Call($is, $target, "Colon"),
+                                Index(Call($positional, $target), 0),
+                                $target
+                              )
+                            ),
+                            $value
                           )
-                        )
+                        ),
+                        ForOf(
+                          $mod,
+                          Call(Member($mods, "reverse")),
+                          If(
+                            Not(Includes(List("Public", "Protected", "Abstract", "Declare"), $mod)),
+                            Assign($field, Call(Member($api, "call"), $mod, $field)),
+                            Undefined()
+                          )
+                        ),
+                        Return($field)
                       ),
                       Undefined()
                     ),
@@ -5606,29 +5800,27 @@ Concept(Class(),
             ForOf(
               $m,
               $members,
-              Call(Member($out, "push"), Await(Call($member, $m)))
-            ),
-            Bind($name, Call($variable, $head)),
-            Return(
               If(
-                NotEquals($base, Undefined()),
-                Call(
-                  Member($api, "call"),
-                  "Class",
-                  $name,
+                Not(Call($is, $m, "Comment")),
+                Call(Member($out, "push"), Await(Call($member, $m))),
+                Undefined()
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Class",
+                Call($variable, $head),
+                If(
+                  NotEquals($base, Undefined()),
                   Call(
                     Member($api, "call"),
                     "Extends",
                     Await(Call($read, $base))
                   ),
-                  Call(Member($api, "call"), "List", Spread($out))
+                  Call(Member($api, "call"), "Undefined")
                 ),
-                Call(
-                  Member($api, "call"),
-                  "Class",
-                  $name,
-                  Call(Member($api, "call"), "List", Spread($out))
-                )
+                Call(Member($api, "call"), "List", Spread($out))
               )
             )
           )
@@ -5640,6 +5832,7 @@ Concept(Class(),
 
 Concept(Function(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript())),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -5798,6 +5991,7 @@ Concept(Function(),
 
 Concept(Def(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python())),
   Realization($word,
     context = Context(Code(Python()), Reading()),
@@ -5938,32 +6132,38 @@ Concept(Def(),
 
 Concept(Lambda(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(20), context = Code(Python()))
 )
 
 Concept(With(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Assert(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Global(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Del(),
   Relation(IsA(Prefix()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Try(),
   IsA(Prefix()),
   IsA(TakesBlock()),
+  Keyword(),
   Binds(0),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -6145,12 +6345,14 @@ Concept(Try(),
 Concept(Do(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
   Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(If(),
   IsA(Prefix()),
   IsA(Heads()),
+  Keyword(),
   Binds(0),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -6280,6 +6482,7 @@ Concept(If(),
 Concept(For(),
   IsA(Prefix()),
   IsA(Heads()),
+  Keyword(),
   Binds(0),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -6571,6 +6774,7 @@ Concept(For(),
 Concept(While(),
   IsA(Prefix()),
   IsA(Heads()),
+  Keyword(),
   Binds(0),
   Realization($word,
     context = Context(Code($language), Reading()),
@@ -6696,12 +6900,14 @@ Concept(While(),
 Concept(Switch(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
   Relation(IsA(Heads()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Else(),
   IsA(Continues()),
   IsA(TakesBlock()),
+  Keyword(),
   Binds(0),
   Realization(Else(Rest($xs)),
     context = Context(Code($language), Reading()),
@@ -6712,23 +6918,27 @@ Concept(Else(),
 
 Concept(Elif(),
   Relation(IsA(Continues()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Catch(),
   Relation(IsA(Continues()), context = Code(TypeScript())),
   Relation(IsA(Heads()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
 Concept(Except(),
   Relation(IsA(Continues()), context = Code(Python())),
+  Relation(Keyword(), context = Code(Python())),
   Relation(Binds(0), context = Code(Python()))
 )
 
 Concept(Finally(),
   Relation(IsA(Continues()), context = Code(TypeScript())),
   Relation(IsA(TakesBlock()), context = Code(TypeScript())),
+  Relation(Keyword(), context = Code(TypeScript())),
   Relation(Binds(0), context = Code(TypeScript()))
 )
 
