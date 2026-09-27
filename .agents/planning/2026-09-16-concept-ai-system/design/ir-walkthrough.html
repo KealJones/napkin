@@ -208,7 +208,7 @@
   <div class="content">
     <div class="kicker reveal">4 &middot; Picking a move</div>
     <h2 class="reveal d1">Nobody dispatches. It climbs the family tree.</h2>
-    <p class="reveal d2">To run <code>Plus(A(), B())</code>, Napkin looks for a realization, starting with the word itself and climbing what it <code>IsA</code>, all the way up to the universal parent, <code>Concept</code>.</p>
+    <p class="reveal d2">To run <code>Plus(2, 3)</code>, Napkin looks for a realization, starting with the word itself and climbing what it <code>IsA</code>, all the way up to the universal parent, <code>Concept</code>.</p>
     <div class="ladder reveal d3">
       <div class="rung"><span class="chip r">Plus</span><span>its own tricks win</span></div>
       <div class="rung"><span class="chip y">Infix</span><span>then its kind's</span></div>
@@ -229,10 +229,10 @@
     <p class="reveal d2">A context is a set of facets. A realization only runs in the contexts it names. Here is one Concept, <code>Times</code>, in five rooms, with no if-statements anywhere.</p>
     <div class="stage">
       <div class="ctx reveal d1"><span class="tag" style="background:var(--purple)">Hearing()</span><div class="mono">"5 times 3"</div><div class="out">&rarr; Times(5, 3)</div><small class="muted">hearing English: the word finds its numbers, it doesn't multiply</small></div>
-      <div class="ctx reveal d2"><span class="tag" style="background:var(--purple)">Hearing(Code(TypeScript()))</span><div class="mono">a * b</div><div class="out">&rarr; Times(A(), B())</div><small class="muted">hearing code: "*" is Times too</small></div>
+      <div class="ctx reveal d2"><span class="tag" style="background:var(--purple)">Hearing(Code(TypeScript()))</span><div class="mono">a * b</div><div class="out">&rarr; Times(Identifier("a"), Identifier("b"))</div><small class="muted">hearing code: "*" is Times too; names stay names</small></div>
       <div class="ctx reveal d3"><span class="tag" style="background:var(--blue)">Execution()</span><div class="mono">Times(5, 3)</div><div class="out">&rarr; 15</div><small class="muted">working it out</small></div>
       <div class="ctx reveal d4"><span class="tag" style="background:var(--green)">Speaking()</span><div class="mono">Times()</div><div class="out">&rarr; "times"</div><small class="muted">saying it</small></div>
-      <div class="ctx reveal d5"><span class="tag" style="background:var(--red)">Code(TypeScript()), Reading()</span><div class="mono">Times(A(), B())</div><div class="out">&rarr; Multiply($a, $b)</div><small class="muted">reading code into the IR</small></div>
+      <div class="ctx reveal d5"><span class="tag" style="background:var(--red)">Code(TypeScript()), Reading()</span><div class="mono">const a = 2; a * b</div><div class="out">&rarr; Multiply($a, UnboundName("b"))</div><small class="muted">reading code into the IR: a is bound, b is not</small></div>
     </div>
     <p class="reveal d5" style="margin-top:22px"><b>Mood</b> is a facet too. "what is 17 times 4" reads as <code>Mood(Interrogative(), What(Is(Times(17, 4))))</code>, and <code>Interrogative</code> has one realization that every question word inherits.</p>
   </div>
@@ -268,13 +268,13 @@
       <span class="tok" style="--dy:0;--rot:-3deg">for</span><span class="tok">(</span><span class="tok">const</span><span class="tok">element</span><span class="tok">of</span><span class="tok">object</span><span class="tok">)</span><span class="tok">{</span><span class="tok">print</span><span class="tok">(</span><span class="tok">element</span><span class="tok">)</span><span class="tok">}</span>
     </div>
     <div class="row reveal d2"><span class="arrow">&darr;</span><span class="muted"><b>sense:</b> each word says what it is here (this <code>{</code> is a block, these brackets pair)</span></div>
-    <div class="row reveal d3"><span class="arrow">&darr;</span><span class="muted"><b>link:</b> For takes its header and its block, Of joins two sides</span></div>
+    <div class="row reveal d3"><span class="arrow">&darr;</span><span class="muted"><b>link:</b> For takes its header and its block, Of joins two sides. Names stay names, as written.</span></div>
     <div class="tree reveal d3">For(
-  Of(Const(Element()), Object()),
-  Print(Element())
+  Of(Const(Identifier("element")), Identifier("object")),
+  Identifier("print", Identifier("element"))
 )</div>
-    <div class="row reveal d4"><span class="arrow">&darr;</span><span class="muted"><b>read</b> under <code>Context(Code(TypeScript()), Reading())</code></span></div>
-    <div class="reveal d4"><span class="expr"><span class="h">Module</span>(<span class="h">ForOf</span>(<span class="v">$element</span>, <span class="v">$object</span>, <span class="h">Call</span>(<span class="v">$print</span>, <span class="v">$element</span>)))</span></div>
+    <div class="row reveal d4"><span class="arrow">&darr;</span><span class="muted"><b>read</b> under <code>Context(Code(TypeScript()), Reading())</code>, by scope: <code>element</code> is bound by the loop, <code>object</code> and <code>print</code> aren't bound here</span></div>
+    <div class="reveal d4"><span class="expr"><span class="h">Module</span>(<span class="h">ForOf</span>(<span class="v">$element</span>, <span class="h">UnboundName</span>(<span class="s">"object"</span>), <span class="h">Call</span>(<span class="h">UnboundName</span>(<span class="s">"print"</span>), <span class="v">$element</span>)))</span></div>
     <p class="reveal d5">Python says <code>for element in object:</code>, gets heard as <code>For(In(...))</code>, and reads to the <b>exact same</b> IR.
       Then <code>To</code> rules write it back out in any language. Intent in, any language out.</p>
   </div>

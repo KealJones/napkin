@@ -1251,3 +1251,18 @@ details > summary { cursor: pointer; }
 .code-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .code-editor { width: 100%; flex: 1; min-height: 60vh; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 10px; resize: vertical; tab-size: 2; white-space: pre; }
 .code-note { white-space: pre-wrap; }
+
+/* How it works: the walkthrough fills the page below the top bar. */
+.walkthrough-page {
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.walkthrough-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 64px);
+  border: 0;
+}

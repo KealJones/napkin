@@ -190,8 +190,8 @@ pattern's head, under the context shown. They are graph data like everything els
   More specific patterns win ties.
 
 ```
-pattern  Assign(Const($x), $v)      matches  Assign(Const(Element()), 1)
-                                    binds    $x = Element(), $v = 1
+pattern  Assign(Const($x), $v)      matches  Assign(Const(Identifier("n")), 1)
+                                    binds    $x = Identifier("n"), $v = 1
 ```
 
 ### 5.2 Selection: which realization
@@ -504,13 +504,14 @@ with the language as context. No per-language syntax Concepts.
 flowchart LR
   X["for (const element of object) { print(element) }"] -->|"codeWords: tokens by shape"| W["words: For, Parens, Const, Element, Of, ..."]
   W -->|"Sensing(Code(TypeScript()))<br/>Sense, Closes, Waits"| S["what each word is here;<br/>brackets paired"]
-  S -->|"Hearing(Code(TypeScript()))<br/>Link(from, to, role)"| HE["For(Of(Const(Element()), Object()), Print(Element()))"]
-  HE -->|"Context(Code(TypeScript()), Reading())"| IR["Module(ForOf($element, $object, Call($print, $element)))"]
+  S -->|"Hearing(Code(TypeScript()))<br/>Link(from, to, role)"| HE["For(Of(Const(Identifier(&quot;element&quot;)), Identifier(&quot;object&quot;)), Identifier(&quot;print&quot;, Identifier(&quot;element&quot;)))"]
+  HE -->|"Context(Code(TypeScript()), Reading())"| IR["Module(ForOf($element, UnboundName(&quot;object&quot;), Call(UnboundName(&quot;print&quot;), $element)))"]
 ```
 
 1. **Words.** `api.codeWords` cuts the text by shape (names, numbers, strings, symbols,
    comments; indentation for Python). A symbol is the Concept that is `Spelled` that way (`+` is
-   `Plus`); a name is capitalized (`print` is `Print`). The words are hand-written Concepts in
+   `Plus`). A name is one of the language's words only where the language says so
+   (`Keyword()`): `for`, `const`, `return`, `true`. The words are hand-written Concepts in
    `packs/codewords.ncon`:
 
    ```
@@ -528,7 +529,7 @@ flowchart LR
    - `{` after a signature or where a statement starts says `Sense(at, Block())`
    - `[` after a thing says `Index`; `(` after a closed group says `Apply`
    - `:` before a Python block says `BlockColon`; after `)` it says `Returns`
-   - a keyword used as a name (`x.get`, `{ default: 1 }`) says `Sense(at, Name())`
+   - a language word used as a name (`x.get`, `{ default: 1 }`) says `Sense(at, Name())`
    - a bracket finds its closer (`Closes`); a word that needs more brackets closed says `Waits`
      and is asked again
 
@@ -538,32 +539,62 @@ flowchart LR
    word that leads it. The view each word consults (`CodeView`) is Concepts: lists per field,
    with who-took-whom kept as persistent Lists updated each round.
 
-4. **Heard.** Each word becomes its Concept holding the words it took, in the order said. The
-   two languages differ only where their words do:
+4. **Heard.** Each language word becomes its Concept holding the words it took, in the order
+   said. **Any other name is an `Identifier`, as written**, holding what it took: hearing says
+   "a name, spelled `print`", and never turns it into a Concept that happens to share its
+   spelling (a variable named `map` is not the Concept `Map`). The two languages differ only
+   where their words do:
 
    ```
-   TypeScript  For(Of(Const(Element()), Object()), Print(Element()))
-   Python      For(In(Element(), Object()), Print(Element()))
+   TypeScript  For(Of(Const(Identifier("element")), Identifier("object")),
+                   Identifier("print", Identifier("element")))
+   Python      For(In(Identifier("element"), Identifier("object")),
+                   Identifier("print", Identifier("element")))
    ```
-
-   `element` is still `Element()` here. Whether a name is a variable, a function or a global is
-   meaning, and meaning is reading's job.
 
 5. **Reading** (`Context(Code(L), Reading())`). Heard words realize as the code IR:
    - renamings in `packs/codereadings.ncon`: `Realization(PlusAssign($x, $v), ..., body =
      Assign($x, Add($x, $v)))`
    - readings that work something out are each Concept's own body (`read/For.js`: `Of` gives
      `ForOf`, `In` gives `ForIn`); a `.Python.js` body holds only in Python
-   - a name with no reading of its own is a variable (`$element`), or a call if it holds
-     something (`print(x)` is `Call($print, $x)`)
    - members come from the graph: `Map` has `Method("map", 1, Passes(1))` in
      `Code(TypeScript())`, so `xs.map(f)` reads as `Map($xs, f)`; `Length` has
      `Property("length")`
    - a number's suffix comes from the graph: `BigInt` has `NumberSuffix("n")` in TypeScript
 
-Status: 97.3% of this repo's TypeScript statements and 95.5% of comparable Python stdlib
+6. **Names, by scope, never guessed.** Before reading statements, `CodeScope` collects the
+   names the code binds. The words say how they bind, as relations in `codewords.ncon`:
+
+   | Relation | On | Binds |
+   |---|---|---|
+   | `Declares()` | Const, Let, Var, Import, Catch | what it holds |
+   | `DeclaresFirst()` | For, Assign | its first part (the loop's binding, the target) |
+   | `DeclaresName()` | Function, Def, Class | the name it holds and what that name takes |
+   | `DeclaresParameters()` | Arrow, Lambda | what it is given |
+   | `BindsLeft()`, `BindsRight()` | Of, In, Colon, Assign; As | which side of a pair is bound |
+
+   Then each `Identifier` reads as:
+   - **bound by the code**: the program's variable, `$x`
+   - **not bound, but the graph names it in this language** (`GlobalName("console")` on a
+     Concept, not shadowed): that Concept
+   - **otherwise**: `UnboundName("print")`. It is a value, not a variable: evaluating it is
+     harmless (an unbound `$print` would be an error, and a pattern variable of the same name
+     could capture it), the graph can resolve it once it knows more, and it is written back as
+     it was (`To(UnboundName($n), "#n")`).
+
+   ```
+   const a = 2; a * b     ->  Module(Sequence(Bind($a, 2), Multiply($a, UnboundName("b"))))
+   for x in xs: print(x)  ->  Module(ForOf($x, UnboundName("xs"), Call(UnboundName("print"), $x)))
+                               written back: for (let x of xs) { print(x) }
+   ```
+
+   Because free names are values, the same IR can be put in a context that explains it rather
+   than runs it ("explain this code"), with nothing throwing on an unbound variable.
+
+Status: 97.4% of this repo's TypeScript statements and 95.5% of comparable Python stdlib
 statements read identically to the old readers; 5000 lines hear in about 1s (the TypeScript
-compiler takes about 0.1s).
+compiler takes about 0.1s). The old readers write every name as `$name`, so the comparison
+counts `UnboundName("x")` as `$x`.
 
 ### 8.4 Writing code
 
@@ -647,6 +678,8 @@ derives it.
 | make it a word for something else | `SynonymOf(Multiply())` |
 | give it an English wording | `Realization(X(), context = Speaking(), body = "...")` |
 | read a language construct | a reading under `Context(Code(L), Reading())` (or a `From` rule) |
+| say how a code word binds names | `Declares()`, `DeclaresFirst()`, `DeclaresName()`, `DeclaresParameters()` **(spike)** |
+| say a free name is a known global | `Relation(GlobalName("console"), context = Code(TypeScript()))` **(spike)** |
 | write a construct in a language | `To(Construct(...), "template")` |
 | try without side effects | evaluate under `Hypothetical()` |
 | keep a facet's workings out of the trace | `Quiet()` on the facet **(spike)** |
