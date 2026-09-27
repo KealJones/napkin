@@ -5,6 +5,9 @@ packages:
 allowBuilds:
   core-js: false
   esbuild: true
+  tree-sitter-javascript: false
+  tree-sitter-python: false
+  tree-sitter-typescript: false
 
 patchedDependencies:
   difflib@0.2.4: patches/difflib@0.2.4.patch

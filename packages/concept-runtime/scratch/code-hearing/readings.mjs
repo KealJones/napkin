@@ -121,6 +121,9 @@ export const READINGS = {
   ],
   Let: [w('"let y": y, holding nothing yet.', `return parts.length === 1 ? api.call("Var", await ask("CodeTarget", parts[0]), api.call("Undefined")) : api.call("Let", ...parts);`)],
   Var: [w('"var y": y, holding nothing yet.', `return parts.length === 1 ? api.call("Var", await ask("CodeTarget", parts[0]), api.call("Undefined")) : api.call("Var", ...parts);`)],
+  // The language's words for what the code IR names otherwise.
+  Typeof: [reads("Typeof($x)", "TypeOf($x)")],
+  Instanceof: [reads("Instanceof($a, $b)", "InstanceOf($a, $b)")],
   PlusAssign: [reads("PlusAssign($x, $v)", "Assign($x, Add($x, $v))")],
   MinusAssign: [reads("MinusAssign($x, $v)", "Assign($x, Subtract($x, $v))")],
   TimesAssign: [reads("TimesAssign($x, $v)", "Assign($x, Multiply($x, $v))")],

@@ -3319,8 +3319,12 @@ Concept(In(),
 Concept(Instanceof(),
   Relation(IsA(Infix()), context = Code(TypeScript())),
   Relation(Keyword(), context = Code(TypeScript())),
-  Relation(SynonymOf(InstanceOf()), context = Code(TypeScript())),
-  Relation(Binds(90), context = Code(TypeScript()))
+  Relation(Binds(90), context = Code(TypeScript())),
+  Realization(Instanceof($a, $b),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = InstanceOf($a, $b)
+  )
 )
 
 Concept(As(),
@@ -3589,26 +3593,23 @@ Concept(LooseNotEquals(),
   Relation(Spelled("!="), context = Code(TypeScript()))
 )
 
-Concept(Ampersand(),
+Concept(BitAnd(),
   IsA(Infix()),
   Spelled("&"),
-  SynonymOf(BitAnd()),
   Relation(Binds(70), context = Code(TypeScript())),
   Relation(Binds(101), context = Code(Python()))
 )
 
-Concept(Caret(),
+Concept(BitXor(),
   IsA(Infix()),
   Spelled("^"),
-  SynonymOf(BitXor()),
   Relation(Binds(60), context = Code(TypeScript())),
   Relation(Binds(115), context = Code(Python()))
 )
 
-Concept(Bar(),
+Concept(BitOr(),
   IsA(Infix()),
   Spelled("|"),
-  SynonymOf(BitOr()),
   Relation(Binds(50), context = Code(TypeScript())),
   Relation(Binds(87), context = Code(Python()))
 )
@@ -4656,8 +4657,12 @@ Concept(Not(),
 Concept(Typeof(),
   Relation(IsA(Prefix()), context = Code(TypeScript())),
   Relation(Keyword(), context = Code(TypeScript())),
-  Relation(SynonymOf(TypeOf()), context = Code(TypeScript())),
-  Relation(Binds(150), context = Code(TypeScript()))
+  Relation(Binds(150), context = Code(TypeScript())),
+  Realization(Typeof($x),
+    context = Context(Code($language), Reading()),
+    resultContext = Code(),
+    body = TypeOf($x)
+  )
 )
 
 Concept(Await(),
