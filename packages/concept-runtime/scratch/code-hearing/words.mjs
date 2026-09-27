@@ -83,6 +83,7 @@ export const WORDS = [
   ["Import", ["Prefix", "Callable", "Keyword"], undefined, "Binds(0)", [only("IsA(Infix())", PY), only("Binds(10)", PY)]],
   ["Export", ["Prefix", "Keyword"], undefined, "Binds(0)", TS],
   ["Default", ["Prefix", "Keyword"], undefined, "Binds(0)", TS],
+  ["Case", ["Prefix", "Keyword"], undefined, "Binds(16)", TS],
   ["Type", ["Prefix", "Keyword", "Contextual"], undefined, "Binds(0)", TS],
   ["Interface", ["Prefix", "Keyword"], undefined, "Binds(0)", TS],
   ["Enum", ["Prefix", "Keyword"], undefined, "Binds(0)", TS],

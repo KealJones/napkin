@@ -41,15 +41,20 @@ async (args, bindings, api) => {
     (is(i, "Name") && !infix[i] && !prefix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && (!scope[pair[i]] || alone[pair[i]]) && !is(pair[i] - 1, "Heads") && !infix[pair[i]]);
   // An operator that cannot stand alone, found where a thing should be, is a thing ("import *");
   // a word that joins, found where a thing should be, is only a name ("(from: number)").
-  const symbolStray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1]);
+  // (nothing after it to hold either: "import * as", but not "(): void =>").
+  const nothingAfter = (i) => !(is(i + 1, "Name") && !infix[i + 1]) && !is(i + 1, "Number") && !is(i + 1, "Text") && !is(i + 1, "Regex") && !(is(i + 1, "Opener") && !scope[i + 1]) && !alone[i + 1] && !is(i + 1, "Unary");
+  const symbolStray = kinds.map((_, i) => infix[i] && !is(i, "Unary") && !prefix[i] && !is(i, "Name") && i > 0 && !plainEnd(i - 1) && !infix[i - 1] && nothingAfter(i));
   const stray = kinds.map((_, i) => symbolStray[i] || (infix[i] && is(i, "Name") && !is(i, "Unary") && !prefix[i] && !plainEnd(i - 1) && !symbolStray[i - 1]));
-  const ends = (i) => plainEnd(i) || !!stray[i];
+  // A leading word with nothing to lead is only a name ("(): void =>", "default:").
+  const leads = (i) => prefix[i] && is(i, "Name") && !is(i, "Heads") && !is(i, "TakesBlock") && !is(i, "Continues") && !infix[i];
+  const idle = kinds.map((_, i) => leads(i) && i + 1 <= n && !(is(i + 1, "Name") || is(i + 1, "Number") || is(i + 1, "Text") || is(i + 1, "Regex") || (is(i + 1, "Opener") && !scope[i + 1]) || is(i + 1, "Unary") || is(i + 1, "Prefix") || stray[i + 1]));
+  const ends = (i) => plainEnd(i) || !!stray[i] || !!idle[i];
   // What binds as an operator does, for what waits on it: operators that are not only names
   // here, and an index after a thing.
   const operator = kinds.map((_, i) => (infix[i] && !stray[i]) || is(i, "Postfix"));
   // A thing can start here: a name, a value, a group, an operator standing alone.
   const attached = (i) => is(i, "Postfix") || is(i, "Attached");
-  const starts = (i, lone) => stray[i] || (is(i, "Name") && !infix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Opener") && !scope[i] && !attached(i) && !infix[i]) || alone[i] || lone(i);
+  const starts = (i, lone) => stray[i] || idle[i] || (is(i, "Name") && !infix[i]) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Opener") && !scope[i] && !attached(i) && !infix[i]) || alone[i] || lone(i);
   // An operator with a thing before it and none after holds only that thing ("x++", "x!"),
   // and ends a thing itself; one with nothing before it holds only what follows ("-x").
   // Only a word that can stand before a thing alone (Unary: "-", "!", "++") does.
