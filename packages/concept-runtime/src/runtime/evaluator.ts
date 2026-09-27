@@ -141,7 +141,7 @@ export interface CodeApi {
    */
   verbatim(text: string): Promise<{ text: string; spans: Expr[] }>;
   /** Code's words by their shape: names, numbers, text, comments, symbols, and layout (host.ts). */
-  codeWords(text: string, options?: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean }): CodeWord[];
+  codeWords(text: string, options?: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean }): CodeWord[];
 }
 
 export class Runtime {

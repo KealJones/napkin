@@ -97,20 +97,28 @@ export function words(text: string): { text: string; typed: string; tags: string
 
 export interface CodeWord {
   readonly text: string;
-  readonly kind: "name" | "number" | "text" | "comment" | "symbol" | "newline" | "indent" | "dedent";
-  /** A string's contents, a comment's words. */
+  readonly kind: "name" | "number" | "text" | "comment" | "symbol" | "newline" | "indent" | "dedent" | "template" | "template-end" | "regex";
+  /** A string's contents, a comment's words; a regular expression's source. */
   readonly value?: string;
+  /** A regular expression's flags. */
+  readonly flags?: string;
 }
 
 /**
  * Code's words by their shape alone (CodeApi.codeWords), the way `words` gives English's:
  * names, numbers (with any suffix, "3n", as typed), quoted text, comments, and symbols, the
  * longest of the `spellings` the graph knows first. What the language says is passed in: its
- * comment starts, and whether indentation carries structure (`offside`), which gives Indent
- * and Dedent. A line break is a word only between two things that could each end and start
- * a statement. No word's role is named here; the graph hears them.
+ * comment starts, whether indentation carries structure (`offside`, which gives Indent and
+ * Dedent), which quote holds text with `${...}` inside (`templates`: its pieces of text and
+ * what is inside each `${`, between a "template" and a "template-end"), and whether a "/"
+ * where a thing can start begins a regular expression (`regex`). A line break is a word only
+ * between two things that could each end and start a statement. No word's role is named
+ * here; the graph hears them.
  */
-export function codeWords(text: string, options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean } = {}): CodeWord[] {
+export function codeWords(
+  text: string,
+  options: { spellings?: readonly string[]; comments?: readonly string[]; offside?: boolean; templates?: string; regex?: boolean } = {},
+): CodeWord[] {
   const spellings = [...(options.spellings ?? [])].sort((a, b) => b.length - a.length);
   const comments = options.comments ?? [];
   const out: CodeWord[] = [];
@@ -120,24 +128,56 @@ export function codeWords(text: string, options: { spellings?: readonly string[]
   let depth = 0;
   let lineStart = true;
   let i = 0;
+  // Inside a template's ${...}: how many braces deep, so its closing } goes back to the text.
+  const interpolations: number[] = [];
   const ends = () => {
     const last = out[out.length - 1];
-    return !!last && (last.kind === "name" || last.kind === "number" || last.kind === "text" || (last.kind === "symbol" && closes.includes(last.text)));
+    return (
+      !!last &&
+      (last.kind === "name" || last.kind === "number" || last.kind === "text" || last.kind === "regex" || last.kind === "template-end" || (last.kind === "symbol" && closes.includes(last.text)))
+    );
   };
   let pendingBreak = false;
   const push = (w: CodeWord) => {
     // A break between an end and a start separates them; anywhere else it is layout.
-    if (pendingBreak && depth === 0 && ends() && (w.kind === "name" || w.kind === "number" || w.kind === "text" || w.kind === "comment" || (w.kind === "symbol" && opens.includes(w.text)))) out.push({ text: "\n", kind: "newline" });
+    const starts =
+      w.kind === "name" || w.kind === "number" || w.kind === "text" || w.kind === "comment" || w.kind === "template" || w.kind === "regex" || (w.kind === "symbol" && opens.includes(w.text));
+    if (pendingBreak && depth === 0 && !interpolations.length && ends() && starts) out.push({ text: "\n", kind: "newline" });
     pendingBreak = false;
     out.push(w);
   };
+  const at = (re: RegExp): string | undefined => {
+    re.lastIndex = i;
+    const m = re.exec(text);
+    return m ? m[0] : undefined;
+  };
+  const LEAD = /[ \t]*/y;
+  const NUMBER = /(0[xob][0-9a-f_]+|\d[\d_]*(\.\d*)?([eE][+-]?\d+)?)[A-Za-z]*/iy;
+  const NAME = /[\p{L}_$][\p{L}\p{N}_$]*/uy;
+  const QUOTE = /"""|'''|"|'|`/y;
+  const unescape = (s: string) => s.replace(/\\(.)/g, (_, c: string) => ({ n: "\n", t: "\t", r: "\r" })[c] ?? c);
+  // A template's text up to its end or its next ${.
+  const templateText = () => {
+    const q = options.templates!;
+    let k = i;
+    while (k < text.length && !text.startsWith(q, k) && !text.startsWith("${", k)) k += text[k] === "\\" ? 2 : 1;
+    push({ text: text.slice(i, k), kind: "text", value: unescape(text.slice(i, k)) });
+    i = k;
+    if (text.startsWith("${", i)) {
+      push({ text: "${", kind: "symbol" });
+      interpolations.push(0);
+      i += 2;
+    } else {
+      push({ text: q, kind: "template-end" });
+      i += q.length;
+    }
+  };
   while (i < text.length) {
     if (options.offside && lineStart && depth === 0) {
-      const lead = /^[ \t]*/.exec(text.slice(i))![0];
-      const rest = text.slice(i + lead.length);
-      if (rest.startsWith("\n") || rest === "") {
-        i += lead.length + (rest === "" ? 0 : 1);
-        if (rest === "") break;
+      const lead = at(LEAD) ?? "";
+      const k = i + lead.length;
+      if (text[k] === "\n" || k >= text.length) {
+        i = k + 1;
         continue;
       }
       const col = lead.replace(/\t/g, "        ").length;
@@ -153,7 +193,7 @@ export function codeWords(text: string, options: { spellings?: readonly string[]
         out.push({ text: "", kind: "dedent" });
       }
       lineStart = false;
-      i += lead.length;
+      i = k;
       continue;
     }
     const ch = text[i];
@@ -163,44 +203,75 @@ export function codeWords(text: string, options: { spellings?: readonly string[]
       i += 1;
       continue;
     }
-    if (/\s/.test(ch)) {
+    if (ch === " " || ch === "\t" || ch === "\r" || /\s/.test(ch)) {
       i += 1;
       continue;
     }
-    const rest = text.slice(i);
-    const comment = comments.find((c) => rest.startsWith(c));
+    const comment = comments.find((c) => text.startsWith(c, i));
     if (comment) {
       const block = comment === "/*";
-      const end = block ? rest.indexOf("*/") + 2 : rest.indexOf("\n");
-      const said = end <= (block ? 1 : -1) ? rest : rest.slice(0, end);
+      const end = block ? text.indexOf("*/", i + 2) : text.indexOf("\n", i);
+      const stop = end < 0 ? text.length : block ? end + 2 : end;
+      const said = text.slice(i, stop);
       push({ text: said, kind: "comment", value: (block ? said.slice(2, -2) : said.slice(comment.length)).trim() });
-      i += said.length;
+      i = stop;
       continue;
     }
-    const quote = /^("""|'''|"|'|`)/.exec(rest);
+    if (options.templates && text.startsWith(options.templates, i)) {
+      push({ text: options.templates, kind: "template" });
+      i += options.templates.length;
+      templateText();
+      continue;
+    }
+    if (interpolations.length && ch === "}" && interpolations[interpolations.length - 1] === 0) {
+      interpolations.pop();
+      push({ text: "}", kind: "symbol" });
+      i += 1;
+      templateText();
+      continue;
+    }
+    const quote = at(QUOTE);
     if (quote) {
-      const q = quote[1];
-      let k = q.length;
-      while (k < rest.length && !rest.startsWith(q, k)) k += rest[k] === "\\" ? 2 : 1;
-      const said = rest.slice(0, k + q.length);
-      const value = said.slice(q.length, -q.length).replace(/\\(.)/g, (_, c: string) => ({ n: "\n", t: "\t" })[c] ?? c);
-      push({ text: said, kind: "text", value });
+      let k = i + quote.length;
+      while (k < text.length && !text.startsWith(quote, k)) k += text[k] === "\\" ? 2 : 1;
+      const said = text.slice(i, k + quote.length);
+      push({ text: said, kind: "text", value: unescape(said.slice(quote.length, -quote.length)) });
       i += said.length;
       continue;
     }
-    const number = /^(0[xob][0-9a-f_]+|\d[\d_]*(\.\d*)?([eE][+-]?\d+)?)[A-Za-z]*/i.exec(rest);
+    if (options.regex && ch === "/" && !ends()) {
+      let k = i + 1;
+      let inClass = false;
+      while (k < text.length && text[k] !== "\n" && (inClass || text[k] !== "/")) {
+        if (text[k] === "\\") k += 1;
+        else if (text[k] === "[") inClass = true;
+        else if (text[k] === "]") inClass = false;
+        k += 1;
+      }
+      if (text[k] === "/") {
+        const flags = /[a-z]*/y;
+        flags.lastIndex = k + 1;
+        const f = flags.exec(text)![0];
+        push({ text: text.slice(i, k + 1 + f.length), kind: "regex", value: text.slice(i + 1, k), flags: f });
+        i = k + 1 + f.length;
+        continue;
+      }
+    }
+    const number = at(NUMBER);
     if (number) {
-      push({ text: number[0], kind: "number" });
-      i += number[0].length;
+      push({ text: number, kind: "number" });
+      i += number.length;
       continue;
     }
-    const name = /^[\p{L}_$][\p{L}\p{N}_$]*/u.exec(rest);
+    const name = at(NAME);
     if (name) {
-      push({ text: name[0], kind: "name" });
-      i += name[0].length;
+      push({ text: name, kind: "name" });
+      i += name.length;
       continue;
     }
-    const symbol = spellings.find((s) => rest.startsWith(s)) ?? ch;
+    const symbol = spellings.find((s) => text.startsWith(s, i)) ?? ch;
+    if (interpolations.length && symbol === "{") interpolations[interpolations.length - 1]++;
+    if (interpolations.length && symbol === "}") interpolations[interpolations.length - 1]--;
     if (opens.includes(symbol) && (options.offside || symbol !== "{")) depth += 1;
     if (closes.includes(symbol) && (options.offside || symbol !== "}")) depth = Math.max(0, depth - 1);
     push({ text: symbol, kind: "symbol" });

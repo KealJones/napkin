@@ -15,9 +15,15 @@ async (args, bindings, api) => {
     const found = unit ? unit.relations.filter((r) => isCall(r.claim) && r.claim.head === head && holds(r)) : [];
     return [...found.filter((r) => r.context !== undefined), ...found.filter((r) => r.context === undefined)].map((r) => r.claim);
   };
-  // How the language lays its text out: what starts a comment, whether indentation is structure.
+  const first = (identity, head) => {
+    const c = claims(identity, head)[0];
+    return c && c.args.length ? c.args[0].value : c ? true : undefined;
+  };
+  // How the language lays its text out: comments, indentation, templates, regular expressions.
   const comments = claims(language.head, "Comments").flatMap((c) => c.args.map((a) => a.value));
   const offside = claims(language.head, "Offside").length > 0;
+  const templates = first(language.head, "Templates");
+  const regex = claims(language.head, "RegexLiterals").length > 0;
   // A symbol is the word the graph says it spells: "+" is Plus.
   const spelled = new Map();
   for (const unit of api.store.all()) {
@@ -27,13 +33,13 @@ async (args, bindings, api) => {
       if (!spelled.has(s) || r.context !== undefined) spelled.set(s, unit.identity);
     }
   }
-  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside });
+  const said = api.codeWords(text, { spellings: [...spelled.keys()], comments, offside, templates, regex: regex });
   const n = said.length;
   // A name is its Concept ("print" is Print); layout is a word too (Newline, Indent, Dedent).
   const upper = (t) => t[0].toUpperCase() + t.slice(1);
-  const LAYOUT = { newline: "Newline", indent: "Indent", dedent: "Dedent" };
+  const LAYOUT = { newline: "Newline", indent: "Indent", dedent: "Dedent", template: "Template", "template-end": "TemplateEnd" };
   const heads = said.map((w) => (w.kind === "name" ? upper(w.text) : w.kind === "symbol" ? spelled.get(w.text) : LAYOUT[w.kind]));
-  // What the graph knows a word is, as code: its kinds, and how tightly it binds.
+  // What the graph knows a word is, as code, here: its kinds.
   const known = new Map();
   const kindsOf = (head) => {
     if (known.has(head)) return known.get(head);
@@ -45,9 +51,7 @@ async (args, bindings, api) => {
       for (const id of frontier) {
         if (seen.has(id)) continue;
         seen.add(id);
-        const unit = api.store.get(id);
-        for (const r of unit ? unit.relations : []) {
-          const k = isCall(r.claim) && r.claim.head === "IsA" ? r.claim.args[0].value : undefined;
+        for (const k of claims(id, "IsA").map((c) => c.args[0].value)) {
           if (!isCall(k)) continue;
           if (claims(k.head, "IsA").some((x) => isCall(x.args[0].value) && x.args[0].value.head === "CodeWord")) out.push(k.head);
           next.push(k.head);
@@ -58,21 +62,124 @@ async (args, bindings, api) => {
     known.set(head, out);
     return out;
   };
-  const SHAPE = { name: "Name", number: "Number", text: "Text", comment: "Comment", symbol: "Symbol", newline: "Symbol", indent: "Symbol", dedent: "Symbol" };
-  const kinds = said.map((w, i) => [SHAPE[w.kind], ...kindsOf(heads[i])]);
-  // Brackets pair by counting, as any bracket is read; each word knows the bracket it is inside.
+  const SHAPE = { name: "Name", number: "Number", text: "Text", comment: "Comment", regex: "Regex" };
+  const kinds = said.map((w, i) => [SHAPE[w.kind] ?? "Symbol", ...kindsOf(heads[i])]);
+  const is = (i, k) => i >= 0 && i < n && kinds[i].includes(k);
+  const become = (i, head) => {
+    heads[i] = head;
+    kinds[i] = [SHAPE[said[i].kind] ?? "Symbol", ...kindsOf(head)];
+  };
+  // A thing ends here: a name that is no operator, a value, a closed bracket.
+  const ends = (i) => (is(i, "Name") && !is(i, "Infix") && !is(i, "Prefix")) || is(i, "Number") || is(i, "Text") || is(i, "Regex") || (is(i, "Closer") && !is(i, "Dedent"));
+  // Where a bracket stands says which it is. "[" after a thing is that thing's index. "<"
+  // right after a name, closing on ">" around nothing that computes, is the name's angles.
+  // A "{" where a thing can start is a value; where a statement starts, or after what a
+  // block follows, a block. Where indentation makes blocks, a brace is always a value.
+  const CALM = new Set([",", ".", "[", "]", "|", "&", "?", ":", "?:", "(", ")", "=>", "{", "}", ";", "...", "<", ">", "\n"]);
+  for (let i = 0; i < n; i++) {
+    // A colon that opens a block (Python's) only separates the block from what leads it.
+    if (heads[i] === "Colon" && is(i + 1, "Scope")) kinds[i] = ["Symbol", "Separator"];
+  }
+  for (let i = 1; i < n; i++) {
+    if (is(i, "Opener") && heads[i] === "Brackets" && ends(i - 1)) become(i, "Index");
+    // A colon right after round brackets says what they give: "(x): number".
+    if (heads[i] === "Colon" && is(i, "Infix") && said[i - 1].text === ")") become(i, "Returns");
+    if (heads[i] === "Less" && is(i - 1, "Name") && !is(i - 1, "Infix")) {
+      let depth = 0;
+      let j = i;
+      for (; j < n && j < i + 200; j++) {
+        const t = said[j];
+        if (t.kind === "symbol" && t.text === "<") depth++;
+        else if (t.kind === "symbol" && t.text === ">") depth--;
+        else if (!(t.kind === "name" || t.kind === "text" || t.kind === "number" || (t.kind === "symbol" && CALM.has(t.text)))) break;
+        if (depth === 0) break;
+      }
+      if (depth === 0 && j < n && said[j].text === ">") {
+        become(i, "Angles");
+        become(j, "AngleEnd");
+      }
+    }
+  }
+  // Brackets pair by counting, as any bracket is read; an opener that says what closes it
+  // (ClosedBy: "?" by ":", angles by their end) is closed only by that.
   const pair = said.map(() => -1);
   const inside = said.map(() => -1);
   const open = [];
+  const closedBy = (i) => first(heads[i] || "", "ClosedBy");
+  const blockAt = (i) => {
+    if (offside) return false;
+    const p = i - 1;
+    if (p < 0) return true;
+    if (is(p, "TakesBlock")) return true;
+    if (is(p, "Separator")) return inside[p] < 0 || is(inside[p], "Scope") || heads[p] === "Semicolon";
+    if (is(p, "Closer")) return !(pair[p] >= 0 && heads[pair[p]] === "Braces");
+    if (is(p, "Opener")) return is(p, "Scope");
+    // After a type ("(): void {"), a brace is the block the type is of.
+    if (is(p, "Prefix") && (heads[p - 1] === "Colon" || heads[p - 1] === "Returns")) return true;
+    return ends(p) || is(p, "Comment");
+  };
   for (let i = 0; i < n; i++) {
+    if (heads[i] === "Braces" && blockAt(i)) become(i, "Block");
     inside[i] = open.length ? open[open.length - 1] : -1;
-    if (kinds[i].includes("Closer") && open.length) {
-      const o = open.pop();
-      pair[o] = i;
-      pair[i] = o;
+    const top = open.length ? open[open.length - 1] : -1;
+    const wanted = top >= 0 ? closedBy(top) : undefined;
+    if (wanted && isCall(wanted) && (wanted.head === heads[i] || (wanted.head === "Colon" && heads[i] === "Returns"))) {
+      open.pop();
+      pair[top] = i;
+      pair[i] = top;
+      inside[i] = open.length ? open[open.length - 1] : -1;
+      kinds[i] = [...kinds[i].filter((k) => k !== "Infix" && k !== "Separator"), "Closer"];
+      continue;
+    }
+    if (is(i, "Closer")) {
+      while (open.length && closedBy(open[open.length - 1])) open.pop();
+      if (open.length) {
+        const o = open.pop();
+        pair[o] = i;
+        pair[i] = o;
+      }
       inside[i] = open.length ? open[open.length - 1] : -1;
     }
-    if (kinds[i].includes("Opener")) open.push(i);
+    if (is(i, "Opener")) open.push(i);
+  }
+  // Who a block belongs to: the name whose brackets come just before it (a function, a
+  // method; with its return type, that type's colon), else the word that leads what is
+  // said before it (if, for, class, else). After an operator it belongs to no one: it is
+  // the operator's thing ("=> { }").
+  const leader = said.map(() => -1);
+  const stops = (k) => is(k, "Separator") || is(k, "Scope") || is(k, "Comment") || (is(k, "Closer") && is(pair[k], "Scope"));
+  for (let o = 0; o < n; o++) {
+    if (!is(o, "Scope")) continue;
+    let p = o - 1;
+    if (is(p, "Separator") && offside) p--;
+    if (p < 0 || is(p, "Infix")) continue;
+    let k = p;
+    let typed = -1;
+    if (!(is(k, "Closer") && heads[pair[k]] === "Parens")) {
+      for (let j = k; j >= 0 && !stops(j); j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
+        if (is(j, "Opener")) break;
+        if (heads[j] === "Returns") {
+          typed = j;
+          k = j - 1;
+          break;
+        }
+      }
+    }
+    if (is(k, "Closer") && heads[pair[k]] === "Parens") {
+      let g = pair[k] - 1;
+      if (is(g, "Closer") && heads[g] === "AngleEnd") g = pair[g] - 1;
+      if (is(g, "Name") && !is(g, "Infix")) {
+        leader[o] = is(g, "Prefix") ? g : typed >= 0 ? typed : g;
+        continue;
+      }
+    }
+    for (let j = p; j >= 0 && !stops(j); j = is(j, "Closer") && pair[j] >= 0 ? pair[j] - 1 : j - 1) {
+      if (is(j, "Opener")) break;
+      if (is(j, "Prefix")) {
+        leader[o] = j;
+        break;
+      }
+    }
   }
   const bindsOf = new Map();
   const words = said.map((w, i) => {
@@ -82,6 +189,7 @@ async (args, bindings, api) => {
     if (binds) tags.push(binds);
     if (pair[i] >= 0) tags.push(api.call("Pairs", pair[i]));
     if (inside[i] >= 0) tags.push(api.call("Inside", inside[i]));
+    if (leader[i] >= 0) tags.push(api.call("Leader", leader[i]));
     return api.call("Word", w.text, i, api.call("List", ...tags));
   });
   const prompt = api.call("Prompt", ...words);
@@ -148,18 +256,19 @@ async (args, bindings, api) => {
         touch(lo[k] - 1);
         touch(hi[k] + 1);
         touch(inside[k]);
+        if (pair[hi[k] + 1] >= 0) touch(pair[hi[k] + 1]);
+        if (lo[k] > 0 && pair[lo[k] - 1] >= 0) touch(pair[lo[k] - 1]);
       }
     }
     links = links.concat(accepted);
     dirty = next;
   }
   // Each word written as its Concept, the words it took as its arguments, in the order said.
-  // A name keeps how it was typed when its Concept's name does not say it: MyClass(said="MyClass").
+  // A name keeps how it was typed when its Concept's name does not say it: MyClass(said="MyClass");
+  // an operator said after the one thing it holds says so: Increment(X(), after=true).
   const children = said.map(() => []);
-  const absorbed = new Set();
   for (const l of [...links].sort((a, b) => a.from - b.from)) {
-    if (l.role === "Absorbs") absorbed.add(l.from);
-    else children[l.to].push(l.from);
+    if (l.role !== "Absorbs") children[l.to].push(l.from);
   }
   const lower = (t) => t[0].toLowerCase() + t.slice(1);
   const build = (i) => {
@@ -167,13 +276,15 @@ async (args, bindings, api) => {
     const w = said[i];
     if (w.kind === "number") return String(Number(w.text)) === w.text ? Number(w.text) : api.call("Number", w.text);
     if (w.kind === "text") return w.value;
+    if (w.kind === "regex") return api.call("Regex", w.value, w.flags);
     if (w.kind === "comment") return api.call("Comment", w.value);
     if (!heads[i]) return api.call("Symbol", w.text);
     if (w.kind === "name" && lower(heads[i]) !== w.text) kids.push({ name: "said", value: w.text });
-    return { head: heads[i], args: kids };
+    if ((is(i, "Infix") || is(i, "Prefix")) && children[i].length === 1 && children[i][0] < i) kids.push({ name: "after", value: true });
+    return { head: is(i, "Scope") ? "Block" : heads[i], args: kids };
   };
   // What stands alone is heard; punctuation nobody took adds nothing.
-  const PUNCTUATION = ["Opener", "Closer", "Separator"];
+  const PUNCTUATION = ["Closer", "Separator"];
   const roots = [];
   for (let i = 0; i < n; i++) {
     if (parent[i] < 0 && !PUNCTUATION.some((k) => kinds[i].includes(k))) roots.push({ value: build(i) });

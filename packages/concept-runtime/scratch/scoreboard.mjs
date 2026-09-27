@@ -54,6 +54,7 @@ async function score(name, statements, reference, lang) {
   const examples = new Map();
   const t0 = performance.now();
   let tooBig = 0;
+  let erased = 0;
   for (const text of statements.slice(0, LIMIT)) {
     if (tokens(text) > MAX_TOKENS) {
       tooBig++;
@@ -70,6 +71,11 @@ async function score(name, statements, reference, lang) {
       refGaps++;
       continue;
     }
+    // Types only: the reader erases the statement entirely, so there is nothing to compare.
+    if (isCall(ref.expression) && ref.expression.head === "Module" && ref.expression.args.length === 0) {
+      erased++;
+      continue;
+    }
     counted++;
     let category;
     try {
@@ -79,14 +85,15 @@ async function score(name, statements, reference, lang) {
         continue;
       }
       category = diverge(unwrap(ref.expression), unwrap(read));
-      if (SHOW && category === SHOW && !examples.has(text)) examples.set(text, [format(unwrap(ref.expression)).slice(0, 300), format(unwrap(read)).slice(0, 300)]);
+      if (SHOW && category.startsWith(SHOW) && !examples.has(text)) examples.set(text, [format(unwrap(ref.expression)).slice(0, 300), format(unwrap(read)).slice(0, 300)]);
     } catch (e) {
       category = `error: ${String(e.message).slice(0, 60)}`;
+      if (SHOW && category.startsWith(SHOW) && !examples.has(text)) examples.set(text, [String(e.stack).split("\n").slice(0, 3).join(" | "), ""]);
     }
     categories.set(category, (categories.get(category) ?? 0) + 1);
   }
   const ms = performance.now() - t0;
-  console.log(`\n${name}: ${same}/${counted} statements identical (${((100 * same) / Math.max(counted, 1)).toFixed(1)}%), ${refGaps} skipped where the reference itself has gaps, ${tooBig} over ${MAX_TOKENS} tokens not tried, ${(ms / 1000).toFixed(1)}s`);
+  console.log(`\n${name}: ${same}/${counted} statements identical (${((100 * same) / Math.max(counted, 1)).toFixed(1)}%), ${refGaps} skipped where the reference itself has gaps, ${tooBig} over ${MAX_TOKENS} tokens not tried, ${erased} type-only (erased by the reader), ${(ms / 1000).toFixed(1)}s`);
   for (const [k, n] of [...categories].sort((a, b) => b[1] - a[1]).slice(0, 10)) console.log(`  ${String(n).padStart(4)}  ${k}`);
   for (const [text, [r, m]] of [...examples].slice(0, 6)) console.log(`\n--- ${text.slice(0, 200)}\n  ref:  ${r}\n  mine: ${m}`);
   return { same, counted };
@@ -151,7 +158,7 @@ if (what === "speed" || what === "all") {
     p.setLanguage(await T.Language.load(join(root, "node_modules/tree-sitter-wasms/out/tree-sitter-typescript.wasm")));
     return p;
   })();
-  console.log("\nspeed (TypeScript): lines tokens | hear+read ms, evaluations | importTypeScript ms | tree-sitter parse ms");
+  console.log("\nspeed (TypeScript): lines tokens | hearing | importTypeScript ms | tree-sitter parse ms");
   for (const target of (flag("--lines", "10,100,1000,5000")).split(",").map(Number)) {
     let text = "";
     for (const s of pool) {
@@ -165,29 +172,34 @@ if (what === "speed" || what === "all") {
     t = performance.now();
     parser.parse(text);
     const treeMs = performance.now() - t;
-    const budget = Number(flag("--budget", "600")) * 1000;
+    const rt = new Runtime(store, { maximumSteps: 500_000_000, maximumDepth: 100_000 });
     t = performance.now();
-    let hear = "timeout";
-    let steps = "";
+    let hear = "error";
+    let read = "error";
+    let rounds = "";
     try {
-      const run = hearRead(text, "TypeScript");
-      const r = await Promise.race([run, new Promise((res) => setTimeout(() => res(undefined), budget))]);
-      if (r) {
-        hear = (performance.now() - t).toFixed(0);
-        steps = r.steps;
+      const h = await rt.evaluate(call("Hear", [{ value: text }]), c("Context", c("Execution"), c("Code", c("TypeScript"))));
+      hear = (performance.now() - t).toFixed(0);
+      rounds = h.args.find((a) => a.name === "rounds")?.value;
+      t = performance.now();
+      try {
+        await rt.evaluate(h, c("Context", c("Code", c("TypeScript")), c("Reading")));
+        read = (performance.now() - t).toFixed(0);
+      } catch (e) {
+        read = `error after ${(performance.now() - t).toFixed(0)}`;
       }
     } catch (e) {
-      hear = `error ${e.message.slice(0, 40)}`;
+      hear = `error ${String(e.message).slice(0, 40)}`;
     }
-    console.log(`  ${lines} ${tokens(text)} | ${hear} ${steps} | ${importMs.toFixed(1)} | ${treeMs.toFixed(1)}`);
-    if (hear === "timeout") break;
+    console.log(`  ${lines} ${tokens(text)} | hear ${hear} ms, ${rounds} rounds, read ${read} ms, ${rt.steps} evaluations | ${importMs.toFixed(1)} | ${treeMs.toFixed(1)}`);
   }
 }
 if (what === "size" || what === "all") {
   const count = (f) => readFileSync(f, "utf8").split("\n").length;
   const body = readdirSync(join(here, "code-hearing")).filter((f) => f.endsWith(".js")).reduce((n, f) => n + count(join(here, "code-hearing", f)), 0);
+  const tables = ["words.mjs", "readings.mjs"].reduce((n, f) => n + count(join(here, "code-hearing", f)), 0);
   const pack = readFileSync(join(root, "packs/code-hearing.ncon"), "utf8");
   const host = execSync(`git -C ${root} diff 4f21c2e --numstat -- src/runtime/host.ts src/runtime/evaluator.ts src/seed/seed.ts src/runtime/context.ts src/runtime/select.ts`).toString().trim().split("\n").filter(Boolean).reduce((n, l) => n + Number(l.split("\t")[0]), 0);
   const n = (re) => (pack.match(re) ?? []).length;
-  console.log(`\nsize: host TS +${host} lines, JS bodies ${body} lines, code-hearing.ncon ${pack.split("\n").length} lines, Binds ${n(/Binds\(/g)}, Spelled ${n(/Spelled\(/g)}, Realizations ${n(/Realization\(/g)}, Concepts ${n(/^Concept\(/gm)}`);
+  console.log(`\nsize: host TS +${host} lines, JS bodies ${body} lines, words+readings tables ${tables} lines, code-hearing.ncon ${pack.split("\n").length} lines, Binds ${n(/Binds\(/g)}, Spelled ${n(/Spelled\(/g)}, Realizations ${n(/Realization\(/g)}, Concepts ${n(/^Concept\(/gm)}`);
 }

@@ -1,18 +1,24 @@
 async (args, bindings, api) => {
   // "return a + b", "const x", "for x in xs": a word that leads takes the whole thing after it,
-  // up to where an operator holding less tightly than it begins.
+  // up to where an operator holding less tightly than it begins. A word that heads a statement
+  // with a bracketed header ("if (x) ...") takes, after the header, the statement it heads.
   const self = bindings.get("word");
   const at = self.args[1].value;
   const field = {};
   for (const a of api.cells.read(self.args[3].value).args) field[a.name] = a.value.args;
   const v = (k, i) => (i >= 0 && i < field[k].length ? field[k][i].value : undefined);
+  const is = (i, k) => i >= 0 && i < field.kinds.length && v("kinds", i).args.some((a) => a.value === k);
   const mine = v("binds", at) ?? 0;
-  let r = at + 1;
-  if (!v("operandStart", r)) return api.call("List");
-  while (v("parent", r) >= 0 && v("lo", v("parent", r)) > at) r = v("parent", r);
-  if (v("parent", r) >= 0 || v("punctuation", r)) return api.call("List");
-  const e = v("hi", r) + 1;
-  const next = v("infix", e) && !v("unary", e) ? v("binds", e) : undefined;
-  if (v("boundary", e) || (next !== undefined && next !== null && next <= mine)) return api.call("List", api.call("Link", r, at, api.call("Takes")));
-  return api.call("List");
+  const take = (start, after) => {
+    let r = start;
+    if (!v("operandStart", r)) return [];
+    while (v("parent", r) >= 0 && v("lo", v("parent", r)) > after) r = v("parent", r);
+    if (v("parent", r) >= 0 || v("punctuation", r)) return [];
+    const e = v("hi", r) + 1;
+    const next = v("operator", e) && !v("unary", e) ? v("binds", e) : undefined;
+    return v("boundary", e) || (next !== undefined && next !== null && next <= mine) ? [api.call("Link", r, at, api.call("Takes"))] : [];
+  };
+  const out = take(at + 1, at);
+  if (is(at, "Heads") && is(at + 1, "Round") && v("pair", at + 1) > at) out.push(...take(v("pair", at + 1) + 1, v("pair", at + 1)));
+  return api.call("List", ...out);
 }
