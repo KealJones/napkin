@@ -20,6 +20,11 @@ export interface Realization {
   readonly evaluateResult: boolean;
   /** Replaces the active context for the body. */
   readonly resultContext?: Expr;
+  /**
+   * What kind each of the pattern's variables must be, where it is declared: List(Of($a,
+   * Number()), ...). A kind is what IsA takes (runtime/kinds.ts). Untyped variables take anything.
+   */
+  readonly types?: Expr;
   /** Retired realizations are retained but never selected (concept-spec Part 3.2). */
   readonly retired?: boolean;
   readonly addedAt?: string;
@@ -83,6 +88,7 @@ export interface RealizationInput {
   evaluateArguments?: boolean;
   evaluateResult?: boolean;
   resultContext?: Expr | string;
+  types?: Expr | string;
 }
 
 const asExpr = (e: Expr | string): Expr => (typeof e === "string" ? parse(e) : e);
@@ -106,6 +112,7 @@ export function realization(input: RealizationInput): Realization {
     evaluateArguments: input.evaluateArguments ?? true,
     evaluateResult: input.evaluateResult ?? false,
     resultContext: input.resultContext === undefined ? undefined : asExpr(input.resultContext),
+    ...(input.types === undefined ? {} : { types: asExpr(input.types) }),
   };
 }
 

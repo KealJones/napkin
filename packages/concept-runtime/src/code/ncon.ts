@@ -73,6 +73,7 @@ export function readRealization(pack: string, e: Call): Realization {
   const properties = named(e, "properties");
   const ctx = named(e, "context");
   const resultContext = named(e, "resultContext");
+  const types = named(e, "types");
   return {
     pattern,
     ...(ctx === undefined ? {} : { context: ctx }),
@@ -81,6 +82,7 @@ export function readRealization(pack: string, e: Call): Realization {
     evaluateArguments: flag("evaluateArguments", true),
     evaluateResult: flag("evaluateResult", false),
     ...(resultContext === undefined ? {} : { resultContext }),
+    ...(types === undefined ? {} : { types }),
   };
 }
 
@@ -222,6 +224,7 @@ export function realizationExpr(r: Realization): Expr {
     ...(r.evaluateArguments ? [] : [{ name: "evaluateArguments", value: false }]),
     ...(r.evaluateResult ? [{ name: "evaluateResult", value: true }] : []),
     ...(r.resultContext === undefined ? [] : [{ name: "resultContext", value: r.resultContext }]),
+    ...(r.types === undefined ? [] : [{ name: "types", value: r.types }]),
     ...(r.properties.length ? [{ name: "properties", value: call("List", r.properties.map((value) => ({ value }))) }] : []),
     { name: "body", value: r.body },
   ]);
@@ -234,6 +237,7 @@ function realizationText(r: Realization): string {
   if (!r.evaluateArguments) parts.push("evaluateArguments=false");
   if (r.evaluateResult) parts.push("evaluateResult=true");
   if (r.resultContext !== undefined) parts.push(`resultContext=${flat(r.resultContext)}`);
+  if (r.types !== undefined) parts.push(`types=${flat(r.types)}`);
   if (r.properties.length) parts.push(`properties=List(${r.properties.map(flat).join(", ")})`);
   return `Realization(${parts.join(", ")}, body=${flat(r.body)})`;
 }

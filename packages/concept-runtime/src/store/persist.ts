@@ -21,6 +21,7 @@ interface StoredRealization {
   evaluateArguments?: boolean;
   evaluateResult?: boolean;
   resultContext?: string;
+  types?: string;
   retired?: boolean;
   addedAt?: string;
   seededFrom?: string;
@@ -96,6 +97,7 @@ const toStored = (u: ConceptUnit): StoredUnit => ({
     evaluateArguments: r.evaluateArguments === true ? undefined : r.evaluateArguments,
     evaluateResult: r.evaluateResult === false ? undefined : r.evaluateResult,
     resultContext: r.resultContext === undefined ? undefined : format(r.resultContext),
+    types: r.types === undefined ? undefined : format(r.types),
     retired: r.retired,
     addedAt: r.addedAt,
     seededFrom: r.seededFrom,
@@ -130,6 +132,7 @@ const fromStored = (s: StoredUnit): ConceptUnit => ({
       evaluateArguments: r.evaluateArguments ?? true,
       evaluateResult: r.evaluateResult ?? false,
       resultContext: r.resultContext === undefined ? undefined : parse(r.resultContext),
+      ...(r.types === undefined ? {} : { types: parse(r.types) }),
       retired: r.retired,
       addedAt: r.addedAt,
       ...(r.seededFrom === undefined ? {} : { seededFrom: r.seededFrom }),
