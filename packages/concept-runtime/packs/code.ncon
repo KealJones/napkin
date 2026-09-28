@@ -3247,6 +3247,38 @@ Concept(Largest(),
             Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Comment("Of a kind rather than a list (\"the largest planet\"): the one of that kind in the world."),
+            If(
+              And(
+                And(
+                  And(
+                    And(Equals(TypeOf(Index($v, 0)), "object"), NotEquals(Index($v, 0), null)),
+                    In("head", Index($v, 0))
+                  ),
+                  NotEquals(Member(Index($v, 0), "head"), "List")
+                ),
+                Not(Length(Member(Index($v, 0), "args")))
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Answer",
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Superlative",
+                        "largest",
+                        Index($v, 0)
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(Call($back, Call(Member($Math, "max"), Spread(Map(Call($items, Index($v, 0)), $host)))))
           )
         )
@@ -3285,6 +3317,38 @@ Concept(Smallest(),
             Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
+            Comment("Of a kind rather than a list (\"the largest planet\"): the one of that kind in the world."),
+            If(
+              And(
+                And(
+                  And(
+                    And(Equals(TypeOf(Index($v, 0)), "object"), NotEquals(Index($v, 0), null)),
+                    In("head", Index($v, 0))
+                  ),
+                  NotEquals(Member(Index($v, 0), "head"), "List")
+                ),
+                Not(Length(Member(Index($v, 0), "args")))
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Answer",
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Superlative",
+                        "smallest",
+                        Index($v, 0)
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Return(Call($back, Call(Member($Math, "min"), Spread(Map(Call($items, Index($v, 0)), $host)))))
           )
         )

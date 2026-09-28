@@ -147,6 +147,22 @@ export async function learn(
           // Unreachable is not an answer: the question stays as it was.
         }
       }
+      // "The tallest mountain": a word said of a kind that Napkin has nothing for may be a
+      // superlative, which the world answers across all of the kind (packs/sparql.ncon).
+      if (!found) {
+        for (const node of walk(expression)) {
+          if (!isCall(node) || node.args.length !== 1 || !isCall(node.args[0].value) || node.args[0].value.args.length || runtime.store.get(node.head)?.realizations.length) continue;
+          try {
+            const answer = await runtime.evaluate(call("Superlative", [{ value: node.head.toLowerCase() }, { value: node.args[0].value }]), c("Execution"));
+            if (isCall(answer) && (answer.head === "Superlative" || answer.head === "Either") && answer.args.length > 2) {
+              steps.push({ identity: node.head, how: "research", detail: format(answer) });
+              return { steps, result: call("Answer", [{ value: answer }]), passes, remaining: [] };
+            }
+          } catch {
+            // Unreachable is not an answer.
+          }
+        }
+      }
       // "Is a tomato a fruit": whether one is a kind of the other is asked of the world's own
       // hierarchy, and what it says is kept as a fact with the way it was found.
       for (const node of walk(expression)) {

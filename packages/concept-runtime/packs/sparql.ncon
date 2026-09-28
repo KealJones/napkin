@@ -1,0 +1,857 @@
+// The world asked a question no one item answers: the Wikidata Query Service (SPARQL, CC0).
+// "The tallest mountain" is the mountain with the most of the quantity mountains are measured
+// by that "tall" means, read from Wiktionary ("superlative form of tall", "of greater than
+// average height") and from which quantities mountains have. Written by scripts/pack.mjs from
+// sources/sparql (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(Superlative(), IsA(Result()))
+
+Concept(Either(), IsA(Result()))
+
+// A SPARQL query to the Wikidata Query Service: its rows, each a Record of the values bound (an
+// item as its id, "Q513"). Given a minute, as a query across a whole kind takes time. The call
+// itself when the service does not answer.
+Concept(Sparql(),
+  Realization(Sparql($query),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($query, Call($String, Call(Member($bindings, "get"), "query"))),
+            Var($got, Undefined()),
+            Try(
+              Sequence(
+                Bind($response,
+                  Await(
+                    Call(
+                      $fetch,
+                      Add("https://query.wikidata.org/sparql?format=json&query=", Call($encodeURIComponent, $query)),
+                      Object(
+                        headers = Object(
+                          Pair("user-agent", "Napkin/0.1 (https://github.com/KealJones/napkin)"),
+                          accept = "application/sparql-results+json"
+                        ),
+                        signal = Call(Member($AbortSignal, "timeout"), 60000)
+                      )
+                    )
+                  )
+                ),
+                Assign(
+                  $got,
+                  If(
+                    Member($response, "ok"),
+                    Await(Call(Member($response, "json"))),
+                    Undefined()
+                  )
+                )
+              ),
+              Catch($error, Assign($got, Undefined()))
+            ),
+            Bind($rows,
+              If(
+                And(
+                  And($got, Member($got, "results")),
+                  Call(Member($Array, "isArray"), Member(Member($got, "results"), "bindings"))
+                ),
+                Member(Member($got, "results"), "bindings"),
+                Undefined()
+              )
+            ),
+            If(
+              Not($rows),
+              Return(Call(Member($api, "call"), "Sparql", $query)),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "fromHost"),
+                Map(
+                  $rows,
+                  Lambda(List($row),
+                    Call(
+                      Member($Object, "fromEntries"),
+                      Map(
+                        Call(Member($Object, "entries"), $row),
+                        Lambda(List(List($k, $v)),
+                          List(
+                            $k,
+                            If(
+                              And(
+                                Equals(TypeOf(Member($v, "value")), "string"),
+                                Call(Member(Member($v, "value"), "startsWith"), "http://www.wikidata.org/entity/")
+                              ),
+                              Call(Member(Call(Member(Member($v, "value"), "split"), "/"), "pop")),
+                              Member($v, "value")
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Two answers for two ways the words can be taken: "If you mean the most height, Mauna Kea (...);
+// if the most elevation above sea level, Mount Everest (...)."
+Concept(Either(),
+  Realization(Either($a, $b),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($one,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($s,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          $e,
+                          Call(Member($api, "call"), "Speaking")
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        Equals(TypeOf($s), "string"),
+                        Call(Member($s, "replace"), Regex("\\.$", ""), ""),
+                        Call(Member($api, "format"), $e)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($way,
+              Lambda(List($e),
+                Sequence(
+                  Bind($p, Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
+                  Bind($most,
+                    OptionalMember(
+                      Call(Member(Member($e, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "most"))),
+                      "value"
+                    )
+                  ),
+                  Return(
+                    Add(
+                      If(Equals($most, false), "the least ", "the most "),
+                      Call($String, Otherwise(OptionalMember(Index($p, 3), "value"), ""))
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($a, Call(Member($bindings, "get"), "a")),
+            Bind($b, Call(Member($bindings, "get"), "b")),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(
+                      Add(Add(Add(Add("If you mean ", Call($way, $a)), ", "), Await(Call($one, $a))), "; if "),
+                      Call($way, $b)
+                    ),
+                    ", "
+                  ),
+                  Await(Call($one, $b))
+                ),
+                "."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "Mount Everest (8848.86 metres of elevation above sea level)."
+Concept(Superlative(),
+  Realization(Superlative(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($say,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($w,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Words", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        Equals(TypeOf($w), "string"),
+                        $w,
+                        Call(Member($api, "format"), $e)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($p,
+              Map(
+                Filter($args, Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Bind($n, Call($Number, Call(Member(Call($Number, Index($p, 1)), "toPrecision"), 8))),
+            Bind($name, Await(Call($say, Index($p, 0)))),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(
+                      Add(
+                        Add(Add(Call(Member(Index($name, 0), "toUpperCase")), Call(Member($name, "slice"), 1)), " ("),
+                        $n
+                      ),
+                      If(Index($p, 2), Add(Add(" ", Index($p, 2)), "s"), "")
+                    ),
+                    " of "
+                  ),
+                  Index($p, 3)
+                ),
+                ")."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "The tallest mountain": the one of a kind with the most (or least) of what the word measures.
+// Wiktionary says the word is the superlative of a base ("superlative form of tall"). Which way it
+// goes is the base's own superlative when Napkin knows it (small is Smallest), or one the base's
+// gloss names ("of greater than average height": Greatest, which is Largest); when nothing says,
+// both ways are answered, as a conditional. What it measures is the quantity the kind's items
+// have whose name the base or its gloss shares a word with ("height", elevation above sea level),
+// else the one they have most. Superlative(item, value, unit, measure, from = Wikidata(item)),
+// Either(most, least), or the call itself.
+Concept(Superlative(),
+  Realization(Superlative($word, $kind),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($word,
+              If(
+                Equals(
+                  Call(
+                    Member($api, "lemma"),
+                    Call(Member(Call($String, Call(Member($bindings, "get"), "word")), "toLowerCase"))
+                  ),
+                  Call(Member(Call($String, Call(Member($bindings, "get"), "word")), "toLowerCase"))
+                ),
+                Call(Member(Call($String, Call(Member($bindings, "get"), "word")), "toLowerCase")),
+                Call(Member(Call($String, Call(Member($bindings, "get"), "word")), "toLowerCase"))
+              )
+            ),
+            Bind($kind, Call(Member($bindings, "get"), "kind")),
+            Bind($none, Call(Member($api, "call"), "Superlative", $word, $kind)),
+            If(
+              Or(Not(Call($isCall, $kind)), Length(Member($kind, "args"))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($glossesOf,
+              Async(
+                Lambda(List($w),
+                  Sequence(
+                    Bind($s,
+                      Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Senses", $w, "Adjective")))
+                    ),
+                    Return(
+                      If(
+                        And(Call($isCall, $s), Equals(Member($s, "head"), "Senses")),
+                        Map(
+                          Member(Member(Index(Member($s, "args"), 1), "value"), "args"),
+                          Lambda(List($a), Call($String, Member($a, "value")))
+                        ),
+                        List()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($base,
+              Call(
+                Member(
+                  Map(
+                    Await(Call($glossesOf, $word)),
+                    Lambda(List($g),
+                      OptionalIndex(Call(Member(Regex("superlative (?:form|degree) of (\\w+)", "i"), "exec"), $g), 1)
+                    )
+                  ),
+                  "find"
+                ),
+                $Boolean
+              )
+            ),
+            If(Not($base), Return($none), Undefined()),
+            Bind($baseGlosses, Await(Call($glossesOf, $base))),
+            Bind($cap, Lambda(List($w), Add(Call(Member(Index($w, 0), "toUpperCase")), Call(Member($w, "slice"), 1)))),
+            Comment("Which way: a superlative Napkin knows, of the base or of a word its first gloss names (not"),
+            Comment("one it negates, \"not large\")."),
+            Bind($way,
+              Lambda(List($w),
+                Sequence(
+                  Bind($unit,
+                    Otherwise(
+                      Call(Member(Member($api, "store"), "get"), Add(Call($cap, $w), "est")),
+                      Call(Member(Member($api, "store"), "get"), Call($cap, $w))
+                    )
+                  ),
+                  If(Not($unit), Return(Undefined()), Undefined()),
+                  If(
+                    Or(Equals(Member($unit, "identity"), "Largest"), Equals(Member($unit, "identity"), "Smallest")),
+                    Return(Member($unit, "identity")),
+                    Undefined()
+                  ),
+                  Bind($same,
+                    Call(
+                      Member(Map(Member($unit, "relations"), Lambda(List($r), Member($r, "claim"))), "find"),
+                      Lambda(List($c),
+                        And(
+                          And(Call($isCall, $c), Equals(Member($c, "head"), "SynonymOf")),
+                          Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                        )
+                      )
+                    )
+                  ),
+                  Bind($to,
+                    If(
+                      $same,
+                      Member(Member(Index(Member($same, "args"), 0), "value"), "head"),
+                      Undefined()
+                    )
+                  ),
+                  Return(
+                    If(
+                      Or(Equals($to, "Largest"), Equals($to, "Smallest")),
+                      $to,
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Var($direction, Call($way, $base)),
+            ForOf(
+              $gloss,
+              Call(Member($baseGlosses, "slice"), 0, 4),
+              Sequence(
+                If($direction, Break(), Undefined()),
+                Bind($words,
+                  Otherwise(Call(Member(Call(Member($gloss, "toLowerCase")), "match"), Regex("[a-z]+", "g")), List())
+                ),
+                For(
+                  Var($i, 0),
+                  And(LessThan($i, Length($words)), Not($direction)),
+                  PostIncrement($i),
+                  If(
+                    NotEquals(Index($words, Subtract($i, 1)), "not"),
+                    Assign($direction, Call($way, Call(Member($api, "lemma"), Index($words, $i)))),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Comment("The kind's item, and a sample of its instances."),
+            Bind($kindWord,
+              Call(
+                Member(
+                  Call(
+                    Member(Member($kind, "head"), "replace"),
+                    Regex("([a-z])([A-Z])", "g"),
+                    "$1 $2"
+                  ),
+                  "toLowerCase"
+                )
+              )
+            ),
+            Var($item, Undefined()),
+            ForOf(
+              $r,
+              Otherwise(
+                OptionalMember(Call(Member(Member($api, "store"), "get"), Member($kind, "head")), "relations"),
+                List()
+              ),
+              Sequence(
+                Bind($c, Member($r, "claim")),
+                If(
+                  And(
+                    And(
+                      And(And(Not($item), Call($isCall, $c)), Equals(Member($c, "head"), "SameAs")),
+                      Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                    ),
+                    Equals(Member(Member(Index(Member($c, "args"), 0), "value"), "head"), "Wikidata")
+                  ),
+                  Assign(
+                    $item,
+                    Call(
+                      $String,
+                      Member(Index(Member(Member(Index(Member($c, "args"), 0), "value"), "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              Not($item),
+              Sequence(
+                Bind($senses,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "WikidataSenses",
+                        Call(Member($api, "lemma"), $kindWord)
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And(
+                    And(Call($isCall, $senses), Equals(Member($senses, "head"), "List")),
+                    Length(Member($senses, "args"))
+                  ),
+                  Assign(
+                    $item,
+                    Call(
+                      $String,
+                      Member(Index(Member(Member(Index(Member($senses, "args"), 0), "value"), "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            If(Not($item), Return($none), Undefined()),
+            Comment("What the kind's best-known instances are measured by. Its own instances, unless the world"),
+            Comment("hardly writes about them: then those of its kinds too (Jupiter is a gas giant, a planet)."),
+            Bind($sampleOf,
+              Async(
+                Lambda(List($member),
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Sparql",
+                          Add(
+                            Add(Add(Add("SELECT ?i ?s WHERE { ?i ", $member), " wd:"), $item),
+                            " ; wikibase:sitelinks ?s . } ORDER BY DESC(?s) LIMIT 40"
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Var($member, "wdt:P31"),
+            Var($sample, Await(Call($sampleOf, $member))),
+            If(
+              Or(
+                Or(Not(Call(Member($Array, "isArray"), $sample)), Not(Length($sample))),
+                LessThan(Call($Number, Member(Index($sample, 0), "s")), 30)
+              ),
+              Sequence(Assign($member, "wdt:P31/wdt:P279*"), Assign($sample, Await(Call($sampleOf, $member)))),
+              Undefined()
+            ),
+            If(
+              Or(Not(Call(Member($Array, "isArray"), $sample)), Not(Length($sample))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($claims,
+              Call(
+                Member($api, "toHost"),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Fetch",
+                      Add(
+                        "https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=",
+                        Call(Member(Map($sample, Lambda(List($r), Member($r, "i"))), "join"), "|")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($count, Object()),
+            ForOf(
+              $e,
+              Call(Member($Object, "values"), Or(And($claims, Member($claims, "entities")), Object())),
+              ForOf(
+                List($p, $snaks),
+                Call(Member($Object, "entries"), Or(Member($e, "claims"), Object())),
+                If(
+                  And(
+                    And(Index($snaks, 0), Member(Index($snaks, 0), "mainsnak")),
+                    Equals(Member(Member(Index($snaks, 0), "mainsnak"), "datatype"), "quantity")
+                  ),
+                  Assign(Index($count, $p), Add(Or(Index($count, $p), 0), 1)),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($measured,
+              Map(
+                Call(
+                  Member(
+                    Call(
+                      Member(Call(Member($Object, "entries"), $count), "sort"),
+                      Lambda(List($a, $b), Subtract(Index($b, 1), Index($a, 1)))
+                    ),
+                    "slice"
+                  ),
+                  0,
+                  6
+                ),
+                Lambda(List(List($p)), $p)
+              )
+            ),
+            If(Not(Length($measured)), Return($none), Undefined()),
+            Bind($props,
+              Call(
+                Member($api, "toHost"),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Fetch",
+                      Add(
+                        "https://www.wikidata.org/w/api.php?action=wbgetentities&props=labels|aliases&languages=en&format=json&ids=",
+                        Call(Member($measured, "join"), "|")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($names,
+              Lambda(List($p),
+                Sequence(
+                  Bind($e,
+                    If(
+                      And($props, Member($props, "entities")),
+                      Index(Member($props, "entities"), $p),
+                      Undefined()
+                    )
+                  ),
+                  Return(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Filter(
+                              Concat(
+                                List(OptionalMember(OptionalMember(OptionalMember($e, "labels"), "en"), "value")),
+                                Map(
+                                  Or(OptionalMember(OptionalMember($e, "aliases"), "en"), List()),
+                                  Lambda(List($a), Member($a, "value"))
+                                )
+                              ),
+                              $Boolean
+                            ),
+                            "join"
+                          ),
+                          " "
+                        ),
+                        "toLowerCase"
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($said,
+              New(
+                $Set,
+                Concat(
+                  List($base),
+                  Otherwise(
+                    Call(
+                      Member(
+                        Call(
+                          Member(Call(Member(Call(Member($baseGlosses, "slice"), 0, 4), "join"), " "), "toLowerCase")
+                        ),
+                        "match"
+                      ),
+                      Regex("[a-z]{4,}", "g")
+                    ),
+                    List()
+                  )
+                )
+              )
+            ),
+            Bind($fits,
+              Lambda(List($p),
+                Call(
+                  Member(Otherwise(Call(Member(Call($names, $p), "match"), Regex("[a-z]{4,}", "g")), List()), "some"),
+                  Lambda(List($w),
+                    Call(
+                      Member(Concat($said), "some"),
+                      Lambda(List($s), Or(Call(Member($w, "startsWith"), $s), Call(Member($s, "startsWith"), $w)))
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("The measure the most words fit, the one the kind's items have most when none do."),
+            Bind($score,
+              Lambda(List($p),
+                Length(
+                  Filter(
+                    Otherwise(Call(Member(Call($names, $p), "match"), Regex("[a-z]{4,}", "g")), List()),
+                    Lambda(List($w),
+                      Call(
+                        Member(Concat($said), "some"),
+                        Lambda(List($x), Or(Call(Member($w, "startsWith"), $x), Call(Member($x, "startsWith"), $w)))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($ranked,
+              Call(
+                Member(Concat($measured), "sort"),
+                Lambda(List($a, $b), Subtract(Call($score, $b), Call($score, $a)))
+              )
+            ),
+            Bind($measure, Index($ranked, 0)),
+            Comment("Two measures the words fit as well as each other: both answered."),
+            Bind($alsoMeasure,
+              If(
+                And(
+                  And(NotEquals(Index($ranked, 1), Undefined()), GreaterThan(Call($score, Index($ranked, 1)), 0)),
+                  Equals(Call($score, Index($ranked, 1)), Call($score, Index($ranked, 0)))
+                ),
+                Index($ranked, 1),
+                Undefined()
+              )
+            ),
+            Bind($labelOf,
+              Lambda(List($m),
+                Or(
+                  OptionalMember(
+                    OptionalMember(
+                      OptionalMember(OptionalIndex(OptionalMember($props, "entities"), $m), "labels"),
+                      "en"
+                    ),
+                    "value"
+                  ),
+                  $m
+                )
+              )
+            ),
+            Bind($top,
+              Async(
+                Lambda(List($order, Default($measure, Index($ranked, 0))),
+                  Sequence(
+                    Bind($label, Call($labelOf, $measure)),
+                    Bind($rows,
+                      Call(
+                        Member($api, "toHost"),
+                        Await(
+                          Call(
+                            Member($api, "evaluate"),
+                            Call(
+                              Member($api, "call"),
+                              "Sparql",
+                              Add(
+                                Add(
+                                  Add(
+                                    Add(
+                                      Add(
+                                        Add(
+                                          Add(
+                                            Add(
+                                              Add(Add("SELECT ?i ?iLabel ?v ?uLabel WHERE { ?i ", $member), " wd:"),
+                                              $item
+                                            ),
+                                            " ; wikibase:sitelinks ?s . FILTER(?s > 30) ?i p:"
+                                          ),
+                                          $measure
+                                        ),
+                                        "/psv:"
+                                      ),
+                                      $measure
+                                    ),
+                                    "/wikibase:quantityNormalized ?q . ?q wikibase:quantityAmount ?v ; wikibase:quantityUnit ?u . SERVICE wikibase:label { bd:serviceParam wikibase:language \"en\". } } ORDER BY "
+                                  ),
+                                  $order
+                                ),
+                                "(?v) LIMIT 1"
+                              )
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Bind($row,
+                      If(
+                        Call(Member($Array, "isArray"), $rows),
+                        Index($rows, 0),
+                        Undefined()
+                      )
+                    ),
+                    If(Not($row), Return(Undefined()), Undefined()),
+                    Bind($name, Call($String, Member($row, "iLabel"))),
+                    Bind($identity,
+                      Call(
+                        Member(
+                          Map(
+                            Filter(
+                              Call(
+                                Member(
+                                  Call(
+                                    Member($name, "replace"),
+                                    Regex("[^A-Za-z0-9 ]", "g"),
+                                    ""
+                                  ),
+                                  "split"
+                                ),
+                                " "
+                              ),
+                              $Boolean
+                            ),
+                            $cap
+                          ),
+                          "join"
+                        ),
+                        ""
+                      )
+                    ),
+                    If(
+                      And(
+                        $identity,
+                        Not(
+                          Call(
+                            Member(
+                              OptionalMember(Call(Member(Member($api, "store"), "get"), $identity), "relations"),
+                              "some"
+                            ),
+                            Lambda(List($r),
+                              And(
+                                Call($isCall, Member($r, "claim")),
+                                Equals(Member(Member($r, "claim"), "head"), "Named")
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Call(
+                        Member(Member($api, "store"), "addRelation"),
+                        $identity,
+                        Call(Member($api, "call"), "Named", $name),
+                        Undefined(),
+                        Member(Member($api, "trace"), "cause")
+                      ),
+                      Undefined()
+                    ),
+                    Return(
+                      Object(
+                        head = "Superlative",
+                        args = List(
+                          Object(value = Call(Member($api, "call"), Or($identity, "Thing"))),
+                          Object(value = Call($Number, Member($row, "v"))),
+                          Object(value = Call($String, Or(Member($row, "uLabel"), ""))),
+                          Object(value = $label),
+                          Object(name = "most", value = Equals($order, "DESC")),
+                          Object(
+                            name = "from",
+                            value = Call(
+                              Member($api, "call"),
+                              "Wikidata",
+                              Call($String, Member($row, "i"))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              $direction,
+              Sequence(
+                Bind($order, If(Equals($direction, "Largest"), "DESC", "ASC")),
+                Bind($first, Await(Call($top, $order))),
+                Bind($second,
+                  If(
+                    $alsoMeasure,
+                    Await(Call($top, $order, $alsoMeasure)),
+                    Undefined()
+                  )
+                ),
+                Return(
+                  If(
+                    And(
+                      And($first, $second),
+                      NotEquals(
+                        Call(Member($api, "format"), Member(Index(Member($first, "args"), 0), "value")),
+                        Call(Member($api, "format"), Member(Index(Member($second, "args"), 0), "value"))
+                      )
+                    ),
+                    Call(Member($api, "call"), "Either", $first, $second),
+                    Otherwise($first, $none)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($most, Await(Call($top, "DESC"))),
+            Bind($least, Await(Call($top, "ASC"))),
+            Return(
+              If(
+                And($most, $least),
+                Call(Member($api, "call"), "Either", $most, $least),
+                $none
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

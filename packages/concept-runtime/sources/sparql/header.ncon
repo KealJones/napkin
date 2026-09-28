@@ -1,0 +1,10 @@
+// The world asked a question no one item answers: the Wikidata Query Service (SPARQL, CC0).
+// "The tallest mountain" is the mountain with the most of the quantity mountains are measured
+// by that "tall" means, read from Wiktionary ("superlative form of tall", "of greater than
+// average height") and from which quantities mountains have. Written by scripts/pack.mjs from
+// sources/sparql (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(Superlative(), IsA(Result()))
+
+Concept(Either(), IsA(Result()))
