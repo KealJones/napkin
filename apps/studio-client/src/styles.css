@@ -1056,10 +1056,6 @@ button.ghost {
 
   .app {
     display: flex;
-    position: fixed;
-    top: var(--studio-visual-top, 0px);
-    right: 0;
-    left: 0;
     width: 100%;
     height: var(--studio-visual-height, 100vh);
     height: var(--studio-visual-height, 100dvh);
@@ -1321,6 +1317,7 @@ button.ghost {
   .menu-open .trace-list {
     display: none !important;
   }
+
 }
 
 #root {
@@ -1706,6 +1703,12 @@ details > summary { cursor: pointer; }
   .menu-open .conversation-list,
   .menu-open .concept-list,
   .menu-open .trace-list {
+    display: none !important;
+  }
+
+  .app.prompt-focused .topbar,
+  .app.prompt-focused .chat-title,
+  .app.prompt-focused .menu-toggle {
     display: none !important;
   }
 }

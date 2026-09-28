@@ -299,6 +299,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [prompt, setPrompt] = useState(initialPrompt);
+  const [promptFocused, setPromptFocused] = useState(false);
   const [dragging, setDragging] = useState(false);
   /** Files attached go into the message as fenced code, named, with their language by extension. */
   const attach = async (files: FileList | null) => {
@@ -369,26 +370,26 @@ function App() {
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    const updateViewport = () => {
-      document.documentElement.style.setProperty(
-        "--studio-visual-height",
-        `${viewport?.height ?? window.innerHeight}px`,
-      );
-      document.documentElement.style.setProperty(
-        "--studio-visual-top",
-        `${viewport?.offsetTop ?? 0}px`,
-      );
+    let resizeTimer = 0;
+    const updateHeight = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        const height = viewport?.height;
+        if (height) {
+          document.documentElement.style.setProperty(
+            "--studio-visual-height",
+            `${height}px`,
+          );
+        }
+      }, 120);
     };
-    updateViewport();
-    viewport?.addEventListener("resize", updateViewport);
-    viewport?.addEventListener("scroll", updateViewport);
-    window.addEventListener("resize", updateViewport);
+    viewport?.addEventListener("resize", updateHeight);
+    window.addEventListener("resize", updateHeight);
     return () => {
-      viewport?.removeEventListener("resize", updateViewport);
-      viewport?.removeEventListener("scroll", updateViewport);
-      window.removeEventListener("resize", updateViewport);
+      window.clearTimeout(resizeTimer);
+      viewport?.removeEventListener("resize", updateHeight);
+      window.removeEventListener("resize", updateHeight);
       document.documentElement.style.removeProperty("--studio-visual-height");
-      document.documentElement.style.removeProperty("--studio-visual-top");
     };
   }, []);
 
@@ -770,7 +771,7 @@ function App() {
 
   return (
     <div
-      className={`app${menuOpen ? " menu-open" : ""}${historyOpen ? " history-open" : ""}${chromeShown ? " chrome-shown" : ""}`}
+      className={`app${menuOpen ? " menu-open" : ""}${historyOpen ? " history-open" : ""}${chromeShown ? " chrome-shown" : ""}${promptFocused ? " prompt-focused" : ""}`}
     >
       <button
         className="menu-toggle"
@@ -1069,6 +1070,8 @@ function App() {
                     <textarea
                       ref={promptRef}
                       value={prompt}
+                      onFocus={() => setPromptFocused(true)}
+                      onBlur={() => setPromptFocused(false)}
                       onChange={(event) => setPrompt(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && !event.shiftKey) {
