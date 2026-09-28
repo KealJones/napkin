@@ -773,11 +773,12 @@ written like a pattern whose holes are types:
 | `List(Number(), String())` | a list of a number, then text | `List($a, $b)` |
 | `List(Rest(Number()))` | any number of numbers | `List(Rest($xs))` |
 | `List(String(), Rest(Number()))` | text, then any number of numbers | `List($a, Rest($xs))` |
+| `ListOf(Number())` | `List(Rest(Number()))`, said shorter | |
 | `OneOf(A, B)` | either | |
 | a Concept with more said of it, `Car(Red())` | a thing whose own `IsA` says exactly that | |
 
 `List(Number())` is a list holding one number, as the pattern `List($a)` matches one; "a list
-of numbers" is `List(Rest(Number()))`. In a type position (`types =`, `IsA(...)`, a code
+of numbers" is `List(Rest(Number()))`, or `ListOf(Number())`. In a type position (`types =`, `IsA(...)`, a code
 declaration's `type =`) the shape is a type; in a value position `List(3, 4)` is a list. Where
 it is written says which.
 

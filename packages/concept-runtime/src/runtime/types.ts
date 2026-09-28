@@ -2,7 +2,7 @@
  * Whether a value is of a type (concept-spec Part 6.7). A type is anything IsA can point at, and
  * is written like a pattern whose holes are types: a Concept (`Number()`, `Someone()`), a list
  * with a type in each position (`List(String(), Number())`), a repeating tail (`List(Rest(Number()))`
- * is any number of numbers), or either of several (`OneOf(Number(), String())`). A number is a
+ * is any number of numbers, and ListOf(Number()) says it shorter), or either of several (`OneOf(Number(), String())`). A number is a
  * Number, text a String, true and false Booleans; a call is what its head is, through IsA and
  * SubclassOf. Nothing here names a type of thing in the world: only the shapes a type can take.
  */
@@ -31,6 +31,8 @@ export function isType(store: ConceptStore, value: Expr, type: Expr): boolean {
   if (!isCall(type)) return equal(value, type);
   const parts = positional(type);
   if (type.head === "OneOf") return parts.some((t) => isType(store, value, t));
+  // ListOf(T) says List(Rest(T)) shorter: any number of T.
+  if (type.head === "ListOf" && parts.length === 1) return isType(store, value, { head: "List", args: [{ value: { head: "Rest", args: [{ value: parts[0] }] } }] });
   // A list, position by position, as a pattern reads one: List(A, B) is two, Rest(C) the rest.
   if (type.head === "List" && type.args.every((a) => a.name === undefined)) {
     if (!isCall(value) || value.head !== "List") return false;

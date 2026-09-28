@@ -18,6 +18,8 @@ test("a type is anything IsA can point at, written like a pattern: a primitive, 
   assert.ok(!is('List(1, "a")', "List(Rest(Number()))"));
   assert.ok(is("List()", "List(Rest(Number()))"));
   assert.ok(is("List(1)", "List(Number())"));
+  assert.ok(is("List(1, 2, 3)", "ListOf(Number())"));
+  assert.ok(!is('List(1, "a")', "ListOf(Number())"));
   assert.ok(!is("List(1, 2)", "List(Number())"));
   assert.ok(is('List("a", 1, 2)', "List(String(), Rest(Number()))"));
   assert.ok(is('List("a", 1)', "List(String(), Number())"));
