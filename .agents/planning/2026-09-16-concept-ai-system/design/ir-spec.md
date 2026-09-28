@@ -749,6 +749,7 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 | misc | `New(c, args...)` / `TypeOf(x)` / `In("k", obj)` / `Undefined()` |
 | mutable binding | `Var($x, initial)` |
 | state | `Cell(initial)` / `Get($ref)` / `Set($ref, v)` |
+| typed declaration | `Bind($x, v, type = Number())`, `Cell(v, type = List(Number()))`, `Func($f, List($a, $b), body, types = List(Number(), Number()), returns = Number())` (Part 10.9) |
 
 `If` is used for both statement and expression position. The IR does not need a separate
 ternary, because an `If` that yields a value is the same idea.
@@ -1129,6 +1130,34 @@ helpers (`Slot`, `GridRay`, `Occupant`). Interpreted, chess's helpers made legal
   for now.
 
 ---
+
+
+### 10.9 Types are kept on declarations
+
+A typed language says what kind its values are. That is a claim about the program, not a
+step in it, and it is kept: on the declaration it belongs to, as a named argument, never on
+each use of the variable.
+
+| Source (TypeScript) | IR |
+|---|---|
+| `const x: number = 1` | `Bind($x, 1, type = Number())` |
+| a typed mutable binding, lowered to a cell | `Cell(1, type = Number())`: the type is of what the cell holds |
+| `function sum(a: number, b: number): number` | `Func($sum, List($a, $b), body, types = List(Number(), Number()), returns = Number())` |
+| `number[]`, `Array<number>` | `List(Number())` |
+| `[string, ...number[]]` | `TupleOf(String(), Rest(Number()))` |
+| `number \| string` | `OneOf(Number(), String())` |
+| `Foo` | `Foo()` |
+
+The types are kinds, the same language `IsA` takes and a realization's `types =` uses
+(`concept-spec.md` Part 6.7), so a program's claims and the graph's say things the same way.
+A function's `types` line up with its parameters by position. Untyped code reads exactly as
+it did: no `type`, `types` or `returns` at all.
+
+**They carry no weight when the code runs.** The interpreter and the compiler ignore them; a
+typed program and the same program untyped compute the same thing. They are there so that a
+writer can say them again (the TypeScript writer writes `a: number`, the JavaScript writer
+writes nothing) and so that any Concept that wants to know what a value was declared as can
+look. A declared type is a claim in the source, not a proof about the value that arrives.
 
 ## 11. Evidence
 
