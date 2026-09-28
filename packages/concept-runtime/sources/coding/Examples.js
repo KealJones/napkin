@@ -41,6 +41,10 @@ async (args, bindings, api) => {
     const written = api.writeCode(fn(api.call(u.identity, { variable: names[0] }, 3)), "JavaScript");
     if (written.unwritable.length || written.text.includes(u.identity + "(")) continue;
     const r = await run(u.identity, 7, 3);
+    // One that gives back what it was given adds nothing to try; nor does one realized by composing
+    // others (Add is AddValues, Percent a Multiply and a Divide), which the search reaches anyway.
+    const hosted = u.realizations.some((x) => !x.retired && isCall(x.pattern) && x.pattern.args.length === 2 && isCall(x.body) && x.body.head === "Code");
+    if (r === 7 || r === 3 || !hosted) continue;
     if (!ops.some((o) => o.r === r)) ops.push({ op: u.identity, r });
   }
   // A candidate is [rule, value of it for each example]. Operands are the arguments and constants.

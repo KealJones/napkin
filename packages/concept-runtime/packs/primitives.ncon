@@ -1,0 +1,354 @@
+// Primitives every language has, beside those in packs/code.ncon: operations on lists, text and
+// numbers that JavaScript, Python and their like all give (append, last, trim, range, zip ...).
+// Each has a host implementation here, and is written in each language by that language's To
+// rules (packs/javascript.ncon, packs/python.ncon). Written by scripts/pack.mjs from
+// sources/primitives (edit those, not this).
+//
+// Values never change: appending gives a new list, as the graph's lists are values.
+Requires(Core(), Code())
+
+// A list with one more item at its end.
+Concept(Append(),
+  Realization(Append($xs, $x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Bind($isList,
+              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
+            ),
+            Return(
+              If(
+                $isList,
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value")))),
+                  Call(Member($bindings, "get"), "x")
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Append",
+                  $xs,
+                  Call(Member($bindings, "get"), "x")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A list with an item put in at a position, counting from 0.
+Concept(InsertAt(),
+  Realization(InsertAt($xs, $i, $x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Bind($i, Call(Member($bindings, "get"), "i")),
+            Bind($isList,
+              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
+            ),
+            If(
+              Or(Not($isList), Not(Call(Member($Number, "isInteger"), $i))),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "InsertAt",
+                  $xs,
+                  $i,
+                  Call(Member($bindings, "get"), "x")
+                )
+              ),
+              Undefined()
+            ),
+            Bind($items, Map(Member($xs, "args"), Lambda(List($a), Member($a, "value")))),
+            Call(
+              Member($items, "splice"),
+              $i,
+              0,
+              Call(Member($bindings, "get"), "x")
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($items)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// The last item of a list, or the last letter of text.
+Concept(Last(),
+  Realization(Last($xs),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            If(
+              Equals(TypeOf($xs), "string"),
+              Return(
+                If(
+                  Length($xs),
+                  Index($xs, Subtract(Length($xs), 1)),
+                  Call(Member($api, "call"), "Nothing")
+                )
+              ),
+              Undefined()
+            ),
+            Bind($isList,
+              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
+            ),
+            If(
+              Not($isList),
+              Return(Call(Member($api, "call"), "Last", $xs)),
+              Undefined()
+            ),
+            Return(
+              If(
+                Length(Member($xs, "args")),
+                Member(Index(Member($xs, "args"), Subtract(Length(Member($xs, "args")), 1)), "value"),
+                Call(Member($api, "call"), "Nothing")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A list with one more item at its start.
+Concept(Prepend(),
+  Realization(Prepend($xs, $x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Bind($isList,
+              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
+            ),
+            Return(
+              If(
+                $isList,
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Call(Member($bindings, "get"), "x"),
+                  Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value"))))
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Prepend",
+                  $xs,
+                  Call(Member($bindings, "get"), "x")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// The whole numbers from one up to, not including, another.
+Concept(Range(),
+  Realization(Range($from, $to),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($from, Call(Member($bindings, "get"), "from")),
+            Bind($to, Call(Member($bindings, "get"), "to")),
+            If(
+              Or(
+                Or(Not(Call(Member($Number, "isInteger"), $from)), Not(Call(Member($Number, "isInteger"), $to))),
+                GreaterThan(Subtract($to, $from), 100000)
+              ),
+              Return(Call(Member($api, "call"), "Range", $from, $to)),
+              Undefined()
+            ),
+            Bind($out, List()),
+            For(
+              Var($i, $from),
+              LessThan($i, $to),
+              PostIncrement($i),
+              Call(Member($out, "push"), $i)
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// Text said again and again, n times in all.
+Concept(Repeat(),
+  Realization(Repeat($t, $n),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($t, Call(Member($bindings, "get"), "t")),
+            Bind($n, Call(Member($bindings, "get"), "n")),
+            Return(
+              If(
+                And(And(Equals(TypeOf($t), "string"), Call(Member($Number, "isInteger"), $n)), AtLeast($n, 0)),
+                Call(Member($t, "repeat"), $n),
+                Call(Member($api, "call"), "Repeat", $t, $n)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A number rounded to so many places after the point.
+Concept(RoundTo(),
+  Realization(RoundTo($x, $places),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            Bind($p, Call(Member($bindings, "get"), "places")),
+            If(
+              Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isInteger"), $p))),
+              Return(Call(Member($api, "call"), "RoundTo", $x, $p)),
+              Undefined()
+            ),
+            Bind($f, Power(10, $p)),
+            Return(Divide(Call(Member($Math, "round"), Multiply($x, $f)), $f))
+          )
+        )
+      )
+    )
+  )
+)
+
+// Text without the spaces at either end.
+Concept(Trim(),
+  Realization(Trim($t),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($t, Call(Member($bindings, "get"), "t")),
+            Return(
+              If(
+                Equals(TypeOf($t), "string"),
+                Call(Member($t, "trim")),
+                Call(Member($api, "call"), "Trim", $t)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A list with every item equal to one taken out.
+Concept(Without(),
+  Realization(Without($xs, $x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            Bind($isList,
+              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
+            ),
+            If(
+              Not($isList),
+              Return(Call(Member($api, "call"), "Without", $xs, $x)),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Spread(
+                  Filter(
+                    Map(Member($xs, "args"), Lambda(List($a), Member($a, "value"))),
+                    Lambda(List($v), NotEquals(Call(Member($api, "format"), $v), Call(Member($api, "format"), $x)))
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Two lists side by side: a list of pairs, as long as the shorter.
+Concept(Zip(),
+  Realization(Zip($a, $b),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($a, Call(Member($bindings, "get"), "a")),
+            Bind($b, Call(Member($bindings, "get"), "b")),
+            Bind($isList,
+              Lambda(List($x),
+                And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "List"))
+              )
+            ),
+            If(
+              Or(Not(Call($isList, $a)), Not(Call($isList, $b))),
+              Return(Call(Member($api, "call"), "Zip", $a, $b)),
+              Undefined()
+            ),
+            Bind($n,
+              Call(
+                Member($Math, "min"),
+                Length(Member($a, "args")),
+                Length(Member($b, "args"))
+              )
+            ),
+            Bind($out, List()),
+            For(
+              Var($i, 0),
+              LessThan($i, $n),
+              PostIncrement($i),
+              Call(
+                Member($out, "push"),
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Member(Index(Member($a, "args"), $i), "value"),
+                  Member(Index(Member($b, "args"), $i), "value")
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)

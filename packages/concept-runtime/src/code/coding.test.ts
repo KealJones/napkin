@@ -108,7 +108,7 @@ test("a doing no rule writes is written from what it does: its examples, in the 
   // Grounded from the dictionary when it can be reached, else found from examples: either way it runs.
   assert.match(reversed.said, /function reverse\(x\) \{ return /);
   assert.equal((await ask('run it with "napkin"', [{ message: "write", result: reversed.result }])).said, 'It gives "nikpan".');
-  assert.match((await ask("write a function that sorts a list")).said, /return x\.toSorted\(\)/);
+  assert.match((await ask("write a function that sorts a list")).said, /function sort\(x\) \{ return /);
   assert.match((await ask("write a function that doubles a number")).said, /return \(x \* 2\)/);
 });
 

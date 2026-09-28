@@ -1813,6 +1813,30 @@ Concept(Examples(),
                   Undefined()
                 ),
                 Bind($r, Await(Call($run, Member($u, "identity"), 7, 3))),
+                Comment("One that gives back what it was given adds nothing to try; nor does one realized by composing"),
+                Comment("others (Add is AddValues, Percent a Multiply and a Divide), which the search reaches anyway."),
+                Bind($hosted,
+                  Call(
+                    Member(Member($u, "realizations"), "some"),
+                    Lambda(List($x),
+                      And(
+                        And(
+                          And(
+                            And(Not(Member($x, "retired")), Call($isCall, Member($x, "pattern"))),
+                            Equals(Length(Member(Member($x, "pattern"), "args")), 2)
+                          ),
+                          Call($isCall, Member($x, "body"))
+                        ),
+                        Equals(Member(Member($x, "body"), "head"), "Code")
+                      )
+                    )
+                  )
+                ),
+                If(
+                  Or(Or(Equals($r, 7), Equals($r, 3)), Not($hosted)),
+                  Continue(),
+                  Undefined()
+                ),
                 If(
                   Not(Call(Member($ops, "some"), Lambda(List($o), Equals(Member($o, "r"), $r)))),
                   Call(Member($ops, "push"), Object(op = Member($u, "identity"), r = $r)),

@@ -1,0 +1,8 @@
+// Primitives every language has, beside those in packs/code.ncon: operations on lists, text and
+// numbers that JavaScript, Python and their like all give (append, last, trim, range, zip ...).
+// Each has a host implementation here, and is written in each language by that language's To
+// rules (packs/javascript.ncon, packs/python.ncon). Written by scripts/pack.mjs from
+// sources/primitives (edit those, not this).
+//
+// Values never change: appending gives a new list, as the graph's lists are values.
+Requires(Core(), Code())

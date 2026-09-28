@@ -4712,7 +4712,22 @@ Concept(Sort(),
             Bind($host, Lambda(List($x), Call(Member($api, "toHost"), $x))),
             Bind($back, Lambda(List($x), Call(Member($api, "fromHost"), $x))),
             Bind($v, Map($args, Lambda(List($a), Member($a, "value")))),
-            Return(Call($back, Call(Member(Map(Call($items, Index($v, 0)), $host), "sort"))))
+            Comment("Numbers by size, text by its letters: not every value as text."),
+            Return(
+              Call(
+                $back,
+                Call(
+                  Member(Map(Call($items, Index($v, 0)), $host), "sort"),
+                  Lambda(List($a, $b),
+                    If(
+                      LessThan($a, $b),
+                      Negate(1),
+                      If(GreaterThan($a, $b), 1, 0)
+                    )
+                  )
+                )
+              )
+            )
           )
         )
       )

@@ -157,7 +157,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
     const known = expressible.get(e);
     if (known !== undefined) return known;
     expressible.set(e, false);
-    const means = meaning && !expanding.has(e.head) ? meaning(e) : undefined;
+    const means = meaning && !expanding.has(format(e)) ? meaning(e) : undefined;
     const ok = found(e, false).some(({ rule, b }) => usable(rule, b)) || (means !== undefined && canExpress(means));
     expressible.set(e, ok);
     return ok;
@@ -203,14 +203,15 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
       return statement && !rule.statement && /^(\{|function\b|class\b)/.test(text) ? `(${text})` : text;
     }
     // No rule writes it: what it means, if the graph realizes it by composing Concepts, is
-    // written instead, while that is writable. A Concept being written inside its own meaning
-    // is not expanded again.
-    const means = isCall(e) && meaning && !expanding.has(e.head) ? meaning(e) : undefined;
+    // written instead, while that is writable. A call being written inside its own meaning is
+    // not expanded again (Percent(p, x) means Percent(p) times x; Percent(p) is expanded too).
+    const key = isCall(e) ? format(e) : "";
+    const means = isCall(e) && meaning && !expanding.has(key) ? meaning(e) : undefined;
     if (means !== undefined && isCall(e)) {
       const before = unwritable.length;
-      expanding.add(e.head);
+      expanding.add(key);
       const text = write(means, position, inLines);
-      expanding.delete(e.head);
+      expanding.delete(key);
       if (unwritable.length === before) return text;
       unwritable.length = before;
     }
