@@ -10,6 +10,12 @@ Concept(Quantity(), IsA(Result()))
 
 Concept(InSI(), IsA(Relation()))
 
+// Frankfurter (frankfurter.dev): the European Central Bank's reference rates, free and without a
+// key. A record is the request, which is its own page.
+Concept(Frankfurter(), IsA(Source()), IsA(LearningSource()))
+
+Concept(CurrencyCode(), IsA(Relation()))
+
 // A quantity in another unit ("convert 5 miles to kilometres", "convert ounces to pounds"): the
 // amount said (1 when none is), the first unit said and the one it goes to, each in the SI unit of
 // its kind. Quantity(amount, To, of = Quantity(amount, From)). Anything else stays as said.
@@ -70,6 +76,7 @@ Concept(ConvertQuantity(),
                 And(Call($isCall, $q), Equals(TypeOf(OptionalMember(Index(Member($q, "args"), 1), "value")), "number"))
               )
             ),
+            Bind($n, Otherwise($amount, 1)),
             If(
               Or(
                 Or(Not(Call($ok, $inFrom)), Not(Call($ok, $inTo))),
@@ -78,10 +85,21 @@ Concept(ConvertQuantity(),
                   Call(Member($api, "format"), Member(Index(Member($inTo, "args"), 2), "value"))
                 )
               ),
-              Return(Call(Member($api, "call"), "ConvertQuantity", Spread($said))),
+              Sequence(
+                Comment("Not measures of one kind: money, perhaps (\"convert 20 euros to dollars\")."),
+                Bind($money,
+                  Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Exchange", $n, $from, $to)))
+                ),
+                Return(
+                  If(
+                    And(Call($isCall, $money), Equals(Member($money, "head"), "Quantity")),
+                    $money,
+                    Call(Member($api, "call"), "ConvertQuantity", Spread($said))
+                  )
+                )
+              ),
               Undefined()
             ),
-            Bind($n, Otherwise($amount, 1)),
             Bind($sources,
               Filter(
                 Map(
@@ -114,6 +132,253 @@ Concept(ConvertQuantity(),
                     )
                   ),
                   $sources
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A currency's ISO 4217 code ("dollars" is USD), from the Wikidata item of whichever sense of the
+// word has one (P498). Kept as CurrencyCode(code) on the currency, stamped from the item. The
+// call itself when no sense is a currency.
+Concept(CurrencyCode(),
+  Realization(CurrencyCode($unit),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($unit, Call(Member($bindings, "get"), "unit")),
+            If(
+              Or(Not(Call($isCall, $unit)), Length(Member($unit, "args"))),
+              Return(Call(Member($api, "call"), "CurrencyCode", $unit)),
+              Undefined()
+            ),
+            Bind($word,
+              Call(
+                Member($api, "lemma"),
+                Call(
+                  Member(
+                    Call(
+                      Member(Member($unit, "head"), "replace"),
+                      Regex("([a-z])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                )
+              )
+            ),
+            Bind($name,
+              Call(
+                Member(
+                  Map(
+                    Call(Member($word, "split"), " "),
+                    Lambda(List($w), Add(Call(Member(Index($w, 0), "toUpperCase")), Call(Member($w, "slice"), 1)))
+                  ),
+                  "join"
+                ),
+                ""
+              )
+            ),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $name), "relations"), List()),
+              If(
+                And(
+                  And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "CurrencyCode")),
+                  Equals(TypeOf(OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value")), "string")
+                ),
+                Return(Member(Index(Member(Member($r, "claim"), "args"), 0), "value")),
+                Undefined()
+              )
+            ),
+            Bind($items, List()),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $name), "relations"), List()),
+              Sequence(
+                Bind($c, Member($r, "claim")),
+                If(
+                  And(
+                    And(
+                      And(Call($isCall, $c), Equals(Member($c, "head"), "SameAs")),
+                      Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                    ),
+                    Equals(Member(Member(Index(Member($c, "args"), 0), "value"), "head"), "Wikidata")
+                  ),
+                  Call(
+                    Member($items, "push"),
+                    Call(
+                      $String,
+                      Member(Index(Member(Member(Index(Member($c, "args"), 0), "value"), "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($found, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "WikidataSenses", $word)))),
+            If(
+              And(Call($isCall, $found), Equals(Member($found, "head"), "List")),
+              ForOf(
+                $a,
+                Member($found, "args"),
+                If(
+                  And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Wikidata")),
+                  Call(
+                    Member($items, "push"),
+                    Call($String, Member(Index(Member(Member($a, "value"), "args"), 0), "value"))
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            ForOf(
+              $item,
+              Call(Member(Concat(New($Set, $items)), "slice"), 0, 6),
+              Sequence(
+                Bind($got,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(
+                            Add("https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=", $item),
+                            "&property=P498&format=json"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($code,
+                  If(
+                    And(
+                      And($got, Member($got, "claims")),
+                      Call(Member($Array, "isArray"), Member(Member($got, "claims"), "P498"))
+                    ),
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalMember(Index(Member(Member($got, "claims"), "P498"), 0), "mainsnak"),
+                        "datavalue"
+                      ),
+                      "value"
+                    ),
+                    Undefined()
+                  )
+                ),
+                If(
+                  Or(NotEquals(TypeOf($code), "string"), Not(Call(Member(Regex("^[A-Z]{3}$", ""), "test"), $code))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($record,
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    "Wikidata",
+                    Object(
+                      head = "Imported",
+                      args = List(Object(value = $item), Object(name = "license", value = "CC0"))
+                    ),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  $name,
+                  Call(Member($api, "call"), "CurrencyCode", $code),
+                  Undefined(),
+                  Member($record, "seq")
+                ),
+                Return($code)
+              )
+            ),
+            Return(Call(Member($api, "call"), "CurrencyCode", $unit))
+          )
+        )
+      )
+    )
+  )
+)
+
+// An amount of one currency in another at today's reference rate (Frankfurter, from the European
+// Central Bank). Rates change, so this is asked each time and never kept. Quantity(value, unit =
+// To, of = Quantity(amount, unit = From), from = Frankfurter(url)), or the call itself.
+Concept(Exchange(),
+  Realization(Exchange($amount, $from, $to),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind(List($amount, $from, $to),
+              Map(List("amount", "from", "to"), Lambda(List($k), Call(Member($bindings, "get"), $k)))
+            ),
+            Bind($a, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "CurrencyCode", $from)))),
+            Bind($b, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "CurrencyCode", $to)))),
+            If(
+              Or(
+                Or(NotEquals(TypeOf($amount), "number"), NotEquals(TypeOf($a), "string")),
+                NotEquals(TypeOf($b), "string")
+              ),
+              Return(Call(Member($api, "call"), "Exchange", $amount, $from, $to)),
+              Undefined()
+            ),
+            Bind($url,
+              Add(
+                Add(Add(Add(Add("https://api.frankfurter.dev/v1/latest?amount=", $amount), "&from="), $a), "&to="),
+                $b
+              )
+            ),
+            Bind($got,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($value,
+              If(
+                Equals($a, $b),
+                $amount,
+                If(
+                  And($got, Member($got, "rates")),
+                  Call($Number, Index(Member($got, "rates"), $b)),
+                  $NaN
+                )
+              )
+            ),
+            If(
+              Not(Call(Member($Number, "isFinite"), $value)),
+              Return(Call(Member($api, "call"), "Exchange", $amount, $from, $to)),
+              Undefined()
+            ),
+            Return(
+              Object(
+                head = "Quantity",
+                args = List(
+                  Object(value = $value),
+                  Object(name = "unit", value = $to),
+                  Object(
+                    name = "of",
+                    value = Object(
+                      head = "Quantity",
+                      args = List(Object(value = $amount), Object(name = "unit", value = $from))
+                    )
+                  ),
+                  Object(name = "from", value = Call(Member($api, "call"), "Frankfurter", $url))
                 )
               )
             )
@@ -198,7 +463,20 @@ Concept(HowMany(),
                   Call(Member($api, "format"), Member(Index(Member($inB, "args"), 2), "value"))
                 )
               ),
-              Return(Call(Member($api, "call"), "HowMany", Spread($said))),
+              Sequence(
+                Comment("Money: how many yen in a dollar is a dollar in yen."),
+                Bind($money, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Exchange", 1, $b, $a)))),
+                Return(
+                  If(
+                    And(Call($isCall, $money), Equals(Member($money, "head"), "Quantity")),
+                    Object(
+                      head = "Quantity",
+                      args = Filter(Member($money, "args"), Lambda(List($x), NotEquals(Member($x, "name"), "of")))
+                    ),
+                    Call(Member($api, "call"), "HowMany", Spread($said))
+                  )
+                )
+              ),
               Undefined()
             ),
             Bind($from,
@@ -607,7 +885,7 @@ Concept(NumericValue(),
 )
 
 // A quantity said: "16 ounces", and what it was converted from when it was: "1 ounce is 0.0625
-// pounds". A unit is said in its base form for one, and as it was said (or with an s) for more.
+// pounds". A unit is said as it was said, and in its base form for exactly one.
 Concept(Quantity(),
   Realization(Quantity(Rest($x)),
     context = Speaking(),
@@ -648,9 +926,17 @@ Concept(Quantity(),
                       Call($String, $unit)
                     )
                   ),
-                  Bind($one, Call(Member($api, "lemma"), $words)),
-                  Bind($many, If(NotEquals($words, $one), $words, Add($one, "s"))),
-                  Return(Add(Add($n, " "), If(Equals($n, 1), $one, $many)))
+                  Comment("As it was said (\"yen\", \"ounces\"), and in its base form for exactly one."),
+                  Return(
+                    Add(
+                      Add($n, " "),
+                      If(
+                        Equals($n, 1),
+                        Call(Member($api, "lemma"), $words),
+                        $words
+                      )
+                    )
+                  )
                 )
               )
             ),

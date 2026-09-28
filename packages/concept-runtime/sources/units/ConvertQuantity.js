@@ -20,8 +20,12 @@ async (args, bindings, api) => {
   const inFrom = await api.evaluate(api.call("InSI", from));
   const inTo = await api.evaluate(api.call("InSI", to));
   const ok = (q) => isCall(q) && typeof q.args[1]?.value === "number";
-  if (!ok(inFrom) || !ok(inTo) || api.format(inFrom.args[2].value) !== api.format(inTo.args[2].value)) return api.call("ConvertQuantity", ...said);
   const n = amount ?? 1;
+  if (!ok(inFrom) || !ok(inTo) || api.format(inFrom.args[2].value) !== api.format(inTo.args[2].value)) {
+    // Not measures of one kind: money, perhaps ("convert 20 euros to dollars").
+    const money = await api.evaluate(api.call("Exchange", n, from, to));
+    return isCall(money) && money.head === "Quantity" ? money : api.call("ConvertQuantity", ...said);
+  }
   const sources = [inFrom, inTo].map((q) => q.args.find((x) => x.name === "from")).filter(Boolean);
   return { head: "Quantity", args: [{ value: (n * inFrom.args[1].value) / inTo.args[1].value }, { name: "unit", value: to }, { name: "of", value: { head: "Quantity", args: [{ value: n }, { name: "unit", value: from }] } }, ...sources] };
 };

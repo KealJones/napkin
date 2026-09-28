@@ -18,7 +18,11 @@ async (args, bindings, api) => {
   const inA = await api.evaluate(api.call("InSI", a));
   const inB = await api.evaluate(api.call("InSI", b));
   const ok = (q) => isCall(q) && typeof q.args[1]?.value === "number";
-  if (!ok(inA) || !ok(inB) || api.format(inA.args[2].value) !== api.format(inB.args[2].value)) return api.call("HowMany", ...said);
+  if (!ok(inA) || !ok(inB) || api.format(inA.args[2].value) !== api.format(inB.args[2].value)) {
+    // Money: how many yen in a dollar is a dollar in yen.
+    const money = await api.evaluate(api.call("Exchange", 1, b, a));
+    return isCall(money) && money.head === "Quantity" ? { head: "Quantity", args: money.args.filter((x) => x.name !== "of") } : api.call("HowMany", ...said);
+  }
   const from = [inA, inB].map((q) => q.args.find((x) => x.name === "from")).filter(Boolean);
   return { head: "Quantity", args: [{ value: inB.args[1].value / inA.args[1].value }, { name: "unit", value: a }, ...from] };
 };

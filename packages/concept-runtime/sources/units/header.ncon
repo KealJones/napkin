@@ -9,3 +9,9 @@ Requires(Core(), Basic(), Code())
 Concept(Quantity(), IsA(Result()))
 
 Concept(InSI(), IsA(Relation()))
+
+// Frankfurter (frankfurter.dev): the European Central Bank's reference rates, free and without a
+// key. A record is the request, which is its own page.
+Concept(Frankfurter(), IsA(Source()), IsA(LearningSource()))
+
+Concept(CurrencyCode(), IsA(Relation()))
