@@ -417,7 +417,19 @@ Concept(Bug(), SynonymOf(Check()))
 
 Concept(Bugs(), SynonymOf(Check()))
 
-Concept(Wrong(), SynonymOf(Check()))
+// "What's wrong with / in this code" asks for a check; "wrong" alone ("that's wrong") does not.
+Concept(Wrong(),
+  Realization(Wrong(With($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Check($x)
+  ),
+  Realization(Wrong(In($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Check($x)
+  )
+)
 
 Concept(Repair(), SynonymOf(Fix()))
 

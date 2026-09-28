@@ -759,6 +759,40 @@ Concept(Mood(),
                     )
                   )
                 ),
+                Comment("... or a statement something takes as said, with an answer that is not a truth (\"that was"),
+                Comment("wrong\" is apologised for; \"my name is Keal\" is not answered \"yes\")."),
+                Bind($told,
+                  And(
+                    And($value, Equals(Member($value, "head"), "Answer")),
+                    Not(
+                      And(
+                        And(Index(Member($value, "args"), 0), Member(Index(Member($value, "args"), 0), "value")),
+                        Includes(
+                          List("True", "False", "UnknownTruth", "Unknown"),
+                          Member(Member(Index(Member($value, "args"), 0), "value"), "head")
+                        )
+                      )
+                    )
+                  )
+                ),
+                If(
+                  $told,
+                  Return(
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        $read,
+                        Call(
+                          Member($api, "call"),
+                          "Context",
+                          Spread($facets),
+                          $kind
+                        )
+                      )
+                    )
+                  ),
+                  Undefined()
+                ),
                 If(
                   Call($plain, $value),
                   Sequence(
@@ -1093,6 +1127,12 @@ Concept(Not(), IsA(Modifier()))
 Concept(Result(), IsA(Category()))
 
 Concept(Answer(), IsA(Result()))
+
+// The turn names these too: a reply of several parts (Sequence), one of which may be an aside
+// only noted (Noted), left out of the reply when its words are not known yet.
+Concept(Noted(), IsA(Result()))
+
+Concept(Sequence(), IsA(CodePrimitive()))
 
 Concept(Describes(), IsA(Result()))
 

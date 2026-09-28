@@ -1117,12 +1117,13 @@ Concept(Tell(),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($x, Call(Member($bindings, "get"), "x")),
             Bind($done, Await(Call(Member($api, "evaluate"), $x, Member($api, "context")))),
-            Comment("What is told is an answer: \"tell me the capital of France\" is told Paris."),
+            Comment("A thing told is an answer (\"tell me the capital of France\" is told Paris); what already"),
+            Comment("says itself (a description, a result) is told as it is."),
             If(
               NotEquals(Call(Member($api, "format"), $done), Call(Member($api, "format"), $x)),
               Return(
                 If(
-                  And(Call($isCall, $done), Equals(Member($done, "head"), "Answer")),
+                  And(Call($isCall, $done), Length(Member($done, "args"))),
                   $done,
                   Call(Member($api, "call"), "Answer", $done)
                 )
