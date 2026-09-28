@@ -1,4 +1,3 @@
-import { c, format, parse } from "./dist/concept/expression.js"; import { seed } from "./dist/seed/seed.js"; import { ConceptStore } from "./dist/store/store.js"; import { Runtime } from "./dist/runtime/evaluator.js";
-const s = new ConceptStore(); seed(s); const rt = new Runtime(s);
-console.log(format(await rt.evaluate(parse('WikidataSenses("mile")'), c("Execution"))).slice(0, 600));
-console.log(format(await rt.evaluate(parse('Fetch("https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=Q253276&property=P2370&format=json")'), c("Execution"))).slice(0, 300));
+import { c, format } from "./dist/concept/expression.js"; import { seed } from "./dist/seed/seed.js"; import { ConceptStore } from "./dist/store/store.js"; import { Runtime } from "./dist/runtime/evaluator.js"; import { turn } from "./dist/runtime/turn.js";
+const s = new ConceptStore(); seed(s);
+for (const m of ["Yeah np. Can you tell me the capital of France?", "ok. what is 2 plus 2"]) { const r = await turn(new Runtime(s), m, c("Execution"), { learn: true }); console.log(format(r.expression), "\n =>", format(r.result), "\n", r.spoken); }

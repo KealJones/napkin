@@ -267,10 +267,10 @@ export function pickSense(result: Expr | undefined, said: string, message: strin
   const own = new Set(isCall(about) ? spoken(about.head).split(" ") : []);
   const words = new Set((said.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 3 && !own.has(w)));
   const text = (context: string) =>
-    [spoken(context), ...senses.get(context)!.flatMap((v) => [...walk(v)].filter((x): x is string => typeof x === "string"))].join(" ").toLowerCase();
+    [spoken(context), ...senses.get(context)!.flatMap((v) => [...walk(v)].map((x) => (typeof x === "string" ? x : isCall(x) ? spoken(x.head) : "")))].join(" ").toLowerCase();
   const fit = [...senses.keys()].map((context) => ({
     context,
-    score: new Set((text(context).match(/[a-z]+/g) ?? []).filter((w) => words.has(w))).size,
+    score: new Set((text(context).match(/[a-z]+/g) ?? []).filter((w) => w.length > 3 && [...words].some((x) => w.startsWith(x) || x.startsWith(w)))).size,
   }));
   const best = Math.max(0, ...fit.map((f) => f.score));
   const top = fit.filter((f) => f.score === best);

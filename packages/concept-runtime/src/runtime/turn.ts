@@ -20,6 +20,7 @@ import { Runtime } from "./evaluator.js";
 import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
+import { regroundSense } from "../research/wikidata.js";
 
 export interface Gap {
   /**
@@ -445,6 +446,27 @@ export async function turn(
     if (h.result?.startsWith("Which(")) asked = h.result;
     if (asked || /^(Answer|Describes)\(/.test(h.result ?? "")) break;
   }
+  // "No, I mean the math term", just after something was described: the sense it was taken in
+  // was not the one meant. The word's senses are looked up again for the one those words fit,
+  // and what was asked before is asked again.
+  const last = options.history?.[options.history.length - 1];
+  const meant = /^\s*(?:no+|nope|not (?:that|it))?[\s,.!]*(?:i|we)\s+(?:mean|meant)\s+(?:the\s+|a\s+|an\s+)?(.+?)[.!?]*$/i.exec(message);
+  let correcting: string | undefined;
+  if (meant && last?.result?.startsWith("Describes(")) {
+    try {
+      const described = parse(last.result);
+      const about = isCall(described) ? described.args[0]?.value : undefined;
+      if (about !== undefined && isCall(about)) {
+        const regrounded = await regroundSense(runtime.store, about.head, meant[1]).catch(() => undefined);
+        if (regrounded) {
+          correcting = meant[1];
+          message = last.message;
+        }
+      }
+    } catch {
+      // Not a description that can be read: the words are heard as they are.
+    }
+  }
   const answering = answerToWhich(asked, message, parse);
   // A name picks a person; a sense picks what a word is taken to mean ("the dessert").
   const chosen = new Map(answering && !answering.sense ? [[answering.name, answering.chosen]] : []);
@@ -571,8 +593,15 @@ export async function turn(
   }
 
   // Several senses and nothing said to pick one: asked, not guessed.
-  const conversation = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+  const conversation = [message, correcting ?? "", ...(options.history ?? []).map((h) => h.message)].join(" ");
   result = pickSense(result, conversation, message, pickedSense);
+  // An aside whose words are not known yet ("yeah np") does not stop the answer beside it: what
+  // was noted of it is left out of the reply, not the reply out of the turn.
+  if (result !== undefined && isCall(result) && result.head === "Sequence" && result.args.some((a) => isCall(a.value) && a.value.head === "Answer")) {
+    const unknown = new Set(collectGaps(runtime, result).map((g) => g.identity));
+    const kept = result.args.filter((a) => !(isCall(a.value) && a.value.head === "Noted" && [...walk(a.value)].some((n) => isCall(n) && unknown.has(n.head))));
+    if (kept.length && kept.length < result.args.length) result = kept.length === 1 ? kept[0].value : call("Sequence", kept);
+  }
   const rendered = result !== undefined ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
   // Anything still learnable after learning has run means the result is not an answer.

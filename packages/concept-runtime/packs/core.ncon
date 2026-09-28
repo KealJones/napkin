@@ -961,14 +961,62 @@ Concept(Mood(),
                             )
                           )
                         ),
+                        Comment("A thing that is a number (pi) is that number where it is worked on (\"pi times 2\"),"),
+                        Comment("not where it is what is asked about (\"what is pi\")."),
+                        Bind($operand,
+                          Lambda(List($e),
+                            And(
+                              Call($isCall, $e),
+                              Call(
+                                Member(Member($e, "args"), "some"),
+                                Lambda(List($a),
+                                  Or(
+                                    And(
+                                      And(
+                                        And(
+                                          Call($isCall, Member($a, "value")),
+                                          Equals(Member(Member($a, "value"), "head"), $h)
+                                        ),
+                                        Not(Length(Member(Member($a, "value"), "args")))
+                                      ),
+                                      Not(Includes(List("What", "Is"), Member($e, "head")))
+                                    ),
+                                    Call($operand, Member($a, "value"))
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        ),
+                        Bind($value,
+                          If(
+                            Call($operand, $line),
+                            Await(
+                              Call(
+                                Member($api, "evaluate"),
+                                Call(
+                                  Member($api, "call"),
+                                  "NumericValue",
+                                  Call(Member($api, "call"), $h)
+                                ),
+                                Call(Member($api, "call"), "Execution")
+                              )
+                            ),
+                            Undefined()
+                          )
+                        ),
                         Bind($got,
                           If(
-                            And(
-                              And(Call($isCall, $asked), Equals(Member($asked, "head"), "Answer")),
-                              Length(Member($asked, "args"))
-                            ),
-                            Member(Index(Member($asked, "args"), 0), "value"),
-                            Undefined()
+                            Equals(TypeOf($value), "number"),
+                            $value,
+                            If(
+                              And(
+                                And(Call($isCall, $asked), Equals(Member($asked, "head"), "Answer")),
+                                Length(Member($asked, "args"))
+                              ),
+                              Member(Index(Member($asked, "args"), 0), "value"),
+                              Undefined()
+                            )
                           )
                         ),
                         If(

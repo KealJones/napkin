@@ -481,6 +481,131 @@ Concept(InSI(),
   )
 )
 
+// The number a thing is, when it is one (pi, e, the golden ratio): its Wikidata item's numeric
+// value (P1181), kept as NumericValue(n) on it, stamped from the item. The call itself otherwise.
+Concept(NumericValue(),
+  Realization(NumericValue($x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            If(
+              Or(Not(Call($isCall, $x)), Length(Member($x, "args"))),
+              Return(Call(Member($api, "call"), "NumericValue", $x)),
+              Undefined()
+            ),
+            Bind($unit, Call(Member(Member($api, "store"), "get"), Member($x, "head"))),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember($unit, "relations"), List()),
+              If(
+                And(
+                  And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "NumericValue")),
+                  Equals(TypeOf(OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value")), "number")
+                ),
+                Return(Member(Index(Member(Member($r, "claim"), "args"), 0), "value")),
+                Undefined()
+              )
+            ),
+            Bind($items,
+              Map(
+                Filter(
+                  Map(Otherwise(OptionalMember($unit, "relations"), List()), Lambda(List($r), Member($r, "claim"))),
+                  Lambda(List($c),
+                    And(
+                      And(
+                        And(Call($isCall, $c), Equals(Member($c, "head"), "SameAs")),
+                        Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                      ),
+                      Equals(Member(Member(Index(Member($c, "args"), 0), "value"), "head"), "Wikidata")
+                    )
+                  )
+                ),
+                Lambda(List($c),
+                  Call(
+                    $String,
+                    Member(Index(Member(Member(Index(Member($c, "args"), 0), "value"), "args"), 0), "value")
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $item,
+              $items,
+              Sequence(
+                Bind($got,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(
+                            Add("https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=", $item),
+                            "&property=P1181&format=json"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($value,
+                  If(
+                    And(
+                      And($got, Member($got, "claims")),
+                      Call(Member($Array, "isArray"), Member(Member($got, "claims"), "P1181"))
+                    ),
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalMember(Index(Member(Member($got, "claims"), "P1181"), 0), "mainsnak"),
+                        "datavalue"
+                      ),
+                      "value"
+                    ),
+                    Undefined()
+                  )
+                ),
+                Bind($n, If($value, Call($Number, Member($value, "amount")), $NaN)),
+                If(
+                  Not(Call(Member($Number, "isFinite"), $n)),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($record,
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    "Wikidata",
+                    Object(
+                      head = "Imported",
+                      args = List(Object(value = $item), Object(name = "license", value = "CC0"))
+                    ),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Member($x, "head"),
+                  Call(Member($api, "call"), "NumericValue", $n),
+                  Undefined(),
+                  Member($record, "seq")
+                ),
+                Return($n)
+              )
+            ),
+            Return(Call(Member($api, "call"), "NumericValue", $x))
+          )
+        )
+      )
+    )
+  )
+)
+
 // A quantity said: "16 ounces", and what it was converted from when it was: "1 ounce is 0.0625
 // pounds". A unit is said in its base form for one, and as it was said (or with an s) for more.
 Concept(Quantity(),

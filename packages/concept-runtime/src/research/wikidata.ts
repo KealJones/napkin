@@ -15,7 +15,7 @@
  * `SameAs(Wikidata("Q..."))` on the Concept and on every Concept a relation points to, so
  * the next lookup of that word lands on the same sense instead of guessing again.
  */
-import { call, c, type Expr } from "../concept/expression.js";
+import { call, c, isCall, type Expr } from "../concept/expression.js";
 import type { ConceptStore } from "../store/store.js";
 import { nameOf } from "../ears/parser/names.js";
 
@@ -119,18 +119,36 @@ interface Described extends Entity {
   sitelinks?: Record<string, unknown>;
 }
 
+/** The Wikidata item of the English Wikipedia article a word is the title of, redirects followed. */
+async function primaryTopic(word: string, get: Fetch): Promise<string | undefined> {
+  try {
+    const body = (await get(
+      "https://en.wikipedia.org/w/api.php?" + new URLSearchParams({ action: "query", titles: word, redirects: "1", prop: "pageprops", ppprop: "wikibase_item", format: "json" }),
+    )) as { query?: { pages?: Record<string, { pageprops?: { wikibase_item?: string; disambiguation?: string } }> } };
+    const page = Object.values(body.query?.pages ?? {})[0];
+    return page?.pageprops?.disambiguation === undefined ? page?.pageprops?.wikibase_item : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * Every item the word is the exact label or alias of. Wikidata's own pages (disambiguation
- * pages, deprecation reasons) are records about Wikidata, not things a word names.
+ * Every item the word is the exact label or alias of, and the item of the article it names.
+ * Wikidata's own pages (disambiguation pages, deprecation reasons) are records about Wikidata,
+ * not things a word names.
  */
 async function findSenses(word: string, get: Fetch): Promise<Sense[]> {
   const body = (await get(
     API + new URLSearchParams({ action: "wbsearchentities", search: word, language: "en", limit: "10", format: "json" }),
   )) as { search?: { id: string; label?: string; match?: { type?: string; text?: string } }[] };
   const want = word.toLowerCase();
-  const ids = (body.search ?? [])
+  const labelled = (body.search ?? [])
     .filter((hit) => hit.label?.toLowerCase() === want || (hit.match?.type === "alias" && hit.match.text?.toLowerCase() === want))
     .map((hit) => hit.id);
+  // The search is by prefix, so the sense most of the world means can be missing ("pi" finds a
+  // family name, not the number): the item of the Wikipedia article the word names is one too.
+  const primary = await primaryTopic(word, get);
+  const ids = [...new Set([...(primary ? [primary] : []), ...labelled])];
   const found = (await entities(ids, "claims|descriptions|sitelinks", get)) as Record<string, Described>;
   const kindsOf = (e: Described) =>
     ["P31", "P279"].flatMap((p) => (e.claims?.[p] ?? []).map((snak) => snak.mainsnak?.datavalue?.value?.id).filter((q): q is string => !!q));
@@ -156,8 +174,10 @@ async function findSenses(word: string, get: Fetch): Promise<Sense[]> {
 function fitting(senses: readonly Sense[], word: string, said: string): readonly Sense[] {
   const own = new Set(word.toLowerCase().split(/\s+/));
   const words = new Set((said.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 3 && !own.has(w)));
+  // A word said fits a word of the sense when either begins the other: "math" fits "mathematical".
+  const fits = (w: string) => w.length > 3 && [...words].some((x) => w.startsWith(x) || x.startsWith(w));
   const score = (sense: Sense) =>
-    [...new Set([sense.description, ...sense.kinds].join(" ").toLowerCase().match(/[a-z]+/g) ?? [])].filter((w) => words.has(w)).length;
+    [...new Set([sense.description, ...sense.kinds].join(" ").toLowerCase().match(/[a-z]+/g) ?? [])].filter(fits).length;
   const scored = senses.map((sense) => ({ sense, score: score(sense) }));
   const best = Math.max(0, ...scored.map((x) => x.score));
   const top = scored.filter((x) => x.score === best);
@@ -188,11 +208,15 @@ export async function groundInWikidata(
   const tied = wikidataItem(store, identity);
   const senses = tied ? [{ id: tied, description: "", sitelinks: 0, kinds: [] }] : fitting(await findSenses(readable(identity), get), readable(identity), options.said ?? "");
   if (!senses.length) return undefined;
-  const one = senses.length === 1;
+  // One sense the world writes about far more than any other is the one meant when nothing said
+  // picks one ("pi" is the number, not the family name; France the country, not the battleship).
+  const ranked = [...senses].sort((a, b) => b.sitelinks - a.sitelinks);
+  const dominant = ranked.length > 1 && ranked[0].sitelinks >= 20 && ranked[0].sitelinks >= 10 * ranked[1].sitelinks ? [ranked[0]] : undefined;
+  const one = senses.length === 1 || dominant !== undefined;
   // A sense's context is named by its kind, unless that name already means something here:
   // the kind "concept" is not the universal parent.
   const kind = (sense: Sense) => sense.kinds.map(nameOf).find((k) => /^[A-Z]/.test(k) && !(store.get(k)?.realizations.length ?? 0));
-  const chosen = one ? senses : [...senses].sort((a, b) => b.sitelinks - a.sitelinks).filter((x) => kind(x)).slice(0, SENSES);
+  const chosen = dominant ?? (one ? senses : ranked.filter((x) => kind(x)).slice(0, SENSES));
   const relations: Expr[] = [];
   for (const sense of chosen) {
     const context = one ? undefined : c(kind(sense)!);
@@ -257,4 +281,47 @@ async function groundSense(
     keep(c(relation, c(name)));
   }
   return relations;
+}
+
+/**
+ * "No, I mean the math term", said of a thing just described: the sense it was taken in is not
+ * the one meant. What that sense holds is kept, in a context named by its kind (Pi is still a
+ * family name), and the word's other senses are looked up for the one the words said fit. The
+ * sense found, learned in its own context; undefined when the words fit none, or several.
+ */
+export async function regroundSense(
+  store: ConceptStore,
+  identity: string,
+  said: string,
+  options: { fetch?: Fetch; cause?: number } = {},
+): Promise<Grounded | undefined> {
+  const get = options.fetch ?? defaultFetch;
+  const tied = wikidataItem(store, identity);
+  const unit = store.get(identity);
+  if (tied && unit) {
+    const loose = unit.relations.filter((r) => r.context === undefined && r.stamps?.length && r.stamps.every((st) => st.pack === undefined));
+    let kind: string | undefined;
+    for (const r of loose) {
+      const cl = r.claim;
+      const target = isCall(cl) && cl.head === "IsA" ? cl.args[0]?.value : undefined;
+      if (target !== undefined && isCall(target)) {
+        kind = target.head;
+        break;
+      }
+    }
+    if (kind) {
+      const seqs = new Set<number>();
+      for (const r of loose) {
+        store.addRelation(identity, r.claim, c(kind), r.stamps![0].source);
+        for (const st of r.stamps!) seqs.add(st.seq);
+      }
+      store.collect(seqs);
+    }
+  }
+  const found = fitting((await findSenses(readable(identity), get)).filter((x) => x.id !== tied), readable(identity), said);
+  if (found.length !== 1) return undefined;
+  const sense = found[0];
+  const kind = sense.kinds.map(nameOf).find((k) => /^[A-Z]/.test(k) && !(store.get(k)?.realizations.length ?? 0));
+  const relations = await groundSense(store, identity, sense, kind ? c(kind) : undefined, get, options.cause);
+  return { item: sense.id, relations };
 }
