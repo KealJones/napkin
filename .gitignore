@@ -6,3 +6,7 @@ dist/
 packages/concept-runtime/data/
 apps/studio-client/public-pages/
 apps/studio-client/dist-pages/
+
+# Scratch probes run from the runtime folder
+packages/concept-runtime/[xyz].mjs
+packages/concept-runtime/z*.mjs
