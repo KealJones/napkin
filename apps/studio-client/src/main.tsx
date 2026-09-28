@@ -62,11 +62,14 @@ type Activity = {
   rejected: { line: string; reason: string }[];
   events: TraceEvent[];
 };
+type Source = { label: string; url: string };
 type ChatMessage = {
   role: "User" | "Assistant";
   content: string;
   result?: Expr | null;
   activity?: Activity;
+  /** Outside sources the answer rests on, shown as small links under it. */
+  sources?: Source[];
 };
 type ConversationUnit = {
   identity: string;
@@ -77,6 +80,7 @@ type ConversationUnit = {
     parsed: string;
     result: string;
     spoken?: string;
+    sources?: Source[];
   }[];
 };
 type TraceSummary = {
@@ -213,6 +217,7 @@ function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
           role: "Assistant",
           content: turn.spoken?.trim() || result || "(no response)",
           result: expressionOrNull(result),
+          sources: turn.sources ?? [],
         },
       ];
     });
@@ -609,6 +614,9 @@ function App() {
                 typeof event.result === "string"
                   ? expressionOf(event.result)
                   : null,
+              sources: Array.isArray(event.sources)
+                ? (event.sources as Source[])
+                : [],
             },
           ]);
           const summary = event.conversation as ConversationSummary | undefined;
@@ -886,6 +894,22 @@ function App() {
                           <div className="content">
                             <Text value={message.content} />
                           </div>
+                          {message.sources && message.sources.length > 0 && (
+                            <div className="sources">
+                              {message.sources.map((source) => (
+                                <a
+                                  key={source.url}
+                                  className="source-chip"
+                                  href={source.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={source.url}
+                                >
+                                  {source.label}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {message.role === "User" && message.activity && (
                           <ActivityPanel activity={message.activity} />

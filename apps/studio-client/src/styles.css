@@ -1253,3 +1253,31 @@ details > summary { cursor: pointer; }
 .attach input {
   display: none;
 }
+
+/* Where an answer came from: a tiny link per outside source. */
+.message .sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.source-chip {
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted, #888);
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.source-chip::before {
+  content: "↗ ";
+}
+
+.source-chip:hover {
+  opacity: 1;
+  color: var(--text, inherit);
+}

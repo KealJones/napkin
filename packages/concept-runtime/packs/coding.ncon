@@ -4234,7 +4234,46 @@ Concept(WriteDoing(),
               )
             ),
             Bind($language, Otherwise($target, "JavaScript")),
-            Bind($written, Call(Member($api, "writeCode"), $ir, $language)),
+            Var($written, Call(Member($api, "writeCode"), $ir, $language)),
+            Comment("A doing whose behaviour is host code has nothing to write from: what it means is looked up"),
+            Comment("and grounded (checked against that behaviour), and written from that when it grounds."),
+            If(
+              And(Length(Member($written, "unwritable")), Equals(Member($doing, "arity"), 1)),
+              Sequence(
+                Bind($sample,
+                  If(
+                    And(
+                      Call($isCall, $noun),
+                      Includes(
+                        List("string", "text", "word"),
+                        Call(Member($api, "lemma"), Call(Member(Call($String, Member($noun, "head")), "toLowerCase")))
+                      )
+                    ),
+                    "abc",
+                    Call(Member($api, "call"), "List", 3, 1, 2)
+                  )
+                ),
+                Bind($grounded,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Ground",
+                        Member($doing, "name"),
+                        $sample
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And(Call($isCall, $grounded), Equals(Member($grounded, "head"), "Grounded")),
+                  Assign($written, Call(Member($api, "writeCode"), $ir, $language)),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               Length(Member($written, "unwritable")),
               Sequence(

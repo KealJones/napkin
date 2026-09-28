@@ -4861,7 +4861,12 @@ Concept(Ambiguous(),
 
 Concept(Web(), IsA(Source()), IsA(LearningSource()))
 
-Concept(Wikidata(), IsA(Source()), IsA(LearningSource()))
+// A Wikidata record is an item's id; its page is the item's page.
+Concept(Wikidata(),
+  IsA(Source()),
+  IsA(LearningSource()),
+  Page(From(""), To("https://www.wikidata.org/wiki/"))
+)
 
 Concept(SearchResult(), IsA(Data()))
 

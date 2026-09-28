@@ -57,7 +57,14 @@ async (args, bindings, api) => {
   const params = names.map((n) => ({ variable: n }));
   const ir = { head: "Module", args: [{ value: { head: "Func", args: [{ value: { variable: doing.base } }, { value: api.call("List", ...params) }, { value: api.call("Return", api.call(doing.name, ...params)) }] } }] };
   const language = target ?? "JavaScript";
-  const written = api.writeCode(ir, language);
+  let written = api.writeCode(ir, language);
+  // A doing whose behaviour is host code has nothing to write from: what it means is looked up
+  // and grounded (checked against that behaviour), and written from that when it grounds.
+  if (written.unwritable.length && doing.arity === 1) {
+    const sample = isCall(noun) && ["string", "text", "word"].includes(api.lemma(String(noun.head).toLowerCase())) ? "abc" : api.call("List", 3, 1, 2);
+    const grounded = await api.evaluate(api.call("Ground", doing.name, sample));
+    if (isCall(grounded) && grounded.head === "Grounded") written = api.writeCode(ir, language);
+  }
   if (written.unwritable.length) {
     // No rule writes the doing: found from what it does instead, in a language that can be run.
     const body = doing.arity === 1 && language === "JavaScript" ? await api.evaluate(api.call("CodeFor", doing.name, noun ?? api.call("Value")), api.context) : undefined;

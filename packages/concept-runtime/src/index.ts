@@ -8,6 +8,7 @@ export * from "./store/persist.js";
 export * from "./store/journal.js";
 export * from "./store/forget.js";
 export * from "./store/traces.js";
+export { sourcesOf, type SourceLink } from "./store/provenance.js";
 export * from "./runtime/context.js";
 export * from "./runtime/select.js";
 export * from "./runtime/trace.js";

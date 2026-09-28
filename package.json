@@ -9,8 +9,7 @@
     "build": "pnpm -r build",
     "test": "pnpm --filter @napkin/concept-runtime test",
     "studio": "pnpm -r build && pnpm --filter @napkin/studio-server start",
-    "napkin": "node packages/concept-runtime/dist/cli.js",
-    "eval:ears": "pnpm --filter @napkin/concept-runtime eval:ears"
+    "napkin": "node packages/concept-runtime/dist/cli.js"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

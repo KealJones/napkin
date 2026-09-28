@@ -19,6 +19,7 @@ import {
   Relations,
   Runtime,
   openNapkinGraph,
+  sourcesOf,
   type ConceptUnit,
   type TraceEvent,
   turn as runTurn,
@@ -115,7 +116,16 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       const id = decodeURIComponent(path.slice("/api/conversations/".length));
       const unit = conversations.get(id);
       if (!unit) return json(404, { error: "Conversation not found" });
-      return json(200, { summary: conversations.listActive().find((x) => x.id === id), unit });
+      // Each answer's outside sources, worked out again from what it was and what was asked.
+      const read = (text: string | undefined) => {
+        try {
+          return text ? parse(text) : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+      const turns = unit.turns.map((t) => ({ ...t, sources: sourcesOf(store, read(t.result), read(t.parsed)) }));
+      return json(200, { summary: conversations.listActive().find((x) => x.id === id), unit: { ...unit, turns } });
     }
 
     if (path.startsWith("/api/conversations/") && method === "DELETE") {
@@ -298,6 +308,8 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
           gaps: result.gaps,
           learned: result.learned,
           ambiguities: result.ambiguities,
+          // The outside sources the answer rests on, as links (Wikidata, Wiktionary ...).
+          sources: sourcesOf(store, result.result, result.expression),
           events,
           size: store.size(),
         });

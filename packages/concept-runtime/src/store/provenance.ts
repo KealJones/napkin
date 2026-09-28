@@ -7,7 +7,7 @@
  *
  * A source is any Concept that is a `LearningSource`. A new one needs no change here.
  */
-import { type Expr, isCall } from "../concept/expression.js";
+import { type Call, type Expr, isCall } from "../concept/expression.js";
 import { lineage } from "../runtime/select.js";
 import type { ConceptStore } from "./store.js";
 
@@ -59,4 +59,94 @@ export function factsBySource(store: ConceptStore): Map<string, SourceCount> {
     }
   }
   return out;
+}
+
+export interface SourceLink {
+  /** The source, by its Concept's name ("Wikidata"). */
+  readonly label: string;
+  readonly url: string;
+}
+
+/**
+ * The outside sources an answer rests on, as links: what it says it came from (`from =
+ * Wiktionary(url)`), and the facts joining what was asked to what was answered, traced back
+ * through their stamps to the record they were read from (`Wikidata Imported("Q90")`). Only
+ * sources a link can be made for: a conversation or a teacher is not one. A source says how
+ * its records become pages with `Page(From(prefix), To(prefix))`; a record that is already a
+ * web address is its own page.
+ */
+const called = (e: Expr | undefined): e is Call => e !== undefined && isCall(e);
+
+export function sourcesOf(store: ConceptStore, result: Expr | undefined, asked?: Expr): SourceLink[] {
+  const out = new Map<string, string>();
+  const known = new Map<string, string | undefined>();
+  const source = (identity: string) => {
+    if (!known.has(identity)) known.set(identity, sourceOf(store, identity));
+    return known.get(identity);
+  };
+  const link = (identity: string, record: Expr) => {
+    const text = typeof record === "string" ? record : called(record) && typeof record.args[0]?.value === "string" ? record.args[0].value : undefined;
+    if (text === undefined) return;
+    let url = text;
+    for (const r of store.get(identity)?.relations ?? []) {
+      const claim = r.claim;
+      if (!called(claim) || claim.head !== "Page") continue;
+      const part = (head: string) => {
+        const p = claim.args.find((a) => called(a.value) && a.value.head === head)?.value;
+        return called(p) && typeof p.args[0]?.value === "string" ? p.args[0].value : undefined;
+      };
+      const from = part("From");
+      const to = part("To");
+      if (from !== undefined && to !== undefined && text.startsWith(from)) {
+        url = to + text.slice(from.length);
+        break;
+      }
+    }
+    if (/^https?:\/\//.test(url) && !out.has(url)) out.set(url, identity);
+  };
+  const heads = (e: Expr | undefined, into: Set<string>, positional = true): Set<string> => {
+    if (called(e)) {
+      into.add(e.head);
+      for (const a of e.args) if (!positional || a.name === undefined) heads(a.value, into, positional);
+    }
+    return into;
+  };
+  // What the answer says it came from.
+  const walk = (e: Expr | undefined) => {
+    if (!called(e)) return;
+    for (const a of e.args) {
+      if (a.name === "from" && called(a.value) && source(a.value.head) !== undefined) link(a.value.head, a.value);
+      walk(a.value);
+    }
+  };
+  walk(result);
+  // A doing the answer uses, realized from what a source said (`Learned(Wiktionary(url), gloss)`).
+  for (const head of heads(result, new Set(), false)) {
+    for (const r of store.get(head)?.realizations ?? []) {
+      if (r.retired) continue;
+      for (const p of r.properties) if (called(p) && p.head === "Learned") for (const a of p.args) if (called(a.value) && source(a.value.head) !== undefined) link(a.value.head, a.value);
+    }
+  }
+  // The facts joining what was asked to what was answered, back to where they were read.
+  if (asked !== undefined) {
+    const said = heads(asked, new Set(), false);
+    for (const head of heads(result, new Set())) {
+      if (said.has(head)) continue;
+      for (const m of store.mentioning({ head, args: [] })) {
+        if (!said.has(m.identity)) continue;
+        // A fact that says where it came from (`from = Wikidata("Q142", "P36")`).
+        walk(m.relation.claim);
+        for (let at = m.relation.stamps?.[0]?.source, hops = 0; at !== undefined && hops < 16; hops += 1) {
+          const entry = store.findStamp(at);
+          if (!entry) break;
+          if (source(entry.identity) !== undefined) {
+            link(entry.identity, entry.relation.claim);
+            break;
+          }
+          at = entry.stamp.source;
+        }
+      }
+    }
+  }
+  return [...out].map(([url, label]) => ({ label, url }));
 }
