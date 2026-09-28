@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import {
   application,
@@ -336,6 +336,14 @@ function App() {
   const [toast, setToast] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  // On a phone: the sidebar is a drawer, opened by the menu button; the top bar and the
+  // conversation's header come back when the chat is dragged down, and go when it is read on.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [chromeShown, setChromeShown] = useState(false);
+  const lastScroll = useRef(0);
+  const closeMenuOnPick = (event: MouseEvent) => {
+    if ((event.target as HTMLElement).closest("button")) setMenuOpen(false);
+  };
   const activeActivityRef = useRef<string | null>(null);
 
   const currentConversation = conversations.find(
@@ -733,8 +741,20 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <aside className="sidebar">
+    <div
+      className={`app${menuOpen ? " menu-open" : ""}${chromeShown ? " chrome-shown" : ""}`}
+    >
+      <button
+        className="menu-toggle"
+        aria-label="Menu"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        ☰
+      </button>
+      {menuOpen && (
+        <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+      )}
+      <aside className="sidebar" onClick={closeMenuOnPick}>
         <div className="brand">
           <div className="mark">C</div>
           <span className="brand-name">
@@ -824,7 +844,7 @@ function App() {
         ) : page === "chat" ? (
           <section className="page active">
             <div className="chat-layout">
-              <aside className="conversation-list">
+              <aside className="conversation-list" onClick={closeMenuOnPick}>
                 <div className="list-head">
                   <strong>Conversations</strong>
                   <button
@@ -895,7 +915,17 @@ function App() {
                     </button>
                   )}
                 </div>
-                <div className="messages" ref={messagesRef}>
+                <div
+                  className="messages"
+                  ref={messagesRef}
+                  onScroll={(event) => {
+                    const top = event.currentTarget.scrollTop;
+                    const moved = top - lastScroll.current;
+                    if (moved < -8) setChromeShown(true);
+                    else if (moved > 8) setChromeShown(false);
+                    lastScroll.current = top;
+                  }}
+                >
                   {messages.length === 0 ? (
                     <div className="empty-state">
                       <div className="orb">💡</div>
@@ -1017,7 +1047,7 @@ function App() {
         ) : page === "concepts" ? (
           <section className="page active">
             <div className="browser-layout">
-              <aside className="concept-list">
+              <aside className="concept-list" onClick={closeMenuOnPick}>
                 <input
                   className="search"
                   value={search}
@@ -1078,7 +1108,7 @@ function App() {
         ) : (
           <section className="page active">
             <div className="trace-page">
-              <aside className="trace-list">
+              <aside className="trace-list" onClick={closeMenuOnPick}>
                 <div className="trace-list-heading">
                   <strong>Recent traces</strong>
                   <button
