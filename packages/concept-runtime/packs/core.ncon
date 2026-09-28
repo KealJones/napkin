@@ -779,6 +779,9 @@ Concept(Noted(), IsA(Result()))
 // The turn reads what a thing is tied to in Wikidata, in each sense of it.
 Concept(SameAs(), IsA(Relation()))
 
+// What a pointing word points at in the conversation (packs/focus.ncon): the host asks it.
+Concept(ReferentOf())
+
 Concept(Sequence(), IsA(CodePrimitive()))
 
 Concept(Describes(), IsA(Result()))

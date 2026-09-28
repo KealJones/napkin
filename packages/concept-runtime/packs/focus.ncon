@@ -1,0 +1,536 @@
+// What a conversation has in play, and what a word that points points at in it (memory-spec
+// Part 8). ConversationFocus(conversation) is worked out from what was said, never stored; a
+// pointing word's referent is picked from it by the kind the word points at ("he" at someone
+// male), and recorded where it was said as resolvedTo. Written by scripts/pack.mjs from
+// sources/focus (edit those, not this).
+Requires(Core(), Basic(), Hearing())
+
+// What a pointing word points at: a kind, or what the thing holds (a sex or gender).
+Concept(PointsAt(), IsA(Relation()))
+
+// Who asks for someone; a human is someone.
+Concept(Human(), IsA(Someone()))
+
+Concept(He(), PointsAt(Someone()), PointsAt(Male()))
+
+Concept(Him(), PointsAt(Someone()), PointsAt(Male()))
+
+Concept(She(), PointsAt(Someone()), PointsAt(Female()))
+
+Concept(Her(), PointsAt(Someone()), PointsAt(Female()))
+
+// The things a conversation has in play, newest first: what its answers were and were about, what
+// its pointing words pointed at, and the things it named that Napkin holds facts of. An answer to
+// a question that asked for a kind is AskedAs(thing, kind): what "where" answered is a place. Read
+// from the conversation's Said, so nothing needs keeping in step with it.
+Concept(ConversationFocus(),
+  Realization(ConversationFocus($conversation),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($unit,
+              Call(
+                Member(Member($api, "store"), "get"),
+                Call($String, Call(Member($api, "toHost"), Call(Member($bindings, "get"), "conversation")))
+              )
+            ),
+            Bind($seq,
+              Lambda(List($r),
+                Call(
+                  Member($Math, "max"),
+                  0,
+                  Spread(Map(Otherwise(Member($r, "stamps"), List()), Lambda(List($s), Member($s, "seq"))))
+                )
+              )
+            ),
+            Bind($said,
+              Call(
+                Member(
+                  Filter(
+                    If($unit, Member($unit, "relations"), List()),
+                    Lambda(List($r),
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Said"))
+                    )
+                  ),
+                  "sort"
+                ),
+                Lambda(List($a, $b), Subtract(Call($seq, $b), Call($seq, $a)))
+              )
+            ),
+            Bind($out, List()),
+            Bind($same,
+              Lambda(List($o, $e),
+                Equals(
+                  If(
+                    Equals(Member($o, "head"), "AskedAs"),
+                    Member(Member(Index(Member($o, "args"), 0), "value"), "head"),
+                    Member($o, "head")
+                  ),
+                  Member($e, "head")
+                )
+              )
+            ),
+            Bind($add,
+              Lambda(List($e, $kind),
+                Sequence(
+                  If(
+                    And(
+                      And(Call($isCall, $e), Not(Length(Member($e, "args")))),
+                      Not(Call(Member($out, "some"), Lambda(List($o), Call($same, $o, $e))))
+                    ),
+                    Call(
+                      Member($out, "push"),
+                      If(
+                        $kind,
+                        Call(Member($api, "call"), "AskedAs", $e, $kind),
+                        $e
+                      )
+                    ),
+                    Undefined()
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Comment("The kind a question asked for, by its question word (Where asks for a place)."),
+            Bind($asked,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(Undefined()), Undefined()),
+                  Bind($k,
+                    Call(
+                      Member(
+                        Map(
+                          Otherwise(
+                            OptionalMember(Call(Member(Member($api, "store"), "get"), Member($e, "head")), "relations"),
+                            List()
+                          ),
+                          Lambda(List($r), Member($r, "claim"))
+                        ),
+                        "find"
+                      ),
+                      Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "Asks")))
+                    )
+                  ),
+                  If(
+                    $k,
+                    Return(Member(Index(Member($k, "args"), 0), "value")),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Sequence(
+                      Bind($inner,
+                        If(
+                          Equals(Member($a, "name"), Undefined()),
+                          Call($asked, Member($a, "value")),
+                          Undefined()
+                        )
+                      ),
+                      If($inner, Return($inner), Undefined())
+                    )
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Comment("A thing, not a word: one with a name of its own (Steven Spielberg), or one met here (Greg_1)."),
+            Comment("\"old\" and \"married\" are grounded too, but as words, with no name."),
+            Bind($held,
+              Lambda(List($h),
+                Or(
+                  Call(Member(Regex("_[0-9]+$", ""), "test"), $h),
+                  Call(
+                    Member(
+                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                      "some"
+                    ),
+                    Lambda(List($r),
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Named"))
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("What an answer was, unless a pack says what it is: UnknownTruth says how it went."),
+            Bind($declared,
+              Lambda(List($h),
+                Call(
+                  Member(
+                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    Call(
+                      Member(Otherwise(Member($r, "stamps"), List()), "some"),
+                      Lambda(List($s), NotEquals(Member($s, "pack"), Undefined()))
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($answered,
+              Lambda(List($e, $kind),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    And(
+                      Or(Equals(Member($e, "head"), "Answer"), Equals(Member($e, "head"), "Describes")),
+                      Length(Member($e, "args"))
+                    ),
+                    Return(
+                      Call(
+                        $answered,
+                        Member(Index(Member($e, "args"), 0), "value"),
+                        If(Equals(Member($e, "head"), "Answer"), $kind, Undefined())
+                      )
+                    ),
+                    Undefined()
+                  ),
+                  If(
+                    Equals(Member($e, "head"), "List"),
+                    Sequence(
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        Call($answered, Member($a, "value"), $kind)
+                      ),
+                      Return()
+                    ),
+                    Undefined()
+                  ),
+                  If(
+                    And(
+                      Not(Length(Member($e, "args"))),
+                      Or(Call($held, Member($e, "head")), Not(Call($declared, Member($e, "head"))))
+                    ),
+                    Call($add, $e, $kind),
+                    Undefined()
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($named,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return(), Undefined()),
+                    If(
+                      Equals(Member($e, "head"), "Ref"),
+                      Sequence(
+                        Bind($to,
+                          Call(
+                            Member(Member($e, "args"), "find"),
+                            Lambda(List($a), Equals(Member($a, "name"), "resolvedTo"))
+                          )
+                        ),
+                        If($to, Call($answered, Member($to, "value")), Undefined()),
+                        Return()
+                      ),
+                      Undefined()
+                    ),
+                    If(
+                      And(Not(Length(Member($e, "args"))), Call($held, Member($e, "head"))),
+                      Call($add, $e),
+                      Undefined()
+                    ),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      If(
+                        Equals(Member($a, "name"), Undefined()),
+                        Await(Call($named, Member($a, "value"))),
+                        Undefined()
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Bind($parts,
+              Lambda(List($r),
+                Map(
+                  Filter(Member(Member($r, "claim"), "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            For(
+              Var($i, 0),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind(List($who, $what), Call($parts, Index($said, $i))),
+                Comment("Newest first, so the message a reply answers is the one after it here."),
+                Bind($before,
+                  If(
+                    LessThan(Add($i, 1), Length($said)),
+                    Call($parts, Index($said, Add($i, 1))),
+                    List()
+                  )
+                ),
+                If(
+                  And(Call($isCall, $who), Equals(Member($who, "head"), "Self")),
+                  Call(
+                    $answered,
+                    $what,
+                    If(
+                      And(Call($isCall, Index($before, 0)), Equals(Member(Index($before, 0), "head"), "Me")),
+                      Call($asked, Index($before, 1)),
+                      Undefined()
+                    )
+                  ),
+                  Await(Call($named, $what))
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "List", Spread($out)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// What a pointing word ("he", "she") points at in this conversation: the newest thing in play of
+// every kind it points at (someone, male), else the newest nothing is known of, else the newest
+// of the first kind. The call itself
+// when the word points at no kind, or nothing in play fits.
+Concept(ReferentOf(),
+  Realization(ReferentOf($word),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($word, Call($String, Call(Member($api, "toHost"), Call(Member($bindings, "get"), "word")))),
+            Bind($none, Call(Member($api, "call"), "ReferentOf", $word)),
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            If(
+              Or(Not($conversation), Not($word)),
+              Return($none),
+              Undefined()
+            ),
+            Bind($head,
+              Add(
+                Call(Member(Index($word, 0), "toUpperCase")),
+                Call(Member(Call(Member($word, "slice"), 1), "toLowerCase"))
+              )
+            ),
+            Bind($kinds,
+              Map(
+                Filter(
+                  Map(
+                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $head), "relations"), List()),
+                    Lambda(List($r), Member($r, "claim"))
+                  ),
+                  Lambda(List($c),
+                    And(
+                      And(Call($isCall, $c), Equals(Member($c, "head"), "PointsAt")),
+                      Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                    )
+                  )
+                ),
+                Lambda(List($c), Member(Member(Index(Member($c, "args"), 0), "value"), "head"))
+              )
+            ),
+            If(Not(Length($kinds)), Return($none), Undefined()),
+            Bind($focus,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ConversationFocus",
+                    $conversation
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Bind($inPlay,
+              If(
+                And(Call($isCall, $focus), Equals(Member($focus, "head"), "List")),
+                Map(Member($focus, "args"), Lambda(List($a), Member($a, "value"))),
+                List()
+              )
+            ),
+            Bind($things,
+              Map(
+                $inPlay,
+                Lambda(List($t),
+                  If(
+                    And(Call($isCall, $t), Equals(Member($t, "head"), "AskedAs")),
+                    Member(Index(Member($t, "args"), 0), "value"),
+                    $t
+                  )
+                )
+              )
+            ),
+            Comment("The kind it was asked as, when it answered a question that named one."),
+            Bind($askedAs,
+              Lambda(List($t),
+                Sequence(
+                  Bind($at,
+                    Call(
+                      Member($inPlay, "find"),
+                      Lambda(List($x),
+                        And(
+                          And(Call($isCall, $x), Equals(Member($x, "head"), "AskedAs")),
+                          Equals(Member(Member(Index(Member($x, "args"), 0), "value"), "head"), Member($t, "head"))
+                        )
+                      )
+                    )
+                  ),
+                  Return(
+                    If(
+                      $at,
+                      Member(Member(Index(Member($at, "args"), 1), "value"), "head"),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("A kind it is (IsA, through the hierarchy), or a value it holds (SexOrGender(Male()))."),
+            Bind($fits,
+              Async(
+                Lambda(List($thing, $kind),
+                  Sequence(
+                    If(
+                      Equals(Call($askedAs, $thing), $kind),
+                      Return(true),
+                      Undefined()
+                    ),
+                    Bind($is,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "Closure",
+                            Member($thing, "head"),
+                            "IsA"
+                          ),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    If(
+                      And(
+                        And(Call($isCall, $is), Equals(Member($is, "head"), "List")),
+                        Call(
+                          Member(Member($is, "args"), "some"),
+                          Lambda(List($a),
+                            And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), $kind))
+                          )
+                        )
+                      ),
+                      Return(true),
+                      Undefined()
+                    ),
+                    Return(
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Member($thing, "head")),
+                              "relations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r),
+                          And(
+                            Call($isCall, Member($r, "claim")),
+                            Call(
+                              Member(Member(Member($r, "claim"), "args"), "some"),
+                              Lambda(List($a),
+                                And(
+                                  And(
+                                    Call($isCall, Member($a, "value")),
+                                    Equals(Member(Member($a, "value"), "head"), $kind)
+                                  ),
+                                  Not(Length(Member(Member($a, "value"), "args")))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $thing,
+              $things,
+              Sequence(
+                Var($all, true),
+                ForOf(
+                  $k,
+                  $kinds,
+                  If(
+                    Not(Await(Call($fits, $thing, $k))),
+                    Assign($all, false),
+                    Undefined()
+                  )
+                ),
+                If($all, Return($thing), Undefined())
+              )
+            ),
+            Comment("Then one nothing held says what it is of (a name learned in passing), which cannot be ruled"),
+            Comment("out, before one that fits only in part (\"she\" is not the man just named)."),
+            Bind($unknown,
+              Lambda(List($t),
+                And(
+                  Or(Equals(Call($askedAs, $t), Undefined()), Equals(Call($askedAs, $t), Index($kinds, 0))),
+                  Not(
+                    Call(
+                      Member(
+                        Otherwise(
+                          OptionalMember(Call(Member(Member($api, "store"), "get"), Member($t, "head")), "relations"),
+                          List()
+                        ),
+                        "some"
+                      ),
+                      Lambda(List($r),
+                        And(
+                          Call($isCall, Member($r, "claim")),
+                          Not(Includes(List("Named", "SameAs"), Member(Member($r, "claim"), "head")))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($open, Call(Member($things, "find"), $unknown)),
+            If($open, Return($open), Undefined()),
+            ForOf(
+              $thing,
+              $things,
+              If(
+                Await(Call($fits, $thing, Index($kinds, 0))),
+                Return($thing),
+                Undefined()
+              )
+            ),
+            Return($none)
+          )
+        )
+      )
+    )
+  )
+)

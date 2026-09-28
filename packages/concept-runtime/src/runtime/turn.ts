@@ -317,6 +317,28 @@ export interface TurnOptions extends HearOptions {
   conversation?: string;
 }
 
+/**
+ * Each pointing word not yet resolved, resolved by the graph (`ReferentOf`, packs/focus.ncon) in
+ * an attempt of its own, so looking does not leave gaps in the turn. Unchanged where it finds
+ * nothing.
+ */
+async function pointAt(runtime: Runtime, expression: Expr): Promise<Expr> {
+  if (!runtime.store.has("ReferentOf") || runtime.context.get("conversation") === undefined) return expression;
+  const hook = new Runtime(runtime.store, { maximumDepth: runtime.maximumDepth, maximumSteps: runtime.maximumSteps, traceQuiet: true });
+  for (const [key, value] of runtime.context) hook.context.set(key, value);
+  const walk = async (e: Expr): Promise<Expr> => {
+    if (!isCall(e)) return e;
+    if (e.head === "Ref" && e.args.length === 1 && typeof e.args[0].value === "string") {
+      const to = await hook.evaluate(call("ReferentOf", [{ value: e.args[0].value }]), c("Execution"));
+      return isCall(to) && to.head !== "ReferentOf" && !to.args.length ? call("Ref", [e.args[0], { name: "resolvedTo", value: to }]) : e;
+    }
+    const args = [];
+    for (const a of e.args) args.push({ ...a, value: await walk(a.value) });
+    return { head: e.head, args };
+  };
+  return walk(expression);
+}
+
 /** Optional graph hooks use their own attempt so their residuals never become user gaps. */
 async function graphText(runtime: Runtime, identity: string, input: Expr): Promise<string | undefined> {
   if (!runtime.store.has(identity)) return undefined;
@@ -565,11 +587,14 @@ export async function turn(
   // A Ref marks a reference the parser could not resolve; a proper name is just a bare
   // head. Both are memory's job to resolve, once, here, before the parse becomes a Said
   // (memory-spec Part 8.3).
-  const read = (
+  const read = async (
     h: EarsResult,
-  ): { expression: Expr; resolved: { reference: string; to: string }[]; resolvedNames: NameResolution[] } => {
-    // A pronoun for a person first, so "him" is not taken for the last answer.
-    const pointed = h.expression === undefined ? undefined : resolvePronouns(runtime.store, h.expression);
+  ): Promise<{ expression: Expr; resolved: { reference: string; to: string }[]; resolvedNames: NameResolution[] }> => {
+    // A pronoun for a person first, so "him" is not taken for the last answer; then what the
+    // conversation has in play of the kind the word points at ("he" after a list of wives is
+    // still the man they married); the last answer only after that.
+    const person = h.expression === undefined ? undefined : resolvePronouns(runtime.store, h.expression);
+    const pointed = person === undefined ? undefined : await pointAt(runtime, person);
     const { expression: maybe, resolved } = resolveReferences(pointed, options.history ?? []);
     const { expression: named, resolved: resolvedNames } = resolveNames(
       runtime.store,
@@ -579,7 +604,7 @@ export async function turn(
     );
     return { expression: named, resolved, resolvedNames };
   };
-  let { expression, resolved, resolvedNames } = read(heard);
+  let { expression, resolved, resolvedNames } = await read(heard);
   // Evaluate under what the message asked for, not only under what the caller assumed.
   // `expression` is what was said and is what gets reported; `running` is what evaluates,
   // with any context facet lifted out of it.
@@ -629,7 +654,7 @@ export async function turn(
       const again = await hearMessage();
       if (again.expression === undefined) break;
       rereads += 1;
-      const next = read(again);
+      const next = await read(again);
       if (equal(next.expression, expression)) break;
       heard = again;
       expression = next.expression;

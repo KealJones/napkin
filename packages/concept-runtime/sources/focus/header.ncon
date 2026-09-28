@@ -1,0 +1,20 @@
+// What a conversation has in play, and what a word that points points at in it (memory-spec
+// Part 8). ConversationFocus(conversation) is worked out from what was said, never stored; a
+// pointing word's referent is picked from it by the kind the word points at ("he" at someone
+// male), and recorded where it was said as resolvedTo. Written by scripts/pack.mjs from
+// sources/focus (edit those, not this).
+Requires(Core(), Basic(), Hearing())
+
+// What a pointing word points at: a kind, or what the thing holds (a sex or gender).
+Concept(PointsAt(), IsA(Relation()))
+
+// Who asks for someone; a human is someone.
+Concept(Human(), IsA(Someone()))
+
+Concept(He(), PointsAt(Someone()), PointsAt(Male()))
+
+Concept(Him(), PointsAt(Someone()), PointsAt(Male()))
+
+Concept(She(), PointsAt(Someone()), PointsAt(Female()))
+
+Concept(Her(), PointsAt(Someone()), PointsAt(Female()))

@@ -133,7 +133,7 @@ function unsourced(runtime: Runtime, expression: Expr): string[] {
     const unit = runtime.store.get(node.head);
     const declared = unit !== undefined && (unit.realizations.length > 0 || unit.relations.some((r) => r.stamps?.some((st) => st.pack !== undefined)));
     const known = unit !== undefined && unit.relations.some((r) => r.stamps?.some((st) => st.pack === undefined));
-    if (!declared && !known) out.push(node.head);
+    if (!declared && (!known || nameOnly(runtime.store, node.head))) out.push(node.head);
   }
   // A name the question says in words ("steven spielberg" is Spielberg(Steven())) is what it is
   // about, when all Napkin holds of it is the name.
