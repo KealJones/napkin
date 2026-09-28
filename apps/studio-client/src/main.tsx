@@ -191,24 +191,18 @@ function expressionOrNull(source: string): Expr | null {
 /**
  * The whole graph as a file (store.ncon): shared through the device's share sheet where it has
  * one (a phone can AirDrop it), else downloaded. A share sheet opens only close to a tap, and
- * writing out a big graph can outlast that (Safari then refuses with NotAllowedError), so a
- * refused share keeps the file and the next tap shares it at once.
+ * writing out a big graph can outlast that, so a refused share (anything but the user closing
+ * the sheet) downloads instead.
  */
-let exported: File | undefined;
-
 async function exportGraph(): Promise<void> {
-  const file = exported ?? (await graphFile());
-  exported = undefined;
+  const file = await graphFile();
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: file.name });
+      return;
     } catch (error) {
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        exported = file;
-        window.alert("The graph is ready. Tap Export again to share it.");
-      }
+      if (error instanceof DOMException && error.name === "AbortError") return;
     }
-    return;
   }
   const link = document.createElement("a");
   link.href = URL.createObjectURL(file);
