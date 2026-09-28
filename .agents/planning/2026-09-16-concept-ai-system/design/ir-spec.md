@@ -1150,7 +1150,10 @@ each use of the variable.
 | `[string, ...number[]]` | `List(String(), Rest(Number()))` |
 | `number \| string` | `OneOf(Number(), String())` |
 | `Foo` | `Foo()` |
-| `any`, `unknown`, `void`, `Promise<T>` | not kept |
+| `Foo<X>`, `Map<string, number>`, `Promise<number>` | `Foo(X())`, `Map(String(), Number())`, `Promise(Number())`: a generic applied to types |
+| `function first<T>(xs: T[]): T` | `Func($first, List($xs), body, types = List(ListOf($T)), returns = $T, generics = List($T))` |
+| `<K extends string>` | `generics = List(Extends($K, String()))` |
+| `any`, `unknown`, `void` | not kept |
 
 The types are the same language `IsA` takes and a realization's `types =` uses, written like
 patterns (`concept-spec.md` Part 6.7), so a program's claims and the graph's say things the
@@ -1158,9 +1161,12 @@ same way.
 A function's `types` line up with its parameters by position, `Concept()` (anything) where a
 parameter says none; a function gets `types` only when a parameter's type can be said. A type
 nested inside one that cannot (`Foo<X>[]`) is `Concept()` and writes back as `unknown`. Untyped
-code reads exactly as it did: no `type`, `types` or `returns` at all. Not typed yet: class
-members, typed functions in expression position that are async or generators, and a
-parameter's cell.
+code reads exactly as it did: no `type`, `types` or `returns` at all. A type parameter is a
+type variable (`concept-spec.md` Part 6.7), declared on the declaration as `generics`, and a
+name it declares is that variable in the declaration's types. Not typed yet: class members,
+typed functions in expression position that are async or generators, a parameter's cell, type
+parameters inside nested bodies (an inner function reads an outer `T` as `T()`), type parameter
+defaults, and type aliases and interfaces (still erased).
 
 **They carry no weight when the code runs.** The interpreter and the compiler ignore them; a
 typed program and the same program untyped compute the same thing. They are there so that a

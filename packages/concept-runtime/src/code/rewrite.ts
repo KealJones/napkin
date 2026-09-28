@@ -20,7 +20,9 @@
  *   Each(list, Lambda(List($x), out))
  *                          `out` for each element, spliced into the call around it
  *   Erased()               nothing: dropped from the call around it
- *   ConceptNamed("Foo")    the Concept Foo(), named by text the source holds
+ *   ConceptNamed("Foo", ...)
+ *                          the Concept Foo, named by text the source holds, applied to
+ *                          the rest: Foo() alone, Map(String(), Number()) applied
  *   Parse(text)            text read as source too (source held in a string); anything
  *                          that is not text becomes NotSource(...)
  * and a pattern can say Capture($x, pattern), to match `pattern` and bind all of it to $x.
@@ -159,7 +161,8 @@ export function readWith(
     if (!isCall(e)) return e;
     if (++steps > 2_000_000) throw new Error(`reading ${fileName} did not settle: the rules rewrite in a loop`);
     if (e.head === "Variable" && typeof e.args[0]?.value === "string") return { variable: e.args[0].value };
-    if (e.head === "ConceptNamed" && e.args.length === 1 && typeof e.args[0].value === "string" && NAME.test(e.args[0].value)) return c(e.args[0].value);
+    const named = e.head === "ConceptNamed" ? e.args[0]?.value : undefined;
+    if (typeof named === "string" && NAME.test(named)) return call(named, rewriteArgs(e.args.slice(1)));
     // A rule that answers with Each is spliced by the call around it (rewriteArgs).
     if (e.head === "Each") return e;
     if (e.head === "Parse" && e.args.length === 1) {

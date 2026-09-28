@@ -7,7 +7,7 @@
  *   $x   the part, written as an expression
  *   @x   the part, written as a statement
  *   %x   the part, written as the statements of a block: a Sequence's steps, or one
- *   #x   the part, a name, written as it is (a Concept with nothing said of it, by its name)
+ *   #x   the part, a name, written as it is
  *   &x   the part written as source, then quoted as a string: source held in a string
  * A part bound by `Rest(...)` is written once per element, expressions joined by ", " (a
  * named argument as `name: value`) and statements by "; ".
@@ -23,6 +23,10 @@
  * A Concept no rule writes is written as what it means when a `meaning` is given: the graph's
  * realization of it by composed Concepts (`Realization(Half($x), body = Divide($x, 2))`),
  * substituted, so `Half(n)` is written `(n / 2)` in any language that writes Divide.
+ *
+ * Concepts written instead can take a part apart: `NameOf(x)` is the name of the Concept x
+ * applies (or of the variable x is), and `ArgumentsOf(x)` the List of what it is applied to,
+ * for `Each` to write one by one: `Map(String(), $T)` written `Map<string, T>`.
  *
  * `Either("a", "b")` offers templates in order, the first that can be used winning: a
  * concise arrow where its body is an expression, a block where it is not. (Two rules for
@@ -42,7 +46,7 @@
  * Written by a separate walk rather than by evaluating under `Context(JavaScript())`:
  * a program's Concepts hold variables and effects, and writing one must not run it.
  */
-import { type Argument, type Expr, format, isCall, isVariable } from "../concept/expression.js";
+import { type Argument, type Expr, call, format, isCall, isVariable } from "../concept/expression.js";
 import { specificity, substitute, type Bindings } from "../concept/match.js";
 import { facetAncestors } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
@@ -77,6 +81,15 @@ function templatePieces(template: string): Part[] {
   HOLE.lastIndex = 0;
   return out;
 }
+
+/** NameOf and ArgumentsOf in what a rule writes instead, answered from the part they name. */
+const takeApart = (e: Expr): Expr => {
+  if (!isCall(e)) return e;
+  const x = e.args[0]?.value;
+  if (e.head === "NameOf" && e.args.length === 1) return isCall(x) ? x.head : isVariable(x) ? x.variable : e;
+  if (e.head === "ArgumentsOf" && e.args.length === 1 && (isCall(x) || isVariable(x))) return call("List", isCall(x) ? x.args.filter((a) => a.name === undefined) : []);
+  return call(e.head, e.args.map((a) => ({ ...a, value: takeApart(a.value) })));
+};
 
 const restVariables = (e: Expr, out = new Set<string>()): Set<string> => {
   if (!isCall(e)) return out;
@@ -160,7 +173,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
   /** Whether a rule can be used where an expression is written. */
   const usable = (rule: Rule, b: Bindings): boolean => {
     if (rule.statement) return false;
-    if (rule.instead) return canExpress(expandEach(substitute(rule.instead, b)));
+    if (rule.instead) return canExpress(expandEach(takeApart(substitute(rule.instead, b))));
     return (rule.parts ?? []).every((p) => !("hole" in p) || p.as !== "expression" || values(rule, b, p.hole).every((a) => canExpress(a.value)));
   };
 
@@ -183,7 +196,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
         const line = before === undefined ? (inLines ? "" : undefined) : "text" in before ? /\n([ \t]*)$/.exec(before.text)?.[1] : undefined;
         const items = values(rule, b, p.hole);
         if (p.as === "source") return items.map((a) => JSON.stringify(write(a.value, "expression"))).join(", ");
-        if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : isCall(a.value) && !a.value.args.length ? a.value.head : write(a.value, "expression"))).join(", ");
+        if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : write(a.value, "expression"))).join(", ");
         if (p.as === "statement") return items.map((a) => write(a.value, "statement")).join("; ");
         if (p.as === "block") {
           // A block's statements: a Sequence's steps, each written as a statement.
@@ -209,7 +222,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
     for (const { rule, b } of found(e, statement)) {
       if (!statement && !usable(rule, b)) continue;
       if (statement && !rule.statement && !usable(rule, b)) continue;
-      if (rule.instead) return write(expandEach(substitute(rule.instead, b)), position);
+      if (rule.instead) return write(expandEach(takeApart(substitute(rule.instead, b))), position);
       const text = render(rule, b, inLines);
       // An expression standing as a statement must not read as a block or a declaration.
       return statement && !rule.statement && /^(\{|function\b|class\b)/.test(text) ? `(${text})` : text;

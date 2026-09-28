@@ -806,7 +806,6 @@ Concept(Of())
 // Any number of things of one type: a list whose every item fits it.
 Concept(Fits(),
   Realization(Fits($value, List(Of($type))),
-    context = Execution(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
@@ -860,7 +859,6 @@ Concept(Fits(),
 // ListOf(T) is List(Of(T)), said shorter.
 Concept(Fits(),
   Realization(Fits($value, ListOf($type)),
-    context = Execution(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
@@ -893,7 +891,6 @@ Concept(Fits(),
 // the last place any number more of C.
 Concept(Fits(),
   Realization(Fits($value, List(Rest($types))),
-    context = Execution(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
@@ -990,7 +987,6 @@ Concept(Fits(),
 // Either of several.
 Concept(Fits(),
   Realization(Fits($value, OneOf(Rest($types))),
-    context = Execution(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
@@ -1034,7 +1030,6 @@ Concept(Fits(),
 // with more said of it (Foo(X())), what its own IsA says exactly.
 Concept(Fits(),
   Realization(Fits($value, $type),
-    context = Execution(),
     evaluateArguments = false,
     body = Code(
       ir = Async(

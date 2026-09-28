@@ -45,6 +45,10 @@ test("a type is written back by TypeScript, and not by JavaScript", () => {
   assert.equal(writeTs("function f(a, b: string) { return a; }"), "function f(a, b: string) { return a }");
   assert.equal(writeTs("const g = (a: number, b = 2): number => a + b;"), "const g = (a: number, b = 2): number => ((a + b))");
   assert.equal(write("const g = (a: number, b = 2): number => a + b;"), "const g = (a, b = 2) => ((a + b))");
+  // Generics: <T> on the function, T where it is used, Foo<X> for a type applied.
+  assert.equal(writeTs("function first<T>(xs: T[]): T { return xs[0]; }"), "function first<T>(xs: T[]): T { return xs[0] }");
+  assert.equal(write("function first<T>(xs: T[]): T { return xs[0]; }"), "function first(xs) { return xs[0] }");
+  assert.equal(writeTs("const m: Map<string, Promise<number>> = x;"), "const m: Map<string, Promise<number>> = x");
   // Wrapped, the function is still written with its types.
   assert.equal(writeTs("export async function h(a: number) { return a; }"), "export async function h(a: number) { return a }");
 });
@@ -55,6 +59,10 @@ test("typed code round trips: TypeScript to Concepts and back, and JavaScript th
     "const xs: Array<string> = [];",
     "let u: number | boolean = 1;",
     "const f = (a: [number, number]): number => a[0];",
+    "function first<T>(xs: T[]): T { return xs[0]; }",
+    "function keys<K extends string, V>(m: Map<K, V>): K[] { return []; }",
+    "async function later<T>(x: T): Promise<Map<string, Set<T>[]>> { return x; }",
+    "const g = <T,>(x: T): Promise<T[]> => x;",
   ]) {
     const ir = importTypeScript(source).expression;
     assert.equal(format(importTypeScript(writeTs(source)).expression), format(ir), source);

@@ -67,9 +67,9 @@ test("typed code runs as its untyped code does, written as JavaScript and lowere
   const body = lowered("Inc($x)", ts);
   assert.equal(format(body), format(lowered("Inc($x)", js)).replace("Cell($x)", "Cell($x, type=Number())"));
   assert.equal(await run("Inc", "Inc($x)", body, "Inc(41)"), "42");
-  // Compiled: a typed function and binding lower to what their untyped code does. (A cell's
+  // Compiled: a typed, generic function and binding lower to what their untyped code does. (A cell's
   // Get has no compiled form yet, typed or not.)
-  const plain = lowered("Inc($x)", "(args: Argument[]): number => { const n: number = args[0].value; return n + 1; }");
+  const plain = lowered("Inc($x)", "<T,>(args: T[]): number => { const n: number = args[0].value; return n + 1; }");
   assert.equal(format(plain), format(lowered("Inc($x)", "(args) => { const n = args[0].value; return n + 1; }")));
   const store = new ConceptStore();
   seed(store);

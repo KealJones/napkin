@@ -467,7 +467,7 @@ export class Runtime {
       // A variable of the wrong type ("add" given a list when this adds numbers): not this one.
       // Fits's own realizations are never typed: checking a type must not need checking a type.
       const fits = async (value: Expr, type: Expr): Promise<boolean> => {
-        const r = await this.run(call("Fits", [{ value }, { value: type }]), call("Execution", []), target.head, id, inner + 1, within);
+        const r = await this.run(call("Fits", [{ value }, { value: type }]), context, target.head, id, inner + 1, within);
         return isCall(r) && r.head === "True";
       };
       if (target.head !== "Fits" && !(await typesHold(this.store, realization.types, bindings, fits))) {

@@ -48,7 +48,8 @@ test("a type is kept on the declaration that says it", () => {
   assert.equal(ir("type A = B;\nconst x = 1;"), "Bind($x, 1)");
   // A type Concepts cannot say yet is not kept.
   assert.equal(ir("const x: any = 1;"), "Bind($x, 1)");
-  assert.equal(ir("const x: Promise<number> = p;"), "Bind($x, $p)");
+  assert.equal(ir("const x: Record<string, { a: 1 }> = p;"), "Bind($x, $p, type=Record(String(), Concept()))");
+  assert.equal(ir("const x: typeof p = p;"), "Bind($x, $p)");
 });
 
 test("a function says its parameters' types by position, and what it gives back", () => {
@@ -73,6 +74,27 @@ test("a type is a pattern whose holes are types", () => {
   assert.equal(typeOf("number | string"), "OneOf(Number(), String())");
   assert.equal(typeOf("(boolean | string)[]"), "ListOf(OneOf(Boolean(), String()))");
   assert.equal(typeOf("Point"), "Point()");
+  // A generic type applied to types is its Concept applied to them, however deep.
+  assert.equal(typeOf("Promise<number>"), "Promise(Number())");
+  assert.equal(typeOf("Map<string, number>"), "Map(String(), Number())");
+  assert.equal(typeOf("Foo<Bar>[]"), "ListOf(Foo(Bar()))");
+  assert.equal(typeOf("Map<string, Array<Set<number>>>"), "Map(String(), ListOf(Set(Number())))");
+});
+
+test("a type parameter is a variable, and the declaration keeps the ones it declares", () => {
+  assert.equal(
+    ir("function first<T>(xs: T[]): T { return xs[0]; }"),
+    "Func($first, List($xs), Return(Index($xs, 0)), types=List(ListOf($T)), returns=$T, generics=List($T))",
+  );
+  // Declared and unused, it is still kept; what it must be is said with Extends.
+  assert.equal(ir("function id<T>(x) { return x; }"), "Func($id, List($x), Return($x), generics=List($T))");
+  assert.equal(
+    ir("function keys<K extends string, V>(m: Map<K, V>): K[] { return []; }"),
+    "Func($keys, List($m), Return(List()), types=List(Map($K, $V)), returns=ListOf($K), generics=List(Extends($K, String()), $V))",
+  );
+  assert.equal(ir("const g = <T,>(x: T): Promise<T> => x;"), "Bind($g, Lambda(List($x), $x, types=List($T), returns=Promise($T), generics=List($T)))");
+  // A name no type parameter declares names a Concept.
+  assert.equal(ir("function u(x: T) { return x; }"), "Func($u, List($x), Return($x), types=List(T()))");
 });
 
 test("a class keeps its members, with modifiers wrapping what they modify", () => {
