@@ -1,0 +1,974 @@
+// Lists made in conversation (memory-spec Part 6.1 and 7): "make a shopping list" mints one
+// (ShoppingList_1, IsA(List(Shopping()))), each thing added is a ListItem on it, taking one off
+// retracts it, and what is on it is what still holds. Which list is meant is worked out from what
+// the words say of it ("shopping"), then what is newest. Written by scripts/pack.mjs from
+// sources/lists (edit those, not this).
+Requires(Core(), Basic(), Memory())
+
+// A thing on a list.
+Concept(ListItem(), IsA(Relation()))
+
+// A list started, and things put on or taken off one: said by packs/english.ncon.
+Concept(ListMade(), IsA(Result()))
+
+Concept(ListAdded(), IsA(Result()))
+
+Concept(ListRemoved(), IsA(Result()))
+
+Concept(ListHolds(), IsA(Result()))
+
+// "can you add cheetos to my shopping list": put on the list it names. Asked for or told, not
+// worked out, so hearing still reads Add as taking two things.
+Concept(Add(),
+  Realization(Add($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Add"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                Call(Member($api, "call"), "Add", $said),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "add cheetos to my shopping list": put on the list it names. Naming no list ("add 5", after 4),
+// what the empty slot stands for is what it adds to, done again without the slot.
+Concept(Add(),
+  Realization(Add(Ref(Rest($r)), $said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Add"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            If(
+              Not(And($done, Equals(Member($done, "head"), "ListChange"))),
+              Return($done),
+              Undefined()
+            ),
+            Bind($slot, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value")))),
+            If(
+              And($slot, Equals(Member($slot, "head"), "Ref")),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Add",
+                  Member(Index($args, 0), "value"),
+                  $said
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Add", $slot, $said)))
+          )
+        )
+      )
+    )
+  )
+)
+
+// Things put on or taken off the list the words name: "add cheetos to my shopping list" is heard
+// Cheetos(To(My(List(Shopping())))), the things with the list said inside them. $doing is Add or
+// Remove. Answered, so a statement that does this is taken as done. The call itself when the
+// words name no list.
+Concept(ListChange(),
+  Realization(ListChange($doing, $said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($doing, Call(Member($bindings, "get"), "doing")),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($none, Call(Member($api, "call"), "ListChange", $doing, $said)),
+            Comment("A list said (List(Shopping())) or one made here (ShoppingList_1)."),
+            Bind($made,
+              Lambda(List($h),
+                And(
+                  Call(Member(Regex("_[0-9]+$", ""), "test"), $h),
+                  Call(
+                    Member(
+                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                      "some"
+                    ),
+                    Lambda(List($r),
+                      And(
+                        And(
+                          And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                          Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                        ),
+                        Equals(Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"), "List")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($listy,
+              Lambda(List($e),
+                And(
+                  Call($isCall, $e),
+                  Or(
+                    Or(Equals(Member($e, "head"), "List"), Call($made, Member($e, "head"))),
+                    Call(Member(Member($e, "args"), "some"), Lambda(List($a), Call($listy, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Comment("The words that say where (to, on, from, off, onto) and hold the list."),
+            Var($where, Undefined()),
+            Bind($strip,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return($e), Undefined()),
+                  Bind($args, List()),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    If(
+                      And(
+                        And(
+                          And(
+                            And(
+                              And(
+                                And(Not($where), Equals(Member($a, "name"), Undefined())),
+                                Call($isCall, Member($a, "value"))
+                              ),
+                              Length(Member(Member($a, "value"), "args"))
+                            ),
+                            Call($listy, Member($a, "value"))
+                          ),
+                          NotEquals(Member(Member($a, "value"), "head"), "List")
+                        ),
+                        Not(Call($made, Member(Member($a, "value"), "head")))
+                      ),
+                      Assign($where, Member($a, "value")),
+                      Call(Member($args, "push"), Object(Spread($a), value = Call($strip, Member($a, "value"))))
+                    )
+                  ),
+                  Return(Object(head = Member($e, "head"), args = $args))
+                )
+              )
+            ),
+            Bind($rest, Call($strip, $said)),
+            If(Not($where), Return($none), Undefined()),
+            Bind($items, List()),
+            Bind($flat,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(
+                      And(Call($isCall, $e), Includes(List("And", "List", "Sequence"), Member($e, "head"))),
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        Await(Call($flat, Member($a, "value")))
+                      ),
+                      If(
+                        And(Call($isCall, $e), NotEquals(Member($e, "head"), "Ref")),
+                        Call(
+                          Member($items, "push"),
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(Member($api, "call"), "Read", $e),
+                              Call(Member($api, "call"), "Execution")
+                            )
+                          )
+                        ),
+                        Undefined()
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($flat, $rest)),
+            If(Not(Length($items)), Return($none), Undefined()),
+            Bind($adding, And(Call($isCall, $doing), Equals(Member($doing, "head"), "Add"))),
+            Comment("Supposed, not done (\"what if I need milk\"): what would change, and nothing changed."),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Bind($supposed,
+              Call(
+                Member($facets, "some"),
+                Lambda(List($f), And(Call($isCall, $f), Equals(Member($f, "head"), "Hypothetical")))
+              )
+            ),
+            Bind($list,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListMeant",
+                    $where,
+                    And($adding, Not($supposed))
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $list)), Equals(Member($list, "head"), "ListMeant")),
+              Return($none),
+              Undefined()
+            ),
+            Bind($unit, Call(Member(Member($api, "store"), "get"), Member($list, "head"))),
+            Bind($held,
+              Lambda(List($item),
+                Filter(
+                  Otherwise(OptionalMember($unit, "relations"), List()),
+                  Lambda(List($r),
+                    And(
+                      And(
+                        And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "ListItem")),
+                        Equals(
+                          Call(Member($api, "format"), Member(Index(Member(Member($r, "claim"), "args"), 0), "value")),
+                          Call(Member($api, "format"), $item)
+                        )
+                      ),
+                      Not(
+                        Call(
+                          Member(Member($api, "store"), "retracted"),
+                          Member($list, "head"),
+                          Member($r, "claim")
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $item,
+              If($supposed, List(), $items),
+              If(
+                $adding,
+                If(
+                  Not(Length(Call($held, $item))),
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    Member($list, "head"),
+                    Call(Member($api, "call"), "ListItem", $item),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  ),
+                  Undefined()
+                ),
+                ForOf(
+                  $r,
+                  Call($held, $item),
+                  ForOf(
+                    $s,
+                    Otherwise(Member($r, "stamps"), List()),
+                    Call(
+                      Member(Member($api, "store"), "addRelation"),
+                      Member($list, "head"),
+                      Call(Member($api, "call"), "Retracts", Member($s, "seq")),
+                      Undefined(),
+                      Member(Member($api, "trace"), "cause")
+                    )
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Answer",
+                Call(
+                  Member($api, "call"),
+                  If($adding, "ListAdded", "ListRemoved"),
+                  Call(Member($api, "call"), "List", Spread($items)),
+                  $list
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// The list the words mean: of the lists made, one whose kind is what they say of it ("my shopping
+// list" is a List(Shopping())), newest first, else the newest list at all. With make true and none
+// made, one is started. The call itself when there is none.
+Concept(ListMeant(),
+  Realization(ListMeant($said, $make),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($make, Equals(Call(Member($api, "toHost"), Call(Member($bindings, "get"), "make")), true)),
+            Bind($made,
+              Lambda(List($h),
+                And(
+                  Call(Member(Regex("_[0-9]+$", ""), "test"), $h),
+                  Call(
+                    Member(
+                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                      "some"
+                    ),
+                    Lambda(List($r),
+                      And(
+                        And(
+                          And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                          Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                        ),
+                        Equals(Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"), "List")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($find,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(Undefined()), Undefined()),
+                  If(
+                    Or(Equals(Member($e, "head"), "List"), Call($made, Member($e, "head"))),
+                    Return($e),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Sequence(Bind($inner, Call($find, Member($a, "value"))), If($inner, Return($inner), Undefined()))
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Bind($named, Call($find, $said)),
+            If(
+              And($named, NotEquals(Member($named, "head"), "List")),
+              Return($named),
+              Undefined()
+            ),
+            Bind($described, Otherwise($named, Call(Member($api, "call"), "List"))),
+            Bind($kind,
+              Map(
+                Filter(Member($described, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Call(Member($api, "format"), Member($a, "value")))
+              )
+            ),
+            Bind($seq,
+              Lambda(List($r),
+                Call(
+                  Member($Math, "max"),
+                  0,
+                  Spread(Map(Otherwise(Member($r, "stamps"), List()), Lambda(List($s), Member($s, "seq"))))
+                )
+              )
+            ),
+            Bind($lists, List()),
+            ForOf(
+              $unit,
+              Call(Member(Member($api, "store"), "all")),
+              Sequence(
+                If(
+                  Not(Call(Member(Regex("_[0-9]+$", ""), "test"), Member($unit, "identity"))),
+                  Continue(),
+                  Undefined()
+                ),
+                ForOf(
+                  $r,
+                  Member($unit, "relations"),
+                  Sequence(
+                    Bind($k,
+                      If(
+                        And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                        Member(Index(Member(Member($r, "claim"), "args"), 0), "value"),
+                        Undefined()
+                      )
+                    ),
+                    If(
+                      And(Call($isCall, $k), Equals(Member($k, "head"), "List")),
+                      Call(
+                        Member($lists, "push"),
+                        Object(
+                          id = Member($unit, "identity"),
+                          kind = Map(
+                            Member($k, "args"),
+                            Lambda(List($a), Call(Member($api, "format"), Member($a, "value")))
+                          ),
+                          at = Call($seq, $r)
+                        )
+                      ),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Call(Member($lists, "sort"), Lambda(List($a, $b), Subtract(Member($b, "at"), Member($a, "at")))),
+            Bind($fits,
+              Filter(
+                $lists,
+                Lambda(List($l), Call(Member($kind, "every"), Lambda(List($k), Includes(Member($l, "kind"), $k))))
+              )
+            ),
+            Bind($found, Otherwise(Index($fits, 0), If(Length($kind), Undefined(), Index($lists, 0)))),
+            If(
+              $found,
+              Return(Call(Member($api, "call"), Member($found, "id"))),
+              Undefined()
+            ),
+            If(
+              Not($make),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "ListMeant",
+                  $said,
+                  Call(Member($bindings, "get"), "make")
+                )
+              ),
+              Undefined()
+            ),
+            Comment("Started: named by its kind (\"ShoppingList\"), and what it is, sourced from what asked for it."),
+            Bind($base,
+              Add(
+                Call(
+                  Member(
+                    Map(
+                      Member($described, "args"),
+                      Lambda(List($a),
+                        If(
+                          Call($isCall, Member($a, "value")),
+                          Member(Member($a, "value"), "head"),
+                          ""
+                        )
+                      )
+                    ),
+                    "join"
+                  ),
+                  ""
+                ),
+                "List"
+              )
+            ),
+            Bind($list,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Mint", $base),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Call(
+              Member(Member($api, "store"), "addRelation"),
+              Member($list, "head"),
+              Call(Member($api, "call"), "IsA", $described),
+              Undefined(),
+              Member(Member($api, "trace"), "cause")
+            ),
+            Return($list)
+          )
+        )
+      )
+    )
+  )
+)
+
+// What is on the list the words name: every thing put on it that was not taken off.
+Concept(ListRead(),
+  Realization(ListRead($said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($list,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ListMeant", $said, false),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $list)), Equals(Member($list, "head"), "ListMeant")),
+              Return(Call(Member($api, "call"), "ListRead", $said)),
+              Undefined()
+            ),
+            Bind($items,
+              Map(
+                Filter(
+                  Otherwise(
+                    OptionalMember(Call(Member(Member($api, "store"), "get"), Member($list, "head")), "relations"),
+                    List()
+                  ),
+                  Lambda(List($r),
+                    And(
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "ListItem")),
+                      Not(
+                        Call(
+                          Member(Member($api, "store"), "retracted"),
+                          Member($list, "head"),
+                          Member($r, "claim")
+                        )
+                      )
+                    )
+                  )
+                ),
+                Lambda(List($r), Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "ListHolds",
+                $list,
+                Call(Member($api, "call"), "List", Spread($items))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "make a shopping list": the list of that kind, started when there is none yet.
+Concept(Write(),
+  Realization(Write(List(Rest($kind))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Member(Index($args, 0), "value")),
+            If(
+              Not(
+                Call(
+                  Member(Member($said, "args"), "every"),
+                  Lambda(List($a),
+                    And(
+                      And(Equals(Member($a, "name"), Undefined()), Call($isCall, Member($a, "value"))),
+                      Not(Length(Member(Member($a, "value"), "args")))
+                    )
+                  )
+                )
+              ),
+              Return(Call(Member($api, "call"), "Write", $said)),
+              Undefined()
+            ),
+            Bind($list,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ListMeant", $said, true),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "ListMade", $list))
+          )
+        )
+      )
+    )
+  )
+)
+
+// "I need milk, eggs", said while a list is in play in the conversation: put on it. The call
+// itself otherwise, to be noted as told.
+Concept(Me(),
+  Realization(Me(Need($items)),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($items, Call(Member($bindings, "get"), "items")),
+            Bind($none,
+              Call(
+                Member($api, "call"),
+                "Me",
+                Call(Member($api, "call"), "Need", $items)
+              )
+            ),
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            If(Not($conversation), Return($none), Undefined()),
+            Bind($focus,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ConversationFocus",
+                    $conversation
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Bind($inPlay,
+              If(
+                And(Call($isCall, $focus), Equals(Member($focus, "head"), "List")),
+                Map(
+                  Member($focus, "args"),
+                  Lambda(List($a),
+                    If(
+                      And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "AskedAs")),
+                      Member(Index(Member(Member($a, "value"), "args"), 0), "value"),
+                      Member($a, "value")
+                    )
+                  )
+                ),
+                List()
+              )
+            ),
+            Bind($list,
+              Call(
+                Member($inPlay, "find"),
+                Lambda(List($t),
+                  And(
+                    And(Call($isCall, $t), Call(Member(Regex("_[0-9]+$", ""), "test"), Member($t, "head"))),
+                    Call(
+                      Member(
+                        Otherwise(
+                          OptionalMember(Call(Member(Member($api, "store"), "get"), Member($t, "head")), "relations"),
+                          List()
+                        ),
+                        "some"
+                      ),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                            Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                          ),
+                          Equals(Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"), "List")
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(Not($list), Return($none), Undefined()),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Add"),
+                    Call(
+                      Member($api, "call"),
+                      "And",
+                      $items,
+                      Call(Member($api, "call"), "To", $list)
+                    )
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                $none,
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what is on my list?": what the list it names holds.
+Concept(What(),
+  Realization(What(Is(On(), $said)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($read,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ListRead", $said),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($read, Equals(Member($read, "head"), "ListRead")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $read
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what's on the list": what the list it names holds.
+Concept(What(),
+  Realization(What(Is(On($said))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($read,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ListRead", $said),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($read, Equals(Member($read, "head"), "ListRead")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $read
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "can you put cheetos to my shopping list": put on the list it names. Asked for or told, not
+// worked out, so hearing still reads Put as taking two things.
+Concept(Put(),
+  Realization(Put($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Add"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                Call(Member($api, "call"), "Put", $said),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "put eggs on my list": put on the list it names.
+Concept(Put(),
+  Realization(Put($said),
+    context = Imperative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Add"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                Call(Member($api, "call"), "Put", $said),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "can you remove cheetos from my shopping list": taken off the list it names. Asked for or told, not
+// worked out, so hearing still reads Remove as taking two things.
+Concept(Remove(),
+  Realization(Remove($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Remove"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                Call(Member($api, "call"), "Remove", $said),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "remove milk from my list": taken off the list it names.
+Concept(Remove(),
+  Realization(Remove($said),
+    context = Imperative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ListChange",
+                    Call(Member($api, "call"), "Remove"),
+                    $said
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
+                Call(Member($api, "call"), "Remove", $said),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

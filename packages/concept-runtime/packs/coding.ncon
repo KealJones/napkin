@@ -4287,7 +4287,7 @@ Concept(WriteDoing(),
                         )
                       ),
                       Comment(
-                        "Of its realizations of plain values, the one taking fewest (\"sort a list\" is Sort($xs))."
+                        "Of its working realizations of plain values, the one taking fewest (\"sort a list\" is Sort($xs))."
                       ),
                       Bind($r,
                         Index(
@@ -4301,7 +4301,13 @@ Concept(WriteDoing(),
                                       And(
                                         And(
                                           And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
-                                          Equals(Member(Member($r, "pattern"), "head"), $name)
+                                          And(
+                                            Equals(Member(Member($r, "pattern"), "head"), $name),
+                                            Or(
+                                              Equals(Member($r, "context"), Undefined()),
+                                              Includes(Call(Member($api, "format"), Member($r, "context")), "Execution")
+                                            )
+                                          )
                                         ),
                                         GreaterThan(Length(Member(Member($r, "pattern"), "args")), 0)
                                       ),

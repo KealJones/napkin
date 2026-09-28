@@ -20,7 +20,7 @@ Concept(She(), PointsAt(Someone()), PointsAt(Female()))
 Concept(Her(), PointsAt(Someone()), PointsAt(Female()))
 
 // The things a conversation has in play, newest first: what its answers were and were about, what
-// its pointing words pointed at, and the things it named that Napkin holds facts of. An answer to
+// its pointing words pointed at, the things it named that have names, and what this turn made. An answer to
 // a question that asked for a kind is AskedAs(thing, kind): what "where" answered is a place. Read
 // from the conversation's Said, so nothing needs keeping in step with it.
 Concept(ConversationFocus(),
@@ -192,6 +192,49 @@ Concept(ConversationFocus(),
                     ),
                     Undefined()
                   ),
+                  Comment("A result that says what came of something (ListMade(ShoppingList_1)) is about that thing."),
+                  Bind($result,
+                    Call(
+                      Member(
+                        Otherwise(
+                          OptionalMember(Call(Member(Member($api, "store"), "get"), Member($e, "head")), "relations"),
+                          List()
+                        ),
+                        "some"
+                      ),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                            Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                          ),
+                          Equals(
+                            Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                            "Result"
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  If(
+                    And(And($result, Length(Member($e, "args"))), NotEquals(Member($e, "head"), "Noted")),
+                    Sequence(
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        If(
+                          And(
+                            And(Equals(Member($a, "name"), Undefined()), Call($isCall, Member($a, "value"))),
+                            Not(Length(Member(Member($a, "value"), "args")))
+                          ),
+                          Call($add, Member($a, "value")),
+                          Undefined()
+                        )
+                      ),
+                      Return()
+                    ),
+                    Undefined()
+                  ),
                   If(
                     Equals(Member($e, "head"), "List"),
                     Sequence(
@@ -253,6 +296,33 @@ Concept(ConversationFocus(),
                   )
                 )
               )
+            ),
+            Comment("Newest of all, what this turn has made so far (\"make a shopping list? I need milk\": the"),
+            Comment("list the first line made is in play for the next)."),
+            Bind($now, Member(Member($api, "trace"), "cause")),
+            If(
+              NotEquals($now, Undefined()),
+              ForOf(
+                $u,
+                Call(Member(Member($api, "store"), "all")),
+                If(
+                  And(
+                    Call(Member(Regex("_[0-9]+$", ""), "test"), Member($u, "identity")),
+                    Call(
+                      Member(Member($u, "relations"), "some"),
+                      Lambda(List($r),
+                        Call(
+                          Member(Otherwise(Member($r, "stamps"), List()), "some"),
+                          Lambda(List($st), Equals(Member($st, "source"), $now))
+                        )
+                      )
+                    )
+                  ),
+                  Call($add, Call(Member($api, "call"), Member($u, "identity"))),
+                  Undefined()
+                )
+              ),
+              Undefined()
             ),
             Bind($parts,
               Lambda(List($r),

@@ -4271,19 +4271,38 @@ Concept(Hear(),
                       Undefined()
                     )
                   ),
+                  Comment("\"add 3, 4 and 5\": a group of more than two is what it works on, whole (FoldOver)."),
+                  Bind($group,
+                    Lambda(List($g),
+                      And(Call($isCall, $g), Or(Equals(Member($g, "head"), "List"), Equals(Member($g, "head"), "And")))
+                    )
+                  ),
+                  Bind($many,
+                    And(
+                      And(Not($carried), Call($group, $only)),
+                      Or(
+                        Equals(Member($only, "head"), "List"),
+                        Call(Member(Member($only, "args"), "some"), Lambda(List($a), Call($group, Member($a, "value"))))
+                      )
+                    )
+                  ),
                   Bind($y,
                     If(
-                      $pair,
-                      Call(
-                        Member($api, "call"),
-                        Member($x, "head"),
-                        Spread($pair)
-                      ),
-                      Call(
-                        Member($api, "call"),
-                        Member($x, "head"),
-                        Call(Member($api, "call"), "Ref", ""),
-                        $only
+                      $many,
+                      Call(Member($api, "call"), Member($x, "head"), $only),
+                      If(
+                        $pair,
+                        Call(
+                          Member($api, "call"),
+                          Member($x, "head"),
+                          Spread($pair)
+                        ),
+                        Call(
+                          Member($api, "call"),
+                          Member($x, "head"),
+                          Call(Member($api, "call"), "Ref", ""),
+                          $only
+                        )
                       )
                     )
                   ),

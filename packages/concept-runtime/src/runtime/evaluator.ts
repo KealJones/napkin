@@ -155,6 +155,8 @@ export interface CodeApi {
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
   properNoun(word: string): boolean;
+  /** The words a heard thing was said in (Cheese(Parmesan()) is "parmesan cheese"), when hearing them gives it back. */
+  sayPhrase(e: Expr): Promise<string | undefined>;
   /** A text's words in order, with their sentence and the tags the tagger proposes. */
   words(text: string): { text: string; typed: string; tags: string[]; sentence: number; after: string; could: string[] }[];
   /**
@@ -633,6 +635,7 @@ export class Runtime {
       codeWords,
       verbatim,
       properNoun,
+      sayPhrase: async (e) => (await import("../ears/phrase.js")).sayPhrase(this.store, e),
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;
         dropTurns(this.tracePath, new Set(saidSeqs));

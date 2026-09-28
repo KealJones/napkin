@@ -1,6 +1,6 @@
 // @realization ConversationFocus($conversation), context = Execution(), evaluateArguments = false
 // The things a conversation has in play, newest first: what its answers were and were about, what
-// its pointing words pointed at, and the things it named that Napkin holds facts of. An answer to
+// its pointing words pointed at, the things it named that have names, and what this turn made. An answer to
 // a question that asked for a kind is AskedAs(thing, kind): what "where" answered is a place. Read
 // from the conversation's Said, so nothing needs keeping in step with it.
 async (args, bindings, api) => {
@@ -32,6 +32,12 @@ async (args, bindings, api) => {
   const answered = (e, kind) => {
     if (!isCall(e)) return;
     if ((e.head === "Answer" || e.head === "Describes") && e.args.length) return answered(e.args[0].value, e.head === "Answer" ? kind : undefined);
+    // A result that says what came of something (ListMade(ShoppingList_1)) is about that thing.
+    const result = (api.store.get(e.head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0].value) && r.claim.args[0].value.head === "Result");
+    if (result && e.args.length && e.head !== "Noted") {
+      for (const a of e.args) if (a.name === undefined && isCall(a.value) && !a.value.args.length) add(a.value);
+      return;
+    }
     if (e.head === "List") {
       for (const a of e.args) answered(a.value, kind);
       return;
@@ -48,6 +54,14 @@ async (args, bindings, api) => {
     if (!e.args.length && held(e.head)) add(e);
     for (const a of e.args) if (a.name === undefined) await named(a.value);
   };
+  // Newest of all, what this turn has made so far ("make a shopping list? I need milk": the
+  // list the first line made is in play for the next).
+  const now = api.trace.cause;
+  if (now !== undefined) {
+    for (const u of api.store.all()) {
+      if (/_[0-9]+$/.test(u.identity) && u.relations.some((r) => (r.stamps ?? []).some((st) => st.source === now))) add(api.call(u.identity));
+    }
+  }
   const parts = (r) => r.claim.args.filter((a) => a.name === undefined).map((a) => a.value);
   for (let i = 0; i < said.length; i++) {
     const [who, what] = parts(said[i]);

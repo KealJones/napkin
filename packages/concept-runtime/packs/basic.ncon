@@ -532,8 +532,6 @@ Concept(Sequence(),
                       Lambda(List($a), Object(Spread($a), value = Call($carry, Member($a, "value"), $prev)))
                     )
                   ),
-                  // Nothing carried, the line is itself: rebuilt, a value bound into it would
-                  // become a call to evaluate again.
                   If(
                     Call(
                       Member($carried, "every"),
@@ -611,8 +609,42 @@ Concept(Sequence(),
                   Undefined()
                 ),
                 Bind($value, Await(Call(Member($api, "resolve"), $line))),
+                Comment("Every line's result is said (\"Started your shopping list.\" then what was added), not only"),
+                Comment("the answers."),
+                Bind($result,
+                  And(
+                    Call($isCall, $value),
+                    Call(
+                      Member(
+                        Otherwise(
+                          OptionalMember(
+                            Call(Member(Member($api, "store"), "get"), Member($value, "head")),
+                            "relations"
+                          ),
+                          List()
+                        ),
+                        "some"
+                      ),
+                      Lambda(List($r),
+                        And(
+                          And(
+                            And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                            Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                          ),
+                          Equals(
+                            Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                            "Result"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
                 If(
-                  And(Call($isCall, $value), Includes(List("Answer", "Believed", "Noted"), Member($value, "head"))),
+                  And(
+                    Call($isCall, $value),
+                    Or(Includes(List("Answer", "Believed", "Noted"), Member($value, "head")), $result)
+                  ),
                   Call(Member($answers, "push"), $value),
                   Undefined()
                 ),

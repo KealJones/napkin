@@ -43,3 +43,26 @@ test("he points at the man in play, past a newer place and the women after him; 
   // A word that points at no kind is left to the last answer.
   assert.equal(format(await runtime.evaluate(call("ReferentOf", [{ value: "it" }]), c("Execution"))), 'ReferentOf("it")');
 });
+
+test("a list made in conversation holds what is put on it and not taken off, and is found by what the words say of it", async () => {
+  const { turn } = await import("./turn.js");
+  const store = new ConceptStore();
+  seed(store);
+  const say = async (m: string) => {
+    const runtime = new Runtime(store);
+    return (await turn(runtime, m, c("Execution"), { learn: false, conversation: "Conversation_2" })).spoken;
+  };
+  assert.equal(await say("make a shopping list"), "Started your shopping list.");
+  assert.equal(await say("add milk to my shopping list"), "Added milk to your shopping list.");
+  assert.equal(await say("put eggs on my list"), "Added eggs to your shopping list.");
+  assert.equal(await say("remove milk from my list"), "Took milk off your shopping list.");
+  assert.equal(await say("what is on my shopping list?"), "Your shopping list has eggs.");
+});
+
+test("a doing that takes two things takes them as one group", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const runtime = new Runtime(store);
+  assert.equal(format(await runtime.evaluate(parse("Add(And(5, 3))"), c("Execution"))), "8");
+  assert.equal(format(await runtime.evaluate(parse("Multiply(List(2, 3, 4))"), c("Execution"))), "24");
+});

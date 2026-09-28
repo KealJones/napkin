@@ -184,6 +184,35 @@ export function deriveFolds(store: ConceptStore): number {
   return derived;
 }
 
+/**
+ * Every doing that takes two things (Add($left, $right)) takes them as one group too: "add 5 and
+ * 3" is Add(And(5, 3)), "add 3, 4 and 5" Add(List(3, 4, 5)), and FoldOver (packs/core.ncon) does
+ * it to the first two, then to that and the next. Derived onto the universal parent, as folds
+ * are, so the doing's own shapes (which hearing reads) stay as they were, and nobody lists which
+ * doings fold. A doing that already takes one thing is left alone: one thing is its own meaning.
+ */
+export function deriveGroupings(store: ConceptStore): number {
+  const working = (r: Realization) => !r.retired && (r.context === undefined || format(r.context).includes("Execution"));
+  const positional = (r: Realization) => (isCall(r.pattern) ? r.pattern.args.filter((a) => a.name === undefined) : []);
+  const held = new Set((store.get(UNIVERSAL)?.realizations ?? []).map((r) => format(r.pattern)));
+  let derived = 0;
+  for (const unit of store.all()) {
+    const own = unit.realizations.filter((r) => working(r) && isCall(r.pattern) && r.pattern.head === unit.identity);
+    const two = own.some((r) => positional(r).length === 2 && !positional(r).some((a) => isCall(a.value) && a.value.head === "Rest"));
+    if (!two || own.some((r) => positional(r).length === 1)) continue;
+    // With hearing's empty slot for what it works on ("add 3, 4 and 5" is Add(Ref(""), List(3, 4,
+    // 5))) left unfilled, the group is all there is to work on.
+    const shapes = ["And($a, $b)", "List(Rest($items))"].flatMap((group) => [[`${unit.identity}(${group})`, group], [`${unit.identity}(Ref($r), ${group})`, group]]);
+    for (const [pattern, group] of shapes) {
+      if (held.has(format(parse(pattern)))) continue;
+      // Marked as seeded: derived again at every start, so not a change for the journal to keep.
+      store.addRealization(UNIVERSAL, { ...realization({ pattern: parse(pattern), context: "Execution()", evaluateArguments: false, body: parse(`FoldOver("${unit.identity}", ${group})`) }), seededFrom: "derived" });
+      derived += 1;
+    }
+  }
+  return derived;
+}
+
 export interface SeedReport {
   created: number;
   updated: number;
@@ -194,6 +223,7 @@ export interface SeedReport {
   removed: number;
   synonymsDerived: number;
   foldsDerived: number;
+  groupingsDerived: number;
   /** The packs seeded, by name. */
   packs: string[];
 }
@@ -211,7 +241,7 @@ const packsIn = (dirs: readonly string[]): Pack[] => {
 export function seed(store: ConceptStore, options: { packs?: readonly string[] } = {}): SeedReport {
   const packs = packsIn([BUILT_IN_PACKS, ...(options.packs ?? [])]);
   const report = seedPacks(store, packs);
-  return { ...report, synonymsDerived: deriveSynonymForwarding(store), foldsDerived: deriveFolds(store), packs: packs.map((p) => p.name) };
+  return { ...report, synonymsDerived: deriveSynonymForwarding(store), foldsDerived: deriveFolds(store), groupingsDerived: deriveGroupings(store), packs: packs.map((p) => p.name) };
 }
 
 /** Every unit the built-in packs seed. */
