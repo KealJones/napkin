@@ -1,0 +1,8 @@
+// The weather now, somewhere: Open-Meteo (open-meteo.com), free and without a key. Its geocoder
+// finds the place, and its forecast says the conditions now. Asked each time, never kept.
+// Written by scripts/pack.mjs from sources/weather (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(OpenMeteo(), IsA(Source()), IsA(LearningSource()))
+
+Concept(WeatherNow(), IsA(Result()))

@@ -2166,7 +2166,25 @@ Concept(Pursue(),
               Sequence(
                 If(
                   Equals($wanted, "Someone"),
-                  Call(Member($propertyWords, "push"), Object(Spread($w), text = Add(Member($w, "text"), " by"))),
+                  Sequence(
+                    Call(Member($propertyWords, "push"), Object(Spread($w), text = Add(Member($w, "text"), " by"))),
+                    Comment("A doing said in one form is named by another: \"who wrote\" is \"written by\"."),
+                    Bind($forms,
+                      Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "WordForms", Member($w, "text"))))
+                    ),
+                    ForOf(
+                      $f,
+                      If(
+                        And(Call($isCall, $forms), Equals(Member($forms, "head"), "List")),
+                        Call(Member(Member($forms, "args"), "slice"), 1),
+                        List()
+                      ),
+                      Call(
+                        Member($propertyWords, "push"),
+                        Object(Spread($w), text = Add(Call($String, Member($f, "value")), " by"))
+                      )
+                    )
+                  ),
                   Undefined()
                 ),
                 Call(Member($propertyWords, "push"), $w)

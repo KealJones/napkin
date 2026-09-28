@@ -1,0 +1,247 @@
+// The weather now, somewhere: Open-Meteo (open-meteo.com), free and without a key. Its geocoder
+// finds the place, and its forecast says the conditions now. Asked each time, never kept.
+// Written by scripts/pack.mjs from sources/weather (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(OpenMeteo(), IsA(Source()), IsA(LearningSource()))
+
+Concept(WeatherNow(), IsA(Result()))
+
+// "In Tokyo, Japan it's 25.4°C and partly cloudy, with wind at 12 km/h."
+Concept(WeatherNow(),
+  Realization(WeatherNow(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($p,
+              Map(
+                Filter($args, Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(
+                      Add(
+                        Add(
+                          Add(Add(Add(Add("In ", Index($p, 0)), " it's "), Index($p, 1)), Index($p, 2)),
+                          If(Index($p, 3), Add(" and ", Index($p, 3)), "")
+                        ),
+                        ", with wind at "
+                      ),
+                      Index($p, 4)
+                    ),
+                    " "
+                  ),
+                  Index($p, 5)
+                ),
+                "."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "The weather in Tokyo": the place said (the words of the phrase, "new york" as York(New())),
+// found by Open-Meteo's geocoder, and the conditions there now. WeatherNow(place, temperature,
+// unit, conditions, wind, wind unit, from = OpenMeteo(url)), or the call itself.
+Concept(Weather(),
+  Realization(Weather(Rest($where)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Var(
+              $at,
+              OptionalMember(
+                Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                "value"
+              )
+            ),
+            If(
+              And(
+                And(Call($isCall, $at), Includes(List("In", "At", "For"), Member($at, "head"))),
+                Equals(Length(Member($at, "args")), 1)
+              ),
+              Assign($at, Member(Index(Member($at, "args"), 0), "value")),
+              Undefined()
+            ),
+            Comment("A phrase heard as a word holding what describes it: its words, the describing ones first."),
+            Bind($words, List()),
+            For(
+              Var($e, $at),
+              Call($isCall, $e),
+              Assign($e, OptionalMember(Index(Member($e, "args"), 0), "value")),
+              Sequence(
+                Call(
+                  Member($words, "unshift"),
+                  Call(
+                    Member(Member($e, "head"), "replace"),
+                    Regex("([a-z])([A-Z])", "g"),
+                    "$1 $2"
+                  )
+                ),
+                If(
+                  NotEquals(Length(Member($e, "args")), 1),
+                  Break(),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($place, Call(Member($words, "join"), " ")),
+            If(
+              Not($place),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Weather",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($geo,
+              Call(
+                Member($api, "toHost"),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Fetch",
+                      Add(
+                        "https://geocoding-api.open-meteo.com/v1/search?count=1&name=",
+                        Call($encodeURIComponent, $place)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($found,
+              If(
+                And($geo, Call(Member($Array, "isArray"), Member($geo, "results"))),
+                Index(Member($geo, "results"), 0),
+                Undefined()
+              )
+            ),
+            If(
+              Not($found),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Weather",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($url,
+              Add(
+                Add(
+                  Add(
+                    Add("https://api.open-meteo.com/v1/forecast?latitude=", Member($found, "latitude")),
+                    "&longitude="
+                  ),
+                  Member($found, "longitude")
+                ),
+                "&current=temperature_2m,weather_code,wind_speed_10m"
+              )
+            ),
+            Bind($now,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($cur, And($now, Member($now, "current"))),
+            If(
+              Not($cur),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Weather",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Comment("Open-Meteo's weather codes are WMO's (its documentation): the words for each."),
+            Bind($code, Call($Number, Member($cur, "weather_code"))),
+            Bind($WMO,
+              List(
+                List(0, "clear"),
+                List(1, "mainly clear"),
+                List(2, "partly cloudy"),
+                List(3, "overcast"),
+                List(45, "foggy"),
+                List(48, "foggy"),
+                List(51, "drizzling"),
+                List(56, "freezing drizzle"),
+                List(61, "raining"),
+                List(66, "freezing rain"),
+                List(71, "snowing"),
+                List(77, "snow grains"),
+                List(80, "rain showers"),
+                List(85, "snow showers"),
+                List(95, "thunderstorms"),
+                List(96, "thunderstorms with hail")
+              )
+            ),
+            Bind($conditions,
+              Otherwise(
+                OptionalIndex(Call(Member(Filter($WMO, Lambda(List(List($c)), AtMost($c, $code))), "pop")), 1),
+                ""
+              )
+            ),
+            Bind($name,
+              Add(
+                Member($found, "name"),
+                If(
+                  Member($found, "country"),
+                  Add(", ", Member($found, "country")),
+                  ""
+                )
+              )
+            ),
+            Return(
+              Object(
+                head = "WeatherNow",
+                args = List(
+                  Object(value = $name),
+                  Object(value = Call($Number, Member($cur, "temperature_2m"))),
+                  Object(
+                    value = Call(
+                      $String,
+                      Otherwise(OptionalMember(Member($now, "current_units"), "temperature_2m"), "")
+                    )
+                  ),
+                  Object(value = $conditions),
+                  Object(value = Call($Number, Member($cur, "wind_speed_10m"))),
+                  Object(
+                    value = Call(
+                      $String,
+                      Otherwise(OptionalMember(Member($now, "current_units"), "wind_speed_10m"), "")
+                    )
+                  ),
+                  Object(name = "from", value = Call(Member($api, "call"), "OpenMeteo", $url))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

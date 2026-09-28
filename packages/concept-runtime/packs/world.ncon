@@ -1,0 +1,121 @@
+// Free, open data about the world, beyond single Wikidata items: a word's forms (Wikidata
+// lexemes), the most or least of a kind (Wikidata's query service), money in another currency
+// (Frankfurter, the European Central Bank's rates) and the weather (Open-Meteo). Each keeps where
+// it came from. Written by scripts/pack.mjs from sources/world (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(Frankfurter(),
+  IsA(Source()),
+  IsA(LearningSource()),
+  License("European Central Bank reference rates")
+)
+
+Concept(OpenMeteo(),
+  IsA(Source()),
+  IsA(LearningSource()),
+  License("CC BY 4.0")
+)
+
+Concept(Weather(), IsA(Result()))
+
+// The forms of a word, from its Wikidata lexeme ("wrote" is a form of write: write, writes, wrote,
+// written, writing). List of text, the word itself first; the word alone when no lexeme has it.
+Concept(WordForms(),
+  Realization(WordForms($text),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($text, Call(Member(Call($String, Call(Member($bindings, "get"), "text")), "toLowerCase"))),
+            Bind($url,
+              Add(
+                "https://www.wikidata.org/w/api.php?action=wbsearchentities&type=lexeme&language=en&limit=3&format=json&search=",
+                Call($encodeURIComponent, $text)
+              )
+            ),
+            Bind($found,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($hit,
+              If(
+                And($found, Call(Member($Array, "isArray"), Member($found, "search"))),
+                Call(
+                  Member(Member($found, "search"), "find"),
+                  Lambda(List($h),
+                    And(
+                      And(
+                        Member($h, "match"),
+                        Equals(Call(Member(Call($String, Member(Member($h, "match"), "text")), "toLowerCase")), $text)
+                      ),
+                      Call(Member(Regex("verb|noun|adjective", ""), "test"), Call($String, Member($h, "description")))
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              Not($hit),
+              Return(Call(Member($api, "call"), "List", $text)),
+              Undefined()
+            ),
+            Bind($got,
+              Call(
+                Member($api, "toHost"),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Fetch",
+                      Add(
+                        "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&ids=",
+                        Member($hit, "id")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($lexeme,
+              If(
+                And($got, Member($got, "entities")),
+                Index(Member($got, "entities"), Member($hit, "id")),
+                Undefined()
+              )
+            ),
+            Bind($forms,
+              If(
+                And($lexeme, Call(Member($Array, "isArray"), Member($lexeme, "forms"))),
+                Filter(
+                  Map(
+                    Member($lexeme, "forms"),
+                    Lambda(List($f),
+                      And(
+                        And(Member($f, "representations"), Member(Member($f, "representations"), "en")),
+                        Member(Member(Member($f, "representations"), "en"), "value")
+                      )
+                    )
+                  ),
+                  Lambda(List($v), Equals(TypeOf($v), "string"))
+                ),
+                List()
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Spread(Concat(List($text), Filter($forms, Lambda(List($f), NotEquals($f, $text)))))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

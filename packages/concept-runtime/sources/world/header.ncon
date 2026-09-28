@@ -1,0 +1,11 @@
+// Free, open data about the world, beyond single Wikidata items: a word's forms (Wikidata
+// lexemes), the most or least of a kind (Wikidata's query service), money in another currency
+// (Frankfurter, the European Central Bank's rates) and the weather (Open-Meteo). Each keeps where
+// it came from. Written by scripts/pack.mjs from sources/world (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+Concept(Frankfurter(), IsA(Source()), IsA(LearningSource()), License("European Central Bank reference rates"))
+
+Concept(OpenMeteo(), IsA(Source()), IsA(LearningSource()), License("CC BY 4.0"))
+
+Concept(Weather(), IsA(Result()))
