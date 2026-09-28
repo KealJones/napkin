@@ -420,14 +420,21 @@ export class Runtime {
         );
       }
       trace.selection(id, found.length, tieBreakDecided(found));
-      const chosen = found[0];
 
       // No Concept, or no applicable realization: the expression is its own value.
-      if (!chosen) {
+      if (!found.length) {
         trace.finish(id, "residual", target);
         return target;
       }
 
+      // A realization that hands back the call it was given did not apply ("add 3, 4 and 5" is
+      // no list to add to), so the Concept's next one is tried; the arguments are worked out once.
+      // Only its own: what it inherits is not asked to overrule it (a code Comment kept as it is
+      // stays kept).
+      let worked: readonly Argument[] | undefined;
+      for (let at = 0; at < found.length; at++) {
+      const chosen = found[at];
+      const more = at + 1 < found.length && found[at + 1].owner === chosen.owner;
       trace.select(id, chosen.realization);
       this.store.recordSelection(chosen.owner, chosen.index);
       const { realization } = chosen;
@@ -435,16 +442,18 @@ export class Runtime {
       let args: readonly Argument[] = target.args;
 
       if (realization.evaluateArguments && !this.given.has(target)) {
-        args = await Promise.all(
+        worked ??= await Promise.all(
           target.args.map(async (a) => {
             const value = await this.run(a.value, context, target.head, id, inner + 1, within);
             return a.name === undefined ? { value } : { name: a.name, value };
           }),
         );
+        args = worked;
         const evaluated = call(target.head, args);
         trace.evaluated(id, args.map((a) => a.value));
         bindings = new Map();
         if (!match(realization.pattern, evaluated, bindings)) {
+          if (more) continue;
           trace.finish(id, "residual", evaluated);
           return evaluated;
         }
@@ -487,13 +496,17 @@ export class Runtime {
       // A realization that hands back the call it was given did nothing. That is a
       // residual in substance even though one was selected, and treating it as success is
       // what let "I could not work that out" stand in for a missing realization.
-      if (equal(result, call(target.head, args))) {
+      if (equal(result, call(target.head, args)) || equal(result, target)) {
+        if (more) continue;
         trace.finish(id, "residual", result);
         return result;
       }
 
       trace.finish(id, "success", result);
       return result;
+      }
+      trace.finish(id, "residual", target);
+      return target;
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
       const value =

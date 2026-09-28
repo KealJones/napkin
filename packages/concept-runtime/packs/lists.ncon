@@ -57,7 +57,7 @@ Concept(Add(),
 )
 
 // "add cheetos to my shopping list": put on the list it names. Naming no list ("add 5", after 4),
-// what the empty slot stands for is what it adds to, done again without the slot.
+// the call itself, and Add's next realization does it.
 Concept(Add(),
   Realization(Add(Ref(Rest($r)), $said),
     context = Execution(),
@@ -81,25 +81,18 @@ Concept(Add(),
                 )
               )
             ),
-            If(
-              Not(And($done, Equals(Member($done, "head"), "ListChange"))),
-              Return($done),
-              Undefined()
-            ),
-            Bind($slot, Await(Call(Member($api, "evaluate"), Member(Index($args, 0), "value")))),
-            If(
-              And($slot, Equals(Member($slot, "head"), "Ref")),
-              Return(
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "ListChange")),
                 Call(
                   Member($api, "call"),
                   "Add",
                   Member(Index($args, 0), "value"),
                   $said
-                )
-              ),
-              Undefined()
-            ),
-            Return(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Add", $slot, $said)))
+                ),
+                $done
+              )
+            )
           )
         )
       )
