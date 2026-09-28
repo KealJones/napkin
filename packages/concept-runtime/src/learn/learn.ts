@@ -65,7 +65,7 @@ export function readable(identity: string): string {
 }
 
 /** An answer that says it does not know: Unknown(...), or a truth not known. */
-function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]): boolean {
+export function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]): boolean {
   if (result === undefined || !isCall(result)) return false;
   // A description of only what packs say of a word (Mood is a Marker: how Napkin uses it) does
   // not say what the thing is.

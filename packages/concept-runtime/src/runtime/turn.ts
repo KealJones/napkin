@@ -11,7 +11,7 @@ import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
-import { learn, type LearnStep } from "../learn/learn.js";
+import { learn, unknownAnswer, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, pickSense, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
@@ -589,6 +589,41 @@ export async function turn(
       result = await runtime.evaluate(running, context);
     } catch (caught) {
       failed = caught instanceof ConceptError ? format(caught.value) : String(caught);
+    }
+  }
+
+  // A facet word may be what is asked about, not a setting: "what is python" lifted Python into
+  // the context and left What(Is()). When the lifted reading is no answer, the words are worked
+  // out again with the facet left where it was said, as a thing, and that is kept if it answers.
+  if (!which && !equal(running, expression)) {
+    const unanswered = (r: Expr | undefined) => r === undefined || holdsResidual(runtime, r) || learnable(runtime, collectGaps(runtime, r)).length > 0 || unknownAnswer(r, runtime.store);
+    if (unanswered(result)) {
+      let again: Expr | undefined;
+      try {
+        if (options.learn !== false) {
+          const outcome = await learn(runtime, message, expression, given, { ...options, asked: new Set<string>() });
+          again = outcome.result;
+          if (!unanswered(again)) learned = [...learned, ...outcome.steps];
+        } else {
+          runtime.reset();
+          again = await runtime.evaluate(expression, given);
+        }
+      } catch {
+        again = undefined;
+      }
+      if (!unanswered(again)) {
+        result = again;
+        running = expression;
+        context = given;
+      } else {
+        // The first reading stands: its trace is the one reported.
+        runtime.reset();
+        try {
+          result = await runtime.evaluate(running, context);
+        } catch (caught) {
+          failed = caught instanceof ConceptError ? format(caught.value) : String(caught);
+        }
+      }
     }
   }
 
