@@ -1166,6 +1166,32 @@ Concept(Tell(),
   )
 )
 
+// "Look up X", "research X": asked the way "what is X" asks, so the world is looked in when the
+// graph holds nothing of it.
+Concept(Look(),
+  Realization(Look(Up($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Mood(Interrogative(), What(Is($x)))
+  )
+)
+
+Concept(LookUp(),
+  Realization(LookUp($x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Mood(Interrogative(), What(Is($x)))
+  )
+)
+
+Concept(Research(),
+  Realization(Research($x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Mood(Interrogative(), What(Is($x)))
+  )
+)
+
 // "can you X" is a question about ability in form and a request in use (Searle). Read as
 // the request only when asked as a question, which the Interrogative facet says.
 Concept(Can(),

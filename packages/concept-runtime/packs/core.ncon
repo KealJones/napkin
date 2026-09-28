@@ -721,6 +721,78 @@ Concept(Mood(),
                     )
                   ),
                   Undefined()
+                ),
+                Comment("A word said alone that does nothing and is not talk (\"clock\"): what it is, asked."),
+                If(
+                  And(And($line, Member($line, "head")), Not(Length(Member($line, "args")))),
+                  Sequence(
+                    Bind($unit, Call(Member(Member($api, "store"), "get"), Member($line, "head"))),
+                    Bind($acts,
+                      And(
+                        Not(Not($unit)),
+                        Call(
+                          Member(Member($unit, "realizations"), "some"),
+                          Lambda(List($r), Not(Member($r, "retired")))
+                        )
+                      )
+                    ),
+                    Bind($kinds,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "Closure",
+                            Member($line, "head"),
+                            "IsA"
+                          )
+                        )
+                      )
+                    ),
+                    Bind($talk,
+                      And(
+                        And($kinds, Equals(Member($kinds, "head"), "List")),
+                        Call(
+                          Member(Member($kinds, "args"), "some"),
+                          Lambda(List($a),
+                            And(Member($a, "value"), Equals(Member(Member($a, "value"), "head"), "Interjection"))
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      And(Not($acts), Not($talk)),
+                      Return(
+                        Await(
+                          Call(
+                            Member($api, "evaluate"),
+                            Call(
+                              Member($api, "call"),
+                              "Mood",
+                              Call(Member($api, "call"), "Interrogative"),
+                              Call(
+                                Member($api, "call"),
+                                "What",
+                                Call(Member($api, "call"), "Is", $line)
+                              )
+                            ),
+                            Call(
+                              Member($api, "call"),
+                              "Context",
+                              Spread(
+                                Filter(
+                                  $facets,
+                                  Lambda(List($f), Not(And($f, Equals(Member($f, "head"), "Declarative"))))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
                 )
               ),
               Undefined()

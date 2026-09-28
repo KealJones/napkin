@@ -12,6 +12,7 @@ import { type Expr, c, call, format, isCall, walk } from "../concept/expression.
 import { reachesBehaviour } from "../runtime/select.js";
 import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
+import { lemma } from "../runtime/host.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
@@ -254,6 +255,25 @@ export async function learn(
       // word used on arguments is a doing, and the nearest thing sharing its label is not it.
       const named = !isCall(gap.input) || gap.input.args.length === 0;
       const looked = gap.kind === "unknown" || gap.kind === "empty";
+      // A word in another form than its base ("clocks") is its base: that is what is looked up
+      // ("Clocks" is also a single), and the form is kept as a synonym of it.
+      const words = gap.identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+      const baseWords = lemma(words);
+      if (looked && named && baseWords !== words && options.research !== false) {
+        const base = baseWords.split(" ").map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+        try {
+          const grounded = runtime.store.get(base)?.relations.length ? undefined : await groundInWikidata(runtime.store, base, { cause: runtime.trace.cause, said: [message, ...(options.history ?? []).map((h) => h.message)].join(" ") });
+          if (runtime.store.get(base)?.relations.length) {
+            runtime.store.addRelation(gap.identity, call("SynonymOf", [{ value: c(base) }]), undefined, runtime.trace.cause);
+            forwardSynonym(runtime.store, gap.identity, base);
+            steps.push({ identity: gap.identity, how: "wikidata", detail: `the ${words} are ${baseWords}${grounded ? `: ${grounded.item}` : ""}` });
+            learnedSomething = true;
+            continue;
+          }
+        } catch {
+          // Unreachable: the form is looked up as it is.
+        }
+      }
       if (looked && named && options.research !== false) {
         try {
           // The sense is the one what was said fits, this message and the ones before it.
