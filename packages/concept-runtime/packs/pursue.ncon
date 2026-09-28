@@ -2200,12 +2200,59 @@ Concept(Pursue(),
                   Continue(),
                   Undefined()
                 ),
+                Comment("A thing may be named by two words said side by side, in either order (\"the mona lisa\","),
+                Comment(
+                  "heard as Lisa(Mona())), tried before either word alone (\"south korea\" names more than \"korea\")."
+                ),
+                Bind($things, List()),
+                For(
+                  Var($i, 0),
+                  LessThan(Add($i, 1), Length($words)),
+                  PostIncrement($i),
+                  Sequence(
+                    Call(
+                      Member($things, "push"),
+                      Object(
+                        head = Member(Index($words, $i), "head"),
+                        text = Add(
+                          Add(Member(Index($words, $i), "text"), " "),
+                          Member(Index($words, Add($i, 1)), "text")
+                        ),
+                        also = Member(Index($words, Add($i, 1)), "head")
+                      )
+                    ),
+                    Call(
+                      Member($things, "push"),
+                      Object(
+                        head = Member(Index($words, $i), "head"),
+                        text = Add(
+                          Add(Member(Index($words, Add($i, 1)), "text"), " "),
+                          Member(Index($words, $i), "text")
+                        ),
+                        also = Member(Index($words, Add($i, 1)), "head")
+                      )
+                    )
+                  )
+                ),
+                Call(Member($things, "push"), Spread($words)),
                 ForOf(
                   $e,
-                  $words,
+                  $things,
                   Sequence(
                     If(
-                      Or(Equals(Member($e, "head"), Member($p, "head")), Equals(Member($e, "head"), Member($p, "also"))),
+                      Or(
+                        Or(
+                          Equals(Member($e, "head"), Member($p, "head")),
+                          Equals(Member($e, "head"), Member($p, "also"))
+                        ),
+                        And(
+                          NotEquals(Member($e, "also"), Undefined()),
+                          Or(
+                            Equals(Member($e, "also"), Member($p, "head")),
+                            Equals(Member($e, "also"), Member($p, "also"))
+                          )
+                        )
+                      ),
                       Continue(),
                       Undefined()
                     ),
