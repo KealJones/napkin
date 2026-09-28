@@ -902,33 +902,67 @@ Concept(LookUp(),
                         NotEquals(Member($v, "time"), Undefined()),
                         Sequence(
                           Comment("A date as precise as Wikidata says it is: a year, a month, a day (\"1946-12-18\")."),
+                          Comment("As the Date the graph holds dates as: Date(year=, month=, day=, weekday=)."),
                           Bind($m,
                             Call(
                               Member(Regex("^([+-])(\\d+)-(\\d\\d)-(\\d\\d)", ""), "exec"),
                               Call($String, Member($v, "time"))
                             )
                           ),
-                          Bind($year,
-                            If(
-                              $m,
-                              Add(If(Equals(Index($m, 1), "-"), "-", ""), Call($String, Call($Number, Index($m, 2)))),
-                              Undefined()
-                            )
-                          ),
-                          Call(
-                            Member($values, "push"),
-                            If(
-                              Not($m),
-                              Member($v, "time"),
+                          Bind($precision, Otherwise(Member($v, "precision"), 11)),
+                          If(
+                            Not($m),
+                            Call(Member($values, "push"), Member($v, "time")),
+                            Sequence(
+                              Bind($year,
+                                Multiply(If(Equals(Index($m, 1), "-"), Negate(1), 1), Call($Number, Index($m, 2)))
+                              ),
+                              Bind($parts, List(Object(name = "year", value = $year))),
                               If(
-                                AtLeast(Otherwise(Member($v, "precision"), 11), 11),
-                                Add(Add(Add(Add($year, "-"), Index($m, 3)), "-"), Index($m, 4)),
-                                If(
-                                  Equals(Member($v, "precision"), 10),
-                                  Add(Add($year, "-"), Index($m, 3)),
-                                  $year
-                                )
-                              )
+                                AtLeast($precision, 10),
+                                Call(
+                                  Member($parts, "push"),
+                                  Object(name = "month", value = Call($Number, Index($m, 3)))
+                                ),
+                                Undefined()
+                              ),
+                              If(
+                                AtLeast($precision, 11),
+                                Sequence(
+                                  Call(
+                                    Member($parts, "push"),
+                                    Object(name = "day", value = Call($Number, Index($m, 4)))
+                                  ),
+                                  If(
+                                    GreaterThan($year, 0),
+                                    Call(
+                                      Member($parts, "push"),
+                                      Object(
+                                        name = "weekday",
+                                        value = Call(
+                                          Member(
+                                            New(
+                                              $Date,
+                                              Call(
+                                                Member($Date, "UTC"),
+                                                $year,
+                                                Subtract(Call($Number, Index($m, 3)), 1),
+                                                Call($Number, Index($m, 4))
+                                              )
+                                            ),
+                                            "toLocaleDateString"
+                                          ),
+                                          "en-US",
+                                          Object(weekday = "long", timeZone = "UTC")
+                                        )
+                                      )
+                                    ),
+                                    Undefined()
+                                  )
+                                ),
+                                Undefined()
+                              ),
+                              Call(Member($values, "push"), Object(head = "Date", args = $parts))
                             )
                           )
                         ),
@@ -1347,7 +1381,12 @@ Concept(Pursue(),
                   ),
                   If(
                     Equals($wanted, "Time"),
-                    Return(Or(Equals(TypeOf($v), "string"), Equals(TypeOf($v), "number"))),
+                    Sequence(
+                      Comment("A time is a date the graph holds (Date(year=, month=, day=)), or a time said as text."),
+                      Return(
+                        Or(And(Call($isCall, $v), Equals(Member($v, "head"), "Date")), Equals(TypeOf($v), "string"))
+                      )
+                    ),
                     Undefined()
                   ),
                   Comment("\"What language ...\": a kind named is asked for, so the answer is a thing, not text."),

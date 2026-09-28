@@ -455,12 +455,8 @@ async function everyClaim(
         else if (known !== v.id) continue;
         keep(c(relation, c(name)));
       } else if (t.type === "time" && v.time) {
-        // As precise as Wikidata says it is: a year, a month, or a day.
-        const m = /^([+-])(\d+)-(\d\d)-(\d\d)/.exec(v.time);
-        if (!m) continue;
-        const year = (m[1] === "-" ? "-" : "") + String(Number(m[2]));
-        const when = (v.precision ?? 11) >= 11 ? `${year}-${m[3]}-${m[4]}` : (v.precision ?? 11) === 10 ? `${year}-${m[3]}` : year;
-        keep(call(relation, [{ value: when }]));
+        const when = dateOf(v.time, v.precision);
+        if (when) keep(call(relation, [{ value: when }]));
       } else if (t.type === "quantity" && v.amount !== undefined) {
         const n = Number(v.amount);
         if (!Number.isFinite(n)) continue;
@@ -470,4 +466,23 @@ async function everyClaim(
       }
     }
   }
+}
+
+/**
+ * A Wikidata time as the Date the graph holds dates as (Date(year=..., month=..., day=...,
+ * weekday=...), what "what's the date" gives), as precise as Wikidata says it is: a day, a month,
+ * or only a year.
+ */
+export function dateOf(time: string, precision = 11): Expr | undefined {
+  const m = /^([+-])(\d+)-(\d\d)-(\d\d)/.exec(time);
+  if (!m) return undefined;
+  const year = (m[1] === "-" ? -1 : 1) * Number(m[2]);
+  const parts: { name: string; value: Expr }[] = [{ name: "year", value: year }];
+  if (precision >= 10) parts.push({ name: "month", value: Number(m[3]) });
+  if (precision >= 11) {
+    parts.push({ name: "day", value: Number(m[4]) });
+    const at = new Date(Date.UTC(year, Number(m[3]) - 1, Number(m[4])));
+    if (year > 0) parts.push({ name: "weekday", value: at.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }) });
+  }
+  return call("Date", parts);
 }
