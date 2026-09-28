@@ -188,6 +188,26 @@ function expressionOrNull(source: string): Expr | null {
   }
 }
 
+/**
+ * The whole graph as a file (store.ncon): shared through the device's share sheet where it has
+ * one (a phone can AirDrop it), else downloaded.
+ */
+async function exportGraph(): Promise<void> {
+  const response = await request("/api/graph/export");
+  const text = await response.text();
+  const name = `napkin-${new Date().toISOString().slice(0, 10)}.ncon`;
+  const file = new File([text], name, { type: "text/plain" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: name }).catch(() => undefined);
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(file);
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
 function conversationTitle(summary: ConversationSummary): string {
   return summary.lastMessage?.trim() || "New conversation";
 }
@@ -788,6 +808,13 @@ function App() {
                 : `${conceptCount} Concepts`}
             </span>
             <span className="badge">LOCAL</span>
+            <button
+              className="export-graph"
+              title="Export the whole graph as a .ncon file"
+              onClick={() => void exportGraph()}
+            >
+              Export
+            </button>
           </div>
         </header>
         {page === "guide" ? (

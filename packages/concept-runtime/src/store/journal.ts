@@ -306,10 +306,15 @@ export function compactEntries(store: ConceptStore): Expr[] {
   return [...mints, ...asserts.sort((a, b) => a.seq - b.seq).map((a) => a.entry), ...others];
 }
 
+/** The journal as the fewest lines that rebuild the graph now: what `compact` writes. */
+export function journalText(store: ConceptStore): string {
+  return HEADER(store.sequence) + compactEntries(store).map((e) => `${format(e)}\n`).join("");
+}
+
 /** Rewrite the journal as the fewest lines that rebuild the graph now. */
 export function compact(store: ConceptStore, path: string): number {
   const entries = compactEntries(store);
-  write(path, HEADER(store.sequence) + entries.map((e) => `${format(e)}\n`).join(""));
+  write(path, journalText(store));
   return entries.length;
 }
 

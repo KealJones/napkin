@@ -18,6 +18,7 @@ import {
   parse,
   Relations,
   Runtime,
+  journalText,
   openNapkinGraph,
   sourcesOf,
   type ConceptUnit,
@@ -145,6 +146,18 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       const traceId = decodeURIComponent(path.slice("/api/traces/".length));
       const found = traces.find((t) => t.traceId === traceId);
       return json(200, { traceId, events: found?.events ?? [] });
+    }
+
+    // The whole graph as a journal (store.ncon), to keep or hand to someone: what this host has
+    // learned, said and been told, which opens over the packs anywhere.
+    if (method === "GET" && path === "/api/graph/export") {
+      return new Response(journalText(store), {
+        status: 200,
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          "content-disposition": `attachment; filename="napkin-${new Date().toISOString().slice(0, 10)}.ncon"`,
+        },
+      });
     }
 
     if (method === "GET" && path === "/api/agenda") {

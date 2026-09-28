@@ -1281,3 +1281,17 @@ details > summary { cursor: pointer; }
   opacity: 1;
   color: var(--text, inherit);
 }
+
+.export-graph {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.export-graph:hover {
+  color: var(--text);
+}
