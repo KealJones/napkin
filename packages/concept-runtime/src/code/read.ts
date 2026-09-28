@@ -12,7 +12,9 @@
  * - A regular expression is `JsRegularExpressionLiteral(pattern=..., flags=...)`, and a
  *   declaration list says its `keyword=` (`const`, `let`, `var`), since neither is a child
  *   node in the compiler's tree.
- * - Type annotations are left out: a type is a claim about a value, not a step.
+ * - A type annotation is kept, `type=JsNumberKeyword()`, as are a type's own arguments,
+ *   `Array<number>`: what type a declaration holds is the pack's to read. A declaration's
+ *   type parameters are left out.
  */
 import ts from "typescript";
 import { type Argument, type Call, type Expr, call } from "../concept/expression.js";
@@ -24,8 +26,8 @@ for (const [name, value] of Object.entries(ts.SyntaxKind)) {
 }
 const kindName = (kind: number): string => KIND.get(kind) ?? String(kind);
 
-/** Fields that are not the program: bookkeeping, and types. */
-const SKIP = new Set(["parent", "type", "typeArguments", "typeParameters", "jsDoc", "illegalDecorators", "original", "emitNode"]);
+/** Fields that are not the program: bookkeeping, and type parameters. */
+const SKIP = new Set(["parent", "typeParameters", "jsDoc", "illegalDecorators", "original", "emitNode"]);
 
 /** Fields holding a SyntaxKind number rather than a node. */
 const KIND_FIELDS = new Set(["token", "operator", "keywordToken"]);

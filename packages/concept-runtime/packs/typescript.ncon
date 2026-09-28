@@ -2,9 +2,12 @@
 // reading TypeScript uses every rule in javascript.ncon, and these read what only
 // TypeScript has.
 //
-// Types are erased. A type annotation is a claim about a value, not a step the program
-// takes, and nothing downstream can act on one yet (design/self-hosting.md Part 6). The
-// reader already leaves out a declaration's type; these erase what stands on its own.
+// A type is kept, on the declaration that says it, never on each use of the name:
+// `const x: number = 1` is Bind($x, 1, type = Number()), and a function says its
+// parameters' types by position and what it gives back,
+// Func($f, List($a), body, types = List(Number()), returns = String()). Nothing runs
+// differently for them: JavaScript writes none, and TypeScript writes them back.
+// Declarations of types alone (interface, type) are erased.
 Requires(Core(), JavaScript())
 
 Concept(TypeScript(),
@@ -23,3 +26,342 @@ From(JsAsExpression(expression = $e), $e)
 From(JsTypeAssertionExpression(expression = $e), $e)
 From(JsNonNullExpression(expression = $e), $e)
 From(JsSatisfiesExpression(expression = $e), $e)
+
+// A type as Concepts: a pattern whose holes are types. `number[]` is ListOf(Number()), short
+// for List(Rest(Number())), `[string, ...number[]]` List(String(), Rest(Number())), and
+// `number | string` OneOf(Number(), String()). A type Concepts cannot say yet, or `any` and `unknown`, is
+// Concept(): anything.
+From(JsType(JsNumberKeyword()), Number())
+From(JsType(JsStringKeyword()), String())
+From(JsType(JsBooleanKeyword()), Boolean())
+From(JsType(JsArrayType(elementType = $e)), ListOf(JsType($e)))
+From(JsType(JsTypeReference(typeName = JsIdentifier(text = "Array"), typeArguments = List($e))), ListOf(JsType($e)))
+From(JsType(JsTypeReference(typeName = JsIdentifier(text = $n), typeArguments = Undefined())), ConceptNamed($n))
+From(JsType(JsTupleType(elements = List(Rest($es)))), List(Each(List(Rest($es)), Lambda(List($e), JsType($e)))))
+From(JsType(JsRestType(type = JsArrayType(elementType = $e))), Rest(JsType($e)))
+From(JsType(JsUnionType(types = List(Rest($ts)))), OneOf(Each(List(Rest($ts)), Lambda(List($t), JsType($t)))))
+From(JsType(JsParenthesizedType(type = $t)), JsType($t))
+From(JsType($_), Concept())
+
+// Anything is not said: a declaration without a type, or with one Concepts cannot say
+// (`any`, `Promise<T>`), keeps no `type=`.
+From(Named($_, Concept()), Erased())
+
+// A function's parameters' types, by position, where any parameter says one Concepts can
+// say: a parameter that says none is anything, Concept().
+From(JsParameterTypes(List(Rest($ps))), JsParameterTypes(List(Rest($ps)), List(Rest($ps))))
+From(JsParameterTypes(List(), $_), Erased())
+From(JsParameterTypes(List(JsParameter(type = JsNumberKeyword()), Rest($_)), $ps), JsTypesSaid($ps))
+From(JsParameterTypes(List(JsParameter(type = JsStringKeyword()), Rest($_)), $ps), JsTypesSaid($ps))
+From(JsParameterTypes(List(JsParameter(type = JsBooleanKeyword()), Rest($_)), $ps), JsTypesSaid($ps))
+From(JsParameterTypes(List(JsParameter(type = JsArrayType()), Rest($_)), $ps), JsTypesSaid($ps))
+From(JsParameterTypes(List(JsParameter(type = JsTupleType()), Rest($_)), $ps), JsTypesSaid($ps))
+From(JsParameterTypes(List(JsParameter(type = JsUnionType()), Rest($_)), $ps), JsTypesSaid($ps))
+From(
+  JsParameterTypes(
+    List(JsParameter(type = JsTypeReference(typeName = JsIdentifier(), typeArguments = Undefined())), Rest($_)),
+    $ps
+  ),
+  JsTypesSaid($ps)
+)
+From(
+  JsParameterTypes(List(JsParameter(type = JsTypeReference(typeName = JsIdentifier(text = "Array"))), Rest($_)), $ps),
+  JsTypesSaid($ps)
+)
+From(JsParameterTypes(List($_, Rest($r)), $ps), JsParameterTypes(List(Rest($r)), $ps))
+From(JsTypesSaid(List(Rest($ps))), Named("types", List(Each(List(Rest($ps)), Lambda(List($p), JsParameterType($p))))))
+From(JsParameterType(JsParameter(type = $t)), JsType($t))
+
+// The declarations JavaScript reads, with their types.
+From(
+  JsDeclare(
+    JsConstKeyword(),
+    JsVariableDeclaration(
+      name = $n,
+      initializer = $v,
+      type = $t
+    )
+  ),
+  Bind($n, $v, Named("type", JsType($t)))
+)
+From(
+  JsDeclare(
+    $_,
+    JsVariableDeclaration(
+      name = $n,
+      initializer = $v,
+      type = $t
+    )
+  ),
+  Var($n, $v, Named("type", JsType($t)))
+)
+From(
+  JsFunctionDeclaration(
+    name = $n,
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m,
+    type = $r
+  ),
+  JsMods(
+    $m,
+    JsStar(
+      $star,
+      Func(
+        $n,
+        List(Rest($ps)),
+        JsBody($b),
+        JsParameterTypes(List(Rest($ps))),
+        Named("returns", JsType($r))
+      )
+    )
+  )
+)
+From(
+  JsFunctionExpression(
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m,
+    type = $r
+  ),
+  JsMods(
+    $m,
+    JsStar(
+      $star,
+      Lambda(List(Rest($ps)),
+        JsBody($b),
+        JsParameterTypes(List(Rest($ps))),
+        Named("returns", JsType($r))
+      )
+    )
+  )
+)
+From(
+  JsFunctionExpression(
+    name = JsIdentifier(text = $n),
+    parameters = List(Rest($ps)),
+    body = $b,
+    asteriskToken = $star,
+    modifiers = $m,
+    type = $r
+  ),
+  JsMods(
+    $m,
+    JsStar(
+      $star,
+      Func(
+        Variable($n),
+        List(Rest($ps)),
+        JsBody($b),
+        JsParameterTypes(List(Rest($ps))),
+        Named("returns", JsType($r))
+      )
+    )
+  )
+)
+From(
+  JsArrowFunction(
+    parameters = List(Rest($ps)),
+    body = $b,
+    modifiers = $m,
+    type = $r
+  ),
+  JsMods(
+    $m,
+    Lambda(List(Rest($ps)),
+      JsBody($b),
+      JsParameterTypes(List(Rest($ps))),
+      Named("returns", JsType($r))
+    )
+  )
+)
+
+// Writing a type. ListOf, or a List whose one part is Rest, is an array, and any other List
+// a tuple.
+To(TsType(Number()), "number")
+To(TsType(String()), "string")
+To(TsType(Boolean()), "boolean")
+To(TsType(Concept()), "unknown")
+To(TsType(List(Capture($r, Rest($k)))), TsType(ListOf($k)))
+To(TsType(ListOf(Capture($k, OneOf(Rest($_))))), TsArray(TsGroup(TsType($k))))
+To(TsType(ListOf($k)), TsArray(TsType($k)))
+To(TsType(List(Rest($ks))), TsTuple(Each(List(Rest($ks)), Lambda(List($k), TsType($k)))))
+To(TsType(Capture($r, Rest($k))), TsSpread(TsType(ListOf($k))))
+To(TsType(OneOf($k)), TsType($k))
+To(TsType(OneOf($a, $b, Rest($r))), TsOr(TsType($a), TsType(OneOf($b, Rest($r)))))
+// Any other Concept is the type of its name.
+To(TsType($k), "#k")
+To(TsArray($t), "$t[]")
+To(TsGroup($t), "($t)")
+To(TsTuple(Rest($ts)), "[$ts]")
+To(TsSpread($t), "...$t")
+To(TsOr($a, $b), "$a | $b")
+// A type after a name, `: number`; nothing where it is anything.
+To(TsAnnotation(Concept()), "")
+To(TsAnnotation($k), TsColon(TsType($k)))
+To(TsColon($t), ": $t")
+
+// A declaration writes its type after its name.
+To(
+  Bind($n, $v, type = $k),
+  Statement(),
+  TsDeclare("const", $n, TsAnnotation($k), $v)
+)
+To(
+  Var($n, $v, type = $k),
+  Statement(),
+  TsDeclare("let", $n, TsAnnotation($k), $v)
+)
+To(
+  TsDeclare($keyword, $n, $k, $v),
+  Statement(),
+  "#keyword $n$k = $v"
+)
+// A function writes each parameter with the type at its position, and what it gives back,
+// however it is wrapped. One that says no types is written as JavaScript writes it.
+To(Func($n, List(Rest($ps)), $b, Rest($t)), TsFunction("function", $n, List(Rest($ps)), $b, Rest($t)))
+To(
+  Async(Func($n, List(Rest($ps)), $b, Rest($t))),
+  Statement(),
+  TsFunction(
+    "async function",
+    $n,
+    List(Rest($ps)),
+    $b,
+    Rest($t)
+  )
+)
+To(
+  Generator(Func($n, List(Rest($ps)), $b, Rest($t))),
+  Statement(),
+  TsFunction("function*", $n, List(Rest($ps)), $b, Rest($t))
+)
+To(
+  Async(Generator(Func($n, List(Rest($ps)), $b, Rest($t)))),
+  Statement(),
+  TsFunction(
+    "async function*",
+    $n,
+    List(Rest($ps)),
+    $b,
+    Rest($t)
+  )
+)
+To(Lambda(List(Rest($ps)), $b, Rest($t)), TsLambda("", List(Rest($ps)), $b, Rest($t)))
+To(Async(Lambda(List(Rest($ps)), $b, Rest($t))), TsLambda("async ", List(Rest($ps)), $b, Rest($t)))
+To(
+  TsFunction(
+    $keyword,
+    $n,
+    List(Rest($ps)),
+    $b,
+    types = $ks,
+    returns = $r
+  ),
+  TsWritten(
+    $keyword,
+    $n,
+    TsParameters(List(Rest($ps)), $ks),
+    TsAnnotation($r),
+    $b
+  )
+)
+To(
+  TsFunction($keyword, $n, List(Rest($ps)), $b, types = $ks),
+  TsWritten(
+    $keyword,
+    $n,
+    TsParameters(List(Rest($ps)), $ks),
+    TsAnnotation(Concept()),
+    $b
+  )
+)
+To(
+  TsFunction($keyword, $n, List(Rest($ps)), $b, returns = $r),
+  TsWritten(
+    $keyword,
+    $n,
+    TsParameters(List(Rest($ps)), List()),
+    TsAnnotation($r),
+    $b
+  )
+)
+To(
+  TsFunction($keyword, $n, List(Rest($ps)), $b),
+  TsWritten(
+    $keyword,
+    $n,
+    TsParameters(List(Rest($ps)), List()),
+    TsAnnotation(Concept()),
+    $b
+  )
+)
+To(
+  TsWritten($keyword, $n, $ps, $r, $b),
+  Statement(),
+  "#keyword $n($ps)$r { %b }"
+)
+To(TsWritten($keyword, $n, $ps, $r, $b), "(#keyword $n($ps)$r { %b })")
+To(
+  TsLambda(
+    $keyword,
+    List(Rest($ps)),
+    $b,
+    types = $ks,
+    returns = $r
+  ),
+  TsArrow(
+    $keyword,
+    TsParameters(List(Rest($ps)), $ks),
+    TsAnnotation($r),
+    $b
+  )
+)
+To(
+  TsLambda($keyword, List(Rest($ps)), $b, types = $ks),
+  TsArrow(
+    $keyword,
+    TsParameters(List(Rest($ps)), $ks),
+    TsAnnotation(Concept()),
+    $b
+  )
+)
+To(
+  TsLambda($keyword, List(Rest($ps)), $b, returns = $r),
+  TsArrow(
+    $keyword,
+    TsParameters(List(Rest($ps)), List()),
+    TsAnnotation($r),
+    $b
+  )
+)
+To(
+  TsLambda($keyword, List(Rest($ps)), $b),
+  TsArrow(
+    $keyword,
+    TsParameters(List(Rest($ps)), List()),
+    TsAnnotation(Concept()),
+    $b
+  )
+)
+To(TsArrow($keyword, $ps, $r, Sequence(Rest($ss))), "#keyword($ps)$r => { %ss }")
+To(TsArrow($keyword, $ps, $r, $b), Either("#keyword($ps)$r => ($b)", "#keyword($ps)$r => { %b }"))
+// Parameters and types, one by one: a parameter past the last type has none.
+To(TsParameters(List(), $_), "")
+To(TsParameters(List($p), List()), TsParameter($p, Concept()))
+To(TsParameters(List($p), List($k, Rest($_))), TsParameter($p, $k))
+To(
+  TsParameters(List($p, $q, Rest($ps)), List()),
+  TsComma(TsParameter($p, Concept()), TsParameters(List($q, Rest($ps)), List()))
+)
+To(
+  TsParameters(List($p, $q, Rest($ps)), List($k, Rest($ks))),
+  TsComma(TsParameter($p, $k), TsParameters(List($q, Rest($ps)), List(Rest($ks))))
+)
+To(TsComma($a, $b), "$a, $b")
+To(TsParameter(Default($n, $v), $k), TsDefaulted($n, TsAnnotation($k), $v))
+To(TsParameter($p, $k), TsAnnotated($p, TsAnnotation($k)))
+To(TsDefaulted($n, $k, $v), "$n$k = $v")
+To(TsAnnotated($p, $k), "$p$k")

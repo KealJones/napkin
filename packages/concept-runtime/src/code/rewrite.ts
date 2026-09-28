@@ -7,7 +7,8 @@
  * changes how source reads. The most specific rule applies first (`specificity`, as
  * selection orders realizations), the earlier one on a tie. A rule's output is rewritten
  * again, so a rule can hand work to helper rules, and a node's parts are rewritten after
- * the node.
+ * the node. On a tie, the rule of the language read comes before one it is a superset of:
+ * TypeScript's rule for a declaration that says its type before JavaScript's that does not.
  *
  * A syntax pattern names only the fields it cares about: `JsCallExpression(expression=$f)`
  * matches any call, and a field the node does not have reads as `Undefined()`.
@@ -19,6 +20,7 @@
  *   Each(list, Lambda(List($x), out))
  *                          `out` for each element, spliced into the call around it
  *   Erased()               nothing: dropped from the call around it
+ *   ConceptNamed("Foo")    the Concept Foo(), named by text the source holds
  *   Parse(text)            text read as source too (source held in a string); anything
  *                          that is not text becomes NotSource(...)
  * and a pattern can say Capture($x, pattern), to match `pattern` and bind all of it to $x.
@@ -43,20 +45,22 @@ interface Rule {
 
 /** The From rules for a language and every language it is a superset of, by head. */
 export function readingRules(store: ConceptStore, language: string): Map<string, Rule[]> {
-  const languages = new Set([language, ...facetAncestors(store, language)]);
-  const byHead = new Map<string, Rule[]>();
+  // Nearest first: the language itself, then what it is a superset of.
+  const languages = [language, ...facetAncestors(store, language)];
+  const byHead = new Map<string, (Rule & { depth: number })[]>();
   let order = 0;
   for (const unit of store.all()) {
     for (const r of unit.realizations) {
       if (r.retired || r.context === undefined || !isCall(r.pattern) || !isCall(r.context) || r.context.head !== "Context") continue;
       const [lang, facet] = r.context.args.map((a) => a.value);
-      if (!isCall(lang) || !languages.has(lang.head) || !isCall(facet) || facet.head !== "Reading") continue;
+      const depth = isCall(lang) ? languages.indexOf(lang.head) : -1;
+      if (depth < 0 || !isCall(facet) || facet.head !== "Reading") continue;
       const list = byHead.get(r.pattern.head) ?? [];
-      list.push({ pattern: r.pattern, output: r.body, rank: order++ });
+      list.push({ pattern: r.pattern, output: r.body, rank: order++, depth });
       byHead.set(r.pattern.head, list);
     }
   }
-  for (const list of byHead.values()) list.sort((a, b) => specificity(b.pattern) - specificity(a.pattern) || a.rank - b.rank);
+  for (const list of byHead.values()) list.sort((a, b) => specificity(b.pattern) - specificity(a.pattern) || a.depth - b.depth || a.rank - b.rank);
   return byHead;
 }
 
@@ -66,24 +70,29 @@ const restOf = (a: Argument | undefined): string | undefined => {
   return inner !== undefined && isVariable(inner) ? inner.variable : undefined;
 };
 
-function matchArgs(expected: readonly Argument[], actual: readonly Argument[], b: Bindings): boolean {
+function matchArgs(expected: readonly Argument[], actual: readonly Argument[], b: Bindings, loose = false): boolean {
   // Rest first: the arguments before a fixed tail, as in List(Rest($init), $last).
   const leading = expected.length > 1 ? restOf(expected[0]) : undefined;
   if (leading !== undefined) {
     const fixed = expected.slice(1);
     const start = actual.length - fixed.length;
-    if (start < 0 || !fixed.every((e, i) => matches(e.value, actual[start + i].value, b))) return false;
+    if (start < 0 || !fixed.every((e, i) => matches(e.value, actual[start + i].value, b, loose))) return false;
     return bind(b, leading, call("List", actual.slice(0, start)));
   }
   const last = expected[expected.length - 1]?.value;
   const rest = last !== undefined && isCall(last) && last.head === "Rest" ? last.args[0]?.value : undefined;
   if (rest !== undefined && isVariable(rest)) {
     const fixed = expected.slice(0, -1);
-    if (actual.length < fixed.length || !fixed.every((e, i) => matches(e.value, actual[i].value, b))) return false;
+    if (actual.length < fixed.length || !fixed.every((e, i) => matches(e.value, actual[i].value, b, loose))) return false;
     return bind(b, rest.variable, call("List", actual.slice(fixed.length)));
   }
+  // Loosely, a named argument the pattern does not name is not its business.
+  if (loose) {
+    const said = new Set(expected.map((e) => e.name));
+    actual = actual.filter((a) => a.name === undefined || said.has(a.name));
+  }
   if (expected.length !== actual.length) return false;
-  return expected.every((e, i) => (e.name === undefined || e.name === actual[i].name) && matches(e.value, actual[i].value, b));
+  return expected.every((e, i) => (e.name === undefined || e.name === actual[i].name) && matches(e.value, actual[i].value, b, loose));
 }
 
 function bind(b: Bindings, name: string, value: Expr): boolean {
@@ -96,20 +105,25 @@ function bind(b: Bindings, name: string, value: Expr): boolean {
   return equal(existing, value);
 }
 
-export function matches(pattern: Expr, value: Expr, b: Bindings): boolean {
+/**
+ * Whether a pattern matches, binding its variables. `loose` lets a call carry named arguments
+ * the pattern does not name, as a syntax node carries fields a pattern does not read: a writer
+ * that says nothing of a declaration's `type=` still writes the declaration.
+ */
+export function matches(pattern: Expr, value: Expr, b: Bindings, loose = false): boolean {
   if (isVariable(pattern)) return bind(b, pattern.variable, value);
   if (!isCall(pattern)) return equal(pattern, value);
   const bound = pattern.head === "Capture" && pattern.args.length === 2 ? pattern.args[0].value : undefined;
-  if (bound !== undefined && isVariable(bound)) return matches(pattern.args[1].value, value, b) && bind(b, bound.variable, value);
+  if (bound !== undefined && isVariable(bound)) return matches(pattern.args[1].value, value, b, loose) && bind(b, bound.variable, value);
   if (!isCall(value) || value.head !== pattern.head) return false;
   // A syntax pattern names the fields it reads; the rest of the node is not its business.
   if (isSyntax(pattern.head) && pattern.args.every((a) => a.name !== undefined)) {
     return pattern.args.every((a) => {
       const field = value.args.find((x) => x.name === a.name);
-      return matches(a.value, field === undefined ? UNDEFINED : field.value, b);
+      return matches(a.value, field === undefined ? UNDEFINED : field.value, b, loose);
     });
   }
-  return matchArgs(pattern.args, value.args, b);
+  return matchArgs(pattern.args, value.args, b, loose);
 }
 
 export interface Reading {
@@ -145,6 +159,7 @@ export function readWith(
     if (!isCall(e)) return e;
     if (++steps > 2_000_000) throw new Error(`reading ${fileName} did not settle: the rules rewrite in a loop`);
     if (e.head === "Variable" && typeof e.args[0]?.value === "string") return { variable: e.args[0].value };
+    if (e.head === "ConceptNamed" && e.args.length === 1 && typeof e.args[0].value === "string" && NAME.test(e.args[0].value)) return c(e.args[0].value);
     // A rule that answers with Each is spliced by the call around it (rewriteArgs).
     if (e.head === "Each") return e;
     if (e.head === "Parse" && e.args.length === 1) {

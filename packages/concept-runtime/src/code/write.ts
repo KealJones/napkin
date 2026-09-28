@@ -7,7 +7,7 @@
  *   $x   the part, written as an expression
  *   @x   the part, written as a statement
  *   %x   the part, written as the statements of a block: a Sequence's steps, or one
- *   #x   the part, a name, written as it is
+ *   #x   the part, a name, written as it is (a Concept with nothing said of it, by its name)
  *   &x   the part written as source, then quoted as a string: source held in a string
  * A part bound by `Rest(...)` is written once per element, expressions joined by ", " (a
  * named argument as `name: value`) and statements by "; ".
@@ -34,6 +34,11 @@
  * which is what makes `If(c, Return(x), ...)` an if statement and `If(c, 1, 2)` a
  * conditional, and a lambda whose body returns take a block, with no rule knowing why.
  *
+ * A rule that names every named argument a call has is used before one that leaves some
+ * unsaid, and a rule that leaves them unsaid still writes the call: JavaScript writes
+ * `Bind($x, 1, type=Number())` as `const x = 1`, and TypeScript, which says the type, as
+ * `const x: number = 1`. On a tie, the language's own rule comes before one it inherits.
+ *
  * Written by a separate walk rather than by evaluating under `Context(JavaScript())`:
  * a program's Concepts hold variables and effects, and writing one must not run it.
  */
@@ -53,6 +58,8 @@ interface Rule {
   readonly instead?: Expr;
   readonly rest: ReadonlySet<string>;
   readonly rank: number;
+  /** 0 for the language's own rule, 1 for one it is a superset of, and so on. */
+  readonly depth: number;
 }
 
 const HOLE = /([$@%#&])([a-z][A-Za-z0-9]*)/g;
@@ -80,7 +87,7 @@ const restVariables = (e: Expr, out = new Set<string>()): Set<string> => {
 
 /** The To rules for a language and every language it is a superset of, by head. */
 export function writingRules(store: ConceptStore, language: string): Map<string, Rule[]> {
-  const languages = new Set([language, ...facetAncestors(store, language)]);
+  const languages = [language, ...facetAncestors(store, language)];
   const byHead = new Map<string, Rule[]>();
   let rank = 0;
   for (const unit of store.all()) {
@@ -88,7 +95,8 @@ export function writingRules(store: ConceptStore, language: string): Map<string,
       if (r.retired || r.context === undefined || !isCall(r.pattern) || !isCall(r.context) || r.context.head !== "Context") continue;
       const facets = r.context.args.map((a) => a.value);
       const lang = facets[0];
-      if (!isCall(lang) || !languages.has(lang.head) || !facets.some((f) => isCall(f) && f.head === "Writing")) continue;
+      const depth = isCall(lang) ? languages.indexOf(lang.head) : -1;
+      if (depth < 0 || !facets.some((f) => isCall(f) && f.head === "Writing")) continue;
       const statement = facets.some((f) => isCall(f) && f.head === "Statement");
       const body = r.body;
       const choices: Expr[] = isCall(body) && body.head === "Either" ? body.args.map((a) => a.value) : [body];
@@ -100,12 +108,13 @@ export function writingRules(store: ConceptStore, language: string): Map<string,
           ...(typeof choice === "string" ? { parts: templatePieces(choice) } : { instead: choice }),
           rest: restVariables(r.pattern),
           rank: rank++,
+          depth,
         });
       }
       byHead.set(r.pattern.head, list);
     }
   }
-  for (const list of byHead.values()) list.sort((a, b) => specificity(b.pattern) - specificity(a.pattern) || a.rank - b.rank);
+  for (const list of byHead.values()) list.sort((a, b) => specificity(b.pattern) - specificity(a.pattern) || a.depth - b.depth || a.rank - b.rank);
   return byHead;
 }
 
@@ -129,14 +138,17 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
 
   const found = (e: Expr, statement: boolean): { rule: Rule; b: Bindings }[] => {
     if (!isCall(e)) return [];
-    const out: { rule: Rule; b: Bindings }[] = [];
+    const exact: { rule: Rule; b: Bindings }[] = [];
+    const loose: { rule: Rule; b: Bindings }[] = [];
     for (const rule of rules.get(e.head) ?? []) {
       if (rule.statement && !statement) continue;
       const b: Bindings = new Map();
-      if (matches(rule.pattern, e, b)) out.push({ rule, b });
+      if (matches(rule.pattern, e, b)) exact.push({ rule, b });
+      else if (matches(rule.pattern, e, (b.clear(), b), true)) loose.push({ rule, b });
     }
     // In statement position a statement rule comes first; the order is otherwise kept.
-    return statement ? [...out.filter((x) => x.rule.statement), ...out.filter((x) => !x.rule.statement)] : out;
+    const ordered = (out: typeof exact) => (statement ? [...out.filter((x) => x.rule.statement), ...out.filter((x) => !x.rule.statement)] : out);
+    return [...ordered(exact), ...ordered(loose)];
   };
 
   const values = (rule: Rule, b: Bindings, hole: string): Argument[] => {
@@ -171,7 +183,7 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
         const line = before === undefined ? (inLines ? "" : undefined) : "text" in before ? /\n([ \t]*)$/.exec(before.text)?.[1] : undefined;
         const items = values(rule, b, p.hole);
         if (p.as === "source") return items.map((a) => JSON.stringify(write(a.value, "expression"))).join(", ");
-        if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : write(a.value, "expression"))).join(", ");
+        if (p.as === "name") return items.map((a) => (typeof a.value === "string" ? a.value : isCall(a.value) && !a.value.args.length ? a.value.head : write(a.value, "expression"))).join(", ");
         if (p.as === "statement") return items.map((a) => write(a.value, "statement")).join("; ");
         if (p.as === "block") {
           // A block's statements: a Sequence's steps, each written as a statement.

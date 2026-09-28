@@ -191,7 +191,7 @@ function fresh(scope: Scope): Expr {
 export function lowerRealization(r: Realization): { body: Expr } | { why: string } {
   const program = isCall(r.body) && r.body.head === "Code" ? r.body.args.find((a) => a.name === "ir")?.value : undefined;
   if (program === undefined) return { why: "not a program" };
-  let fn = program;
+  let fn = untyped(program);
   if (isHead(fn, "Async", 1)) fn = fn.args[0].value;
   if (!isHead(fn, "Lambda", 2)) return { why: "not a function" };
   const params = fn.args[0].value;
@@ -237,6 +237,24 @@ const allVariables = (e: Expr, out: string[] = []): string[] => {
   return out;
 };
 
+/** What a declaration said it holds (`type=`), by the declaration once that is left out. */
+const TYPES = new WeakMap<object, Expr>();
+const TYPED = new Set(["Bind", "Var", "Func", "Lambda"]);
+
+/**
+ * The program without the types its declarations say (`type=`, `types=`, `returns=`): they
+ * change nothing it does. A binding's type is kept aside, for the cell it may become.
+ */
+function untyped(e: Expr): Expr {
+  if (!isCall(e)) return e;
+  const typed = TYPED.has(e.head);
+  const args = e.args.filter((a) => !typed || a.name === undefined).map((a) => (a.name === undefined ? { value: untyped(a.value) } : { name: a.name, value: untyped(a.value) }));
+  const out = call(e.head, args);
+  const type = typed ? e.args.find((a) => a.name === "type")?.value : undefined;
+  if (type !== undefined) TYPES.set(out, type);
+  return out;
+}
+
 /** The program's own names for args, bindings and api, as $args, $bindings, $api. */
 function renameHost(e: Expr, args?: string, bindings?: string, api?: string): Expr {
   const to: Record<string, string> = {};
@@ -246,7 +264,10 @@ function renameHost(e: Expr, args?: string, bindings?: string, api?: string): Ex
   const walk = (x: Expr): Expr => {
     if (isVariable(x)) return to[x.variable] ? { variable: `__${to[x.variable]}` } : x;
     if (!isCall(x)) return x;
-    return call(x.head, x.args.map((a) => (a.name === undefined ? { value: walk(a.value) } : { name: a.name, value: walk(a.value) })));
+    const out = call(x.head, x.args.map((a) => (a.name === undefined ? { value: walk(a.value) } : { name: a.name, value: walk(a.value) })));
+    const type = TYPES.get(x);
+    if (type !== undefined) TYPES.set(out, type);
+    return out;
   };
   return walk(e);
 }
@@ -399,7 +420,7 @@ function lowerBlock(input: Expr[], scope: Scope): Expr {
   if (isHead(first, "Bind", 2) || isHead(first, "Var", 2)) {
     const [name, value] = vals(first);
     // The value is lowered where its own name is already bound, for a helper that recurses.
-    return bind(name, isHead(value, "Lambda") ? (inner) => lowerExpr(value, inner) : lowerExpr(value, scope), (inner) => lowerBlock(rest, inner), scope);
+    return bind(name, isHead(value, "Lambda") ? (inner) => lowerExpr(value, inner) : lowerExpr(value, scope), (inner) => lowerBlock(rest, inner), scope, TYPES.get(first));
   }
   if (isCall(first) && LOOPS.includes(first.head)) return lowerLoop(first, rest, scope);
   if (isHead(first, "ForLoop", 3)) return lowerLoop(first, rest, scope);
@@ -422,14 +443,14 @@ function lowerBlock(input: Expr[], scope: Scope): Expr {
 }
 
 /** const x = v; ... as Bind($x, v, ...). A destructuring reads each field. */
-function bind(name: Expr, value: Expr | ((scope: Scope) => Expr), body: (scope: Scope) => Expr, scope: Scope): Expr {
+function bind(name: Expr, value: Expr | ((scope: Scope) => Expr), body: (scope: Scope) => Expr, scope: Scope, type?: Expr): Expr {
   if (isVariable(name)) {
     const [ir, inner] = declare(scope, name.variable);
     // A helper that calls itself sees its own name: Recursive($f, Lambda(...)).
     const v = typeof value === "function" ? value(inner) : value;
     const own = { variable: ir };
-    // A name that changes holds a cell of its value.
-    if (inner.cells.has(ir)) return c("Bind", own, c("Cell", v), body(inner));
+    // A name that changes holds a cell of its value, of the type it was declared to hold.
+    if (inner.cells.has(ir)) return c("Bind", own, type === undefined ? c("Cell", v) : call("Cell", [{ value: v }, { name: "type", value: type }]), body(inner));
     const recursive = isHead(v, "Lambda", 2) && [...freeIn(v, new Set())].includes(ir);
     return c("Bind", own, recursive ? c("Recursive", own, v) : v, body(inner));
   }

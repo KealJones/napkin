@@ -7,6 +7,7 @@ import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
 import { importTypeScript } from "./import.js";
 import { lowerRealization } from "./lower.js";
+import { compileRealization } from "../runtime/compile.js";
 
 /** A realization whose body is this JavaScript, as the packs hold it, and its lowered form. */
 const lowered = (pattern: string, js: string, lazy = false) => {
@@ -57,6 +58,29 @@ test("a body that falls through answers undefined, and early returns become If",
   const body = lowered("F($x)", '(args) => { if (args[0].value === 1) { return "one"; } if (args[0].value === 2) { return "two"; } }');
   assert.equal(await run("F", "F($x)", body, "F(2)"), '"two"');
   assert.equal(await run("F", "F($x)", body, "F(3)"), "Undefined()");
+});
+
+test("typed code runs as its untyped code does, written as JavaScript and lowered", async () => {
+  const js = "(args, bindings, api) => { let n = args[0].value; n = n + 1; return n; }";
+  const ts = "(args: Argument[], bindings: Bindings, api: Api): number => { let n: number = args[0].value; n = n + 1; return n; }";
+  // Lowered, the types change nothing but the cell, which says what it holds.
+  const body = lowered("Inc($x)", ts);
+  assert.equal(format(body), format(lowered("Inc($x)", js)).replace("Cell($x)", "Cell($x, type=Number())"));
+  assert.equal(await run("Inc", "Inc($x)", body, "Inc(41)"), "42");
+  // Compiled: a typed function and binding lower to what their untyped code does. (A cell's
+  // Get has no compiled form yet, typed or not.)
+  const plain = lowered("Inc($x)", "(args: Argument[]): number => { const n: number = args[0].value; return n + 1; }");
+  assert.equal(format(plain), format(lowered("Inc($x)", "(args) => { const n = args[0].value; return n + 1; }")));
+  const store = new ConceptStore();
+  seed(store);
+  store.seed(concept("Inc", { realizations: [realization({ pattern: "Inc($x)", context: "Execution()", properties: ["Compile()"], body: plain })] }));
+  assert.ok(compileRealization(store, store.get("Inc")!.realizations[0]));
+  assert.equal(format(await new Runtime(store).evaluate(parse("Inc(41)"), c("Execution"))), "42");
+  // Run as the program itself, written as JavaScript, which writes no types.
+  const module = importTypeScript(ts).expression;
+  assert.ok(isCall(module));
+  const code = { head: "Code", args: [{ name: "ir", value: module.args[0].value }] };
+  assert.equal(await run("Inc", "Inc($x)", code, "Inc(41)"), "42");
 });
 
 /** As run, but the lowered body declared a program and reached outside Execution(). */

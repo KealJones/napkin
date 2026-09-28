@@ -40,10 +40,39 @@ test("const binds and let may be reassigned, and the IR keeps the difference", (
   assert.equal(ir("let a = 1;"), "Var($a, 1)");
 });
 
-test("types are erased, because a type is a claim and not a step", () => {
-  assert.equal(ir("interface Foo { a: string }\nconst x: number = 1;"), "Bind($x, 1)");
+test("a type is kept on the declaration that says it", () => {
+  assert.equal(ir("interface Foo { a: string }\nconst x: number = 1;"), "Bind($x, 1, type=Number())");
+  assert.equal(ir("let x: string = y;"), "Var($x, $y, type=String())");
+  // Said on the declaration, not on each use; `as` is a claim about one use, and is dropped.
   assert.equal(ir("const x = y as string;"), "Bind($x, $y)");
   assert.equal(ir("type A = B;\nconst x = 1;"), "Bind($x, 1)");
+  // A type Concepts cannot say yet is not kept.
+  assert.equal(ir("const x: any = 1;"), "Bind($x, 1)");
+  assert.equal(ir("const x: Promise<number> = p;"), "Bind($x, $p)");
+});
+
+test("a function says its parameters' types by position, and what it gives back", () => {
+  assert.equal(
+    ir("function sum(a: number, b: number): number { return a + b; }"),
+    "Func($sum, List($a, $b), Return(Add($a, $b)), types=List(Number(), Number()), returns=Number())",
+  );
+  // A parameter that says nothing is anything, Concept(); a function none of whose parameters
+  // says a type has no types=, and untyped code reads as it always did.
+  assert.equal(ir("function f(a, b: string) { return a; }"), "Func($f, List($a, $b), Return($a), types=List(Concept(), String()))");
+  assert.equal(ir("function g(a): boolean { return true; }"), "Func($g, List($a), Return(true), returns=Boolean())");
+  assert.equal(ir("function h(a, b) { return a; }"), "Func($h, List($a, $b), Return($a))");
+  assert.equal(ir("const f = (a: number): string => a;"), "Bind($f, Lambda(List($a), $a, types=List(Number()), returns=String()))");
+});
+
+test("a type is a pattern whose holes are types", () => {
+  const typeOf = (t: string) => ir(`const x: ${t} = y;`).replace(/^Bind\(\$x, \$y, type=|\)$/g, "");
+  assert.equal(typeOf("number[]"), "ListOf(Number())");
+  assert.equal(typeOf("Array<string>"), "ListOf(String())");
+  assert.equal(typeOf("[string, number]"), "List(String(), Number())");
+  assert.equal(typeOf("[string, ...number[]]"), "List(String(), Rest(Number()))");
+  assert.equal(typeOf("number | string"), "OneOf(Number(), String())");
+  assert.equal(typeOf("(boolean | string)[]"), "ListOf(OneOf(Boolean(), String()))");
+  assert.equal(typeOf("Point"), "Point()");
 });
 
 test("a class keeps its members, with modifiers wrapping what they modify", () => {
@@ -156,7 +185,7 @@ test("how source reads is the packs' From rules: a rule added to a store changes
   assert.equal(format(importTypeScript("x ** 2;", "a.ts", { store }).expression), "Module(Square($x))");
 });
 
-test("types are erased by the TypeScript pack, not the JavaScript one", async () => {
+test("types are read by the TypeScript pack, not the JavaScript one", async () => {
   const { ConceptStore } = await import("../store/store.js");
   const { loadPacks, seedPacks, BUILT_IN_PACKS } = await import("./ncon.js");
   const { readingRules, readWith } = await import("./rewrite.js");
@@ -166,6 +195,9 @@ test("types are erased by the TypeScript pack, not the JavaScript one", async ()
   assert.equal(asJs.unsupported[0]?.kind, "InterfaceDeclaration");
   const asTs = readWith(readingRules(store, "TypeScript"), "interface A {}\nconst x = 1;");
   assert.equal(format(asTs.expression), "Module(Bind($x, 1))");
+  // JavaScript's rules read the declaration and leave its type unsaid.
+  assert.equal(format(readWith(readingRules(store, "JavaScript"), "const x: number = 1;").expression), "Module(Bind($x, 1))");
+  assert.equal(format(readWith(readingRules(store, "TypeScript"), "const x: number = 1;").expression), "Module(Bind($x, 1, type=Number()))");
 });
 
 test("an object key that is not a name keeps Pair, even an identifier like $", () => {

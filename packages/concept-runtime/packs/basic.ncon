@@ -757,6 +757,15 @@ Concept(Cell(),
         Call(Member(Member($api, "cells"), "allocate"), Member(Index($args, 0), "value"))
       )
     )
+  ),
+  // A cell of the type its declaration said it holds: the type is said, and changes nothing.
+  Realization(Cell($initial, type = $type),
+    properties = List(Effectful()),
+    body = Code(
+      ir = Lambda(List($args, $bindings, $api),
+        Call(Member(Member($api, "cells"), "allocate"), Member(Index($args, 0), "value"))
+      )
+    )
   )
 )
 
