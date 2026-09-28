@@ -536,6 +536,71 @@ Concept(WikidataSenses(),
 // A Wikidata item or property whose label (or an alias) is exactly this text, as
 // Wikidata(id, label). Exact, because the nearest match to a word is often another sense;
 // for an item, the best-known sense ("tea" the drink, not the given name).
+// Every Wikidata property with a word in its names ("language": languages spoken, programmed in,
+// official language...), for the one that holds a value for what is asked.
+Concept(WikidataProperties(),
+  Realization(WikidataProperties($text),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($text, Call($String, Member(Index($args, 0), "value"))),
+            Comment("Wikidata's own search over properties (namespace 120) finds the word anywhere in a"),
+            Comment("property's names: \"language\" is in \"official language\" and \"languages spoken\"."),
+            Bind($url,
+              Add(
+                "https://www.wikidata.org/w/api.php?action=query&list=search&srnamespace=120&srlimit=10&format=json&origin=*&srsearch=",
+                Call($encodeURIComponent, $text)
+              )
+            ),
+            Bind($found,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($hits,
+              If(
+                And(
+                  And($found, Member($found, "query")),
+                  Call(Member($Array, "isArray"), Member(Member($found, "query"), "search"))
+                ),
+                Member(Member($found, "query"), "search"),
+                List()
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Spread(
+                  Map(
+                    Filter(
+                      Map(
+                        $hits,
+                        Lambda(List($h),
+                          Call(
+                            Member(Call($String, Member($h, "title")), "replace"),
+                            Regex("^Property:", ""),
+                            ""
+                          )
+                        )
+                      ),
+                      Lambda(List($id), Call(Member(Regex("^P\\d+$", ""), "test"), $id))
+                    ),
+                    Lambda(List($id), Call(Member($api, "call"), "Wikidata", $id, $text))
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 Concept(WikidataFind(),
   IsA(Category()),
   Realization(WikidataFind($text, $kind),
@@ -1252,6 +1317,18 @@ Concept(Pursue(),
                   If(
                     Equals($wanted, "Time"),
                     Return(Or(Equals(TypeOf($v), "string"), Equals(TypeOf($v), "number"))),
+                    Undefined()
+                  ),
+                  Comment("\"What language ...\": a kind named is asked for, so the answer is a thing, not text."),
+                  If(
+                    And(
+                      And(
+                        And(Equals(Member($goal, "head"), "What"), GreaterThan(Length(Member($goal, "args")), 1)),
+                        Call($isCall, OptionalMember(Index(Member($goal, "args"), 0), "value"))
+                      ),
+                      Not(Length(Member(Member(Index(Member($goal, "args"), 0), "value"), "args")))
+                    ),
+                    Return(And(Call($isCall, $v), Not(Length(Member($v, "args"))))),
                     Undefined()
                   ),
                   Return(true)
@@ -2235,185 +2312,277 @@ Concept(Pursue(),
                   )
                 ),
                 Call(Member($things, "push"), Spread($words)),
-                ForOf(
-                  $e,
-                  $things,
-                  Sequence(
-                    If(
-                      Or(
-                        Or(
-                          Equals(Member($e, "head"), Member($p, "head")),
-                          Equals(Member($e, "head"), Member($p, "also"))
-                        ),
+                Comment("What the question is about: not a word packs declare (\"do\", \"they\": how it is asked), and"),
+                Comment("when it names something (\"Brazil\"), that and what it is said with, before anything else"),
+                Comment("(\"speak\" is also the name of some software)."),
+                Bind($declared,
+                  Lambda(List($h),
+                    Sequence(
+                      Bind($u, Call(Member(Member($api, "store"), "get"), $h)),
+                      Return(
                         And(
-                          NotEquals(Member($e, "also"), Undefined()),
+                          Not(Not($u)),
                           Or(
-                            Equals(Member($e, "also"), Member($p, "head")),
-                            Equals(Member($e, "also"), Member($p, "also"))
-                          )
-                        )
-                      ),
-                      Continue(),
-                      Undefined()
-                    ),
-                    Bind($senses,
-                      Await(
-                        Call(
-                          Member($api, "evaluate"),
-                          Call(
-                            Member($api, "call"),
-                            "WikidataSenses",
-                            Member($e, "text")
-                          )
-                        )
-                      )
-                    ),
-                    Var($item, Undefined()),
-                    Var($values, Undefined()),
-                    ForOf(
-                      $s,
-                      If(
-                        And(Call($isCall, $senses), Equals(Member($senses, "head"), "List")),
-                        Call(Member(Member($senses, "args"), "slice"), 0, 4),
-                        List()
-                      ),
-                      Sequence(
-                        Bind($candidate,
-                          Call(
-                            Member($api, "call"),
-                            "Wikidata",
-                            Member(Index(Member(Member($s, "value"), "args"), 0), "value"),
-                            Member(Index(Member(Member($s, "value"), "args"), 1), "value")
-                          )
-                        ),
-                        Bind($got,
-                          Await(
-                            Call(Member($api, "evaluate"), Call(Member($api, "call"), "LookUp", $candidate, $property))
-                          )
-                        ),
-                        If(
-                          And(
-                            And(
-                              And(Call($isCall, $got), Equals(Member($got, "head"), "List")),
-                              Length(Member($got, "args"))
-                            ),
+                            GreaterThan(Length(Member($u, "realizations")), 0),
                             Call(
-                              Member(Member($got, "args"), "every"),
-                              Lambda(List($a), Call($fits, Member($a, "value")))
-                            )
-                          ),
-                          Sequence(
-                            Assign($item, $candidate),
-                            Assign($values, $got),
-                            Break()
-                          ),
-                          Undefined()
-                        )
-                      )
-                    ),
-                    If(Not($item), Continue(), Undefined()),
-                    Bind($value,
-                      If(
-                        Equals(Length(Member($values, "args")), 1),
-                        Member(Index(Member($values, "args"), 0), "value"),
-                        $values
-                      )
-                    ),
-                    Bind($from,
-                      Call(
-                        Member($api, "call"),
-                        "Wikidata",
-                        Member(Index(Member($item, "args"), 0), "value"),
-                        Member(Index(Member($property, "args"), 0), "value")
-                      )
-                    ),
-                    Bind($fact,
-                      Object(
-                        head = Member($goal, "head"),
-                        args = Concat(
-                          Member($goal, "args"),
-                          List(
-                            Object(value = Call(Member($api, "call"), "Is", $value)),
-                            Object(name = "from", value = $from)
-                          )
-                        )
-                      )
-                    ),
-                    Call(
-                      Member(Member($api, "store"), "addRelation"),
-                      Member($e, "head"),
-                      $fact,
-                      Undefined(),
-                      Member(Member($api, "trace"), "cause")
-                    ),
-                    Bind($leaf,
-                      Lambda(List($g),
-                        Sequence(
-                          If(Not(Call($isCall, $g)), Return($g), Undefined()),
-                          If(
-                            And(Equals(Member($g, "head"), Member($e, "head")), Not(Length(Member($g, "args")))),
-                            Return(Object(variable = "item")),
-                            Undefined()
-                          ),
-                          Return(
-                            Object(
-                              head = Member($g, "head"),
-                              args = Map(
-                                Filter(Member($g, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
-                                Lambda(List($a), Object(value = Call($leaf, Member($a, "value"))))
+                              Member(Member($u, "relations"), "some"),
+                              Lambda(List($r),
+                                Call(
+                                  Member(Or(Member($r, "stamps"), List()), "some"),
+                                  Lambda(List($st), NotEquals(Member($st, "pack"), Undefined()))
+                                )
                               )
                             )
                           )
                         )
                       )
-                    ),
-                    Bind($pattern, Call($leaf, $goal)),
-                    Bind($owner, Call(Member(Member($api, "store"), "get"), Member($p, "head"))),
-                    Bind($held,
+                    )
+                  )
+                ),
+                Bind($named,
+                  Lambda(List($t),
+                    Call(
+                      Member(List(Member($t, "head"), Member($t, "also")), "some"),
+                      Lambda(List($h), And(NotEquals($h, Undefined()), Call(Member($api, "properNoun"), $h)))
+                    )
+                  )
+                ),
+                Bind($open,
+                  Filter(
+                    $things,
+                    Lambda(List($t),
+                      And(
+                        Not(Call($declared, Member($t, "head"))),
+                        Or(Equals(Member($t, "also"), Undefined()), Not(Call($declared, Member($t, "also"))))
+                      )
+                    )
+                  )
+                ),
+                Bind($about,
+                  If(
+                    Call(Member($open, "some"), $named),
+                    Filter($open, $named),
+                    $open
+                  )
+                ),
+                Comment("Every property the word names, not only the first (\"language\" is programmed in, and the"),
+                Comment("official language, and the languages spoken)."),
+                Bind($also,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "WikidataProperties",
+                        Member($p, "text")
+                      )
+                    )
+                  )
+                ),
+                Bind($properties,
+                  Concat(
+                    List($property),
+                    If(
+                      And(Call($isCall, $also), Equals(Member($also, "head"), "List")),
+                      Filter(
+                        Map(Member($also, "args"), Lambda(List($a), Member($a, "value"))),
+                        Lambda(List($x),
+                          And(
+                            Call($isCall, $x),
+                            NotEquals(Call(Member($api, "format"), $x), Call(Member($api, "format"), $property))
+                          )
+                        )
+                      ),
+                      List()
+                    )
+                  )
+                ),
+                ForOf(
+                  $property,
+                  $properties,
+                  ForOf(
+                    $e,
+                    $about,
+                    Sequence(
                       If(
-                        $owner,
-                        Call(
-                          Member(Member($owner, "realizations"), "some"),
-                          Lambda(List($r),
-                            Equals(
-                              Call(Member($api, "format"), Member($r, "pattern")),
-                              Call(Member($api, "format"), $pattern)
+                        Or(
+                          Or(
+                            Equals(Member($e, "head"), Member($p, "head")),
+                            Equals(Member($e, "head"), Member($p, "also"))
+                          ),
+                          And(
+                            NotEquals(Member($e, "also"), Undefined()),
+                            Or(
+                              Equals(Member($e, "also"), Member($p, "head")),
+                              Equals(Member($e, "also"), Member($p, "also"))
                             )
                           )
                         ),
-                        false
-                      )
-                    ),
-                    If(
-                      And(
-                        Not($held),
-                        NotEquals(Call(Member($api, "format"), $pattern), Call(Member($api, "format"), $goal))
+                        Continue(),
+                        Undefined()
                       ),
-                      Call(
-                        Member(Member($api, "store"), "addRealization"),
-                        Member($p, "head"),
-                        Object(
-                          pattern = $pattern,
-                          context = Call(
-                            Member($api, "call"),
-                            "Context",
-                            Call(Member($api, "call"), "Execution"),
-                            Call(Member($api, "call"), "Interrogative")
-                          ),
-                          body = Call(
-                            Member($api, "call"),
-                            "LookUpBy",
-                            Object(variable = "item"),
-                            $property
-                          ),
-                          properties = List(Call(Member($api, "call"), "Chunked", $from)),
-                          evaluateArguments = false,
-                          evaluateResult = false
+                      Bind($senses,
+                        Await(
+                          Call(
+                            Member($api, "evaluate"),
+                            Call(
+                              Member($api, "call"),
+                              "WikidataSenses",
+                              Member($e, "text")
+                            )
+                          )
                         )
                       ),
-                      Undefined()
-                    ),
-                    Return(Call(Member($api, "call"), "Found", $value, $fact))
+                      Var($item, Undefined()),
+                      Var($values, Undefined()),
+                      ForOf(
+                        $s,
+                        If(
+                          And(Call($isCall, $senses), Equals(Member($senses, "head"), "List")),
+                          Call(Member(Member($senses, "args"), "slice"), 0, 4),
+                          List()
+                        ),
+                        Sequence(
+                          Bind($candidate,
+                            Call(
+                              Member($api, "call"),
+                              "Wikidata",
+                              Member(Index(Member(Member($s, "value"), "args"), 0), "value"),
+                              Member(Index(Member(Member($s, "value"), "args"), 1), "value")
+                            )
+                          ),
+                          Bind($got,
+                            Await(
+                              Call(
+                                Member($api, "evaluate"),
+                                Call(Member($api, "call"), "LookUp", $candidate, $property)
+                              )
+                            )
+                          ),
+                          If(
+                            And(
+                              And(
+                                And(Call($isCall, $got), Equals(Member($got, "head"), "List")),
+                                Length(Member($got, "args"))
+                              ),
+                              Call(
+                                Member(Member($got, "args"), "every"),
+                                Lambda(List($a), Call($fits, Member($a, "value")))
+                              )
+                            ),
+                            Sequence(
+                              Assign($item, $candidate),
+                              Assign($values, $got),
+                              Break()
+                            ),
+                            Undefined()
+                          )
+                        )
+                      ),
+                      If(Not($item), Continue(), Undefined()),
+                      Bind($value,
+                        If(
+                          Equals(Length(Member($values, "args")), 1),
+                          Member(Index(Member($values, "args"), 0), "value"),
+                          $values
+                        )
+                      ),
+                      Bind($from,
+                        Call(
+                          Member($api, "call"),
+                          "Wikidata",
+                          Member(Index(Member($item, "args"), 0), "value"),
+                          Member(Index(Member($property, "args"), 0), "value")
+                        )
+                      ),
+                      Bind($fact,
+                        Object(
+                          head = Member($goal, "head"),
+                          args = Concat(
+                            Member($goal, "args"),
+                            List(
+                              Object(value = Call(Member($api, "call"), "Is", $value)),
+                              Object(name = "from", value = $from)
+                            )
+                          )
+                        )
+                      ),
+                      Call(
+                        Member(Member($api, "store"), "addRelation"),
+                        Member($e, "head"),
+                        $fact,
+                        Undefined(),
+                        Member(Member($api, "trace"), "cause")
+                      ),
+                      Bind($leaf,
+                        Lambda(List($g),
+                          Sequence(
+                            If(Not(Call($isCall, $g)), Return($g), Undefined()),
+                            If(
+                              And(Equals(Member($g, "head"), Member($e, "head")), Not(Length(Member($g, "args")))),
+                              Return(Object(variable = "item")),
+                              Undefined()
+                            ),
+                            Return(
+                              Object(
+                                head = Member($g, "head"),
+                                args = Map(
+                                  Filter(Member($g, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                                  Lambda(List($a), Object(value = Call($leaf, Member($a, "value"))))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Bind($pattern, Call($leaf, $goal)),
+                      Bind($owner, Call(Member(Member($api, "store"), "get"), Member($p, "head"))),
+                      Bind($held,
+                        If(
+                          $owner,
+                          Call(
+                            Member(Member($owner, "realizations"), "some"),
+                            Lambda(List($r),
+                              Equals(
+                                Call(Member($api, "format"), Member($r, "pattern")),
+                                Call(Member($api, "format"), $pattern)
+                              )
+                            )
+                          ),
+                          false
+                        )
+                      ),
+                      If(
+                        And(
+                          Not($held),
+                          NotEquals(Call(Member($api, "format"), $pattern), Call(Member($api, "format"), $goal))
+                        ),
+                        Call(
+                          Member(Member($api, "store"), "addRealization"),
+                          Member($p, "head"),
+                          Object(
+                            pattern = $pattern,
+                            context = Call(
+                              Member($api, "call"),
+                              "Context",
+                              Call(Member($api, "call"), "Execution"),
+                              Call(Member($api, "call"), "Interrogative")
+                            ),
+                            body = Call(
+                              Member($api, "call"),
+                              "LookUpBy",
+                              Object(variable = "item"),
+                              $property
+                            ),
+                            properties = List(Call(Member($api, "call"), "Chunked", $from)),
+                            evaluateArguments = false,
+                            evaluateResult = false
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      Return(Call(Member($api, "call"), "Found", $value, $fact))
+                    )
                   )
                 )
               )
