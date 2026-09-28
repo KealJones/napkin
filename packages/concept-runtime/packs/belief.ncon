@@ -466,7 +466,13 @@ Concept(Believe(),
                           If(
                             Or(
                               Or(
-                                Or(Not(Call($isCall, $l)), NotEquals(Member($l, "head"), "Mood")),
+                                Or(
+                                  Not(Call($isCall, $l)),
+                                  And(
+                                    NotEquals(Member($l, "head"), "Mood"),
+                                    NotEquals(Member($l, "head"), "ContextScope")
+                                  )
+                                ),
                                 Not(Call($isCall, OptionalMember(Index(Member($l, "args"), 0), "value")))
                               ),
                               NotEquals(Member(Member(Index(Member($l, "args"), 0), "value"), "head"), "Declarative")

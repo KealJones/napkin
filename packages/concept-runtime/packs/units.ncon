@@ -8,13 +8,16 @@ Requires(Core(), Basic(), Code())
 // Quantity(16, unit = Ounces()): the unit is named, as it is data about the number, not a step.
 Concept(Quantity(), IsA(Result()))
 
-Concept(InSI(), IsA(Relation()))
+// Kept to compute with, not to describe a thing by.
+Concept(InSI(), IsA(Relation()), Incidental())
+
+Concept(NumericValue(), Incidental())
 
 // Frankfurter (frankfurter.dev): the European Central Bank's reference rates, free and without a
 // key. A record is the request, which is its own page.
 Concept(Frankfurter(), IsA(Source()), IsA(LearningSource()))
 
-Concept(CurrencyCode(), IsA(Relation()))
+Concept(CurrencyCode(), IsA(Relation()), Incidental())
 
 // A quantity in another unit ("convert 5 miles to kilometres", "convert ounces to pounds"): the
 // amount said (1 when none is), the first unit said and the one it goes to, each in the SI unit of

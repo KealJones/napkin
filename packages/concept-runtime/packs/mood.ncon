@@ -398,7 +398,7 @@ Concept(Recall(),
                       Member($api, "evaluate"),
                       Call(
                         Member($api, "call"),
-                        "Mood",
+                        "ContextScope",
                         $kind,
                         Call(
                           Member($api, "call"),
@@ -600,7 +600,7 @@ Concept(WordAlone(),
                 Member($api, "evaluate"),
                 Call(
                   Member($api, "call"),
-                  "Mood",
+                  "ContextScope",
                   Call(Member($api, "call"), "Interrogative"),
                   Call(
                     Member($api, "call"),

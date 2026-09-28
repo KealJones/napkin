@@ -12,7 +12,7 @@ Concept(MDN(),
 
 Concept(MethodDoc(), IsA(Result()))
 
-Concept(Documents(), IsA(Relation()))
+Concept(Documents(), IsA(Relation()), Incidental())
 
 // What JavaScript's documentation (MDN) says a built-in method does. The kinds of value that have
 // the method are asked of the language itself (the VM); the first whose page says is read, its

@@ -95,7 +95,7 @@ export function resolveNames(
 export function forSaying(store: ConceptStore, e: Expr): Expr {
   if (!isCall(e)) return e;
   // A line's mood is how it was said, not what it says.
-  if (e.head === "Mood" && e.args.length === 2) return forSaying(store, e.args[1].value);
+  if ((e.head === "Mood" || e.head === "ContextScope") && e.args.length === 2) return forSaying(store, e.args[1].value);
   // A description keeps every sense, but when some facts hold in any context those are
   // what the word means to someone who named no sense, and the rest is noise to say:
   // "chess is a board game", not "also a musical and a surname".

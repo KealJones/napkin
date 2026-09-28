@@ -525,7 +525,10 @@ Concept(GroundIn(),
                   Sequence(
                     If(Not(Call($isCall, $e)), Return(), Undefined()),
                     If(
-                      Or(Equals(Member($e, "head"), "Mood"), Equals(Member($e, "head"), "Phrases")),
+                      Or(
+                        Or(Equals(Member($e, "head"), "Mood"), Equals(Member($e, "head"), "ContextScope")),
+                        Equals(Member($e, "head"), "Phrases")
+                      ),
                       Sequence(
                         ForOf(
                           $a,

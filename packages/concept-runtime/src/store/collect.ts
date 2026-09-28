@@ -121,7 +121,7 @@ function contentOf(claim: Expr): Expr {
   if (!isCall(claim) || claim.head !== "Said") return claim;
   const content = claim.args[1]?.value;
   if (!isCall(content)) return claim;
-  return content.head === "Mood" && content.args.length === 2 ? content.args[1].value : content;
+  return (content.head === "Mood" || content.head === "ContextScope") && content.args.length === 2 ? content.args[1].value : content;
 }
 
 /** Is some `Consolidation` relation's recorded content this exact claim (Part 11)? */

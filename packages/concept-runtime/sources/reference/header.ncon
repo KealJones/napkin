@@ -8,4 +8,4 @@ Concept(MDN(), IsA(Source()), IsA(LearningSource()), License("CC BY-SA 2.5"))
 
 Concept(MethodDoc(), IsA(Result()))
 
-Concept(Documents(), IsA(Relation()))
+Concept(Documents(), IsA(Relation()), Incidental())

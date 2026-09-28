@@ -677,6 +677,50 @@ Concept(Ref(),
   )
 )
 
+// What was said, in the context it was said in: ContextScope(facet, line) is the line with the
+// facet (a mood, a language) added to its context, for it alone. Hearing writes it where it was
+// said, so what runs is what was heard; more than one facet nests.
+Concept(ContextScope(),
+  IsA(Marker()),
+  Realization(ContextScope($facet, $line),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Comment("A line in the context it was said in (a mood, a language): the line, as Line takes it, with"),
+            Comment("that facet added to the context for it alone. Written where it was said, so what runs is"),
+            Comment("what was heard."),
+            Bind($ctx, Member($api, "context")),
+            Bind($facets,
+              If(
+                And($ctx, Equals(Member($ctx, "head"), "Context")),
+                Map(Member($ctx, "args"), Lambda(List($a), Member($a, "value"))),
+                If($ctx, List($ctx), List())
+              )
+            ),
+            Bind($facet, Member(Index($args, 0), "value")),
+            Bind($line, Member(Index($args, 1), "value")),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(Member($api, "call"), "Line", $line),
+                Call(
+                  Member($api, "call"),
+                  "Context",
+                  Spread($facets),
+                  $facet
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 Concept(Mood(),
   IsA(Marker()),
   Realization(Mood($kind, $line),
@@ -687,29 +731,17 @@ Concept(Mood(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Comment("A line in the mood it was said in: Line, with the mood as its context (packs/mood.ncon)."),
-            Bind($ctx, Member($api, "context")),
-            Bind($facets,
-              If(
-                And($ctx, Equals(Member($ctx, "head"), "Context")),
-                Map(Member($ctx, "args"), Lambda(List($a), Member($a, "value"))),
-                List($ctx)
-              )
-            ),
+            Comment("A line in its mood, as conversations were first written: a ContextScope."),
             Return(
               Call(
                 Member($api, "evaluate"),
                 Call(
                   Member($api, "call"),
-                  "Line",
+                  "ContextScope",
+                  Member(Index($args, 0), "value"),
                   Member(Index($args, 1), "value")
                 ),
-                Call(
-                  Member($api, "call"),
-                  "Context",
-                  Spread($facets),
-                  Member(Index($args, 0), "value")
-                )
+                Member($api, "context")
               )
             )
           )

@@ -56,7 +56,7 @@ function unwrapCorrection(e: Expr, f: (meant: Expr) => Expr): Expr {
   if (e.head === "MarkCorrection" && isCall(e.args[0]?.value) && e.args[0].value.head === "Ref" && e.args[1] !== undefined) {
     return call("MarkCorrection", [e.args[0], { value: f(e.args[1].value) }]);
   }
-  if (e.head === "Mood" || e.head === "Sequence") return call(e.head, e.args.map((a) => ({ ...a, value: unwrapCorrection(a.value, f) })));
+  if (e.head === "Mood" || e.head === "ContextScope" || e.head === "Sequence") return call(e.head, e.args.map((a) => ({ ...a, value: unwrapCorrection(a.value, f) })));
   return e;
 }
 
@@ -71,7 +71,7 @@ export function resolveReferences(
   // "oops, i meant times 27": a correction takes the place of the last turn, so what it
   // works on is the answer before that one.
   const corrects = (e: Expr): boolean =>
-    isCall(e) && (e.head === "MarkCorrection" ? isCall(e.args[0]?.value) && e.args[0].value.head === "Ref" : ["Mood", "Sequence"].includes(e.head) && e.args.some((a) => corrects(a.value)));
+    isCall(e) && (e.head === "MarkCorrection" ? isCall(e.args[0]?.value) && e.args[0].value.head === "Ref" : ["Mood", "ContextScope", "Sequence"].includes(e.head) && e.args.some((a) => corrects(a.value)));
   if (correcting && corrects(expression) && history.length > 1) {
     // What was meant, against the turns before the one it corrects; then the rest as usual.
     // The meant part's references are resolved by then, and a resolved one is left alone.

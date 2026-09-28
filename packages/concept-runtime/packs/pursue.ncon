@@ -1437,7 +1437,7 @@ Concept(Pursue(),
                       If(
                         And(
                           And(
-                            Equals(Member($e, "head"), "Mood"),
+                            Includes(List("Mood", "ContextScope"), Member($e, "head")),
                             Call($isCall, OptionalMember(Index(Member($e, "args"), 0), "value"))
                           ),
                           Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Interrogative")
@@ -1860,7 +1860,7 @@ Concept(Pursue(),
                         Sequence(
                           If(Not(Call($isCall, $e)), Return(), Undefined()),
                           If(
-                            Equals(Member($e, "head"), "Mood"),
+                            Includes(List("Mood", "ContextScope"), Member($e, "head")),
                             Sequence(
                               If(
                                 And(

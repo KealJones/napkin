@@ -27,7 +27,7 @@ async (args, bindings, api) => {
   let changed = line;
   let recalled = false;
   for (const h of wanting) {
-    const asked = await api.evaluate(api.call("Mood", kind, api.call("What", api.call("Is", api.call(h)))), api.call("Context", ...facets, api.call("Recalling")));
+    const asked = await api.evaluate(api.call("ContextScope", kind, api.call("What", api.call("Is", api.call(h)))), api.call("Context", ...facets, api.call("Recalling")));
     // A thing that is a number (pi) is that number where it is worked on, not where it is asked about.
     const operand = (e) => isCall(e) && e.args.some((a) => (isCall(a.value) && a.value.head === h && !a.value.args.length && !["What", "Is"].includes(e.head)) || operand(a.value));
     const number = operand(line) ? await api.evaluate(api.call("NumericValue", api.call(h)), api.call("Execution")) : undefined;

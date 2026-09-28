@@ -48,7 +48,7 @@ async (args, bindings, api) => {
   const found = [];
   const walk = async (e) => {
     if (!isCall(e)) return;
-    if (e.head === "Mood" || e.head === "Phrases") {
+    if (e.head === "Mood" || e.head === "ContextScope" || e.head === "Phrases") {
       for (const a of e.args) await walk(a.value);
       return;
     }

@@ -91,7 +91,7 @@ async (args, bindings, api) => {
         const text = s.args.find((a) => a.name === "text")?.value;
         const lines = isCall(content) && content.head === "Sequence" ? positional(content) : [content];
         for (const l of lines) {
-          if (!isCall(l) || l.head !== "Mood" || !isCall(l.args[0]?.value) || l.args[0].value.head !== "Declarative") continue;
+          if (!isCall(l) || (l.head !== "Mood" && l.head !== "ContextScope") || !isCall(l.args[0]?.value) || l.args[0].value.head !== "Declarative") continue;
           const told = await read(l.args[1].value, tagged(String(text ?? "")), false);
           if (told.some((t) => claims.some((c) => t.subject === c.subject && same(t.claim, c.claim)))) return api.call("Answer", api.call("True"));
         }

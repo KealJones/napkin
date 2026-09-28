@@ -28,7 +28,7 @@ async function hearPhrase(store: ConceptStore, text: string): Promise<Expr | und
   }
   const lines = isCall(heard) && heard.head === "Phrases" ? heard.args.filter((a) => a.name === undefined).map((a) => a.value) : [];
   let one: Expr | undefined = lines.length === 1 ? lines[0] : undefined;
-  if (one !== undefined && isCall(one) && one.head === "Mood" && one.args.length === 2) one = one.args[1].value;
+  if (one !== undefined && isCall(one) && (one.head === "Mood" || one.head === "ContextScope") && one.args.length === 2) one = one.args[1].value;
   const thing = one !== undefined && isCall(one) ? one : undefined;
   heardPhrases.set(text, thing ?? null);
   return thing;

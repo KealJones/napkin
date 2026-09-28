@@ -299,7 +299,7 @@ function distance(a: string, b: string): number {
  * `It()` is not a pointing word here: in "what time is it" it points at nothing.
  */
 /** Names the reading is built from rather than names for what was said. */
-const STRUCTURE = new Set(["Mood", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Bind", "Item", "Heading", "Aside", "Date", "On"]);
+const STRUCTURE = new Set(["Mood", "ContextScope", "Interrogative", "Declarative", "Imperative", "Checking", "Sequence", "List", "Ref", "Let", "Bind", "Item", "Heading", "Aside", "Date", "On"]);
 
 export function mendWords(e: Expr, message: string): Expr {
   const said = [...new Set((message.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length >= 3))];

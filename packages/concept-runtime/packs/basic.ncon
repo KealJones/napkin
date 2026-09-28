@@ -489,7 +489,10 @@ Concept(Sequence(),
             Bind($unmood,
               Lambda(List($e),
                 If(
-                  And(And(Call($isCall, $e), Equals(Member($e, "head"), "Mood")), Equals(Length(Member($e, "args")), 2)),
+                  And(
+                    And(Call($isCall, $e), Includes(List("Mood", "ContextScope"), Member($e, "head"))),
+                    Equals(Length(Member($e, "args")), 2)
+                  ),
                   Member(Index(Member($e, "args"), 1), "value"),
                   $e
                 )
@@ -595,7 +598,7 @@ Concept(Sequence(),
                             $applied,
                             Call(
                               Member($api, "call"),
-                              "Mood",
+                              "ContextScope",
                               Member(Index(Member($line, "args"), 0), "value"),
                               $applied
                             )
@@ -1140,7 +1143,7 @@ Concept(Tell(),
                   Member($api, "evaluate"),
                   Call(
                     Member($api, "call"),
-                    "Mood",
+                    "ContextScope",
                     Call(Member($api, "call"), "Interrogative"),
                     Call(
                       Member($api, "call"),
@@ -1154,7 +1157,7 @@ Concept(Tell(),
             ),
             Return(
               If(
-                And(Call($isCall, $asked), Equals(Member($asked, "head"), "Mood")),
+                And(Call($isCall, $asked), Includes(List("Mood", "ContextScope"), Member($asked, "head"))),
                 $done,
                 $asked
               )

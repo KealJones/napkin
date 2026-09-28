@@ -10,7 +10,7 @@ seed(store);
 const heard = async (text: string) => format(await new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Execution")));
 /** The structure alone: each line's mood is its own test. */
 const unmood = (e: Expr): Expr =>
-  isCall(e) ? (e.head === "Mood" && e.args.length === 2 ? unmood(e.args[1].value) : call(e.head, e.args.map((a) => ({ ...a, value: unmood(a.value) })))) : e;
+  isCall(e) ? ((e.head === "Mood" || e.head === "ContextScope") && e.args.length === 2 ? unmood(e.args[1].value) : call(e.head, e.args.map((a) => ({ ...a, value: unmood(a.value) })))) : e;
 const hear = async (text: string) => format(unmood(await new Runtime(store).evaluate(call("Hear", [{ value: text }]), c("Execution"))));
 
 test("things: describers and nouns before a thing are its arguments, and the thing is the head", async () => {
@@ -54,24 +54,24 @@ test("under Hearing a word only hears: nothing it does elsewhere runs", async ()
 });
 
 test("questions: the question word leads, a helper first asks, and each line says how it was said", async () => {
-  assert.equal(await heard("what is chess"), "Phrases(Mood(Interrogative(), What(Is(Chess()))))");
-  assert.equal(await heard("who wrote hamlet"), "Phrases(Mood(Interrogative(), Who(Wrote(Hamlet()))))");
-  assert.equal(await heard("is chess a sport"), "Phrases(Mood(Interrogative(), Is(Chess(), Sport())))");
-  assert.equal(await heard("could you close the door?"), "Phrases(Mood(Interrogative(), Could(You(), Close(Door()))))");
-  assert.equal(await heard("what do i like"), "Phrases(Mood(Interrogative(), What(Do(Me(), Like()))))");
-  assert.equal(await heard("what is the capital of france?"), "Phrases(Mood(Interrogative(), What(Is(Capital(Of(France()))))))");
-  assert.equal(await heard("close the door"), "Phrases(Mood(Imperative(), Close(Door())))");
+  assert.equal(await heard("what is chess"), "Phrases(ContextScope(Interrogative(), What(Is(Chess()))))");
+  assert.equal(await heard("who wrote hamlet"), "Phrases(ContextScope(Interrogative(), Who(Wrote(Hamlet()))))");
+  assert.equal(await heard("is chess a sport"), "Phrases(ContextScope(Interrogative(), Is(Chess(), Sport())))");
+  assert.equal(await heard("could you close the door?"), "Phrases(ContextScope(Interrogative(), Could(You(), Close(Door()))))");
+  assert.equal(await heard("what do i like"), "Phrases(ContextScope(Interrogative(), What(Do(Me(), Like()))))");
+  assert.equal(await heard("what is the capital of france?"), "Phrases(ContextScope(Interrogative(), What(Is(Capital(Of(France()))))))");
+  assert.equal(await heard("close the door"), "Phrases(ContextScope(Imperative(), Close(Door())))");
   // A helper carries a doing, whatever the tagger made of the word in this sentence.
-  assert.equal(await heard("who did hamlet kill"), "Phrases(Mood(Interrogative(), Who(Did(Hamlet(), Kill()))))");
-  assert.equal(await heard("what time is it"), "Phrases(Mood(Interrogative(), What(Time(), Is(It()))))");
-  assert.equal(await heard("which file did you open"), "Phrases(Mood(Interrogative(), Which(File(), Did(You(), Open()))))");
-  assert.equal(await heard("i like pie"), "Phrases(Mood(Declarative(), Me(Like(Pie()))))");
+  assert.equal(await heard("who did hamlet kill"), "Phrases(ContextScope(Interrogative(), Who(Did(Hamlet(), Kill()))))");
+  assert.equal(await heard("what time is it"), "Phrases(ContextScope(Interrogative(), What(Time(), Is(It()))))");
+  assert.equal(await heard("which file did you open"), "Phrases(ContextScope(Interrogative(), Which(File(), Did(You(), Open()))))");
+  assert.equal(await heard("i like pie"), "Phrases(ContextScope(Declarative(), Me(Like(Pie()))))");
 });
 
 test("orders, negation, politeness and several objects", async () => {
-  assert.equal(await heard("please add 2 and 2"), "Phrases(Mood(Imperative(), Please(Add(And(2, 2)))))");
-  assert.equal(await heard("define recursion"), "Phrases(Mood(Imperative(), Define(Recursion())))");
-  assert.equal(await heard("what is not a mammal"), "Phrases(Mood(Interrogative(), What(Is(Not(Mammal())))))");
+  assert.equal(await heard("please add 2 and 2"), "Phrases(ContextScope(Imperative(), Please(Add(And(2, 2)))))");
+  assert.equal(await heard("define recursion"), "Phrases(ContextScope(Imperative(), Define(Recursion())))");
+  assert.equal(await heard("what is not a mammal"), "Phrases(ContextScope(Interrogative(), What(Is(Not(Mammal())))))");
   assert.equal(await hear("write me a typescript function that says hello world"), "Phrases(Write(Me(), Function(Typescript(), That(Says(World(Hello()))))))");
   // A comma before a doing starts another clause.
   assert.equal(await hear("take 10, double it, then subtract 5"), "Phrases(Take(10), Double(Ref(\"it\")), Then(), Subtract(5))");
@@ -87,7 +87,7 @@ test("pointing words are Refs for memory, a hesitation between two takes the fir
 });
 
 test("code, links and quotes are kept as typed, each one thing", async () => {
-  assert.equal(await heard("fix `foo()` please"), 'Phrases(Mood(Imperative(), Please(Fix(InlineCode("foo()", ir=Module(Call($foo)), language=TypeScript())))))');
+  assert.equal(await heard("fix `foo()` please"), 'Phrases(ContextScope(Imperative(), Please(Fix(InlineCode("foo()", ir=Module(Call($foo)), language=TypeScript())))))');
   assert.match(await hear("why does const x = items.map((i) => i * 2); fail"), /^Phrases\(Why\(Does\(InlineCode\("const x = items.map\(\(i\) => i \* 2\);", ir=Module\(Bind\(\$x, /);
   assert.equal(await hear('say "hello world" to me'), 'Phrases(Say("hello world", To(Me())))');
   assert.equal(await hear("what does this do\nfunction add(a, b) {\n  return a + b;\n}"), 'Phrases(What(Does(Ref("this"), Do())), Block("function add(a, b) {\\n  return a + b;\\n}", ir=Module(Func($add, List($a, $b), Return(Add($a, $b)))), language=TypeScript()))');

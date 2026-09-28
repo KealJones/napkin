@@ -28,7 +28,7 @@ const MOODS = new Set(["Imperative", "Declarative", "Interrogative", "Checking"]
  */
 const IR_VOCABULARY = new Set([
   ...INTERROGATIVES,
-  "Do", "Fact", "Tell", "Mood", ...MOODS, "InlineCode", "Unclear",
+  "Do", "Fact", "Tell", "Mood", "ContextScope", ...MOODS, "InlineCode", "Unclear",
   "MarkCorrection", "MarkMisspelling", "MarkFuzzy", "MarkEmphasis", "MarkAside", "Ref", "Not",
   "Qualify", "Ordinal", "Field", "Heading", "Item", "Block", "Please", "It",
   "List", "Object", "Pair", "String", "Number", "Boolean", "Sequence", "Let", "Bind",
@@ -200,7 +200,7 @@ export function namesIn(prompt: string): Set<string> {
  */
 const COMMITTED = new Set([
   ...[...INTERROGATIVES].filter((h) => h !== "Whether"), "MarkCorrection", "MarkMisspelling", "MarkFuzzy", "MarkEmphasis", "MarkAside", "Ref", "Not",
-  "Heading", "Item", "Block", "InlineCode", "Please", "Unclear", "Mood", ...MOODS,
+  "Heading", "Item", "Block", "InlineCode", "Please", "Unclear", "Mood", "ContextScope", ...MOODS,
 ]);
 
 export function expectFrom(message: string, target: Expr): Expect {

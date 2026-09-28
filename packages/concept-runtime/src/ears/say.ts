@@ -35,7 +35,7 @@ function heardAs(e: Expr): string {
   const go = (x: Expr): void => {
     if (typeof x === "string" || typeof x === "number") out.push(String(x));
     else if (isCall(x)) {
-      if (!["Mood", "Answer", "Unknown", "Ref", "Sequence"].includes(x.head) && !/^Mark/.test(x.head)) out.push(words(x.head));
+      if (!["Mood", "ContextScope", "Answer", "Unknown", "Ref", "Sequence"].includes(x.head) && !/^Mark/.test(x.head)) out.push(words(x.head));
       for (const a of x.args) if (a.name === undefined) go(a.value);
     }
   };

@@ -364,7 +364,7 @@ export function facetsNamed(runtime: Runtime, expression: Expr): Expr[] {
   // A line's mood is scoped by Mood itself, to that line; lifting it would leave Mood with
   // nothing to scope and put one line's mood on every line.
   const scoped = new Set<Expr>();
-  for (const node of walk(expression)) if (isCall(node) && node.head === "Mood" && node.args[0]) scoped.add(node.args[0].value);
+  for (const node of walk(expression)) if (isCall(node) && (node.head === "Mood" || node.head === "ContextScope") && node.args[0]) scoped.add(node.args[0].value);
   // Things named side by side are peers, not a setting: "python or javascript" offers Python
   // as one of two options, where "in python" asks for it as the language to work in.
   for (const node of walk(expression)) {
@@ -390,7 +390,7 @@ function withoutFacets(runtime: Runtime, e: Expr): Expr {
   if (!isCall(e)) return e;
   const peers = e.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.args.length === 0).length >= 2;
   const kept = e.args.filter((a, i) => {
-    if (e.head === "Mood" && i === 0) return true;
+    if ((e.head === "Mood" || e.head === "ContextScope") && i === 0) return true;
     if (peers || a.name !== undefined) return true;
     const v = a.value;
     return !(
@@ -411,23 +411,24 @@ function withoutFacets(runtime: Runtime, e: Expr): Expr {
 }
 
 /**
- * The caller's context widened by what the message asked for, and the expression with
- * those facets lifted out of it.
+ * Each line with the facets named in it (a language: "in python", "to javascript") as its own
+ * scope, written where it was said: ContextScope(Python(), line), the facet out of the phrase it
+ * was said in (a function does not take a language as a parameter) but not out of sight. What
+ * runs is what is shown, and one line's setting is not every line's. A facet brings what it is
+ * a superset of: JavaScript is TypeScript as well.
  */
 function lift(runtime: Runtime, expression: Expr, given: Expr): { expression: Expr; context: Expr } {
-  const said = facetsNamed(runtime, expression);
-  if (!said.length) return { expression, context: given };
-  // A facet brings what it is a superset of: JavaScript is TypeScript as well.
-  const named = [...said, ...said.flatMap((f) => (isCall(f) ? facetAncestors(runtime.store, f.head).map((h) => c(h)) : []))];
-  const already = facets(given);
-  const extra = named.filter((f) => !already.some((a) => equal(a, f)));
-  const lifted = withoutFacets(runtime, expression);
-  if (!extra.length) return { expression: lifted, context: given };
-  // One facet is written plainly; two or more are wrapped (seed-concepts Part 4).
-  return {
-    expression: lifted,
-    context: call("Context", [...already, ...extra].map((value) => ({ value }))),
+  const scope = (line: Expr): Expr => {
+    const said = facetsNamed(runtime, line);
+    if (!said.length) return line;
+    const named = [...said, ...said.flatMap((f) => (isCall(f) ? facetAncestors(runtime.store, f.head).map((h) => c(h)) : []))];
+    const already = facets(given);
+    let body = withoutFacets(runtime, line);
+    for (const f of named.filter((x, i) => !already.some((a) => equal(a, x)) && named.findIndex((y) => equal(x, y)) === i).reverse()) body = call("ContextScope", [{ value: f }, { value: body }]);
+    return body;
   };
+  const scoped = isCall(expression) && expression.head === "Sequence" ? call("Sequence", expression.args.map((a) => ({ ...a, value: scope(a.value) }))) : scope(expression);
+  return { expression: scoped, context: given };
 }
 
 export async function turn(
@@ -661,8 +662,9 @@ export async function turn(
 
   return {
     heard,
-    expression,
-    parsed: format(expression),
+    // What ran, with each line's scope written in it.
+    expression: running,
+    parsed: format(running),
     resolved,
     resolvedNames,
     result,

@@ -3782,7 +3782,7 @@ Concept(Hear(),
                   Return(
                     Call(
                       Member($api, "call"),
-                      "Mood",
+                      "ContextScope",
                       Call(Member($api, "call"), Call(Member($moods, "get"), $s)),
                       $e
                     )
@@ -3963,7 +3963,13 @@ Concept(Hear(),
             Bind($inner,
               Lambda(List($e),
                 If(
-                  And(And(Call($isCall, $e), Equals(Member($e, "head"), "Mood")), Equals(Length(Member($e, "args")), 2)),
+                  And(
+                    And(
+                      Call($isCall, $e),
+                      Or(Equals(Member($e, "head"), "Mood"), Equals(Member($e, "head"), "ContextScope"))
+                    ),
+                    Equals(Length(Member($e, "args")), 2)
+                  ),
                   Member(Index(Member($e, "args"), 1), "value"),
                   $e
                 )
@@ -4187,7 +4193,7 @@ Concept(Hear(),
                       $y,
                       Call(
                         Member($api, "call"),
-                        "Mood",
+                        "ContextScope",
                         Member(Index(Member($e, "args"), 0), "value"),
                         $y
                       )
@@ -4278,7 +4284,7 @@ Concept(Hear(),
                       Or(
                         Or(
                           Or(Or(Not(Call($isCall, $x)), Length(Member($x, "args"))), Not(Call($isCall, $e))),
-                          NotEquals(Member($e, "head"), "Mood")
+                          And(NotEquals(Member($e, "head"), "Mood"), NotEquals(Member($e, "head"), "ContextScope"))
                         ),
                         Not(Call($isCall, Member(Index(Member($e, "args"), 0), "value")))
                       ),
@@ -4315,7 +4321,7 @@ Concept(Hear(),
                     List(
                       Call(
                         Member($api, "call"),
-                        "Mood",
+                        "ContextScope",
                         Member(Index(Member(Index($joined, $k), "args"), 0), "value"),
                         Call(
                           Member($api, "call"),
@@ -4368,7 +4374,10 @@ Concept(Hear(),
                   And(
                     And(
                       And(
-                        And(Call($isCall, $e), Equals(Member($e, "head"), "Mood")),
+                        And(
+                          Call($isCall, $e),
+                          Or(Equals(Member($e, "head"), "Mood"), Equals(Member($e, "head"), "ContextScope"))
+                        ),
                         Call($isCall, Member(Index(Member($e, "args"), 0), "value"))
                       ),
                       Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Imperative")
@@ -4393,7 +4402,7 @@ Concept(Hear(),
                 Bind($merged,
                   Call(
                     Member($api, "call"),
-                    "Mood",
+                    "ContextScope",
                     Member(Index(Member(Index($joined, Subtract($k, 1)), "args"), 0), "value"),
                     Object(
                       head = Member($order, "head"),
