@@ -39,7 +39,7 @@ import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { activation } from "./activation.js";
 import { compiledFor } from "./compile.js";
-import { typesHold } from "./kinds.js";
+import { typesHold } from "./types.js";
 import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
 import { Trace, realizationExpr } from "./trace.js";
 
@@ -462,7 +462,7 @@ export class Runtime {
         for (const [k, v] of chosen.bindings) if (!bindings.has(k)) bindings.set(k, v);
       }
 
-      // A variable of the wrong kind ("add" given a list when this adds numbers): not this one.
+      // A variable of the wrong type ("add" given a list when this adds numbers): not this one.
       if (!typesHold(this.store, realization.types, bindings)) {
         if (more) continue;
         trace.finish(id, "residual", call(target.head, args));

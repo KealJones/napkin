@@ -197,7 +197,7 @@ export function candidates(
     const sa = specificity(a.realization.pattern);
     const sb = specificity(b.realization.pattern);
     if (sa !== sb) return sb - sa;
-    // Then one that says what kind its variables are, before one that takes anything.
+    // Then one that says what type its variables are, before one that takes anything.
     const ta = typed(a.realization.types);
     const tb = typed(b.realization.types);
     if (ta !== tb) return tb - ta;
@@ -212,9 +212,9 @@ export function candidates(
   return found;
 }
 
-/** How many variables a realization types (runtime/kinds.ts). */
+/** How many variables a realization types (runtime/types.ts). */
 const typed = (types: Expr | undefined): number =>
-  types !== undefined && isCall(types) ? types.args.filter((a) => isCall(a.value) && a.value.head === "Of").length : 0;
+  types !== undefined && isCall(types) ? types.args.filter((a) => a.name !== undefined).length : 0;
 
 export const bestCandidate = (
   store: ConceptStore,

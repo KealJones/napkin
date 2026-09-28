@@ -782,20 +782,18 @@ Concept(SameAs(), IsA(Relation()))
 // What a pointing word points at in the conversation (packs/focus.ncon): the host asks it.
 Concept(ReferentOf())
 
-// Kinds (runtime/kinds.ts): what a realization's types = List(Of($a, Number())) and IsA take. A
-// number is a Number, text a String, true and false Booleans; List(K) is a list of K,
-// TupleOf(A, B, Rest(C)) positions, OneOf(A, B) either.
+// Types (runtime/types.ts): what a realization's types = Types(a = Number()) and IsA take,
+// written like patterns. A number is a Number, text a String, true and false Booleans;
+// List(A, Rest(B)) positions and a repeating tail; OneOf(A, B) either.
 Concept(Number(), IsA(Primitive()))
 
 Concept(String(), IsA(Primitive()))
 
 Concept(Boolean(), IsA(Primitive()))
 
-Concept(Of())
+Concept(Types())
 
 Concept(OneOf())
-
-Concept(TupleOf())
 
 // A doing that takes two things, given them as one group ("add 5 and 3", "multiply 2, 3 and 4"):
 // done to the first two, then to that and the next. Derived onto every such doing (seed.ts,

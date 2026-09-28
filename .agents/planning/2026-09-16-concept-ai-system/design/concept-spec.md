@@ -626,13 +626,13 @@ changed by editing Concepts, which violates Part 2.1.
 
 A realization says: *in this situation, this Concept behaves like this.*
 
-It has three parts, and may say what kind its variables are:
+It has three parts, and may say what type its variables are:
 
 | Part | Required | What it does |
 |---|---|---|
 | **pattern** | yes | The shape of call this realization handles. Binds variables. |
 | **context** | no | The usage context this applies in. Absent means any context. |
-| **types** | no | What kind each of the pattern's variables must be (Part 6.7). Absent means any. |
+| **types** | no | What type each of the pattern's variables must be (Part 6.7). Absent means any. |
 | **body** | yes | What it produces: composed Concepts, or code. |
 
 ### 6.1 A body composes, or it runs
@@ -748,53 +748,58 @@ They are excluded and admitted for opposite reasons, and the reason is specifici
 Admitting disjunction would therefore push cases into tie-break that meaning should have
 decided, which is the one thing Part 9.1 exists to prevent.
 
-### 6.7 Kinds: what a realization's variables must be
+### 6.7 Types: what a realization's variables must be
 
-A realization may say what kind each of its pattern's variables must be, where the variables
-are declared: on the realization, beside the pattern, never inside it.
+A realization may say what type each of its pattern's variables must be, where the variables
+are declared: on the realization, beside the pattern, never inside it. `Types(...)` names each
+typed variable, as a keyed collection does (`ir-spec.md` Part 3.3).
 
 ```
-Realization(Size($x), types = List(Of($x, Number())), body = ...)
-Realization(Size($x), types = List(Of($x, List(String()))), body = ...)
+Realization(Size($x), types = Types(x = Number()), body = ...)
+Realization(Size($x), types = Types(x = List(Rest(String()))), body = ...)
 Realization(Size($x), body = ...)
 ```
 
 `Size(5)` takes the first, `Size(List("a", "b"))` the second, anything else the third.
 
-**A kind is what `IsA` takes.** There is one language for "what this is" and "what this
-accepts", and checking a kind is walking the `IsA` chain (`runtime/kinds.ts`):
+**A type is anything `IsA` can point at.** There is one language for "what this is" and "what
+this accepts", and checking a type is walking the `IsA` chain (`runtime/types.ts`). A type is
+written like a pattern whose holes are types:
 
-| Kind | Holds for |
-|---|---|
-| `Number()`, `String()`, `Boolean()` | a number, text, true or false |
-| any other Concept, `Animal()` | a call whose head is it, or reaches it through `IsA` and `SubclassOf` |
-| `List(K)` | a list whose every item is of kind `K`; `List()` any list |
-| `TupleOf(A, B, Rest(C))` | a list with an `A`, then a `B`, then any number of `C` |
-| `OneOf(A, B)` | either |
-| a Concept with more said of it, `List(Shopping())` outside the shapes above | a thing whose own `IsA` says exactly that |
+| Type | Holds for | Same shape as the pattern |
+|---|---|---|
+| `Number()`, `String()`, `Boolean()` | a number, text, true or false | |
+| any other Concept, `Animal()` | a call whose head is it, or reaches it through `IsA` and `SubclassOf` | |
+| `List(Number(), String())` | a list of a number, then text | `List($a, $b)` |
+| `List(Rest(Number()))` | any number of numbers | `List(Rest($xs))` |
+| `List(String(), Rest(Number()))` | text, then any number of numbers | `List($a, Rest($xs))` |
+| `OneOf(A, B)` | either | |
+| a Concept with more said of it, `Car(Red())` | a thing whose own `IsA` says exactly that | |
 
-In a kind position (`types =`, `IsA(...)`, a code declaration's `type =`) the shape is a kind;
-in a value position `List(3, 4)` is a list. Where it is written says which.
+`List(Number())` is a list holding one number, as the pattern `List($a)` matches one; "a list
+of numbers" is `List(Rest(Number()))`. In a type position (`types =`, `IsA(...)`, a code
+declaration's `type =`) the shape is a type; in a value position `List(3, 4)` is a list. Where
+it is written says which.
 
 **The pattern keeps its shape.** Hearing reads how many things a doing takes from its
-patterns, so a kind written inside a pattern would change how words are heard. Beside it,
+patterns, so a type written inside a pattern would change how words are heard. Beside it,
 nothing else changes. The cost is that `Size($x)` alone does not show what it wants: the
 realization does.
 
-**What is checked.** A realization that evaluates its arguments has its kinds checked on the
+**What is checked.** A realization that evaluates its arguments has its types checked on the
 values (`Size(Plus(2, 3))` is checked as 5). One that does not is checked on what was said:
-a literal is its own kind, a call is what its head is. A call like `Plus(2, 3)` left as said
+a literal is its own type, a call is what its head is. A call like `Plus(2, 3)` left as said
 is a `Plus`, not a Number; a realization that wants the number evaluates its arguments.
 
-**Kinds choose, they do not reject.** A realization whose variables are not of their kinds
+**Types choose, they do not reject.** A realization whose variables are not of their types
 does not apply, and the Concept's next realization is tried (Part 9.6), the same as when its
 pattern does not match. When patterns tie, one that types more of its variables comes first
 (Part 9). This is multiple dispatch: which realization runs is chosen at run time, from what
 every argument is, among all of a Concept's realizations. Context (Part 7) chooses by the
-situation the call is made in; kinds choose by what the call is given.
+situation the call is made in; types choose by what the call is given.
 
-**Kind or context?** If the arguments tell two uses apart ("add 5 and 3" and "add cheetos to
-my list"), a kind. If the same arguments mean different things in different situations
+**Type or context?** If the arguments tell two uses apart ("add 5 and 3" and "add cheetos to
+my list"), a type. If the same arguments mean different things in different situations
 (`Mean` as average in arithmetic, as signify in talk; a statement supposed under
 `Hypothetical`), a context. If the body has to work the meaning out anyway (Pursue), neither.
 
@@ -973,7 +978,7 @@ Selection is ordered:
       `Walking($animal)`.
 3. **Pattern specificity**: a pattern that says more of the call (`HowMany(Days(Until($when)))`)
    before one that says less (`HowMany(Rest($x))`).
-4. **Kinds**: a realization that types more of its variables (Part 6.7) before one that
+4. **Types**: a realization that types more of its variables (Part 6.7) before one that
    types fewer.
 5. **Success evidence**, from the trace, for that exact (Concept, realization, context)
    combination — but **only to break ties** among candidates of equal specificity.
@@ -1084,7 +1089,7 @@ means the choice is inspectable and changeable without touching host code, per P
 ### 9.6 A realization that hands back its call did not apply
 
 A realization whose result is exactly the call it was given, or whose variables are not of
-their kinds, did nothing. The Concept's next candidate is tried, with the arguments already
+their types, did nothing. The Concept's next candidate is tried, with the arguments already
 worked out reused. "Add cheetos to my list" and "add 3, 4 and 5" are both `Add`; the
 realization that adds to a list hands `Add(List(3, 4, 5))` back, and the one that sums runs.
 

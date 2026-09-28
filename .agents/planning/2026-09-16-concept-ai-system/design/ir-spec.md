@@ -749,7 +749,7 @@ These mean the same thing in code and in a parsed message, and are the same Conc
 | misc | `New(c, args...)` / `TypeOf(x)` / `In("k", obj)` / `Undefined()` |
 | mutable binding | `Var($x, initial)` |
 | state | `Cell(initial)` / `Get($ref)` / `Set($ref, v)` |
-| typed declaration | `Bind($x, v, type = Number())`, `Cell(v, type = List(Number()))`, `Func($f, List($a, $b), body, types = List(Number(), Number()), returns = Number())` (Part 10.9) |
+| typed declaration | `Bind($x, v, type = Number())`, `Cell(v, type = List(Rest(Number())))`, `Func($f, List($a, $b), body, types = List(Number(), Number()), returns = Number())` (Part 10.9) |
 
 `If` is used for both statement and expression position. The IR does not need a separate
 ternary, because an `If` that yields a value is the same idea.
@@ -1143,13 +1143,15 @@ each use of the variable.
 | `const x: number = 1` | `Bind($x, 1, type = Number())` |
 | a typed mutable binding, lowered to a cell | `Cell(1, type = Number())`: the type is of what the cell holds |
 | `function sum(a: number, b: number): number` | `Func($sum, List($a, $b), body, types = List(Number(), Number()), returns = Number())` |
-| `number[]`, `Array<number>` | `List(Number())` |
-| `[string, ...number[]]` | `TupleOf(String(), Rest(Number()))` |
+| `number[]`, `Array<number>` | `List(Rest(Number()))` |
+| `[string, number]` | `List(String(), Number())` |
+| `[string, ...number[]]` | `List(String(), Rest(Number()))` |
 | `number \| string` | `OneOf(Number(), String())` |
 | `Foo` | `Foo()` |
 
-The types are kinds, the same language `IsA` takes and a realization's `types =` uses
-(`concept-spec.md` Part 6.7), so a program's claims and the graph's say things the same way.
+The types are the same language `IsA` takes and a realization's `types =` uses, written like
+patterns (`concept-spec.md` Part 6.7), so a program's claims and the graph's say things the
+same way.
 A function's `types` line up with its parameters by position. Untyped code reads exactly as
 it did: no `type`, `types` or `returns` at all.
 

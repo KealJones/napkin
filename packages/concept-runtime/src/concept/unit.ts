@@ -21,8 +21,9 @@ export interface Realization {
   /** Replaces the active context for the body. */
   readonly resultContext?: Expr;
   /**
-   * What kind each of the pattern's variables must be, where it is declared: List(Of($a,
-   * Number()), ...). A kind is what IsA takes (runtime/kinds.ts). Untyped variables take anything.
+   * What type each of the pattern's variables must be, where it is declared: Types(a =
+   * Number()), each named for its variable. A type is anything IsA can point at
+   * (runtime/types.ts). Untyped variables take anything.
    */
   readonly types?: Expr;
   /** Retired realizations are retained but never selected (concept-spec Part 3.2). */
