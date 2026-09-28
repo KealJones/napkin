@@ -435,15 +435,19 @@ async function everyClaim(
       if (unit && unit !== "1") ids.add(unit);
     }
   }
-  const labels: Record<string, Entity> = {};
-  const all = [...ids];
-  for (let i = 0; i < all.length; i += 50) Object.assign(labels, await entities(all.slice(i, i + 50), "labels", get));
+  const labels: Record<string, Entity & { aliases?: Record<string, { value: string }[]> }> = {};
+  const properties = [...ids].filter((q) => q.startsWith("P"));
+  const items = [...ids].filter((q) => !q.startsWith("P"));
+  // A property is fetched whole: what else it is called and what it is the inverse of.
+  for (let i = 0; i < properties.length; i += 50) Object.assign(labels, await entities(properties.slice(i, i + 50), "labels|aliases|claims", get));
+  for (let i = 0; i < items.length; i += 50) Object.assign(labels, await entities(items.slice(i, i + 50), "labels", get));
   const label = (q: string) => labels[q]?.labels?.en?.value;
   for (const t of taken) {
     const said = label(t.property);
     if (!said || BOOKKEEPING.test(said)) continue;
     const relation = nameOf(said);
     if (!relation || !/^[A-Z]/.test(relation)) continue;
+    describeRelation(store, relation, t.property, labels[t.property]);
     for (const v of t.values) {
       if (!v) continue;
       if (t.type === "wikibase-item" && v.id) {
@@ -485,4 +489,19 @@ export function dateOf(time: string, precision = 11): Expr | undefined {
     if (year > 0) parts.push({ name: "weekday", value: at.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }) });
   }
   return call("Date", parts);
+}
+
+/**
+ * A relation learned from a Wikidata property says what the property says of itself, once: the
+ * property it is (SameAs(Wikidata("P26"))), what else it is called (Called("married to"),
+ * Called("wife")...), by which it is asked about, and whether it is its own inverse (Symmetric():
+ * her spouse is him), which the relations derive from. Stamped from the property.
+ */
+function describeRelation(store: ConceptStore, relation: string, property: string, entity: (Entity & { aliases?: Record<string, { value: string }[]> }) | undefined): void {
+  if (!entity || (store.get(relation)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "SameAs")) return;
+  const imported = store.addRelation("Wikidata", call("Imported", [{ value: property }, { name: "license", value: "CC0" }]));
+  store.addRelation(relation, c("SameAs", call("Wikidata", [{ value: property }])), undefined, imported.seq);
+  for (const alias of (entity.aliases?.en ?? []).map((a) => a.value).slice(0, 20)) store.addRelation(relation, call("Called", [{ value: alias }]), undefined, imported.seq);
+  const inverse = (entity.claims?.P1696 ?? []).map((snak) => snak.mainsnak?.datavalue?.value?.id);
+  if (inverse.includes(property)) store.addRelation(relation, c("Symmetric"), undefined, imported.seq);
 }
