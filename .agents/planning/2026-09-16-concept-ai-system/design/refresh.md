@@ -16,8 +16,8 @@ never again:
   kept as text (`Called("wife")`, meaningless to the graph) before they were kept as heard
   Concepts (`Called(Wife())`); Spouse facts without the start and end dates grounding now keeps;
   things grounded before item aliases were read have none.
-- Pack Concepts (`Human`, `Male`, `Sequence`, `List`) and learned words are never asked about
-  at all, even when a source knows a great deal.
+- Concepts a pack declared (`Human`, `Male`, `Sequence`, `List`) are never asked about at all,
+  as though what a pack says of a word were all it means.
 - A fact that changed in the world (a new spouse, a new population) never changes here.
 
 ## The idea
@@ -71,40 +71,47 @@ that source itself said.
 
 ### What is never sent out
 
-The user's own individuals (`Greg_1`, `ShoppingList_1`, a conversation) and what the user told
-Napkin are never asked about outside: memory-spec Part 6.6 already says personal individuals
-are not researched. Only the derivations refresh for them.
+The user's own individuals (`Greg_1`, `ShoppingList_1`, a conversation) are not words: they are
+people and things in the user's life, and what the user told Napkin is theirs. They are never
+asked about outside (memory-spec Part 6.6). Only the derivations refresh for them.
 
-### Pack Concepts: their own sense, found and tied; the others beside it
+### Every Concept is a word: no kind of Concept is special
 
-A pack Concept is not "machinery, not the word". `Sequence` runs steps in order because a
-sequence is things in an order: what the pack does is one of the word's real senses. So a
-refresh finds **which** sense that is and ties the pack Concept to it, and keeps the word's
-other senses beside it:
+There are no "pack Concepts" and "world Concepts". Every Concept in any pack could be a real
+word, and Napkin already has what a word with many meanings needs: several realizations, context,
+more than one argument shape, and typed arguments. What a pack declares is one meaning among the
+word's meanings, held the way every meaning is; that a pack declared it is provenance (a
+stamp), not a different kind of Concept. So a refresh treats every Concept the same.
+
+For `Sequence`, what the pack runs (steps in order, in `Execution()`) and what the sources say
+(Wikidata's sequence, a music sequence, a film sequence; Wiktionary's senses) are all meanings of
+one word:
 
 ```
-Sequence  SameAs(Wikidata("Q133250"))                      the sense the pack implements
-          IsA(Collection())  ...                             what that sense says, plainly
-          Relation(IsA(MusicalForm()), context = Sense(Wikidata("Q...")))   another sense of the word
-          Relation(IsA(FilmScene()),   context = Sense(Wikidata("Q...")))   and another
+Sequence  Realization(Sequence(Rest($steps)), context = Execution(), ...)     the pack's, as now
+          SameAs(Wikidata("Q133250"))                                      the sense that is
+          IsA(Collection())                                                 what it says
+          Relation(IsA(MusicalForm()), context = Sense(Wikidata("Q...")))   another sense
+          Relation(IsA(FilmScene()),   context = Sense(Wikidata("Q...")))   another
 ```
 
-**Which sense is the pack's** is picked the way any sense is (AGENTS.md: "pick the sense that
-makes the question make sense"): the one whose kinds and description fit what the pack already
-says of the Concept (`Sequence IsA Collection`, a `Code` primitive; `Human IsA Someone`; `List
-IsA Collection`). When none fits clearly, the Concept gets no tie and every sense stays in its
-own context: an honest "not sure which", never the first label.
+- **Which sense a meaning already held is**, a refresh finds the way any sense is picked
+  (AGENTS.md: "pick the sense that makes the question make sense"): the one whose kinds and
+  description fit what is held of the Concept (`Sequence IsA Collection`; `Human IsA Someone`).
+  That sense is tied (`SameAs`) and what it says is held plainly, since it describes the same
+  thing. When none fits clearly there is no tie, and every sense stays in its own context: an
+  honest "not sure which", never the first label.
+- **The word's other senses sit beside it in their contexts**, and are reached the ways every
+  meaning is: by context ("what is a sequence in music"), by argument shape, by the types of
+  what they are given (concept-spec Part 6.7), by the sense the question makes sense with. They
+  do not replace or shadow a realization, because a sense's facts are relations in a context,
+  and a realization is chosen by selection, which already weighs context and types.
+- **Where two meanings disagree** (a source gives a `Functional` relation a second value), they
+  are two senses, each in its context, not a winner and a loser.
 
-**What the tied sense says is held plainly**, like any learned fact, because it describes the
-same thing the pack runs. **The other senses stay in their contexts**, so the word's music or
-film meaning never changes what `Sequence` does, and a question that means one of them
-("what is a sequence in music") picks it by use. This is how "clock" and `Mood` went wrong
-before: a stranger's sense taken plainly. With the tie, the right sense is plain and the
-strangers are contextual.
-
-What the pack declares always wins over a source where they disagree: a source's fact that
-contradicts a pack's (a `Functional` relation given a second value) is held in the sense's
-context, not plainly.
+This is how "clock" and `Mood` went wrong before: one stranger's sense taken plainly, as though a
+word had one meaning. With every sense in its context and the fitting one tied, no meaning is
+lost and none takes over.
 
 ### When it runs
 
@@ -132,11 +139,11 @@ context, not plainly.
    `~/.napkin/store.ncon` and on a phone export first; read the diff.
 4. On-use refresh after the reply, and grounding split into now and later.
 5. Wiktionary and the corpus as sources with records.
-6. Pack Concepts: the pack's own sense found by kind and tied (`SameAs`), its facts held
-   plainly; the word's other senses in their contexts, picked by use. The riskiest step; its
-   tests are that every existing test still passes, that "what is a sequence" answers with the
-   ordered sense and "what is a sequence in music" with the other, and that "clock" answers
-   sensibly.
+6. Concepts packs declared, refreshed like every other: the sense what is held already fits,
+   tied and held plainly; the word's other senses in their contexts, reached by context, shape,
+   types and use. The riskiest step, because every Concept in the seed gains senses; its tests
+   are that every existing test still passes, that "what is a sequence" answers with the ordered
+   sense and "what is a sequence in music" with the other, and that "clock" answers sensibly.
 
 ### Open questions
 
