@@ -12,7 +12,7 @@
  * Concept and answers in contexts it was never meant for.
  */
 import { type Expr, type Call, isCall } from "../concept/expression.js";
-import { type Bindings, match } from "../concept/match.js";
+import { type Bindings, match, specificity } from "../concept/match.js";
 import { declares, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { facets, matchContext } from "./context.js";
@@ -192,6 +192,11 @@ export function candidates(
     if (a.distance !== b.distance) return a.distance - b.distance;
     if (a.facetCount !== b.facetCount) return b.facetCount - a.facetCount;
     if (a.contextDepth !== b.contextDepth) return b.contextDepth - a.contextDepth;
+    // A pattern that says more of the call is the one meant for it: HowMany(Days(Until($when)))
+    // before HowMany(Rest($x)), whichever was seeded last.
+    const sa = specificity(a.realization.pattern);
+    const sb = specificity(b.realization.pattern);
+    if (sa !== sb) return sb - sa;
     const pa = preference?.(a);
     const pb = preference?.(b);
     if (pa !== undefined || pb !== undefined) {

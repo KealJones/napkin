@@ -1564,6 +1564,31 @@ Concept(Convert(),
                 )
               )
             ),
+            Comment("No code in what was said: a quantity in another unit, perhaps (\"convert ounces to pounds\")."),
+            If(
+              And(Call($isCall, $code), Equals(Member($code, "head"), "NoCode")),
+              Sequence(
+                Bind($q,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "ConvertQuantity",
+                        Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                      ),
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                If(
+                  And(Call($isCall, $q), Equals(Member($q, "head"), "Quantity")),
+                  Return($q),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               Or(Not(Call($isCall, $code)), NotEquals(Member($code, "head"), "SourceCode")),
               Return($code),

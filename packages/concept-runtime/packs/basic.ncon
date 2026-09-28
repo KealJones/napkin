@@ -1104,6 +1104,57 @@ Concept(Please(),
   )
 )
 
+// "tell me X" where X is something to know, not something to do ("tell me the capital of
+// France"): asked the way "what is X" asks it.
+Concept(Tell(),
+  Realization(Tell(Me(), $x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            Bind($done, Await(Call(Member($api, "evaluate"), $x, Member($api, "context")))),
+            If(
+              NotEquals(Call(Member($api, "format"), $done), Call(Member($api, "format"), $x)),
+              Return($done),
+              Undefined()
+            ),
+            Comment("What cannot be done is asked, the way \"what is X\" asks it: \"tell me the capital of France\"."),
+            Bind($asked,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Mood",
+                    Call(Member($api, "call"), "Interrogative"),
+                    Call(
+                      Member($api, "call"),
+                      "What",
+                      Call(Member($api, "call"), "Is", $x)
+                    )
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Call($isCall, $asked), Equals(Member($asked, "head"), "Mood")),
+                $done,
+                $asked
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // "can you X" is a question about ability in form and a request in use (Searle). Read as
 // the request only when asked as a question, which the Interrogative facet says.
 Concept(Can(),

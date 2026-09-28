@@ -4,6 +4,11 @@
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const code = await api.evaluate(api.call("CodeOf", ...args.map((a) => a.value)), api.context);
+  // No code in what was said: a quantity in another unit, perhaps ("convert ounces to pounds").
+  if (isCall(code) && code.head === "NoCode") {
+    const q = await api.evaluate(api.call("ConvertQuantity", ...args.map((a) => a.value)), api.context);
+    if (isCall(q) && q.head === "Quantity") return q;
+  }
   if (!isCall(code) || code.head !== "SourceCode") return code;
   const ir = code.args.find((a) => a.name === "ir")?.value;
   if (ir === undefined) return api.call("NoCode");

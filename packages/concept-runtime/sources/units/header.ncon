@@ -1,0 +1,11 @@
+// Quantities in units: how many of one unit are in another, and a quantity converted. What a
+// unit is in the SI unit of its kind (a pound is 0.45359237 kilograms) is read from Wikidata
+// ("conversion to SI unit", P2370), from whichever sense of the word has it (the ounce that is a
+// unit of mass, not the snow leopard), and kept with where it came from. Written by
+// scripts/pack.mjs from sources/units (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+// Quantity(16, unit = Ounces()): the unit is named, as it is data about the number, not a step.
+Concept(Quantity(), IsA(Result()))
+
+Concept(InSI(), IsA(Relation()))

@@ -136,7 +136,8 @@ export function freeVariables(e: Expr, acc = new Set<string>()): Set<string> {
  * Used to order realization candidates (concept-spec Part 9).
  */
 export function specificity(e: Expr): number {
-  if (isVariable(e)) return 0;
+  // A variable constrains nothing, and nor does Rest(...): it takes whatever is left.
+  if (isVariable(e) || (isCall(e) && e.head === REST)) return 0;
   if (!isCall(e)) return 1;
   return 1 + e.args.reduce((sum, a) => sum + specificity(a.value), 0);
 }

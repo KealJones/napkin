@@ -1,0 +1,549 @@
+// Quantities in units: how many of one unit are in another, and a quantity converted. What a
+// unit is in the SI unit of its kind (a pound is 0.45359237 kilograms) is read from Wikidata
+// ("conversion to SI unit", P2370), from whichever sense of the word has it (the ounce that is a
+// unit of mass, not the snow leopard), and kept with where it came from. Written by
+// scripts/pack.mjs from sources/units (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+// Quantity(16, unit = Ounces()): the unit is named, as it is data about the number, not a step.
+Concept(Quantity(), IsA(Result()))
+
+Concept(InSI(), IsA(Relation()))
+
+// A quantity in another unit ("convert 5 miles to kilometres", "convert ounces to pounds"): the
+// amount said (1 when none is), the first unit said and the one it goes to, each in the SI unit of
+// its kind. Quantity(amount, To, of = Quantity(amount, From)). Anything else stays as said.
+Concept(ConvertQuantity(),
+  Realization(ConvertQuantity(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Map($args, Lambda(List($a), Member($a, "value")))),
+            Var($amount, Undefined()),
+            Bind($units, List()),
+            Bind($MARK, List("To", "Into", "In", "From", "Of", "Typed")),
+            Bind($look,
+              Lambda(List($e),
+                Sequence(
+                  If(
+                    Or(
+                      Equals(TypeOf($e), "number"),
+                      And(Equals(TypeOf($e), "string"), Call(Member(Regex("^-?\\d+(\\.\\d+)?$", ""), "test"), $e))
+                    ),
+                    Assign($amount, Otherwise($amount, Call($Number, $e))),
+                    Undefined()
+                  ),
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    And(Not(Includes($MARK, Member($e, "head"))), NotEquals(Member($e, "head"), "Ref")),
+                    Call(Member($units, "push"), Object(head = Member($e, "head"), args = List())),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    If(
+                      Equals(Member($a, "name"), Undefined()),
+                      Call($look, Member($a, "value")),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf($e, $said, Call($look, $e)),
+            If(
+              LessThan(Length($units), 2),
+              Return(Call(Member($api, "call"), "ConvertQuantity", Spread($said))),
+              Undefined()
+            ),
+            Bind(List($from, $to), $units),
+            Bind($inFrom, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "InSI", $from)))),
+            Bind($inTo, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "InSI", $to)))),
+            Bind($ok,
+              Lambda(List($q),
+                And(Call($isCall, $q), Equals(TypeOf(OptionalMember(Index(Member($q, "args"), 1), "value")), "number"))
+              )
+            ),
+            If(
+              Or(
+                Or(Not(Call($ok, $inFrom)), Not(Call($ok, $inTo))),
+                NotEquals(
+                  Call(Member($api, "format"), Member(Index(Member($inFrom, "args"), 2), "value")),
+                  Call(Member($api, "format"), Member(Index(Member($inTo, "args"), 2), "value"))
+                )
+              ),
+              Return(Call(Member($api, "call"), "ConvertQuantity", Spread($said))),
+              Undefined()
+            ),
+            Bind($n, Otherwise($amount, 1)),
+            Bind($sources,
+              Filter(
+                Map(
+                  List($inFrom, $inTo),
+                  Lambda(List($q),
+                    Call(Member(Member($q, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), "from")))
+                  )
+                ),
+                $Boolean
+              )
+            ),
+            Return(
+              Object(
+                head = "Quantity",
+                args = Concat(
+                  List(
+                    Object(
+                      value = Divide(
+                        Multiply($n, Member(Index(Member($inFrom, "args"), 1), "value")),
+                        Member(Index(Member($inTo, "args"), 1), "value")
+                      )
+                    ),
+                    Object(name = "unit", value = $to),
+                    Object(
+                      name = "of",
+                      value = Object(
+                        head = "Quantity",
+                        args = List(Object(value = $n), Object(name = "unit", value = $from))
+                      )
+                    )
+                  ),
+                  $sources
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// How many of one unit are in another ("how many ounces in a pound", heard as Ounces(In(Pound()))
+// or as Ounces() beside In(Pound())): each in the SI unit of its kind, divided. A Quantity of the
+// first unit. Anything else stays as said.
+Concept(HowMany(),
+  Realization(HowMany(Rest($x)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Map($args, Lambda(List($a), Member($a, "value")))),
+            Var($a, Undefined()),
+            Var($b, Undefined()),
+            If(
+              And(
+                And(
+                  And(
+                    And(Equals(Length($said), 1), Call($isCall, Index($said, 0))),
+                    Equals(Length(Member(Index($said, 0), "args")), 1)
+                  ),
+                  Call($isCall, Member(Index(Member(Index($said, 0), "args"), 0), "value"))
+                ),
+                Equals(Member(Member(Index(Member(Index($said, 0), "args"), 0), "value"), "head"), "In")
+              ),
+              Sequence(
+                Assign($a, Object(head = Member(Index($said, 0), "head"), args = List())),
+                Assign(
+                  $b,
+                  OptionalMember(
+                    Index(Member(Member(Index(Member(Index($said, 0), "args"), 0), "value"), "args"), 0),
+                    "value"
+                  )
+                )
+              ),
+              If(
+                And(
+                  And(
+                    And(
+                      And(Equals(Length($said), 2), Call($isCall, Index($said, 0))),
+                      Not(Length(Member(Index($said, 0), "args")))
+                    ),
+                    Call($isCall, Index($said, 1))
+                  ),
+                  Equals(Member(Index($said, 1), "head"), "In")
+                ),
+                Sequence(
+                  Assign($a, Index($said, 0)),
+                  Assign($b, OptionalMember(Index(Member(Index($said, 1), "args"), 0), "value"))
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $a)), Not(Call($isCall, $b))),
+              Return(Call(Member($api, "call"), "HowMany", Spread($said))),
+              Undefined()
+            ),
+            Bind($inA, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "InSI", $a)))),
+            Bind($inB, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "InSI", $b)))),
+            Bind($ok,
+              Lambda(List($q),
+                And(Call($isCall, $q), Equals(TypeOf(OptionalMember(Index(Member($q, "args"), 1), "value")), "number"))
+              )
+            ),
+            If(
+              Or(
+                Or(Not(Call($ok, $inA)), Not(Call($ok, $inB))),
+                NotEquals(
+                  Call(Member($api, "format"), Member(Index(Member($inA, "args"), 2), "value")),
+                  Call(Member($api, "format"), Member(Index(Member($inB, "args"), 2), "value"))
+                )
+              ),
+              Return(Call(Member($api, "call"), "HowMany", Spread($said))),
+              Undefined()
+            ),
+            Bind($from,
+              Filter(
+                Map(
+                  List($inA, $inB),
+                  Lambda(List($q),
+                    Call(Member(Member($q, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), "from")))
+                  )
+                ),
+                $Boolean
+              )
+            ),
+            Return(
+              Object(
+                head = "Quantity",
+                args = Concat(
+                  List(
+                    Object(
+                      value = Divide(
+                        Member(Index(Member($inB, "args"), 1), "value"),
+                        Member(Index(Member($inA, "args"), 1), "value")
+                      )
+                    ),
+                    Object(name = "unit", value = $a)
+                  ),
+                  $from
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What one of a unit is in the SI unit of its kind: InSI(Unit, amount, Wikidata(si), from =
+// Wikidata(item)). The unit is the word's base form ("Ounces" is Ounce); its senses are the
+// Wikidata items the graph holds for it and those Wikidata finds for the word, and the first with
+// a conversion to an SI unit is the one meant. Kept as InSI(amount, Wikidata(si)) on the unit,
+// stamped from the item. The call itself when no sense has one.
+Concept(InSI(),
+  Realization(InSI($unit),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($unit, Call(Member($bindings, "get"), "unit")),
+            If(
+              Or(Not(Call($isCall, $unit)), Length(Member($unit, "args"))),
+              Return(Call(Member($api, "call"), "InSI", $unit)),
+              Undefined()
+            ),
+            Bind($word,
+              Call(
+                Member($api, "lemma"),
+                Call(
+                  Member(
+                    Call(
+                      Member(Member($unit, "head"), "replace"),
+                      Regex("([a-z])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                )
+              )
+            ),
+            Bind($name,
+              Call(
+                Member(
+                  Map(
+                    Call(Member($word, "split"), " "),
+                    Lambda(List($w), Add(Call(Member(Index($w, 0), "toUpperCase")), Call(Member($w, "slice"), 1)))
+                  ),
+                  "join"
+                ),
+                ""
+              )
+            ),
+            Bind($answer,
+              Lambda(List($amount, $si, $item),
+                Object(
+                  head = "InSI",
+                  args = Concat(
+                    List(
+                      Object(value = Call(Member($api, "call"), $name)),
+                      Object(value = $amount),
+                      Object(value = $si)
+                    ),
+                    If(
+                      $item,
+                      List(Object(name = "from", value = Call(Member($api, "call"), "Wikidata", $item))),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("Kept already."),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $name), "relations"), List()),
+              Sequence(
+                Bind($c, Member($r, "claim")),
+                If(
+                  Or(
+                    Or(Not(Call($isCall, $c)), NotEquals(Member($c, "head"), "InSI")),
+                    NotEquals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "number")
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($record,
+                  If(
+                    NotEquals(OptionalMember(OptionalIndex(Member($r, "stamps"), 0), "source"), Undefined()),
+                    Member(
+                      OptionalMember(
+                        Call(
+                          Member(Member($api, "store"), "findStamp"),
+                          Member(Index(Member($r, "stamps"), 0), "source")
+                        ),
+                        "relation"
+                      ),
+                      "claim"
+                    ),
+                    Undefined()
+                  )
+                ),
+                Return(
+                  Call(
+                    $answer,
+                    Member(Index(Member($c, "args"), 0), "value"),
+                    Member(Index(Member($c, "args"), 1), "value"),
+                    If(
+                      Call($isCall, $record),
+                      OptionalMember(Index(Member($record, "args"), 0), "value"),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("The senses: what the graph holds the word is on Wikidata, then what Wikidata finds for it."),
+            Bind($items, List()),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $name), "relations"), List()),
+              Sequence(
+                Bind($c, Member($r, "claim")),
+                If(
+                  And(
+                    And(
+                      And(Call($isCall, $c), Equals(Member($c, "head"), "SameAs")),
+                      Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                    ),
+                    Equals(Member(Member(Index(Member($c, "args"), 0), "value"), "head"), "Wikidata")
+                  ),
+                  Call(
+                    Member($items, "push"),
+                    Call(
+                      $String,
+                      Member(Index(Member(Member(Index(Member($c, "args"), 0), "value"), "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($found, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "WikidataSenses", $word)))),
+            If(
+              And(Call($isCall, $found), Equals(Member($found, "head"), "List")),
+              ForOf(
+                $a,
+                Member($found, "args"),
+                If(
+                  And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Wikidata")),
+                  Call(
+                    Member($items, "push"),
+                    Call($String, Member(Index(Member(Member($a, "value"), "args"), 0), "value"))
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            ForOf(
+              $item,
+              Call(Member(Concat(New($Set, $items)), "slice"), 0, 6),
+              Sequence(
+                Bind($got,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(
+                            Add("https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=", $item),
+                            "&property=P2370&format=json"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($value,
+                  If(
+                    And(
+                      And($got, Member($got, "claims")),
+                      Call(Member($Array, "isArray"), Member(Member($got, "claims"), "P2370"))
+                    ),
+                    OptionalMember(
+                      OptionalMember(
+                        OptionalMember(Index(Member(Member($got, "claims"), "P2370"), 0), "mainsnak"),
+                        "datavalue"
+                      ),
+                      "value"
+                    ),
+                    Undefined()
+                  )
+                ),
+                Bind($amount, If($value, Call($Number, Member($value, "amount")), $NaN)),
+                Bind($si,
+                  If(
+                    And($value, Equals(TypeOf(Member($value, "unit")), "string")),
+                    Call(Member(Call(Member(Member($value, "unit"), "split"), "/"), "pop")),
+                    Undefined()
+                  )
+                ),
+                If(
+                  Or(Not(Call(Member($Number, "isFinite"), $amount)), Not($si)),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($record,
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    "Wikidata",
+                    Object(
+                      head = "Imported",
+                      args = List(Object(value = $item), Object(name = "license", value = "CC0"))
+                    ),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  $name,
+                  Call(
+                    Member($api, "call"),
+                    "InSI",
+                    $amount,
+                    Call(Member($api, "call"), "Wikidata", $si)
+                  ),
+                  Undefined(),
+                  Member($record, "seq")
+                ),
+                Return(
+                  Call(
+                    $answer,
+                    $amount,
+                    Call(Member($api, "call"), "Wikidata", $si),
+                    $item
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "InSI", $unit))
+          )
+        )
+      )
+    )
+  )
+)
+
+// A quantity said: "16 ounces", and what it was converted from when it was: "1 ounce is 0.0625
+// pounds". A unit is said in its base form for one, and as it was said (or with an s) for more.
+Concept(Quantity(),
+  Realization(Quantity(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($say,
+              Lambda(List($q),
+                Sequence(
+                  Bind($n,
+                    Call(
+                      $Number,
+                      Call(Member(Call($Number, Member(Index(Member($q, "args"), 0), "value")), "toPrecision"), 10)
+                    )
+                  ),
+                  Bind($unit,
+                    OptionalMember(
+                      Call(Member(Member($q, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "unit"))),
+                      "value"
+                    )
+                  ),
+                  Bind($words,
+                    If(
+                      Call($isCall, $unit),
+                      Call(
+                        Member(
+                          Call(
+                            Member(Member($unit, "head"), "replace"),
+                            Regex("([a-z])([A-Z])", "g"),
+                            "$1 $2"
+                          ),
+                          "toLowerCase"
+                        )
+                      ),
+                      Call($String, $unit)
+                    )
+                  ),
+                  Bind($one, Call(Member($api, "lemma"), $words)),
+                  Bind($many, If(NotEquals($words, $one), $words, Add($one, "s"))),
+                  Return(Add(Add($n, " "), If(Equals($n, 1), $one, $many)))
+                )
+              )
+            ),
+            Bind($self, Object(head = "Quantity", args = $args)),
+            Bind($of,
+              OptionalMember(Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "of"))), "value")
+            ),
+            Bind($text,
+              If(
+                Call($isCall, $of),
+                Add(Add(Call($say, $of), " is "), Call($say, $self)),
+                Call($say, $self)
+              )
+            ),
+            Return(Add(Add(Call(Member(Index($text, 0), "toUpperCase")), Call(Member($text, "slice"), 1)), "."))
+          )
+        )
+      )
+    )
+  )
+)
