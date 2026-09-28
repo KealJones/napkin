@@ -1861,6 +1861,13 @@ Concept(GladYouLikeIt(),
 
 Concept(Laughing(), Realization(Laughing(), context = Speaking(), body = "Ha!"))
 
+Concept(ProbablyNot(),
+  Realization(ProbablyNot(),
+    context = Speaking(),
+    body = "Probably not, but I can't say for sure."
+  )
+)
+
 Concept(Sorry(),
   Realization(Sorry(),
     context = Speaking(),

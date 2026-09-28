@@ -10,7 +10,7 @@
  */
 import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
 import { reachesBehaviour } from "../runtime/select.js";
-import { groundInWikidata } from "../research/wikidata.js";
+import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
@@ -22,7 +22,7 @@ import { foldPhrases, sayPhrase } from "../ears/phrase.js";
 
 export interface LearnStep {
   readonly identity: string;
-  readonly how: "graph" | "wikidata" | "dictionary" | "phrase";
+  readonly how: "graph" | "wikidata" | "dictionary" | "phrase" | "research";
   readonly detail: string;
 }
 
@@ -63,6 +63,31 @@ export function readable(identity: string): string {
   return identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase();
 }
 
+/** An answer that says it does not know: Unknown(...), or a truth not known. */
+function unknownAnswer(result: Expr | undefined): boolean {
+  if (result === undefined || !isCall(result)) return false;
+  if (result.head === "Unknown" || result.head === "NoDescription") return true;
+  const inner = result.head === "Answer" ? result.args[0]?.value : undefined;
+  return inner !== undefined && isCall(inner) && (inner.head === "UnknownTruth" || inner.head === "Unknown");
+}
+
+/**
+ * The words of what was asked that Napkin holds nothing sourced about: no pack declares them and
+ * nothing learned is said of them. Words packs declare ("is", "in", "what") are how questions
+ * are asked, not what they are about.
+ */
+function unsourced(runtime: Runtime, expression: Expr): string[] {
+  const out: string[] = [];
+  for (const node of walk(expression)) {
+    if (!isCall(node) || node.args.length || out.includes(node.head)) continue;
+    const unit = runtime.store.get(node.head);
+    const declared = unit !== undefined && (unit.realizations.length > 0 || unit.relations.some((r) => r.stamps?.some((st) => st.pack !== undefined)));
+    const known = unit !== undefined && unit.relations.some((r) => r.stamps?.some((st) => st.pack === undefined));
+    if (!declared && !known) out.push(node.head);
+  }
+  return out;
+}
+
 export async function learn(
   runtime: Runtime,
   message: string,
@@ -83,6 +108,10 @@ export async function learn(
   let passes = 0;
   /** Identities already looked up this turn: a lookup that found nothing is not tried again. */
   const attempted = options.asked ?? new Set<string>();
+  /** Whether an answer of not knowing has been researched this turn: once is enough. */
+  let researched = false;
+  /** Whether that research looked for what was asked and did not find it. */
+  let notFound = false;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
     passes = pass + 1;
@@ -95,7 +124,57 @@ export async function learn(
 
     const all = collectGaps(runtime, result);
     const gaps = learnable(runtime, all);
-    if (!gaps.length) return { steps, result, passes, remaining: [] };
+    if (!gaps.length) {
+      // "I don't know" is where to look further, not where to stop: the words of the question
+      // Napkin holds nothing sourced about yet ("tomato" in "is a tomato a fruit") are looked up,
+      // once, and the question is worked out again with what was found.
+      if (options.research === false || researched || !unknownAnswer(result)) {
+        return { steps, result: researched && notFound && unknownAnswer(result) ? call("Answer", [{ value: c("ProbablyNot") }]) : result, passes, remaining: [] };
+      }
+      researched = true;
+      const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+      let found = false;
+      for (const identity of unsourced(runtime, expression).slice(0, 4)) {
+        if (attempted.has(identity)) continue;
+        attempted.add(identity);
+        try {
+          const grounded = await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said });
+          if (grounded?.relations.length) {
+            steps.push({ identity, how: "research", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
+            found = true;
+          }
+        } catch {
+          // Unreachable is not an answer: the question stays as it was.
+        }
+      }
+      // "Is a tomato a fruit": whether one is a kind of the other is asked of the world's own
+      // hierarchy, and what it says is kept as a fact with the way it was found.
+      for (const node of walk(expression)) {
+        if (!isCall(node) || node.head !== "Is" || node.args.length !== 2) continue;
+        const [a, b] = node.args.map((x) => x.value);
+        if (!isCall(a) || !isCall(b) || a.args.length || b.args.length) continue;
+        const from = wikidataItem(runtime.store, a.head);
+        const to = wikidataItem(runtime.store, b.head);
+        if (!from || !to) continue;
+        try {
+          const path = await reachesInWikidata(from, to);
+          if (!path) {
+            // Looked for and not found, as far as the search went: probably not, which is said
+            // as that, never kept as a fact.
+            notFound = true;
+            continue;
+          }
+          const record = runtime.store.addRelation("Wikidata", call("Imported", [{ value: from }, { name: "path", value: path.join(" > ") }, { name: "license", value: "CC0" }]), undefined, runtime.trace.cause);
+          runtime.store.addRelation(a.head, call("SubclassOf", [{ value: c(b.head) }]), undefined, record.seq);
+          steps.push({ identity: a.head, how: "research", detail: `${a.head} is a kind of ${b.head}: ${path.join(" > ")}` });
+          found = true;
+        } catch {
+          // Unreachable is not an answer.
+        }
+      }
+      if (!found) return { steps, result: notFound ? call("Answer", [{ value: c("ProbablyNot") }]) : result, passes, remaining: [] };
+      continue;
+    }
 
     let learnedSomething = false;
     // "ice cream" read as Cream(Ice()): the words may name one thing, so the phrase is looked

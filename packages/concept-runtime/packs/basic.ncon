@@ -763,6 +763,9 @@ Concept(Unrealized(), IsA(Failure()))
 
 Concept(UnknownTruth(), IsA(TruthValue()))
 
+// Looked for and not found, as far as the looking went: not a no, and not nothing.
+Concept(ProbablyNot(), IsA(TruthValue()))
+
 // ------------------------------------------------------------------ *
 // Source markers. Each projection is Lossy, so Describe withholds it and the
 // marker survives into its own description.

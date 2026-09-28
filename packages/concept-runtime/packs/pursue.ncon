@@ -2146,6 +2146,20 @@ Concept(Pursue(),
               )
             ),
             Bind($propertyWords, List()),
+            Comment("Two words said side by side may name one property (\"boiling point\"): tried first."),
+            For(
+              Var($i, 0),
+              LessThan(Add($i, 1), Length($words)),
+              PostIncrement($i),
+              Call(
+                Member($propertyWords, "push"),
+                Object(
+                  head = Member(Index($words, $i), "head"),
+                  text = Add(Add(Member(Index($words, $i), "text"), " "), Member(Index($words, Add($i, 1)), "text")),
+                  also = Member(Index($words, Add($i, 1)), "head")
+                )
+              )
+            ),
             ForOf(
               $w,
               $words,
@@ -2173,7 +2187,7 @@ Concept(Pursue(),
                   $words,
                   Sequence(
                     If(
-                      Equals(Member($e, "head"), Member($p, "head")),
+                      Or(Equals(Member($e, "head"), Member($p, "head")), Equals(Member($e, "head"), Member($p, "also"))),
                       Continue(),
                       Undefined()
                     ),

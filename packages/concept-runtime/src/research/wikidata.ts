@@ -325,3 +325,38 @@ export async function regroundSense(
   const relations = await groundSense(store, identity, sense, kind ? c(kind) : undefined, get, options.cause);
   return { item: sense.id, relations };
 }
+
+/**
+ * Whether one item is a kind of another in the world's own hierarchy: from `from`, up what it is
+ * a subclass of, an instance of, and (for living things) its parent taxon, breadth first, until
+ * `to` is reached or the search runs out. The items on the way, or undefined.
+ */
+export async function reachesInWikidata(from: string, to: string, options: { fetch?: Fetch; limit?: number } = {}): Promise<string[] | undefined> {
+  const get = options.fetch ?? defaultFetch;
+  const limit = options.limit ?? 60;
+  const came = new Map<string, string | undefined>([[from, undefined]]);
+  let frontier = [from];
+  let seen = 0;
+  while (frontier.length && seen < limit) {
+    const batch = frontier.slice(0, 40);
+    frontier = frontier.slice(40);
+    seen += batch.length;
+    const found = await entities(batch, "claims", get);
+    for (const id of batch) {
+      for (const property of ["P279", "P31", "P171"]) {
+        for (const snak of found[id]?.claims?.[property] ?? []) {
+          const up = snak.mainsnak?.datavalue?.value?.id;
+          if (!up || came.has(up)) continue;
+          came.set(up, id);
+          if (up === to) {
+            const path = [to];
+            for (let at: string | undefined = id; at !== undefined; at = came.get(at)) path.unshift(at);
+            return path;
+          }
+          frontier.push(up);
+        }
+      }
+    }
+  }
+  return undefined;
+}
