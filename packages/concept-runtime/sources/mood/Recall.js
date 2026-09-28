@@ -13,7 +13,8 @@ async (args, bindings, api) => {
   const look = (e, into) => {
     if (!isCall(e)) return;
     if (!e.args.length) into.add(e.head);
-    for (const a of e.args) look(a.value, into);
+    // A named argument is data about its call (what "he" resolved to), not something said.
+    for (const a of e.args) if (a.name === undefined) look(a.value, into);
   };
   const said = new Set();
   look(line, said);

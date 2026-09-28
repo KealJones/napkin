@@ -1015,6 +1015,28 @@ Concept(About(),
               Return(Call(Member($api, "call"), "About", $x)),
               Undefined()
             ),
+            Comment("\"tell me about him\": about what the word points at, not the word."),
+            If(
+              And(
+                Equals(Member($x, "head"), "Ref"),
+                Call(Member(Member($x, "args"), "some"), Lambda(List($a), Equals(Member($a, "name"), "resolvedTo")))
+              ),
+              Sequence(
+                Assign($x, Await(Call(Member($api, "evaluate"), $x))),
+                If(
+                  Not(Call($isCall, $x)),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "About",
+                      Member(Index($args, 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             Bind($refers,
               Await(
                 Call(
@@ -1351,7 +1373,6 @@ Concept(Pursue(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($goal, Member(Index($args, 0), "value")),
             Bind($asks,
               If(
                 GreaterThan(Length($args), 1),
@@ -1360,6 +1381,44 @@ Concept(Pursue(),
               )
             ),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Comment("A word that points (\"he\" after Steven Spielberg) is looked for as what it points at."),
+            Bind($pointed,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return($e), Undefined()),
+                    If(
+                      And(
+                        Equals(Member($e, "head"), "Ref"),
+                        Call(
+                          Member(Member($e, "args"), "some"),
+                          Lambda(List($a), Equals(Member($a, "name"), "resolvedTo"))
+                        )
+                      ),
+                      Sequence(
+                        Bind($to, Await(Call(Member($api, "evaluate"), $e))),
+                        Return(
+                          If(
+                            And(Call($isCall, $to), Not(Length(Member($to, "args")))),
+                            $to,
+                            $e
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Bind($out, List()),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Call(Member($out, "push"), Object(Spread($a), value = Await(Call($pointed, Member($a, "value")))))
+                    ),
+                    Return(Object(Spread($e), args = $out))
+                  )
+                )
+              )
+            ),
+            Bind($goal, Await(Call($pointed, Member(Index($args, 0), "value")))),
             If(
               Not(Call($isCall, $goal)),
               Return(Call(Member($api, "call"), "NotFound", $goal)),
@@ -1432,197 +1491,195 @@ Concept(Pursue(),
             Comment("What is held of a thing the question names, found by its relation's name or by what else"),
             Comment("the relation is called (\"married to\" is Spouse, \"born in\" is PlaceOfBirth), of the kind the"),
             Comment("question asks for (\"where\" takes the place, \"when\" the date). Read from both ends."),
-            Sequence(
-              Bind($spoken,
-                Lambda(List($h),
-                  Call(
-                    Member(
-                      Call(
-                        Member($h, "replace"),
-                        Regex("([a-z0-9])([A-Z])", "g"),
-                        "$1 $2"
-                      ),
-                      "toLowerCase"
-                    )
-                  )
-                )
-              ),
-              Bind($questionWords,
-                New(
-                  $Set,
-                  Map(
-                    FlatMap($heads, Lambda(List($h), Call(Member(Call($spoken, $h), "split"), " "))),
-                    Lambda(List($w), Call(Member($api, "lemma"), $w))
-                  )
-                )
-              ),
-              Bind($grounded,
-                Lambda(List($h),
-                  Call(
-                    Member(
-                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
-                      "some"
+            Bind($spoken,
+              Lambda(List($h),
+                Call(
+                  Member(
+                    Call(
+                      Member($h, "replace"),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
                     ),
-                    Lambda(List($r),
-                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "SameAs"))
-                    )
+                    "toLowerCase"
                   )
                 )
-              ),
-              Bind($called,
-                Lambda(List($rel),
-                  Map(
-                    Filter(
-                      Map(
-                        Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $rel), "relations"), List()),
-                        Lambda(List($r), Member($r, "claim"))
-                      ),
-                      Lambda(List($c),
-                        And(
-                          And(Call($isCall, $c), Equals(Member($c, "head"), "Called")),
-                          Equals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "string")
-                        )
+              )
+            ),
+            Bind($questionWords,
+              New(
+                $Set,
+                Map(
+                  FlatMap($heads, Lambda(List($h), Call(Member(Call($spoken, $h), "split"), " "))),
+                  Lambda(List($w), Call(Member($api, "lemma"), $w))
+                )
+              )
+            ),
+            Bind($grounded,
+              Lambda(List($h),
+                Call(
+                  Member(
+                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"), List()),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "SameAs"))
+                  )
+                )
+              )
+            ),
+            Bind($called,
+              Lambda(List($rel),
+                Map(
+                  Filter(
+                    Map(
+                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $rel), "relations"), List()),
+                      Lambda(List($r), Member($r, "claim"))
+                    ),
+                    Lambda(List($c),
+                      And(
+                        And(Call($isCall, $c), Equals(Member($c, "head"), "Called")),
+                        Equals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "string")
                       )
-                    ),
-                    Lambda(List($c), Member(Index(Member($c, "args"), 0), "value"))
-                  )
+                    )
+                  ),
+                  Lambda(List($c), Member(Index(Member($c, "args"), 0), "value"))
                 )
-              ),
-              ForOf(
-                $h,
-                $heads,
-                Sequence(
-                  If(Not(Call($grounded, $h)), Continue(), Undefined()),
-                  Bind($own, New($Set, Call(Member(Call($spoken, $h), "split"), " "))),
-                  Bind($said,
-                    Lambda(List($w),
-                      Call(
-                        Member(Concat($questionWords), "some"),
-                        Lambda(List($a),
-                          And(
-                            Not(Call(Member($own, "has"), $a)),
-                            Or(
-                              Equals($a, $w),
-                              And(
-                                And(GreaterThan(Length($w), 4), GreaterThan(Length($a), 4)),
-                                Or(
-                                  Call(Member($a, "startsWith"), Call(Member($w, "slice"), 0, Negate(2))),
-                                  Call(Member($w, "startsWith"), Call(Member($a, "slice"), 0, Negate(2)))
-                                )
+              )
+            ),
+            ForOf(
+              $h,
+              $heads,
+              Sequence(
+                If(Not(Call($grounded, $h)), Continue(), Undefined()),
+                Bind($own, New($Set, Call(Member(Call($spoken, $h), "split"), " "))),
+                Bind($said,
+                  Lambda(List($w),
+                    Call(
+                      Member(Concat($questionWords), "some"),
+                      Lambda(List($a),
+                        And(
+                          Not(Call(Member($own, "has"), $a)),
+                          Or(
+                            Equals($a, $w),
+                            And(
+                              And(GreaterThan(Length($w), 4), GreaterThan(Length($a), 4)),
+                              Or(
+                                Call(Member($a, "startsWith"), Call(Member($w, "slice"), 0, Negate(2))),
+                                Call(Member($w, "startsWith"), Call(Member($a, "slice"), 0, Negate(2)))
                               )
                             )
                           )
                         )
                       )
                     )
-                  ),
-                  Bind($claims,
-                    Or(
-                      Call(
-                        Member($api, "toHost"),
-                        Await(
-                          Call(
-                            Member($api, "evaluate"),
-                            Call(
-                              Member($api, "call"),
-                              "ClaimsOf",
-                              $h,
-                              Call(Member($api, "call"), "Record")
-                            )
-                          )
-                        )
-                      ),
-                      List()
-                    )
-                  ),
-                  Bind($found, List()),
-                  Var($fact, Undefined()),
-                  ForOf(
-                    $t,
-                    If(
-                      Call(Member($Array, "isArray"), $claims),
-                      $claims,
-                      List()
-                    ),
-                    Sequence(
-                      Bind($rel, And($t, Member($t, "predicate"))),
-                      If(
-                        Or(
-                          NotEquals(TypeOf($rel), "string"),
-                          Includes(
-                            List(
-                              "SameAs",
-                              "Means",
-                              "IsA",
-                              "SubclassOf",
-                              "Named",
-                              "Called",
-                              "DistinctFrom",
-                              "Mentioned"
-                            ),
-                            $rel
-                          )
-                        ),
-                        Continue(),
-                        Undefined()
-                      ),
-                      Bind($names, Concat(List(Call($spoken, $rel)), Call($called, $rel))),
-                      Bind($fitsWords,
+                  )
+                ),
+                Bind($claims,
+                  Or(
+                    Call(
+                      Member($api, "toHost"),
+                      Await(
                         Call(
-                          Member($names, "some"),
-                          Lambda(List($n),
-                            Sequence(
-                              Bind($ws,
-                                Filter(
-                                  Or(
-                                    Call(Member(Call(Member($n, "toLowerCase")), "match"), Regex("[a-z]{3,}", "g")),
-                                    List()
-                                  ),
-                                  Lambda(List($w), Not(Call(Member($own, "has"), $w)))
-                                )
-                              ),
-                              Return(And(GreaterThan(Length($ws), 0), Call(Member($ws, "every"), $said)))
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "ClaimsOf",
+                            $h,
+                            Call(Member($api, "call"), "Record")
+                          )
+                        )
+                      )
+                    ),
+                    List()
+                  )
+                ),
+                Bind($found, List()),
+                Var($fact, Undefined()),
+                ForOf(
+                  $t,
+                  If(
+                    Call(Member($Array, "isArray"), $claims),
+                    $claims,
+                    List()
+                  ),
+                  Sequence(
+                    Bind($rel, And($t, Member($t, "predicate"))),
+                    If(
+                      Or(
+                        NotEquals(TypeOf($rel), "string"),
+                        Includes(
+                          List(
+                            "SameAs",
+                            "Means",
+                            "IsA",
+                            "SubclassOf",
+                            "Named",
+                            "Called",
+                            "DistinctFrom",
+                            "Mentioned"
+                          ),
+                          $rel
+                        )
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($names, Concat(List(Call($spoken, $rel)), Call($called, $rel))),
+                    Bind($fitsWords,
+                      Call(
+                        Member($names, "some"),
+                        Lambda(List($n),
+                          Sequence(
+                            Bind($ws,
+                              Filter(
+                                Or(
+                                  Call(Member(Call(Member($n, "toLowerCase")), "match"), Regex("[a-z]{3,}", "g")),
+                                  List()
+                                ),
+                                Lambda(List($w), Not(Call(Member($own, "has"), $w)))
+                              )
+                            ),
+                            Return(And(GreaterThan(Length($ws), 0), Call(Member($ws, "every"), $said)))
+                          )
+                        )
+                      )
+                    ),
+                    Bind($value, Call(Member($api, "fromHost"), Member($t, "object"))),
+                    If(
+                      And(
+                        And($fitsWords, Call($fits, $value)),
+                        Not(
+                          Call(
+                            Member($found, "some"),
+                            Lambda(List($v),
+                              Equals(Call(Member($api, "format"), $v), Call(Member($api, "format"), $value))
                             )
                           )
                         )
                       ),
-                      Bind($value, Call(Member($api, "fromHost"), Member($t, "object"))),
+                      Sequence(
+                        Call(Member($found, "push"), $value),
+                        Assign($fact, Or($fact, Call(Member($api, "fromHost"), Member($t, "expr"))))
+                      ),
+                      Undefined()
+                    )
+                  )
+                ),
+                If(
+                  Length($found),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Found",
                       If(
-                        And(
-                          And($fitsWords, Call($fits, $value)),
-                          Not(
-                            Call(
-                              Member($found, "some"),
-                              Lambda(List($v),
-                                Equals(Call(Member($api, "format"), $v), Call(Member($api, "format"), $value))
-                              )
-                            )
-                          )
-                        ),
-                        Sequence(
-                          Call(Member($found, "push"), $value),
-                          Assign($fact, Or($fact, Call(Member($api, "fromHost"), Member($t, "expr"))))
-                        ),
-                        Undefined()
-                      )
+                        Equals(Length($found), 1),
+                        Index($found, 0),
+                        Call(Member($api, "call"), "List", Spread($found))
+                      ),
+                      $fact
                     )
                   ),
-                  If(
-                    Length($found),
-                    Return(
-                      Call(
-                        Member($api, "call"),
-                        "Found",
-                        If(
-                          Equals(Length($found), 1),
-                          Index($found, 0),
-                          Call(Member($api, "call"), "List", Spread($found))
-                        ),
-                        $fact
-                      )
-                    ),
-                    Undefined()
-                  )
+                  Undefined()
                 )
               )
             ),

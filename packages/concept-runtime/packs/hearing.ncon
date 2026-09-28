@@ -2261,6 +2261,14 @@ Concept(Those(), IsA(Pointing()))
 
 Concept(Them(), IsA(Pointing()))
 
+Concept(He(), IsA(Pointing()))
+
+Concept(She(), IsA(Pointing()))
+
+Concept(Him(), IsA(Pointing()))
+
+Concept(Her(), IsA(Pointing()))
+
 // How a word is written out, where the graph names it otherwise: "i" is Me.
 Concept(HeardAs(), IsA(Relation()))
 

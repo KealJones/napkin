@@ -651,14 +651,23 @@ Concept(Ref(),
               Undefined()
             ),
             Bind($value, Member($found, "value")),
+            Comment("An answer points at what it answered; a description at what it describes."),
             Bind($unwrap,
               Lambda(List($x),
                 If(
-                  And(And($x, Equals(Member($x, "head"), "Answer")), Equals(Length(Member($x, "args")), 1)),
-                  Member(Index(Member($x, "args"), 0), "value"),
+                  And(
+                    And($x, Or(Equals(Member($x, "head"), "Answer"), Equals(Member($x, "head"), "Describes"))),
+                    AtLeast(Length(Member($x, "args")), 1)
+                  ),
+                  Call($unwrap, Member(Index(Member($x, "args"), 0), "value")),
                   $x
                 )
               )
+            ),
+            If(
+              And($value, Equals(Member($value, "head"), "Describes")),
+              Return(Call($unwrap, $value)),
+              Undefined()
             ),
             If(
               NotEquals(TypeOf($value), "string"),

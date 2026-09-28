@@ -72,10 +72,17 @@ export function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]
   if (store && result.head === "Describes" && machineryOnly(store, result.args[0]?.value)) return true;
   // Nor does one that has only its name ("Steven Spielberg", learned as who directed Jaws).
   const subject = result.head === "Describes" ? result.args[0]?.value : undefined;
-  if (store && subject !== undefined && isCall(subject) && !subject.args.length && !(store.get(subject.head)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head))) return true;
+  if (store && subject !== undefined && isCall(subject) && !subject.args.length && nameOnly(store, subject.head)) return true;
+  // Nor does the thing said back as it was ("steven spielberg" realizing to StevenSpielberg).
+  if (store && !result.args.length && store.has(result.head) && nameOnly(store, result.head)) return true;
   if (result.head === "Unknown" || result.head === "NoDescription") return true;
   const inner = result.head === "Answer" ? result.args[0]?.value : undefined;
   return inner !== undefined && isCall(inner) && (inner.head === "UnknownTruth" || inner.head === "Unknown");
+}
+
+/** A thing Napkin holds only the name of. */
+function nameOnly(store: Runtime["store"], identity: string): boolean {
+  return !(store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head));
 }
 
 /**
@@ -127,6 +134,19 @@ function unsourced(runtime: Runtime, expression: Expr): string[] {
     const declared = unit !== undefined && (unit.realizations.length > 0 || unit.relations.some((r) => r.stamps?.some((st) => st.pack !== undefined)));
     const known = unit !== undefined && unit.relations.some((r) => r.stamps?.some((st) => st.pack === undefined));
     if (!declared && !known) out.push(node.head);
+  }
+  // A name the question says in words ("steven spielberg" is Spielberg(Steven())) is what it is
+  // about, when all Napkin holds of it is the name.
+  const folds = (runtime.store.get("Concept")?.realizations ?? []).filter((r) => r.properties.some((p) => isCall(p) && p.head === "Fold"));
+  for (const node of walk(expression)) {
+    if (!isCall(node)) continue;
+    for (const r of folds) {
+      const p = r.pattern;
+      const target = r.properties.map((x) => (isCall(x) && x.head === "Fold" ? x.args[0]?.value : undefined)).find((x) => x !== undefined);
+      if (!isCall(p) || p.head !== node.head || target === undefined || !isCall(target) || out.includes(target.head)) continue;
+      const fixed = p.args.filter((a) => !(isCall(a.value) && a.value.head === "Rest"));
+      if (fixed.every((a, i) => node.args[i] !== undefined && format(node.args[i].value) === format(a.value)) && nameOnly(runtime.store, target.head)) out.push(target.head);
+    }
   }
   return out;
 }
@@ -188,7 +208,7 @@ async function learnOnce(
       const described = subject !== undefined && isCall(subject) && machineryOnly(runtime.store, subject) ? [subject.head] : [];
       // The thing an answer says nothing is known about ("I don't know anything about Steven
       // Spielberg": his name was learned from Jaws, nothing else) is looked up too.
-      const about = result !== undefined && isCall(result) && (result.head === "NoDescription" || result.head === "Unknown" || result.head === "Describes") ? result.args[0]?.value : undefined;
+      const about = result !== undefined && isCall(result) && (result.head === "NoDescription" || result.head === "Unknown" || result.head === "Describes") ? result.args[0]?.value : result !== undefined && isCall(result) && !result.args.length ? result : undefined;
       if (about !== undefined && isCall(about) && !about.args.length && !describedAlready(runtime, about.head)) described.push(about.head);
       for (const identity of [...described, ...unsourced(runtime, expression)].slice(0, 4)) {
         if (attempted.has(identity)) continue;

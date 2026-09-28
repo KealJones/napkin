@@ -250,11 +250,37 @@ Concept(NamedWhole(),
                 And(And($named, Member($named, "head")), Not(Length(Member($named, "args")))),
                 NotEquals(Call(Member($api, "format"), $named), Call(Member($api, "format"), $line))
               ),
-              Return(
-                Call(
-                  Member($api, "evaluate"),
-                  $named,
-                  Member($api, "context")
+              Sequence(
+                Bind($value,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      $named,
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                Comment("A name said alone that is only a name (\"steven spielberg\"): who or what it is, asked."),
+                If(
+                  NotEquals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $named)),
+                  Return($value),
+                  Undefined()
+                ),
+                Bind($asked,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "WordAlone", $named),
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    And($asked, Equals(Member($asked, "head"), "WordAlone")),
+                    $value,
+                    $asked
+                  )
                 )
               ),
               Undefined()
@@ -336,10 +362,15 @@ Concept(Recall(),
                     Call(Member($into, "add"), Member($e, "head")),
                     Undefined()
                   ),
+                  Comment("A named argument is data about its call (what \"he\" resolved to), not something said."),
                   ForOf(
                     $a,
                     Member($e, "args"),
-                    Call($look, Member($a, "value"), $into)
+                    If(
+                      Equals(Member($a, "name"), Undefined()),
+                      Call($look, Member($a, "value"), $into),
+                      Undefined()
+                    )
                   ),
                   Undefined()
                 )

@@ -160,19 +160,22 @@ Concept(Words(),
                         )
                       )
                     ),
-                    If(
-                      And(
-                        Call($isCall, $kinds),
-                        Call(
-                          Member(Member($kinds, "args"), "some"),
-                          Lambda(List($a),
-                            And(
-                              Call($isCall, Member($a, "value")),
-                              Equals(Member(Member($a, "value"), "head"), "Marker")
+                    Bind($kindOf,
+                      Lambda(List($k),
+                        And(
+                          Call($isCall, $kinds),
+                          Call(
+                            Member(Member($kinds, "args"), "some"),
+                            Lambda(List($a),
+                              And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), $k))
                             )
                           )
                         )
-                      ),
+                      )
+                    ),
+                    Comment("Structure is said as what it holds; a word that is also structure (\"of\") is still said."),
+                    If(
+                      And(Call($kindOf, "Marker"), Not(Call($kindOf, "WordClass"))),
                       Return(Call(Member(Await(Call(Member($Promise, "all"), Map($positional, $say))), "join"), " ")),
                       Undefined()
                     ),
@@ -1180,10 +1183,13 @@ Concept(Describes(),
                       Undefined()
                     ),
                     Call(Member($seen, "add"), Member($f, "head")),
+                    Comment(
+                      "A fact whose value is a phrase (Director(Of(Jaws()))) is said whole: \"director of Jaws\"."
+                    ),
                     Call(
                       Member($rest, "push"),
                       If(
-                        Equals($v, Undefined()),
+                        Or(Equals($v, Undefined()), And(Call($isCall, $v), Length(Member($v, "args")))),
                         Await(Call($sayOf, $f)),
                         Add(Add(Await(Call($sayOf, Call(Member($api, "call"), Member($f, "head")))), " "), $said)
                       )

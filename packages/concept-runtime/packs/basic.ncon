@@ -1279,11 +1279,9 @@ Concept(Interrogative(),
               Undefined()
             ),
             Var($subject, Member(Index($args, 0), "value")),
-            // "what is chess" is What(Is(Chess())): a helper said after the question word
-            // carries the question, so the question asks what it holds, What(Chess()).
             Bind($kinds,
               If(
-                And(Equals(Length($args), 1), And($subject, Member($subject, "head"))),
+                And(And(Equals(Length($args), 1), $subject), Member($subject, "head")),
                 Await(
                   Call(
                     Member($api, "evaluate"),
@@ -1326,8 +1324,6 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
-            // "what is a work in progress": a question whose words spell a Concept asks about
-            // it, read once and asked again as the graph names it.
             Bind($asked, Call(Member($bindings, "get"), "question")),
             Bind($readAs, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $asked)))),
             If(
@@ -1456,30 +1452,30 @@ Concept(Interrogative(),
               Undefined()
             ),
             Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
-            // A compound subject that realized to itself is looked for, not described: "my
-            // name" is not a kind with relations to list, it is something said or held.
-            // A question of two or more parts ("where do i live": Me() and Live()) is looked for
-            // whole, since no one part is what it asks about; describing the subject would
-            // answer something else ("when do you say hello").
+            Comment("\"who is that?\": a word that points is asked about the thing it points at, not answered with it."),
+            If(
+              And(
+                And(And(And($subject, Equals(Member($subject, "head"), "Ref")), $value), Member($value, "head")),
+                Not(Length(Member($value, "args")))
+              ),
+              Assign($subject, $value),
+              Undefined()
+            ),
             If(
               And(
                 Or(
                   And(And($subject, Member($subject, "head")), Length(Member($subject, "args"))),
                   GreaterThan(Length($args), 1)
                 ),
-                // A subject that answers on its own ("lol", laughing back) was said to, not
-                // asked about: "what does lol mean" is not answered by laughing.
                 Or(
                   Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $subject)),
                   And(
-                    GreaterThan(Length($args), 1),
-                    And(Member($value, "head"), Equals(Member($value, "head"), "Answer"))
+                    And(GreaterThan(Length($args), 1), Member($value, "head")),
+                    Equals(Member($value, "head"), "Answer")
                   )
                 )
               ),
               Sequence(
-                // What the question word asks for (Who: someone), so Pursue can refuse an
-                // answer of another kind.
                 Bind($question, Call(Member($bindings, "get"), "question")),
                 Bind($target,
                   If(
@@ -1533,14 +1529,10 @@ Concept(Interrogative(),
                   ),
                   Undefined()
                 ),
-                // Not found anywhere is not knowing, said plainly. Describing the head of a
-                // compound would answer "my cat's name" with what "my" is.
                 Return(Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Talk", $target))))
               ),
               Undefined()
             ),
-            // A kind that is only its synonym by another name is described as said: what
-            // the synonym holds describes it too (Relations).
             If(
               And(
                 And(
@@ -1652,8 +1644,6 @@ Concept(Interrogative(),
                 )
               )
             ),
-            // Nothing held about it is not nothing said about it: "who is greg", after "greg is
-            // my coworker", is answered by what was said.
             If(
               And(Member($described, "head"), Equals(Member($described, "head"), "NoDescription")),
               Sequence(
