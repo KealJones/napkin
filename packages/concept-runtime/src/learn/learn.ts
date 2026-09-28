@@ -105,7 +105,7 @@ function withMentions(runtime: Runtime, result: Expr | undefined): Expr | undefi
     const positional = claim.args.filter((a) => a.name === undefined);
     const is = positional.find((a) => isCall(a.value) && a.value.head === "Is" && isCall(a.value.args[0]?.value) && a.value.args[0].value.head === about.head && !a.value.args[0].value.args.length);
     if (!is) continue;
-    const role = call(claim.head, positional.filter((a) => a !== is));
+    const role = call("Mentioned", [{ value: call(claim.head, positional.filter((a) => a !== is)) }]);
     if (!roles.some((r) => format(r) === format(role))) roles.push(role);
   }
   if (!roles.length) return result;

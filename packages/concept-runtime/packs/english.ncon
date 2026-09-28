@@ -1034,9 +1034,19 @@ Concept(Describes(),
             Bind($other, List()),
             Var($name, Undefined()),
             ForOf(
-              $f,
+              $item,
               $items,
               Sequence(
+                Bind($f,
+                  If(
+                    And(
+                      And(Call($isCall, $item), Equals(Member($item, "head"), "Mentioned")),
+                      Call($isCall, OptionalMember(Index(Member($item, "args"), 0), "value"))
+                    ),
+                    Member(Index(Member($item, "args"), 0), "value"),
+                    $item
+                  )
+                ),
                 If(Not(Call($isCall, $f)), Continue(), Undefined()),
                 Bind(List($v), Call($positional, $f)),
                 If(
@@ -1131,38 +1141,51 @@ Concept(Describes(),
                   )
                 ),
                 Bind($rest, List()),
+                Bind($seen, New($Set)),
+                Bind($own, New($Set, Call(Member(Call(Member($subject, "toLowerCase")), "split"), Regex("\\s+", "")))),
+                Comment("Beside what it is: what others hold of it (Jaws holds that he directed it), not the"),
+                Comment("long tail of what it holds, which is there for questions."),
                 ForOf(
-                  $f,
+                  $m,
                   $items,
                   Sequence(
                     If(
                       Or(
-                        Or(Not(Call($isCall, $f)), Equals($f, $means)),
-                        Includes(
-                          List(
-                            "IsA",
-                            "SubclassOf",
-                            "Means",
-                            "DistinctFrom",
-                            "Named",
-                            "SameAs"
-                          ),
-                          Member($f, "head")
+                        Or(Not(Call($isCall, $m)), NotEquals(Member($m, "head"), "Mentioned")),
+                        Not(Call($isCall, OptionalMember(Index(Member($m, "args"), 0), "value")))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($f, Member(Index(Member($m, "args"), 0), "value")),
+                    If(
+                      Call(Member($seen, "has"), Member($f, "head")),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind(List($v), Call($positional, $f)),
+                    Bind($said, If(Equals($v, Undefined()), "", Await(Call($sayOf, $v)))),
+                    Comment(
+                      "What only repeats its name (\"given name Steven\") says nothing new; one of each kind of fact."
+                    ),
+                    If(
+                      And(
+                        $said,
+                        Call(
+                          Member(Call(Member(Call(Member($said, "toLowerCase")), "split"), Regex("\\s+", "")), "every"),
+                          Lambda(List($w), Call(Member($own, "has"), $w))
                         )
                       ),
                       Continue(),
                       Undefined()
                     ),
-                    Bind(List($v), Call($positional, $f)),
+                    Call(Member($seen, "add"), Member($f, "head")),
                     Call(
                       Member($rest, "push"),
                       If(
                         Equals($v, Undefined()),
                         Await(Call($sayOf, $f)),
-                        Add(
-                          Add(Await(Call($sayOf, Call(Member($api, "call"), Member($f, "head")))), " "),
-                          Await(Call($sayOf, $v))
-                        )
+                        Add(Add(Await(Call($sayOf, Call(Member($api, "call"), Member($f, "head")))), " "), $said)
                       )
                     )
                   )

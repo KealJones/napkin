@@ -900,7 +900,38 @@ Concept(LookUp(),
                       Call(Member($values, "push"), Call($Number, Member($v, "amount"))),
                       If(
                         NotEquals(Member($v, "time"), Undefined()),
-                        Call(Member($values, "push"), Member($v, "time")),
+                        Sequence(
+                          Comment("A date as precise as Wikidata says it is: a year, a month, a day (\"1946-12-18\")."),
+                          Bind($m,
+                            Call(
+                              Member(Regex("^([+-])(\\d+)-(\\d\\d)-(\\d\\d)", ""), "exec"),
+                              Call($String, Member($v, "time"))
+                            )
+                          ),
+                          Bind($year,
+                            If(
+                              $m,
+                              Add(If(Equals(Index($m, 1), "-"), "-", ""), Call($String, Call($Number, Index($m, 2)))),
+                              Undefined()
+                            )
+                          ),
+                          Call(
+                            Member($values, "push"),
+                            If(
+                              Not($m),
+                              Member($v, "time"),
+                              If(
+                                AtLeast(Otherwise(Member($v, "precision"), 11), 11),
+                                Add(Add(Add(Add($year, "-"), Index($m, 3)), "-"), Index($m, 4)),
+                                If(
+                                  Equals(Member($v, "precision"), 10),
+                                  Add(Add($year, "-"), Index($m, 3)),
+                                  $year
+                                )
+                              )
+                            )
+                          )
+                        ),
                         If(
                           NotEquals(Member($v, "text"), Undefined()),
                           Call(Member($values, "push"), Member($v, "text")),

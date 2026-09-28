@@ -72,7 +72,11 @@ const defaultFetch: Fetch = async (url) => {
 };
 
 interface Snak {
-  mainsnak?: { datavalue?: { value?: { id?: string } } };
+  mainsnak?: {
+    snaktype?: string;
+    datatype?: string;
+    datavalue?: { value?: { id?: string; time?: string; precision?: number; amount?: string; unit?: string } };
+  };
   rank?: string;
 }
 
@@ -274,6 +278,7 @@ async function groundSense(
     const kind = kindOfDescription(sense.description);
     if (kind && kind !== identity) keep(call("IsA", [{ value: c(kind) }]));
   }
+  await everyClaim(store, identity, entity, keep, sameAs, get);
   for (const { relation, target } of pairs) {
     const label = labelled[target]?.labels?.en?.value;
     if (!label) continue;
@@ -385,4 +390,84 @@ export function kindOfDescription(description: string): string | undefined {
   if (!last) return undefined;
   const base = lemma(last.toLowerCase());
   return /^[a-z]+$/.test(base) ? base[0].toUpperCase() + base.slice(1) : undefined;
+}
+
+/** How many of an item's other properties are taken, and of each how many values. */
+const MORE_PROPERTIES = 40;
+
+/**
+ * Wikidata's own bookkeeping, not facts about the thing: its categories, templates, pictures,
+ * sources and the like. Read off each property's label, which says what the property is for.
+ */
+const BOOKKEEPING = /wikimedia|category|template|described by|main subject|commons|image|logo|flag|coat of arms|seal|signature|audio|video|map|pronunciation|social media|website|gallery|icon|list of|topic's|said to be the same|different from|page banner|locator/i;
+
+/**
+ * Everything else an item says that is a fact with a value Napkin can hold: another item (where
+ * he was born), a date (when), a quantity (how many, how high). Named by the property's own label
+ * ("place of birth" is PlaceOfBirth), a few values each, from the same import. Identifiers and
+ * free text are left: they are not relations.
+ */
+async function everyClaim(
+  store: ConceptStore,
+  identity: string,
+  entity: Entity,
+  keep: (claim: Expr) => void,
+  sameAs: (id: string, q: string) => unknown,
+  get: Fetch,
+): Promise<void> {
+  const taken: { property: string; values: NonNullable<NonNullable<Snak["mainsnak"]>["datavalue"]>["value"][]; type: string }[] = [];
+  for (const [property, snaks] of Object.entries(entity.claims ?? {})) {
+    if (property in PROPERTIES) continue;
+    const good = snaks.filter((s) => s.rank !== "deprecated" && s.mainsnak?.snaktype === "value" && s.mainsnak.datavalue?.value);
+    const type = good[0]?.mainsnak?.datatype ?? "";
+    if (!["wikibase-item", "time", "quantity"].includes(type)) continue;
+    const preferred = good.filter((s) => s.rank === "preferred");
+    taken.push({ property, type, values: (preferred.length ? preferred : good).slice(0, PER_PROPERTY).map((s) => s.mainsnak!.datavalue!.value) });
+    if (taken.length >= MORE_PROPERTIES) break;
+  }
+  if (!taken.length) return;
+  const ids = new Set<string>();
+  for (const t of taken) {
+    ids.add(t.property);
+    for (const v of t.values) {
+      if (v?.id) ids.add(v.id);
+      const unit = v?.unit?.split("/").pop();
+      if (unit && unit !== "1") ids.add(unit);
+    }
+  }
+  const labels: Record<string, Entity> = {};
+  const all = [...ids];
+  for (let i = 0; i < all.length; i += 50) Object.assign(labels, await entities(all.slice(i, i + 50), "labels", get));
+  const label = (q: string) => labels[q]?.labels?.en?.value;
+  for (const t of taken) {
+    const said = label(t.property);
+    if (!said || BOOKKEEPING.test(said)) continue;
+    const relation = nameOf(said);
+    if (!relation || !/^[A-Z]/.test(relation)) continue;
+    for (const v of t.values) {
+      if (!v) continue;
+      if (t.type === "wikibase-item" && v.id) {
+        const name = nameOf(label(v.id) ?? "");
+        if (!name || name === identity || !/^[A-Z]/.test(name)) continue;
+        if (!wikidataItem(store, name) && (store.get(name)?.realizations.length ?? 0) > 0) continue;
+        const known = wikidataItem(store, name);
+        if (!known) sameAs(name, v.id);
+        else if (known !== v.id) continue;
+        keep(c(relation, c(name)));
+      } else if (t.type === "time" && v.time) {
+        // As precise as Wikidata says it is: a year, a month, or a day.
+        const m = /^([+-])(\d+)-(\d\d)-(\d\d)/.exec(v.time);
+        if (!m) continue;
+        const year = (m[1] === "-" ? "-" : "") + String(Number(m[2]));
+        const when = (v.precision ?? 11) >= 11 ? `${year}-${m[3]}-${m[4]}` : (v.precision ?? 11) === 10 ? `${year}-${m[3]}` : year;
+        keep(call(relation, [{ value: when }]));
+      } else if (t.type === "quantity" && v.amount !== undefined) {
+        const n = Number(v.amount);
+        if (!Number.isFinite(n)) continue;
+        const unit = v.unit?.split("/").pop();
+        const unitName = unit && unit !== "1" ? nameOf(label(unit) ?? "") : undefined;
+        keep(call(relation, [{ value: unitName ? call("Quantity", [{ value: n }, { name: "unit", value: c(unitName) }]) : n }]));
+      }
+    }
+  }
 }
