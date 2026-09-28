@@ -49,11 +49,12 @@ each.
 ### 3. Types: the same shape, different things
 
 `packs/basic.ncon` has a second `Add($a, $b)`, for a date and a duration ("add 3 days to
-today"). Today it tells itself apart inside its body. It should say so in its types:
+today"). Today it tells itself apart inside its body. It should say so in its types, and the
+common meaning, two numbers, stays the plain one:
 
 ```
-Realization(Add($a, $b), types = Types(a = Date(), b = Duration()), ...)
-Realization(Add($left, $right), types = Types(left = Number(), right = Number()), ...)
+Realization(Add($a, $b), types = Types(a = Date(), b = Duration()), ...)   the rarer meaning claims its case
+Realization(Add($left, $right), ...)                                        the everyday one, plain
 ```
 
 Same shape, same context: only what they are given differs. That is exactly what types are for.
@@ -133,6 +134,15 @@ held plainly.
 
 **Rule:** a meaning with no behaviour is facts in a context named by its kind. Only a
 realization acts, and only in the context and for the shapes and types it says.
+
+## The common meaning is the default
+
+A Concept's obvious, most-used meaning is its plain realization: no types, no context, the one
+anything gets when nothing more particular claims it. `Add` of two numbers is plain; `Add` of a
+date and a duration is typed; `Add` to a list is a hand-over and a mood. The rarer meanings are
+the ones that say when they apply. The common case never depends on a typed or contextual
+realization winning a tie, and a reader finds the everyday meaning by looking for the one that
+says nothing extra.
 
 ## Choosing: the questions to ask, in order
 
