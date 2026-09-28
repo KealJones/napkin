@@ -336,13 +336,16 @@ function App() {
   const [toast, setToast] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
-  // On a phone: the sidebar is a drawer, opened by the menu button; the top bar and the
-  // conversation's header come back when the chat is dragged down, and go when it is read on.
+  // On a phone, navigation and conversation history open as separate drawers.
   const [menuOpen, setMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [chromeShown, setChromeShown] = useState(false);
   const lastScroll = useRef(0);
   const closeMenuOnPick = (event: MouseEvent) => {
     if ((event.target as HTMLElement).closest("button")) setMenuOpen(false);
+  };
+  const closeHistoryOnPick = (event: MouseEvent) => {
+    if ((event.target as HTMLElement).closest("button")) setHistoryOpen(false);
   };
   const activeActivityRef = useRef<string | null>(null);
 
@@ -362,6 +365,24 @@ function App() {
   useEffect(() => {
     void refreshConversations();
     void loadConcepts("");
+  }, []);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        "--studio-visual-height",
+        `${viewport?.height ?? window.innerHeight}px`,
+      );
+    };
+    updateHeight();
+    viewport?.addEventListener("resize", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      viewport?.removeEventListener("resize", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      document.documentElement.style.removeProperty("--studio-visual-height");
+    };
   }, []);
 
   useEffect(() => {
@@ -742,17 +763,27 @@ function App() {
 
   return (
     <div
-      className={`app${menuOpen ? " menu-open" : ""}${chromeShown ? " chrome-shown" : ""}`}
+      className={`app${menuOpen ? " menu-open" : ""}${historyOpen ? " history-open" : ""}${chromeShown ? " chrome-shown" : ""}`}
     >
       <button
         className="menu-toggle"
-        aria-label="Menu"
-        onClick={() => setMenuOpen((open) => !open)}
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={menuOpen}
+        onClick={() => {
+          setHistoryOpen(false);
+          setMenuOpen((open) => !open);
+        }}
       >
-        ☰
+        {menuOpen ? "×" : "☰"}
       </button>
-      {menuOpen && (
-        <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+      {(menuOpen || historyOpen) && (
+        <div
+          className="menu-backdrop"
+          onClick={() => {
+            setMenuOpen(false);
+            setHistoryOpen(false);
+          }}
+        />
       )}
       <aside className="sidebar" onClick={closeMenuOnPick}>
         <div className="brand">
@@ -822,6 +853,19 @@ function App() {
                     : "Trace history"}
           </h1>
           <div className="topmeta">
+            {page !== "chat" && page !== "guide" && page !== "code" && (
+              <button
+                className="mobile-list-toggle ghost"
+                aria-label={page === "concepts" ? "Browse Concepts" : "Browse traces"}
+                aria-expanded={historyOpen}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setHistoryOpen((open) => !open);
+                }}
+              >
+                {page === "concepts" ? "Browse" : "Traces"}
+              </button>
+            )}
             <span>
               {page === "traces"
                 ? `${traces.length} traces`
@@ -844,9 +888,22 @@ function App() {
         ) : page === "chat" ? (
           <section className="page active">
             <div className="chat-layout">
-              <aside className="conversation-list" onClick={closeMenuOnPick}>
+              <aside
+                className="conversation-list"
+                role={historyOpen ? "dialog" : undefined}
+                aria-label="Conversation history"
+                aria-modal={historyOpen || undefined}
+                onClick={closeHistoryOnPick}
+              >
                 <div className="list-head">
                   <strong>Conversations</strong>
+                  <button
+                    className="ghost mobile-drawer-close"
+                    aria-label="Close conversation history"
+                    onClick={() => setHistoryOpen(false)}
+                  >
+                    ×
+                  </button>
                   <button
                     className="ghost"
                     title="New conversation"
@@ -914,6 +971,17 @@ function App() {
                       Close
                     </button>
                   )}
+                  <button
+                    className="history-toggle ghost"
+                    aria-label="Conversation history"
+                    aria-expanded={historyOpen}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setHistoryOpen((open) => !open);
+                    }}
+                  >
+                    History
+                  </button>
                 </div>
                 <div
                   className="messages"
@@ -1047,7 +1115,23 @@ function App() {
         ) : page === "concepts" ? (
           <section className="page active">
             <div className="browser-layout">
-              <aside className="concept-list" onClick={closeMenuOnPick}>
+              <aside
+                className="concept-list"
+                role={historyOpen ? "dialog" : undefined}
+                aria-label="Browse Concepts"
+                aria-modal={historyOpen || undefined}
+                onClick={closeHistoryOnPick}
+              >
+                <div className="list-head mobile-drawer-head">
+                  <strong>Concepts</strong>
+                  <button
+                    className="ghost mobile-drawer-close"
+                    aria-label="Close Concept browser"
+                    onClick={() => setHistoryOpen(false)}
+                  >
+                    ×
+                  </button>
+                </div>
                 <input
                   className="search"
                   value={search}
@@ -1108,9 +1192,22 @@ function App() {
         ) : (
           <section className="page active">
             <div className="trace-page">
-              <aside className="trace-list" onClick={closeMenuOnPick}>
+              <aside
+                className="trace-list"
+                role={historyOpen ? "dialog" : undefined}
+                aria-label="Browse traces"
+                aria-modal={historyOpen || undefined}
+                onClick={closeHistoryOnPick}
+              >
                 <div className="trace-list-heading">
                   <strong>Recent traces</strong>
+                  <button
+                    className="ghost mobile-drawer-close"
+                    aria-label="Close trace history"
+                    onClick={() => setHistoryOpen(false)}
+                  >
+                    ×
+                  </button>
                   <button
                     className="ghost"
                     title="Refresh trace history"
