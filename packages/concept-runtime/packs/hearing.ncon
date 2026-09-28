@@ -2592,6 +2592,98 @@ Concept(Hear(),
                 Undefined()
               )
             ),
+            Comment("\"milk, eggs, parmesan cheese\": a comma between things joins them, as \"and\" does."),
+            Bind($thing,
+              Lambda(List($w),
+                And(
+                  And(And($w, Includes(Member($w, "tags"), "Noun")), Not(Includes(Member($w, "tags"), "Pronoun"))),
+                  Not(Includes(Member($w, "tags"), "Verbatim"))
+                )
+              )
+            ),
+            Comment("Only where it is a list: things a doing takes (\"I need milk, eggs\"), or three or more of"),
+            Comment("them; \"red light, speed camera ahead\" is two phrases."),
+            Bind($joins,
+              Lambda(List($i),
+                And(
+                  And(
+                    And(Includes(Member(Index($said, $i), "after"), ","), Call($thing, Index($said, $i))),
+                    Call($thing, Index($said, Add($i, 1)))
+                  ),
+                  Equals(Member(Index($said, $i), "sentence"), Member(Index($said, Add($i, 1)), "sentence"))
+                )
+              )
+            ),
+            Bind($listed,
+              Lambda(List($i),
+                Or(
+                  Call(
+                    Member(Call(Member($said, "slice"), 0, $i), "some"),
+                    Lambda(List($w),
+                      And(
+                        Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence")),
+                        Includes(Member($w, "tags"), "Verb")
+                      )
+                    )
+                  ),
+                  GreaterThan(
+                    Length(
+                      Call(
+                        Member($said, "filter"),
+                        Lambda(List($w, $j),
+                          And(
+                            And(
+                              LessThan(Add($j, 1), Length($said)),
+                              Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence"))
+                            ),
+                            Call($joins, $j)
+                          )
+                        )
+                      )
+                    ),
+                    1
+                  )
+                )
+              )
+            ),
+            Bind($at,
+              Call(
+                Member($said, "map"),
+                Lambda(List($_, $i), And(And(LessThan(Add($i, 1), Length($said)), Call($joins, $i)), Call($listed, $i)))
+              )
+            ),
+            For(
+              Var($i, Subtract(Length($said), 2)),
+              AtLeast($i, 0),
+              PostDecrement($i),
+              If(
+                Index($at, $i),
+                Sequence(
+                  Assign(
+                    Member(Index($said, $i), "after"),
+                    Call(
+                      Member(Member(Index($said, $i), "after"), "replace"),
+                      ",",
+                      ""
+                    )
+                  ),
+                  Call(
+                    Member($said, "splice"),
+                    Add($i, 1),
+                    0,
+                    Object(
+                      text = "and",
+                      typed = "and",
+                      tags = List("Conjunction"),
+                      sentence = Member(Index($said, $i), "sentence"),
+                      after = "",
+                      could = List()
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
             Comment("A comment in the code is words: heard, and kept beside its text at its place in the code."),
             Bind($heardComments,
               Async(
