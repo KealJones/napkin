@@ -3,7 +3,8 @@
  * on the graph in `~/.napkin`.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { dirname, extname, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -117,11 +118,30 @@ async function serveClientFile(
       extname(filePath) === ".html"
         ? "no-store"
         : "public, max-age=31536000, immutable",
-    "content-security-policy":
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:",
+    "content-security-policy": `default-src 'self'; script-src 'self' ${(await walkthroughScripts()).join(" ")}; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:`,
     "x-content-type-options": "nosniff",
   });
   response.end(content);
+}
+
+/**
+ * The walkthroughs are shown from their text (Walkthrough.tsx), so their scripts are inline and
+ * the policy would block them. Exactly those scripts are allowed, by their hashes, and nothing
+ * else inline: read once from the files the client shows.
+ */
+let walkthroughHashes: Promise<string[]> | undefined;
+function walkthroughScripts(): Promise<string[]> {
+  walkthroughHashes ??= (async () => {
+    const dir = resolve(dirname(fileURLToPath(import.meta.url)), "../../../.agents/planning/2026-09-16-concept-ai-system/design");
+    const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => f.endsWith("-walkthrough.html"));
+    const hashes: string[] = [];
+    for (const f of files) {
+      const html = await readFile(resolve(dir, f), "utf8");
+      for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) hashes.push(`'sha256-${createHash("sha256").update(m[1] ?? "").digest("base64")}'`);
+    }
+    return hashes;
+  })();
+  return walkthroughHashes;
 }
 
 /** A request's body, refused past 2 MB. */

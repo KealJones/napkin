@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Napkin: one word, many meanings</title>
+<style>
+  :root {
+    --paper: #fbf7ee;
+    --paper-2: #f3ecdc;
+    --ink: #2b2a33;
+    --soft: #6b6878;
+    --blue: #3b6fd8;
+    --red: #e0533d;
+    --green: #2f9e6e;
+    --gold: #e8a33a;
+    --purple: #8b5cd6;
+    --line: rgba(59, 111, 216, 0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font: 18px/1.55 "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    overflow-x: hidden;
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, var(--line) 31px 32px);
+  }
+  code, .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, monospace; font-size: 0.86em; }
+
+  /* progress */
+  #progress { position: fixed; top: 0; left: 0; height: 5px; width: 0; z-index: 50;
+    background: linear-gradient(90deg, var(--blue), var(--purple), var(--red), var(--gold)); }
+  #nav { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); z-index: 40;
+    display: flex; flex-direction: column; gap: 10px; }
+  #nav a { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink);
+    background: transparent; display: block; transition: transform .2s, background .2s; }
+  #nav a.on { background: var(--ink); transform: scale(1.25); }
+
+  /* scenes */
+  section { position: relative; min-height: 100vh; padding: 14vh 8vw; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center; }
+  .layer { position: absolute; pointer-events: none; will-change: transform; }
+  .content { position: relative; z-index: 5; max-width: 860px; }
+  .content.right { margin-left: auto; }
+  h1 { font: 800 clamp(48px, 8vw, 104px)/0.95 "Avenir Next", system-ui, sans-serif; margin: 0 0 20px; letter-spacing: -2px; }
+  h2 { font: 800 clamp(34px, 5vw, 60px)/1 "Avenir Next", system-ui, sans-serif; margin: 0 0 18px; letter-spacing: -1px; }
+  .kicker { font: 700 14px/1 system-ui; letter-spacing: 3px; text-transform: uppercase; color: var(--red); margin-bottom: 14px; }
+  p { margin: 0 0 16px; max-width: 640px; }
+  .big { font-size: 22px; }
+  .muted { color: var(--soft); }
+
+  /* doodles */
+  .blob { border-radius: 50%; filter: blur(2px); opacity: .5; }
+  .scribble { font: 700 20px/1 "Marker Felt", "Comic Sans MS", cursive; color: var(--soft); transform: rotate(-6deg); }
+  .napkin { width: 260px; height: 260px; background: #fff; border-radius: 6px;
+    box-shadow: 0 18px 40px rgba(43, 42, 51, .15);
+    background-image: repeating-linear-gradient(45deg, #fff 0 10px, #f7f4ec 10px 11px); }
+
+  /* cards and chips */
+  .card { background: #fff; border: 2.5px solid var(--ink); border-radius: 16px; padding: 18px 22px;
+    box-shadow: 6px 6px 0 var(--ink); margin: 14px 0; }
+  .chip { display: inline-block; padding: 6px 12px; margin: 4px; border-radius: 999px; border: 2px solid var(--ink);
+    background: #fff; font: 600 16px/1.2 "SF Mono", Menlo, monospace; box-shadow: 3px 3px 0 var(--ink); }
+  .chip.b { background: #dfe8fb; } .chip.r { background: #fbe0da; } .chip.g { background: #d8f1e5; }
+  .chip.y { background: #fcecd0; } .chip.p { background: #ebe1fa; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .arrow { font: 800 30px/1 system-ui; color: var(--red); margin: 0 6px; }
+  .expr { font: 600 clamp(15px, 1.7vw, 20px)/1.5 "SF Mono", Menlo, monospace; background: var(--ink); color: #fdfcf7;
+    padding: 14px 18px; border-radius: 12px; display: inline-block; margin: 8px 0; box-shadow: 6px 6px 0 var(--gold); }
+  .expr .h { color: #8fb3ff; } .expr .v { color: #ffb38a; } .expr .s { color: #9be3b8; } .expr .n { color: #ffd580; }
+
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(40px) rotate(-1deg); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1.2); }
+  .reveal.in { opacity: 1; transform: none; }
+  .d1 { transition-delay: .12s; } .d2 { transition-delay: .24s; } .d3 { transition-delay: .36s; }
+  .d4 { transition-delay: .48s; } .d5 { transition-delay: .6s; }
+
+  /* pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(5, auto); align-items: center; gap: 10px; margin: 22px 0; }
+  .station { background: #fff; border: 2.5px solid var(--ink); border-radius: 14px; padding: 14px; text-align: center;
+    box-shadow: 5px 5px 0 var(--ink); min-width: 140px; }
+  .station b { display: block; font-size: 20px; }
+  .station small { color: var(--soft); }
+
+  /* lineage ladder */
+  .ladder { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+  .rung { display: flex; align-items: center; gap: 14px; }
+  .rung .chip { min-width: 150px; text-align: center; }
+  .rung span { color: var(--soft); }
+
+  /* context stage */
+  .stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 16px; }
+  .ctx { border-radius: 16px; padding: 16px; border: 2.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: #fff; }
+  .ctx .tag { font: 700 13px/1 "SF Mono", Menlo, monospace; display: inline-block; padding: 5px 9px; border-radius: 8px; color: #fff; margin-bottom: 10px; }
+  .ctx .out { font: 700 18px/1.3 "SF Mono", Menlo, monospace; }
+
+  /* token flight */
+  .tokens { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+  .tok { padding: 8px 12px; border-radius: 10px; border: 2px solid var(--ink); background: #fff; font: 700 17px/1 "SF Mono", Menlo, monospace;
+    box-shadow: 3px 3px 0 var(--ink); transition: transform .8s cubic-bezier(.2,.9,.3,1.3), opacity .6s; }
+  .tokens.gather .tok { transform: translateY(var(--dy, 0)) rotate(var(--rot, 0)); }
+  .tree { font: 600 17px/1.9 "SF Mono", Menlo, monospace; white-space: pre; background: #fff; border: 2.5px dashed var(--ink);
+    border-radius: 14px; padding: 16px 20px; display: inline-block; }
+
+  /* residual loop */
+  .loop { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0; counter-reset: step; }
+  .loop .chip { position: relative; padding-left: 38px; }
+  .loop .chip::before { counter-increment: step; content: counter(step); position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font: 700 12px/22px system-ui; text-align: center; }
+
+  .spin { animation: spin 18s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .bob { animation: bob 4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-14px); } }
+  .scroll-hint { margin-top: 40px; font: 700 14px/1 system-ui; letter-spacing: 3px; text-transform: uppercase; color: var(--soft); }
+  .scroll-hint span { display: inline-block; animation: bob 1.6s ease-in-out infinite; }
+
+  footer { padding: 60px 8vw 90px; text-align: center; color: var(--soft); }
+  @media (max-width: 760px) {
+    .pipe { grid-template-columns: 1fr; }
+    .pipe .arrow { transform: rotate(90deg); justify-self: center; }
+    #nav { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .tok { transition: none; } .spin, .bob, .scroll-hint span { animation: none; }
+  }
+</style>
+<style>
+  .fork { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 18px 0; }
+  .fork .ctx .out { font-size: 16px; }
+  .q { display: flex; gap: 14px; align-items: baseline; margin: 10px 0; }
+  .q b { font: 800 22px/1 system-ui; color: var(--red); min-width: 28px; }
+  .q .ans { margin-left: auto; }
+  .back { display: inline-block; margin-top: 18px; font-weight: 700; color: var(--blue); }
+  a.card-link { text-decoration: none; color: inherit; display: inline-block; }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<nav id="nav"></nav>
+
+<!-- 0. Title -->
+<section id="s0">
+  <div class="layer blob" data-speed="-0.25" style="width:520px;height:520px;background:#fcecd0;right:-120px;top:-80px"></div>
+  <div class="layer blob" data-speed="0.35" style="width:340px;height:340px;background:#ebe1fa;left:-80px;bottom:-60px"></div>
+  <div class="layer napkin" data-speed="-0.5" style="right:12vw;bottom:14vh;transform:rotate(-7deg)"></div>
+  <div class="layer scribble" data-speed="-0.8" style="right:15vw;bottom:32vh">add 5 and 3</div>
+  <div class="layer scribble" data-speed="-0.65" style="right:10vw;bottom:25vh;color:var(--green)">add milk to my list</div>
+  <div class="layer scribble" data-speed="-0.5" style="right:17vw;bottom:18vh;color:var(--purple)">"...," she added</div>
+  <div class="content">
+    <div class="kicker reveal">A side trip</div>
+    <h1 class="reveal d1">One word.<br>Many meanings.</h1>
+    <p class="big reveal d2">"Add" means sums, shopping lists, code and gossip. Napkin keeps them all, and
+      never mixes them up. Here is every tool it has for that, one scroll each, with the one word <code>Add</code>.</p>
+    <div class="scroll-hint reveal d3">scroll <span>&darr;</span></div>
+  </div>
+</section>
+
+<!-- 1. The question -->
+<section id="s1">
+  <div class="layer blob" data-speed="0.3" style="width:420px;height:420px;background:#dfe8fb;right:-100px;top:10vh"></div>
+  <div class="content">
+    <div class="kicker reveal">1 &middot; The question</div>
+    <h2 class="reveal d1">Which Add runs?</h2>
+    <p class="reveal d2">A Concept can have many <b>realizations</b>: ways it behaves. When <code>Add(...)</code> is
+      evaluated, Napkin picks one. The trick is not writing clever code inside Add. It is saying, on each
+      realization, <i>when it is the one</i>. There are eight ways to say that, and each answers a different question.</p>
+    <div class="row reveal d3">
+      <span class="chip b">shape</span><span class="chip y">type</span><span class="chip g">context</span>
+      <span class="chip p">parent</span><span class="chip r">hand-over</span><span class="chip b">synonym</span>
+      <span class="chip y">fold</span><span class="chip g">meaning in a context</span>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Shape -->
+<section id="s2">
+  <div class="layer scribble" data-speed="-0.4" style="right:8vw;top:14vh">two things in, one out</div>
+  <div class="content">
+    <div class="kicker reveal">2 &middot; Shape</div>
+    <h2 class="reveal d1">What was it given, in what shape?</h2>
+    <div class="expr reveal d2"><span class="h">Add</span>(<span class="v">$left</span>, <span class="v">$right</span>) &rarr; <span class="n">8</span></div>
+    <p class="reveal d3">"add 5 and 3" is heard as <code>Add(5, 3)</code>. The pattern's shape (two things) is what matches.</p>
+    <div class="card reveal d4"><b>Careful:</b> hearing reads a doing's shapes to know how many things it takes. A new
+      one-thing <code>Add($x)</code> in <code>Execution()</code> once made "add 5 and 3" come out <code>Add(And(5, 3))</code>.
+      Shape is the most global choice there is.</div>
+  </div>
+</section>
+
+<!-- 3. Types -->
+<section id="s3">
+  <div class="layer blob" data-speed="0.4" style="width:380px;height:380px;background:#fcecd0;left:-90px;top:20vh"></div>
+  <div class="content right">
+    <div class="kicker reveal">3 &middot; Types</div>
+    <h2 class="reveal d1">Same shape. Different things.</h2>
+    <div class="fork reveal d2">
+      <div class="ctx"><span class="tag" style="background:var(--blue)">types = Types(left = Number(), right = Number())</span><div class="out">add 5 and 3 &rarr; 8</div></div>
+      <div class="ctx"><span class="tag" style="background:var(--gold)">types = Types(a = Date(), b = Duration())</span><div class="out">add 3 days to today &rarr; a date</div></div>
+    </div>
+    <p class="reveal d3">Both are <code>Add($a, $b)</code>, both in the same situation. Only <i>what they are given</i>
+      differs, so the realization says what it wants. Pick one whose types fit; if they don't, the next one gets a turn.</p>
+  </div>
+</section>
+
+<!-- 4. Context -->
+<section id="s4">
+  <div class="layer scribble" data-speed="-0.5" style="left:7vw;top:12vh">same call, different room</div>
+  <div class="content">
+    <div class="kicker reveal">4 &middot; Context</div>
+    <h2 class="reveal d1">Where is it asked, and how?</h2>
+    <div class="stage reveal d2">
+      <div class="ctx"><span class="tag" style="background:var(--green)">Execution()</span><div class="out">Add(5, 3) &rarr; 8</div></div>
+      <div class="ctx"><span class="tag" style="background:var(--blue)">Speaking()</span><div class="out">Add &rarr; "plus"</div></div>
+      <div class="ctx"><span class="tag" style="background:var(--purple)">Code(Python())</span><div class="out">Add(a, b) &rarr; (a + b)</div></div>
+      <div class="ctx"><span class="tag" style="background:var(--red)">Interrogative()</span><div class="out">"can you add cheetos to my list?" &rarr; done</div></div>
+      <div class="ctx"><span class="tag" style="background:var(--gold)">Hypothetical()</span><div class="out">"what if I add milk?" &rarr; says what would change, changes nothing</div></div>
+    </div>
+    <p class="reveal d3">Same arguments, different <i>situation</i>: saying it, writing it in a language, being asked
+      nicely, only supposing. That is context. Never check the mood inside a body; say it on the realization.</p>
+  </div>
+</section>
+
+<!-- 5. Parent -->
+<section id="s5">
+  <div class="layer blob" data-speed="0.3" style="width:420px;height:420px;background:#d8f1e5;right:-110px;bottom:-40px"></div>
+  <div class="content right">
+    <div class="kicker reveal">5 &middot; The parent</div>
+    <h2 class="reveal d1">What every doing of a shape does.</h2>
+    <div class="expr reveal d2"><span class="h">Add</span>(<span class="h">List</span>(<span class="n">3</span>, <span class="n">4</span>, <span class="n">5</span>)) &rarr; <span class="n">12</span></div>
+    <p class="reveal d3">Nobody wrote an Add for a group. Every doing that takes two things gets "take a whole group, a
+      pair at a time" on the universal parent, derived once. Add, Multiply, Max: all of them, and none lists it.</p>
+  </div>
+</section>
+
+<!-- 6. Hand-over -->
+<section id="s6">
+  <div class="layer scribble" data-speed="-0.6" style="right:9vw;top:16vh">"not me, next!"</div>
+  <div class="content">
+    <div class="kicker reveal">6 &middot; Hand-over</div>
+    <h2 class="reveal d1">It matched. Was it really for this?</h2>
+    <div class="row reveal d2">
+      <span class="chip g">add cheetos to my list</span><span class="arrow">&rarr;</span><span class="chip g">list-add: a list is named &check;</span>
+    </div>
+    <div class="row reveal d3">
+      <span class="chip b">add 5 (after 4)</span><span class="arrow">&rarr;</span><span class="chip r">list-add: nothing named, hands it back</span><span class="arrow">&rarr;</span><span class="chip b">sum: 9</span>
+    </div>
+    <p class="reveal d4">Some things can only be known by looking. A realization that finds it does not apply hands
+      back the call it was given, and Add's next realization runs. If a type or a shape could have said it, use that instead.</p>
+  </div>
+</section>
+
+<!-- 7. Synonym and fold -->
+<section id="s7">
+  <div class="layer blob" data-speed="-0.3" style="width:360px;height:360px;background:#ebe1fa;left:-90px;top:12vh"></div>
+  <div class="content right">
+    <div class="kicker reveal">7 &middot; Names</div>
+    <h2 class="reveal d1">Another name. Or several words, one thing.</h2>
+    <div class="row reveal d2"><span class="chip y">Plus</span><span class="arrow">&rarr;</span><span class="chip y">SynonymOf(Add)</span><span class="muted">&nbsp;"5 plus 3" is Add, in every meaning</span></div>
+    <div class="row reveal d3"><span class="chip p">add up</span><span class="arrow">&rarr;</span><span class="chip p">AddUp</span><span class="muted">&nbsp;its own doing; the fold is derived from its name</span></div>
+    <p class="reveal d4">A synonym is the <i>same</i> in every meaning. An alias only names it ("wife" names a spouse
+      without being one), so aliases are <code>Called(Wife())</code>, never synonyms.</p>
+  </div>
+</section>
+
+<!-- 8. Meaning in a context -->
+<section id="s8">
+  <div class="layer scribble" data-speed="-0.5" style="left:9vw;top:14vh;color:var(--purple)">"...and bring snacks," she added</div>
+  <div class="content">
+    <div class="kicker reveal">8 &middot; A meaning that does nothing</div>
+    <h2 class="reveal d1">Held, not run.</h2>
+    <div class="expr reveal d2"><span class="h">Add</span>  <span class="h">Relation</span>(<span class="h">IsA</span>(<span class="h">Saying</span>()), context = <span class="h">Saying</span>())</div>
+    <p class="reveal d3">"Add" also means <i>to say further</i>. Nothing does that; it is just true of the word. So it is a
+      fact in a context named by what that meaning is. A question in that context finds it; a sum never sees it.
+      That is all "a sense" is: one meaning's facts, in its own context.</p>
+  </div>
+</section>
+
+<!-- 9. Choosing -->
+<section id="s9">
+  <div class="layer blob" data-speed="0.25" style="width:520px;height:520px;background:#dfe8fb;right:-160px;top:-60px"></div>
+  <div class="content">
+    <div class="kicker reveal">9 &middot; Choosing</div>
+    <h2 class="reveal d1">Ask these, in order.</h2>
+    <div class="card reveal d2">
+      <div class="q"><b>1</b>Same thing, another name?<span class="chip y ans">synonym</span></div>
+      <div class="q"><b>2</b>Several words, one thing?<span class="chip p ans">fold</span></div>
+      <div class="q"><b>3</b>Every doing of this shape does it?<span class="chip p ans">parent</span></div>
+      <div class="q"><b>4</b>Told apart by the situation?<span class="chip g ans">context</span></div>
+      <div class="q"><b>5</b>Told apart by what it is given?<span class="chip y ans">types</span></div>
+      <div class="q"><b>6</b>Told apart by the shape?<span class="chip b ans">pattern</span></div>
+      <div class="q"><b>7</b>Only known by looking?<span class="chip r ans">hand-over</span></div>
+      <div class="q"><b>8</b>A meaning with nothing to do?<span class="chip g ans">facts in a context</span></div>
+    </div>
+    <p class="reveal d3 muted">The long version, with where each one lives in the code:
+      <code>design/one-word-many-meanings.md</code>.</p>
+    <a class="back reveal d4" href="#" data-walkthrough="how" data-href="ir-walkthrough.html">&larr; back to how Napkin works</a>
+  </div>
+</section>
+
+<footer>One word, eight tools, no mix-ups.</footer>
+
+<script>
+  const sections = [...document.querySelectorAll("section")];
+  const nav = document.getElementById("nav");
+  sections.forEach((s) => { const a = document.createElement("a"); a.href = "#" + s.id; nav.appendChild(a); });
+  const dots = [...nav.children];
+  const layers = [...document.querySelectorAll(".layer[data-speed]")];
+  const base = new Map(layers.map((l) => [l, l.style.transform || ""]));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function frame() {
+    const y = scrollY, h = innerHeight;
+    document.getElementById("progress").style.width = (y / (document.body.scrollHeight - h)) * 100 + "%";
+    if (!reduce) for (const l of layers) {
+      const sec = l.closest("section");
+      const off = y - sec.offsetTop;
+      if (Math.abs(off) > h * 1.5) continue;
+      l.style.transform = `translate3d(0, ${off * Number(l.dataset.speed)}px, 0) ${base.get(l)}`;
+    }
+    let cur = 0;
+    sections.forEach((s, i) => { if (s.offsetTop - h / 2 <= y) cur = i; });
+    dots.forEach((d, i) => d.classList.toggle("on", i === cur));
+  }
+  addEventListener("scroll", () => requestAnimationFrame(frame), { passive: true });
+  addEventListener("resize", frame);
+  frame();
+
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }), { threshold: 0.2 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // A link to another walkthrough: in the studio, ask it to switch; on its own, follow the link.
+  // It has an address only when this page is its own file: shown from its text in the studio,
+  // there is nothing to go to.
+  document.querySelectorAll("a[data-walkthrough]").forEach((a) => {
+    if (window.parent === window) { a.href = a.dataset.href; return; }
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.parent.postMessage({ walkthrough: a.dataset.walkthrough }, "*");
+    });
+  });
+</script>
+</body>
+</html>

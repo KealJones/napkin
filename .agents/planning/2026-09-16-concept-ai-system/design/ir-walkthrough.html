@@ -142,6 +142,8 @@
     <p class="big reveal d2">Napkin is a graph of Concepts that works answers out, like doodling on a napkin until it clicks.
       This is the whole machine in about eight scrolls.</p>
     <div class="scroll-hint reveal d3">scroll <span>&darr;</span></div>
+    <p class="reveal d4 muted">Side trip: <a href="#" data-walkthrough="meanings" data-href="meanings-walkthrough.html">one word, many meanings &rarr;</a>
+      how Napkin keeps "add" the sum, "add" to a list and "she added" apart.</p>
   </div>
 </section>
 
@@ -354,6 +356,16 @@
     toks.forEach((t, i) => setTimeout(() => { t.style.transform = "none"; t.style.opacity = 1; }, i * 90));
     o.disconnect();
   }), { threshold: 0.4 }).observe(document.getElementById("tokens"));
+  // A link to another walkthrough: in the studio, ask it to switch; on its own, follow the link.
+  // It has an address only when this page is its own file: shown from its text in the studio,
+  // there is nothing to go to.
+  document.querySelectorAll("a[data-walkthrough]").forEach((a) => {
+    if (window.parent === window) { a.href = a.dataset.href; return; }
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.parent.postMessage({ walkthrough: a.dataset.walkthrough }, "*");
+    });
+  });
 </script>
 </body>
 </html>
