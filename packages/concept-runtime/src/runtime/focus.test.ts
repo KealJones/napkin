@@ -48,8 +48,11 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   const { turn } = await import("./turn.js");
   const store = new ConceptStore();
   seed(store);
+  let heard = 1000;
   const say = async (m: string) => {
     const runtime = new Runtime(store);
+    // Each message stamped as the studio stamps it, so what a message makes is known as its.
+    runtime.trace.said(++heard);
     return (await turn(runtime, m, c("Execution"), { learn: false, conversation: "Conversation_2" })).spoken;
   };
   assert.equal(await say("make a shopping list"), "Made a shopping list.");
@@ -57,6 +60,8 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   assert.equal(await say("put eggs on my list"), "Added eggs to your shopping list.");
   assert.equal(await say("remove milk from my list"), "Removed milk from your shopping list.");
   assert.equal(await say("what is on my shopping list?"), "Eggs.");
+  // Things told of a holder just made go in it: in the same message, or said alone after.
+  assert.equal(await say("make a grocery list. I need socks and a charger"), "Made a grocery list. Added socks and charger to your grocery list.");
   // Nothing here is about lists: once a box is known to hold things, one made holds keys.
   store.addRelation("Box", parse("IsA(Collection())"));
   assert.equal(await say("make a box"), "Made a box.");

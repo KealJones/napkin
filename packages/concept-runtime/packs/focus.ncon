@@ -192,6 +192,19 @@ Concept(ConversationFocus(),
                     ),
                     Undefined()
                   ),
+                  Comment("Several lines answered: the last line's first, as it was said last."),
+                  If(
+                    Equals(Member($e, "head"), "Sequence"),
+                    Sequence(
+                      ForOf(
+                        $a,
+                        Call(Member(Concat(Member($e, "args")), "reverse")),
+                        Call($answered, Member($a, "value"), $kind)
+                      ),
+                      Return()
+                    ),
+                    Undefined()
+                  ),
                   Comment("A result that says what came of something (Made(ShoppingList_1)) is about that thing."),
                   Bind($result,
                     Call(
@@ -346,16 +359,56 @@ Concept(ConversationFocus(),
                     List()
                   )
                 ),
+                Comment("A reply that only handed the call back (Milk(), not worked out) answered nothing."),
+                Bind($replied,
+                  And(
+                    Call($isCall, $what),
+                    Or(
+                      Includes(List("Answer", "Describes", "List", "Sequence"), Member($what, "head")),
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Member($what, "head")),
+                              "relations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r),
+                          And(
+                            And(
+                              And(
+                                Call($isCall, Member($r, "claim")),
+                                Equals(Member(Member($r, "claim"), "head"), "IsA")
+                              ),
+                              Call($isCall, Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                            ),
+                            Equals(
+                              Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                              "Result"
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
                 If(
                   And(Call($isCall, $who), Equals(Member($who, "head"), "Self")),
-                  Call(
-                    $answered,
-                    $what,
-                    If(
-                      And(Call($isCall, Index($before, 0)), Equals(Member(Index($before, 0), "head"), "Me")),
-                      Call($asked, Index($before, 1)),
-                      Undefined()
-                    )
+                  If(
+                    $replied,
+                    Call(
+                      $answered,
+                      $what,
+                      If(
+                        And(Call($isCall, Index($before, 0)), Equals(Member(Index($before, 0), "head"), "Me")),
+                        Call($asked, Index($before, 1)),
+                        Undefined()
+                      )
+                    ),
+                    Undefined()
                   ),
                   Await(Call($named, $what))
                 )

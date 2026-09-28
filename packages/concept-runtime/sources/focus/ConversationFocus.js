@@ -32,6 +32,11 @@ async (args, bindings, api) => {
   const answered = (e, kind) => {
     if (!isCall(e)) return;
     if ((e.head === "Answer" || e.head === "Describes") && e.args.length) return answered(e.args[0].value, e.head === "Answer" ? kind : undefined);
+    // Several lines answered: the last line's first, as it was said last.
+    if (e.head === "Sequence") {
+      for (const a of [...e.args].reverse()) answered(a.value, kind);
+      return;
+    }
     // A result that says what came of something (Made(ShoppingList_1)) is about that thing.
     const result = (api.store.get(e.head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0].value) && r.claim.args[0].value.head === "Result");
     if (result && e.args.length && e.head !== "Noted") {
@@ -67,7 +72,11 @@ async (args, bindings, api) => {
     const [who, what] = parts(said[i]);
     // Newest first, so the message a reply answers is the one after it here.
     const before = i + 1 < said.length ? parts(said[i + 1]) : [];
-    if (isCall(who) && who.head === "Self") answered(what, isCall(before[0]) && before[0].head === "Me" ? asked(before[1]) : undefined);
+    // A reply that only handed the call back (Milk(), not worked out) answered nothing.
+    const replied = isCall(what) && (["Answer", "Describes", "List", "Sequence"].includes(what.head) || (api.store.get(what.head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0].value) && r.claim.args[0].value.head === "Result"));
+    if (isCall(who) && who.head === "Self") {
+      if (replied) answered(what, isCall(before[0]) && before[0].head === "Me" ? asked(before[1]) : undefined);
+    }
     else await named(what);
   }
   return api.call("List", ...out);

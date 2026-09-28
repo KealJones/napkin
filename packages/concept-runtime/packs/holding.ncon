@@ -403,6 +403,215 @@ Concept(Change(),
   )
 )
 
+// Things told of a holder just made go in it: "make a shopping list? I need milk, eggs" (the
+// same message), or "milk, eggs" said alone while it is the newest thing in play. What goes in
+// is the group the line names (milk, eggs), else what it ends on (milk, in "I need milk"). The
+// call itself otherwise, to be noted as told.
+Concept(Fills(),
+  Realization(Fills($line),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($none, Call(Member($api, "call"), "Fills", $line)),
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            If(
+              Or(Not($conversation), Not(Call($isCall, $line))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($focus,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "ConversationFocus",
+                    $conversation
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Bind($newest,
+              If(
+                And(And(Call($isCall, $focus), Equals(Member($focus, "head"), "List")), Length(Member($focus, "args"))),
+                Member(Index(Member($focus, "args"), 0), "value"),
+                Undefined()
+              )
+            ),
+            Bind($holder,
+              If(
+                And(
+                  And(Call($isCall, $newest), Call(Member(Regex("_[0-9]+$", ""), "test"), Member($newest, "head"))),
+                  Includes(Call(Member($api, "typesOf"), $newest), "Collection")
+                ),
+                $newest,
+                Undefined()
+              )
+            ),
+            If(Not($holder), Return($none), Undefined()),
+            Bind($now, Member(Member($api, "trace"), "cause")),
+            Comment("Made in this message: what it is was said now, not only what it holds."),
+            Bind($madeNow,
+              And(
+                NotEquals($now, Undefined()),
+                Call(
+                  Member(
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($holder, "head")), "relations"),
+                      List()
+                    ),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    And(
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                      Call(
+                        Member(Otherwise(Member($r, "stamps"), List()), "some"),
+                        Lambda(List($s), Equals(Member($s, "source"), $now))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($group,
+              Lambda(List($e),
+                And(Call($isCall, $e), Or(Equals(Member($e, "head"), "And"), Equals(Member($e, "head"), "List")))
+              )
+            ),
+            Bind($find,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(Undefined()), Undefined()),
+                  If(Call($group, $e), Return($e), Undefined()),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Sequence(
+                      Bind($inner,
+                        If(
+                          Equals(Member($a, "name"), Undefined()),
+                          Call($find, Member($a, "value")),
+                          Undefined()
+                        )
+                      ),
+                      If($inner, Return($inner), Undefined())
+                    )
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Comment("What a line ends on: its last word's last thing, past who is speaking."),
+            Bind($last,
+              Lambda(List($e),
+                Sequence(
+                  Var($at, $e),
+                  While(
+                    And(
+                      And(
+                        And(Call($isCall, $at), Length(Member($at, "args"))),
+                        Call(
+                          Member(Member($at, "args"), "every"),
+                          Lambda(List($a), Equals(Member($a, "name"), Undefined()))
+                        )
+                      ),
+                      Not(Call($group, $at))
+                    ),
+                    Sequence(
+                      Bind($next, Member(Index(Member($at, "args"), Subtract(Length(Member($at, "args")), 1)), "value")),
+                      If(
+                        Or(
+                          Not(Call($isCall, $next)),
+                          And(
+                            Not(Length(Member($next, "args"))),
+                            Includes(Call(Member($api, "typesOf"), $next), "Deictic")
+                          )
+                        ),
+                        Break(),
+                        Undefined()
+                      ),
+                      If(
+                        Not(Length(Member($next, "args"))),
+                        Return($next),
+                        Undefined()
+                      ),
+                      Assign($at, $next)
+                    )
+                  ),
+                  Return(If(Call($group, $at), $at, Undefined()))
+                )
+              )
+            ),
+            Comment("Said alone, only things: no doing, no one speaking."),
+            Bind($onlyThings,
+              Or(
+                Call($group, $line),
+                And(
+                  And(
+                    Call($isCall, $line),
+                    Not(
+                      Includes(
+                        Call(Member($api, "typesOf"), Call(Member($api, "call"), Member($line, "head"))),
+                        "Deictic"
+                      )
+                    )
+                  ),
+                  Call(
+                    Member(Member($line, "args"), "every"),
+                    Lambda(List($a),
+                      And(Call($isCall, Member($a, "value")), Not(Length(Member(Member($a, "value"), "args"))))
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              And(Not($madeNow), Not($onlyThings)),
+              Return($none),
+              Undefined()
+            ),
+            Bind($items, Otherwise(Call($find, $line), If($onlyThings, $line, Call($last, $line)))),
+            If(Not($items), Return($none), Undefined()),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(
+                      Member($api, "call"),
+                      "And",
+                      $items,
+                      Call(Member($api, "call"), "To", $holder)
+                    )
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                $none,
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // What the thing the words name holds: every item put in it and not taken out. The call itself
 // when the words name nothing made.
 Concept(Held(),

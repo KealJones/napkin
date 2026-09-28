@@ -5,7 +5,8 @@
 // from sources/mood (edit those, not this).
 Requires(Core(), Basic())
 
-// A line in any other mood (a command): read, and done.
+// A line in any other mood (a command): read, and done. A word alone that does nothing as a
+// command ("milk", after making a shopping list) may be a thing for a holder just made.
 Concept(Line(),
   Realization(Line($line),
     context = Execution(),
@@ -26,11 +27,40 @@ Concept(Line(),
                 )
               )
             ),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $line,
+                  Member($api, "context")
+                )
+              )
+            ),
+            If(
+              Or(
+                Or(
+                  Or(NotEquals(Call(Member($api, "format"), $done), Call(Member($api, "format"), $line)), Not($line)),
+                  Not(Member($line, "head"))
+                ),
+                Length(Member($line, "args"))
+              ),
+              Return($done),
+              Undefined()
+            ),
+            Bind($filled,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Fills", $line),
+                  Member($api, "context")
+                )
+              )
+            ),
             Return(
-              Call(
-                Member($api, "evaluate"),
-                $line,
-                Member($api, "context")
+              If(
+                And($filled, Equals(Member($filled, "head"), "Fills")),
+                $done,
+                $filled
               )
             )
           )
@@ -160,7 +190,8 @@ Concept(Line(),
 
 // A statement: the Concept its words name whole ("good morning"), a word said alone asked about
 // ("clock"), something that works out to a value or an answer ("average of 3, 5 and 10", "that
-// was wrong"), what is believed of someone or something, or else noted, with a reply.
+// was wrong"), things for a holder just made (packs/holding.ncon), what is believed of someone
+// or something, or else noted, with a reply.
 Concept(Line(),
   Realization(Line($line),
     context = Declarative(),
@@ -172,7 +203,7 @@ Concept(Line(),
             Bind($line, Call(Member($bindings, "get"), "line")),
             ForOf(
               $step,
-              List("NamedWhole", "WordAlone", "WorksOut"),
+              List("NamedWhole", "Fills", "WordAlone", "WorksOut"),
               Sequence(
                 Bind($asked, Call(Member($api, "call"), $step, $line)),
                 Bind($got,
