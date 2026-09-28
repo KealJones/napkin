@@ -190,22 +190,37 @@ function expressionOrNull(source: string): Expr | null {
 
 /**
  * The whole graph as a file (store.ncon): shared through the device's share sheet where it has
- * one (a phone can AirDrop it), else downloaded.
+ * one (a phone can AirDrop it), else downloaded. A share sheet opens only close to a tap, and
+ * writing out a big graph can outlast that (Safari then refuses with NotAllowedError), so a
+ * refused share keeps the file and the next tap shares it at once.
  */
+let exported: File | undefined;
+
 async function exportGraph(): Promise<void> {
-  const response = await request("/api/graph/export");
-  const text = await response.text();
-  const name = `napkin-${new Date().toISOString().slice(0, 10)}.ncon`;
-  const file = new File([text], name, { type: "text/plain" });
+  const file = exported ?? (await graphFile());
+  exported = undefined;
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: name }).catch(() => undefined);
+    try {
+      await navigator.share({ files: [file], title: file.name });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        exported = file;
+        window.alert("The graph is ready. Tap Export again to share it.");
+      }
+    }
     return;
   }
   const link = document.createElement("a");
   link.href = URL.createObjectURL(file);
-  link.download = name;
+  link.download = file.name;
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+async function graphFile(): Promise<File> {
+  const response = await request("/api/graph/export");
+  const name = `napkin-${new Date().toISOString().slice(0, 10)}.ncon`;
+  return new File([await response.text()], name, { type: "text/plain" });
 }
 
 /**
