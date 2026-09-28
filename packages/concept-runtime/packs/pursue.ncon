@@ -1731,6 +1731,7 @@ Concept(Pursue(),
                       )
                     ),
                     Bind($value, Call(Member($api, "fromHost"), Member($t, "object"))),
+                    Bind($expr, Call(Member($api, "fromHost"), Member($t, "expr"))),
                     If(
                       And(
                         And($fitsWords, Call($fits, $value)),
@@ -1738,31 +1739,76 @@ Concept(Pursue(),
                           Call(
                             Member($found, "some"),
                             Lambda(List($v),
-                              Equals(Call(Member($api, "format"), $v), Call(Member($api, "format"), $value))
+                              Equals(
+                                Call(Member($api, "format"), Member($v, "value")),
+                                Call(Member($api, "format"), $value)
+                              )
                             )
                           )
                         )
                       ),
                       Sequence(
-                        Call(Member($found, "push"), $value),
-                        Assign($fact, Or($fact, Call(Member($api, "fromHost"), Member($t, "expr"))))
+                        Call(
+                          Member($found, "push"),
+                          Object(
+                            value = $value,
+                            ended = And(
+                              Call($isCall, $expr),
+                              Call(
+                                Member(Member($expr, "args"), "some"),
+                                Lambda(List($a), Equals(Member($a, "name"), "until"))
+                              )
+                            )
+                          )
+                        ),
+                        Assign($fact, Or($fact, $expr))
                       ),
                       Undefined()
                     )
                   )
                 ),
+                Comment("Asked in the present (\"who is his wife\"), what has ended is past, when something holds"),
+                Comment("still; asked in the past (\"who was\"), all of it."),
+                Comment("The tense is the helper's (\"was\", not \"married\", which is past in either)."),
+                Bind($past,
+                  Call(
+                    Member($heads, "some"),
+                    Lambda(List($h),
+                      And(
+                        Includes(Call(Member($api, "typesOf"), Call(Member($api, "call"), $h)), "Helper"),
+                        Includes(
+                          Otherwise(
+                            OptionalMember(Index(Call(Member($api, "words"), Call($spoken, $h)), 0), "tags"),
+                            List()
+                          ),
+                          "PastTense"
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($holding,
+                  If(
+                    Or($past, Call(Member($found, "every"), Lambda(List($f), Member($f, "ended")))),
+                    $found,
+                    Filter($found, Lambda(List($f), Not(Member($f, "ended"))))
+                  )
+                ),
                 If(
-                  Length($found),
-                  Return(
-                    Call(
-                      Member($api, "call"),
-                      "Found",
-                      If(
-                        Equals(Length($found), 1),
-                        Index($found, 0),
-                        Call(Member($api, "call"), "List", Spread($found))
-                      ),
-                      $fact
+                  Length($holding),
+                  Sequence(
+                    Bind($values, Map($holding, Lambda(List($f), Member($f, "value")))),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Found",
+                        If(
+                          Equals(Length($values), 1),
+                          Index($values, 0),
+                          Call(Member($api, "call"), "List", Spread($values))
+                        ),
+                        $fact
+                      )
                     )
                   ),
                   Undefined()

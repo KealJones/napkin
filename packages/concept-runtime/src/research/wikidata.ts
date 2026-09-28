@@ -78,6 +78,7 @@ interface Snak {
     datavalue?: { value?: { id?: string; time?: string; precision?: number; amount?: string; unit?: string } };
   };
   rank?: string;
+  qualifiers?: Record<string, { datavalue?: { value?: { time?: string; precision?: number } } }[]>;
 }
 
 interface Entity {
@@ -418,14 +419,15 @@ async function everyClaim(
   sameAs: (id: string, q: string) => unknown,
   get: Fetch,
 ): Promise<void> {
-  const taken: { property: string; values: NonNullable<NonNullable<Snak["mainsnak"]>["datavalue"]>["value"][]; type: string }[] = [];
+  const taken: { property: string; values: NonNullable<NonNullable<Snak["mainsnak"]>["datavalue"]>["value"][]; snaks: Snak[]; type: string }[] = [];
   for (const [property, snaks] of Object.entries(entity.claims ?? {})) {
     if (property in PROPERTIES) continue;
     const good = snaks.filter((s) => s.rank !== "deprecated" && s.mainsnak?.snaktype === "value" && s.mainsnak.datavalue?.value);
     const type = good[0]?.mainsnak?.datatype ?? "";
     if (!["wikibase-item", "time", "quantity"].includes(type)) continue;
     const preferred = good.filter((s) => s.rank === "preferred");
-    taken.push({ property, type, values: (preferred.length ? preferred : good).slice(0, PER_PROPERTY).map((s) => s.mainsnak!.datavalue!.value) });
+    const chosen = (preferred.length ? preferred : good).slice(0, PER_PROPERTY);
+    taken.push({ property, type, snaks: chosen, values: chosen.map((s) => s.mainsnak!.datavalue!.value) });
     if (taken.length >= MORE_PROPERTIES) break;
   }
   if (!taken.length) return;
@@ -453,8 +455,15 @@ async function everyClaim(
     const relation = store.asObject(format(call("Wikidata", [{ value: t.property }]))).find((r) => r.predicate === "SameAs")?.subject ?? nameOf(said);
     if (!relation || !/^[A-Z]/.test(relation)) continue;
     await describeRelation(store, relation, t.property, labels[t.property]);
-    for (const v of t.values) {
+    for (const [n, v] of t.values.entries()) {
       if (!v) continue;
+      // When it held, as Wikidata says: from its start time (P580) until its end time (P582).
+      // A fact with an end no longer holds ("who is his wife" is not the one he divorced).
+      const span = ([["P580", "from"], ["P582", "until"]] as const).flatMap(([q, name]) => {
+        const time = t.snaks[n]?.qualifiers?.[q]?.[0]?.datavalue?.value;
+        const date = time?.time ? dateOf(time.time, time.precision) : undefined;
+        return date ? [{ name, value: date }] : [];
+      });
       if (t.type === "wikibase-item" && v.id) {
         const name = nameOf(label(v.id) ?? "");
         if (!name || name === identity || !/^[A-Z]/.test(name)) continue;
@@ -462,7 +471,7 @@ async function everyClaim(
         const known = wikidataItem(store, name);
         if (!known) sameAs(name, v.id);
         else if (known !== v.id) continue;
-        keep(c(relation, c(name)));
+        keep(call(relation, [{ value: c(name) }, ...span]));
       } else if (t.type === "time" && v.time) {
         const when = dateOf(v.time, v.precision);
         if (when) keep(call(relation, [{ value: when }]));
