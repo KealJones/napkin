@@ -23,6 +23,10 @@ what a particular question means, are answer paths even when they look general.
   `lemma`, `properNoun`, `store.mentioning`). A Concept the host must name lives in core.
 - **A residual is a value, not an error.** Something that realized to itself is the signal
   to look further (`Pursue`) or to learn. Never paper over it with a guess.
+- **One word, many meanings: pick the right mechanism.** Pattern shape, types, context,
+  inheritance, handover, synonyms, folds and relations in a context each answer a different
+  question. `.agents/planning/2026-09-16-concept-ai-system/design/one-word-many-meanings.md`
+  goes through all of them with one word (add) and says which to use when.
 - **Behaviour comes from context and inheritance, not dispatch.** Give a Concept a
   realization in a context (`Speaking()`, `Hypothetical()`, `Interrogative()`), or on a
   parent it `IsA` (an `Interjection` answers as talk by inheritance). When two meanings
