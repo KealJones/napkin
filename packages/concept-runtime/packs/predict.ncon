@@ -140,20 +140,23 @@ Concept(Predict(),
                           And(
                             And(
                               And(
-                                And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
-                                Equals(Member(Member($r, "pattern"), "head"), Member($u, "identity"))
-                              ),
-                              Equals(Length(Member(Member($r, "pattern"), "args")), 2)
-                            ),
-                            Call(
-                              Member(Member(Member($r, "pattern"), "args"), "every"),
-                              Lambda(List($p),
                                 And(
-                                  And(Member($p, "value"), Equals(TypeOf(Member($p, "value")), "object")),
-                                  In("variable", Member($p, "value"))
+                                  And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                                  Equals(Member(Member($r, "pattern"), "head"), Member($u, "identity"))
+                                ),
+                                Equals(Length(Member(Member($r, "pattern"), "args")), 2)
+                              ),
+                              Call(
+                                Member(Member(Member($r, "pattern"), "args"), "every"),
+                                Lambda(List($p),
+                                  And(
+                                    And(Member($p, "value"), Equals(TypeOf(Member($p, "value")), "object")),
+                                    In("variable", Member($p, "value"))
+                                  )
                                 )
                               )
-                            )
+                            ),
+                            NotEquals(Member($r, "evaluateArguments"), false)
                           ),
                           Not(
                             Call(

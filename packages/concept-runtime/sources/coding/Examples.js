@@ -36,7 +36,7 @@ async (args, bindings, api) => {
   // The operations: two-place Concepts that work numbers out and that code can be written for.
   const ops = [];
   for (const u of api.store.all()) {
-    const two = u.realizations.some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === u.identity && r.pattern.args.length === 2 && r.pattern.args.every((p) => p.value !== null && typeof p.value === "object" && "variable" in p.value) && !r.properties.some((p) => isCall(p) && p.head === "Effectful"));
+    const two = u.realizations.some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === u.identity && r.pattern.args.length === 2 && r.pattern.args.every((p) => p.value !== null && typeof p.value === "object" && "variable" in p.value) && !r.properties.some((p) => isCall(p) && p.head === "Effectful") && r.evaluateArguments !== false);
     if (!two || (await run(u.identity, 7, 3)) === undefined) continue;
     const written = api.writeCode(fn(api.call(u.identity, { variable: names[0] }, 3)), "JavaScript");
     if (written.unwritable.length || written.text.includes(u.identity + "(")) continue;

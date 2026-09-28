@@ -102,3 +102,11 @@ test("what code shown gives is what running it gives, however it is asked", asyn
   assert.equal((await ask("what does `2 ** 8` return")).said, "It gives 256.");
   assert.equal((await ask("what's the output of `'ab'.repeat(3)`")).said, 'It gives "ababab".');
 });
+
+test("a doing no rule writes is written from what it does: its examples, in the language's own words", async () => {
+  const reversed = await ask("write a function that reverses a string");
+  assert.match(reversed.said, /function reverse\(x\) \{ return \[\.\.\.x\]\.toReversed\(\)\.join\(""\) \}/);
+  assert.equal((await ask('run it with "napkin"', [{ message: "write", result: reversed.result }])).said, 'It gives "nikpan".');
+  assert.match((await ask("write a function that sorts a list")).said, /return x\.toSorted\(\)/);
+  assert.match((await ask("write a function that doubles a number")).said, /return \(x \* 2\)/);
+});
