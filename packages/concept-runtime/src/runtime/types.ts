@@ -69,6 +69,13 @@ export async function typesHold(store: ConceptStore, types: Expr | undefined, bi
   for (const t of typed) {
     const type = substitute(t.type, found);
     if (isVariable(type)) continue;
+    // A plain type (Number(), Date(), Someone()) is what Fits's last realization answers anyway:
+    // what the value is, through IsA. Checked here, so a typed primitive run on every step
+    // costs a walk, not an evaluation. Shapes (List(...), OneOf(...)) are the graph's, via Fits.
+    if (isCall(type) && !type.args.length) {
+      if (!typesOf(store, t.value).includes(type.head)) return false;
+      continue;
+    }
     if (!(await fits(t.value, type))) return false;
   }
   return true;
