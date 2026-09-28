@@ -8,13 +8,16 @@
  * Messages: the page sends { id, url, method, headers, body }; the worker answers
  * { id, status, headers }, then { id, chunk } per piece of the body, then { id, end }.
  */
-import { home, join, mount, read, restore, write } from "@napkin/concept-runtime/platform/browser";
 
 type Ask = { id: number; url: string; method: string; headers: [string, string][]; body?: string };
 
 const base = new URL(import.meta.env.BASE_URL, self.location.origin);
 
 async function boot() {
+  // Imported, not named at the top: the runtime imports the same module, and a static import
+  // here bundles it into this file. WebKit then loads this file a second time for the runtime,
+  // with a second, empty set of files, and no pack is ever seen (Safari showed 0 Concepts).
+  const { home, join, mount, read, restore, write } = await import("@napkin/concept-runtime/platform/browser");
   const paths = (await (await fetch(new URL("napkin/manifest.json", base))).json()) as string[];
   const texts = await Promise.all(paths.map(async (p) => (await fetch(new URL(`napkin/files${p}`, base))).text()));
   mount(Object.fromEntries(paths.map((p, i) => [p, texts[i]!])));

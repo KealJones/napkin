@@ -81,6 +81,8 @@ const decoder = new TextDecoder();
 const entryName = (path: string): string => encodeURIComponent(path);
 
 let root: Promise<Directory> | undefined;
+/** Set when this browser gives no file system to keep files in: they live in memory only. */
+let inMemory = false;
 /** Writes waiting on a handle, one chain per path so they land in order. */
 const pending = new Map<string, Promise<void>>();
 
@@ -94,7 +96,15 @@ export async function restore(claimed: readonly string[] = []): Promise<void> {
   // Asked, not assumed: without it the browser may evict the graph when storage runs low.
   await storage().persist?.().catch(() => false);
   root ??= opfs();
-  const dir = await root;
+  let dir: Directory;
+  try {
+    dir = await root;
+  } catch {
+    // No origin private file system (Safari's Private Browsing): what is learned lives in memory
+    // for this visit, rather than nothing working at all.
+    inMemory = true;
+    return;
+  }
   for await (const entry of dir.values()) {
     if (entry.kind !== "file") continue;
     const path = decodeURIComponent(entry.name);
@@ -124,7 +134,7 @@ async function open(entry: FileEntry, path: string): Promise<SyncHandle | undefi
 
 /** Put `path`'s whole text on disk, opening a handle for it first when it has none. */
 function persist(path: string): void {
-  if (heldElsewhere.has(path)) return;
+  if (inMemory || heldElsewhere.has(path)) return;
   const handle = handles.get(path);
   const text = files.get(path)?.text;
   if (handle) {
@@ -143,7 +153,7 @@ function persist(path: string): void {
       const dir = await root;
       if (!handles.has(path)) await open(await dir.getFileHandle(entryName(path), { create: true }), path).catch(() => undefined);
       if (handles.has(path)) persist(path);
-    }),
+    }).catch(() => undefined),
   );
 }
 

@@ -2,7 +2,7 @@
  * The files a browser host mounts (packages/concept-runtime/src/platform/browser.ts), copied
  * into public-pages/napkin/files/ at the path the runtime reads them from, with a manifest.
  *
- *   /runtime/...   the runtime package: packs, the DailyDialog corpus if fetched, Ears eval cases
+ *   /runtime/...   the runtime package: packs, and the DailyDialog corpus if fetched
  *   /seed/...      the graph a visitor starts from (seed/store.ncon, written by scripts/seed.mjs)
  *   /modules/...   files inside installed packages: word lists and spelling dictionaries
  */
@@ -27,13 +27,6 @@ const addDir = (path, from, keep = () => true) => {
 addDir("/runtime/packs", join(runtime, "packs"), (f) => f.endsWith(".ncon"));
 addDir("/runtime/data/dialog/dumps/train", join(runtime, "data/dialog/dumps/train"), (f) => f.endsWith(".txt"));
 add("/seed/store.ncon", resolve(here, "../seed/store.ncon"));
-add("/runtime/eval/ears/cases.json", join(runtime, "eval/ears/cases.json"));
-add("/runtime/eval/ears/gold.md", join(runtime, "eval/ears/gold.md"));
-// The newest baseline run only, so the lab has something to compare against.
-const results = join(runtime, "eval/ears/results");
-// Saved runs are named by date first; `hearing-*.json` beside them are another tool's reports.
-const baseline = readdirSync(results).filter((f) => /^\d{4}-.*\.json$/.test(f) && !f.includes("-lab") && !f.includes("rescored")).sort().pop();
-if (baseline) add(`/runtime/eval/ears/results/${baseline}`, join(results, baseline));
 for (const spec of [
   "an-array-of-english-words/index.json",
   "node-symspell/dictionaries/frequency_dictionary_en_82_765.txt",
