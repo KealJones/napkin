@@ -1,0 +1,741 @@
+// A line of what was said, in the mood it was said in. Mood(kind, line) evaluates Line(line) with
+// the mood as its context, and Line has a realization in each mood: a statement is told, a
+// question asked, anything else done. Each thing a line in a mood may be is its own Concept,
+// tried in order, so each can be traced, replaced and learned alone. Written by scripts/pack.mjs
+// from sources/mood (edit those, not this).
+Requires(Core(), Basic())
+
+// A line in any other mood (a command): read, and done.
+Concept(Line(),
+  Realization(Line($line),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Read",
+                    Call(Member($bindings, "get"), "line")
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                $line,
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A question: read and worked out. Left unworked, or not known: whether it was told (Believe),
+// then looked for further (Pursue), then asked again with what its unknown words were said to be
+// (Recall).
+Concept(Line(),
+  Realization(Line($line),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Read",
+                    Call(Member($bindings, "get"), "line")
+                  )
+                )
+              )
+            ),
+            Bind($value,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $line,
+                  Member($api, "context")
+                )
+              )
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Bind($unknownTruth,
+              And(
+                And(
+                  And(And($value, Equals(Member($value, "head"), "Answer")), Index(Member($value, "args"), 0)),
+                  Member(Index(Member($value, "args"), 0), "value")
+                ),
+                Equals(Member(Member(Index(Member($value, "args"), 0), "value"), "head"), "UnknownTruth")
+              )
+            ),
+            If(
+              Or(Call($same, $value, $line), $unknownTruth),
+              Sequence(
+                Bind($told,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Believe",
+                        $line,
+                        Call(Member($api, "call"), "Asked")
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And($told, Equals(Member($told, "head"), "Answer")),
+                  Return($told),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              Call($same, $value, $line),
+              Sequence(
+                Bind($found,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Pursue", $line),
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                If(
+                  And($found, Equals(Member($found, "head"), "Found")),
+                  Return(
+                    Call(
+                      Member($api, "call"),
+                      "Answer",
+                      Member(Index(Member($found, "args"), 0), "value")
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Bind($recalled,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Recall", $line, $value),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($recalled, Equals(Member($recalled, "head"), "Recall")),
+                $value,
+                $recalled
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A statement: the Concept its words name whole ("good morning"), a word said alone asked about
+// ("clock"), something that works out to a value or an answer ("average of 3, 5 and 10", "that
+// was wrong"), what is believed of someone or something, or else noted, with a reply.
+Concept(Line(),
+  Realization(Line($line),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            ForOf(
+              $step,
+              List("NamedWhole", "WordAlone", "WorksOut"),
+              Sequence(
+                Bind($asked, Call(Member($api, "call"), $step, $line)),
+                Bind($got,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      $asked,
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                If(
+                  NotEquals(Call(Member($api, "format"), $got), Call(Member($api, "format"), $asked)),
+                  Return($got),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($belief,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Believe", $line),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              And(
+                $belief,
+                Or(
+                  Equals(Member($belief, "head"), "Believed"),
+                  And(
+                    Equals(Member($belief, "head"), "Sequence"),
+                    Call(
+                      Member(Member($belief, "args"), "every"),
+                      Lambda(List($a),
+                        And(Member($a, "value"), Equals(Member(Member($a, "value"), "head"), "Believed"))
+                      )
+                    )
+                  )
+                )
+              ),
+              Return($belief),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(Member($api, "call"), "Note", $line),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Words that read as one Concept, a greeting said whole ("good morning" is GoodMorning): that
+// Concept. The call itself otherwise.
+Concept(NamedWhole(),
+  Realization(NamedWhole($line),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($named, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
+            If(
+              And(
+                And(And($named, Member($named, "head")), Not(Length(Member($named, "args")))),
+                NotEquals(Call(Member($api, "format"), $named), Call(Member($api, "format"), $line))
+              ),
+              Return(
+                Call(
+                  Member($api, "evaluate"),
+                  $named,
+                  Member($api, "context")
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "NamedWhole", $line))
+          )
+        )
+      )
+    )
+  )
+)
+
+// What is told and nothing takes: noted, with a reply when the conversation corpus has one.
+Concept(Note(),
+  Realization(Note($line),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($message, Call(Member($api, "ambient"), "message")),
+            Bind($reply,
+              If(
+                And($message, Not(Includes($message, "?"))),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
+                Undefined()
+              )
+            ),
+            Return(
+              If(
+                And(And($reply, Equals(Member($reply, "head"), "Reply")), Length(Member($reply, "args"))),
+                Object(head = "Noted", args = List(Object(value = $line), Object(name = "reply", value = $reply))),
+                Call(Member($api, "call"), "Noted", $line)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A question left unanswered for want of a word ("pi" in "what is pi times 2"): what the word is,
+// asked the way "what is pi" asks it (a number, where the word is worked on), stands in for it,
+// and the question is worked out again. The call itself when nothing is recalled.
+Concept(Recall(),
+  Realization(Recall($line, $value),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($none, Call(Member($api, "call"), "Recall", $line, $value)),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            If(
+              Call(Member($facets, "some"), Lambda(List($f), And($f, Equals(Member($f, "head"), "Recalling")))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($kind, Call(Member($api, "call"), "Interrogative")),
+            Bind($look,
+              Lambda(List($e, $into),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    Not(Length(Member($e, "args"))),
+                    Call(Member($into, "add"), Member($e, "head")),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($look, Member($a, "value"), $into)
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($said, New($Set)),
+            Call($look, $line, $said),
+            Bind($left, New($Set)),
+            Bind($inner,
+              If(
+                And(
+                  And(
+                    Call($isCall, $value),
+                    Or(Equals(Member($value, "head"), "Answer"), Equals(Member($value, "head"), "Unknown"))
+                  ),
+                  Length(Member($value, "args"))
+                ),
+                Member(Index(Member($value, "args"), 0), "value"),
+                $value
+              )
+            ),
+            If(
+              And(Call($isCall, $inner), Length(Member($inner, "args"))),
+              ForOf(
+                $a,
+                Member($inner, "args"),
+                Call($look, Member($a, "value"), $left)
+              ),
+              Undefined()
+            ),
+            Comment("Only a word with no behaviour of its own: \"do\" and \"is\" are not things to recall."),
+            Bind($acts,
+              Lambda(List($h),
+                Call(
+                  Member(
+                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "realizations"), List()),
+                    "some"
+                  ),
+                  Lambda(List($r), Not(Member($r, "retired")))
+                )
+              )
+            ),
+            Bind($wanting,
+              Filter(Concat($left), Lambda(List($h), And(Call(Member($said, "has"), $h), Not(Call($acts, $h)))))
+            ),
+            If(Not(Length($wanting)), Return($none), Undefined()),
+            Var($changed, $line),
+            Var($recalled, false),
+            ForOf(
+              $h,
+              $wanting,
+              Sequence(
+                Bind($asked,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Mood",
+                        $kind,
+                        Call(
+                          Member($api, "call"),
+                          "What",
+                          Call(
+                            Member($api, "call"),
+                            "Is",
+                            Call(Member($api, "call"), $h)
+                          )
+                        )
+                      ),
+                      Call(
+                        Member($api, "call"),
+                        "Context",
+                        Spread($facets),
+                        Call(Member($api, "call"), "Recalling")
+                      )
+                    )
+                  )
+                ),
+                Comment(
+                  "A thing that is a number (pi) is that number where it is worked on, not where it is asked about."
+                ),
+                Bind($operand,
+                  Lambda(List($e),
+                    And(
+                      Call($isCall, $e),
+                      Call(
+                        Member(Member($e, "args"), "some"),
+                        Lambda(List($a),
+                          Or(
+                            And(
+                              And(
+                                And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), $h)),
+                                Not(Length(Member(Member($a, "value"), "args")))
+                              ),
+                              Not(Includes(List("What", "Is"), Member($e, "head")))
+                            ),
+                            Call($operand, Member($a, "value"))
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($number,
+                  If(
+                    Call($operand, $line),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "NumericValue",
+                          Call(Member($api, "call"), $h)
+                        ),
+                        Call(Member($api, "call"), "Execution")
+                      )
+                    ),
+                    Undefined()
+                  )
+                ),
+                Bind($got,
+                  If(
+                    Equals(TypeOf($number), "number"),
+                    $number,
+                    If(
+                      And(
+                        And(Call($isCall, $asked), Equals(Member($asked, "head"), "Answer")),
+                        Length(Member($asked, "args"))
+                      ),
+                      Member(Index(Member($asked, "args"), 0), "value"),
+                      Undefined()
+                    )
+                  )
+                ),
+                If(
+                  Or(
+                    Equals($got, Undefined()),
+                    And(
+                      Call($isCall, $got),
+                      Or(
+                        Equals(Member($got, "head"), "Unknown"),
+                        Includes(Call(Member($api, "format"), $got), Add($h, "()"))
+                      )
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($put,
+                  Lambda(List($e),
+                    If(
+                      Call($isCall, $e),
+                      If(
+                        And(Equals(Member($e, "head"), $h), Not(Length(Member($e, "args")))),
+                        $got,
+                        Object(
+                          head = Member($e, "head"),
+                          args = Map(
+                            Member($e, "args"),
+                            Lambda(List($a), Object(Spread($a), value = Call($put, Member($a, "value"))))
+                          )
+                        )
+                      ),
+                      $e
+                    )
+                  )
+                ),
+                Assign($changed, Call($put, $changed)),
+                Assign($recalled, true)
+              )
+            ),
+            If(Not($recalled), Return($none), Undefined()),
+            Bind($again,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  $changed,
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                NotEquals(Call(Member($api, "format"), $again), Call(Member($api, "format"), $changed)),
+                $again,
+                $none
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A word said alone that does nothing and is not talk ("clock", not "lol"): what it is, asked.
+// The call itself otherwise.
+Concept(WordAlone(),
+  Realization(WordAlone($line),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            If(
+              Or(Or(Not($line), Not(Member($line, "head"))), Length(Member($line, "args"))),
+              Return(Call(Member($api, "call"), "WordAlone", $line)),
+              Undefined()
+            ),
+            Bind($unit, Call(Member(Member($api, "store"), "get"), Member($line, "head"))),
+            Bind($acts,
+              And(
+                Not(Not($unit)),
+                Call(Member(Member($unit, "realizations"), "some"), Lambda(List($r), Not(Member($r, "retired"))))
+              )
+            ),
+            Bind($kinds,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Closure",
+                    Member($line, "head"),
+                    "IsA"
+                  )
+                )
+              )
+            ),
+            Bind($talk,
+              And(
+                And($kinds, Equals(Member($kinds, "head"), "List")),
+                Call(
+                  Member(Member($kinds, "args"), "some"),
+                  Lambda(List($a),
+                    And(Member($a, "value"), Equals(Member(Member($a, "value"), "head"), "Interjection"))
+                  )
+                )
+              )
+            ),
+            If(
+              Or($acts, $talk),
+              Return(Call(Member($api, "call"), "WordAlone", $line)),
+              Undefined()
+            ),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  "Mood",
+                  Call(Member($api, "call"), "Interrogative"),
+                  Call(
+                    Member($api, "call"),
+                    "What",
+                    Call(Member($api, "call"), "Is", $line)
+                  )
+                ),
+                Call(
+                  Member($api, "call"),
+                  "Context",
+                  Spread(Filter($facets, Lambda(List($f), Not(And($f, Equals(Member($f, "head"), "Declarative"))))))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A thing named that works out to a value ("average of 3, 5 and 10", "square root of 144") is
+// asked for, not told; a statement something takes as said has its answer, when that is not a
+// truth ("that was wrong" is apologised for; "my name is Keal" is not answered "yes"). Worked out
+// apart first. The call itself when it is neither.
+Concept(WorksOut(),
+  Realization(WorksOut($line),
+    context = Declarative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            If(
+              Or(Or(Not($line), Not(Member($line, "head"))), Not(Length(Member($line, "args")))),
+              Return(Call(Member($api, "call"), "WorksOut", $line)),
+              Undefined()
+            ),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Bind($read, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Read", $line)))),
+            Var($value, Undefined()),
+            Try(
+              Assign(
+                $value,
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    $read,
+                    Call(
+                      Member($api, "call"),
+                      "Context",
+                      Spread($facets),
+                      Call(Member($api, "call"), "Hypothetical")
+                    )
+                  )
+                )
+              ),
+              Catch($error, Assign($value, Undefined()))
+            ),
+            Bind($plain,
+              Lambda(List($v),
+                Or(
+                  Or(Equals(TypeOf($v), "number"), And(Equals(TypeOf($v), "string"), GreaterThan(Length($v), 0))),
+                  And(
+                    And(And($v, Equals(Member($v, "head"), "List")), GreaterThan(Length(Member($v, "args")), 0)),
+                    Call(Member(Member($v, "args"), "every"), Lambda(List($a), Call($plain, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Bind($told,
+              And(
+                And($value, Equals(Member($value, "head"), "Answer")),
+                Not(
+                  And(
+                    And(Index(Member($value, "args"), 0), Member(Index(Member($value, "args"), 0), "value")),
+                    Includes(
+                      List("True", "False", "UnknownTruth", "Unknown"),
+                      Member(Member(Index(Member($value, "args"), 0), "value"), "head")
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              $told,
+              Return(
+                Call(
+                  Member($api, "evaluate"),
+                  $read,
+                  Member($api, "context")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              Call($plain, $value),
+              Sequence(
+                Bind($answer,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      $read,
+                      Call(
+                        Member($api, "call"),
+                        "Context",
+                        Spread(
+                          Filter($facets, Lambda(List($f), Not(And($f, Equals(Member($f, "head"), "Declarative")))))
+                        ),
+                        Call(Member($api, "call"), "Interrogative")
+                      )
+                    )
+                  )
+                ),
+                Return(
+                  If(
+                    And($answer, Equals(Member($answer, "head"), "Answer")),
+                    $answer,
+                    Call(Member($api, "call"), "Answer", $answer)
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "WorksOut", $line))
+          )
+        )
+      )
+    )
+  )
+)

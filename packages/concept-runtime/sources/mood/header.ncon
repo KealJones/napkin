@@ -1,0 +1,6 @@
+// A line of what was said, in the mood it was said in. Mood(kind, line) evaluates Line(line) with
+// the mood as its context, and Line has a realization in each mood: a statement is told, a
+// question asked, anything else done. Each thing a line in a mood may be is its own Concept,
+// tried in order, so each can be traced, replaced and learned alone. Written by scripts/pack.mjs
+// from sources/mood (edit those, not this).
+Requires(Core(), Basic())
