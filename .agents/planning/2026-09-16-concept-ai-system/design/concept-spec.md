@@ -763,8 +763,7 @@ Realization(Size($x), body = ...)
 `Size(5)` takes the first, `Size(List("a", "b"))` the second, anything else the third.
 
 **A type is anything `IsA` can point at.** There is one language for "what this is" and "what
-this accepts", and checking a type is walking the `IsA` chain (`runtime/types.ts`). A type is
-written like a pattern whose holes are types:
+this accepts". A type is written like a pattern whose holes are types:
 
 | Type | Holds for | Same shape as the pattern |
 |---|---|---|
@@ -773,7 +772,9 @@ written like a pattern whose holes are types:
 | `List(Number(), String())` | a list of a number, then text | `List($a, $b)` |
 | `List(Rest(Number()))` | any number of numbers | `List(Rest($xs))` |
 | `List(String(), Rest(Number()))` | text, then any number of numbers | `List($a, Rest($xs))` |
-| `ListOf(Number())` | `List(Rest(Number()))`, said shorter | |
+| `List(Of(Number()))`, `ListOf(Number())` | `List(Rest(Number()))`, as "a list of numbers" is heard | |
+| `Map(String(), Number())`, `Foo(X())` | a generic applied to types: what a thing's own `IsA` says exactly | |
+| `$T` | a type variable: the same type everywhere it stands | |
 | `OneOf(A, B)` | either | |
 | a Concept with more said of it, `Car(Red())` | a thing whose own `IsA` says exactly that | |
 
@@ -781,6 +782,19 @@ written like a pattern whose holes are types:
 of numbers" is `List(Rest(Number()))`, or `ListOf(Number())`. In a type position (`types =`, `IsA(...)`, a code
 declaration's `type =`) the shape is a type; in a value position `List(3, 4)` is a list. Where
 it is written says which.
+
+**What a shape means is the graph's.** Whether a value is of a type is asked of `Fits(value,
+type)`, and each shape above is one of its realizations (`packs/core.ncon`): `List(Of($t))`,
+`List(Rest($ts))` read by position, `OneOf(...)`, and last, what the value is through `IsA`.
+A pack can teach a new shape by adding a realization. The host only walks what a value is
+(`api.typesOf`) and binds type variables. `Fits`'s own realizations are never typed, so
+checking a type never needs checking a type.
+
+**Type variables.** `Types(a = $T, b = $T)` says `a` and `b` are one type, as a pattern
+variable written twice is one value. `$T` takes the type of what it first stands for (`$T`
+against 5 is `Number()`; in `List(Of($T))`, the type of the list's first item), then every
+other place it stands must fit that. A type variable nothing showed takes anything. The same
+variables are a typed language's type parameters (`ir-spec.md` Part 10.9).
 
 **The pattern keeps its shape.** Hearing reads how many things a doing takes from its
 patterns, so a type written inside a pattern would change how words are heard. Beside it,

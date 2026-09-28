@@ -797,6 +797,311 @@ Concept(OneOf())
 
 Concept(ListOf())
 
+Concept(Of())
+
+// Fits(value, type): whether a value is of a type (runtime/types.ts asks it for a realization's
+// types). Each shape a type can take is its own realization, so a pack can teach another; the
+// last walks what the value is through IsA. Fits's own realizations are never typed: checking
+// a type must not need checking a type.
+// Any number of things of one type: a list whose every item fits it.
+Concept(Fits(),
+  Realization(Fits($value, List(Of($type))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            If(
+              Or(Not(Call($isCall, $value)), NotEquals(Member($value, "head"), "List")),
+              Return(Call(Member($api, "call"), "False")),
+              Undefined()
+            ),
+            ForOf(
+              $a,
+              Member($value, "args"),
+              Sequence(
+                If(
+                  NotEquals(Member($a, "name"), Undefined()),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($fits,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Fits",
+                        Member($a, "value"),
+                        Call(Member($bindings, "get"), "type")
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  Not(And(Call($isCall, $fits), Equals(Member($fits, "head"), "True"))),
+                  Return(Call(Member($api, "call"), "False")),
+                  Undefined()
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "True"))
+          )
+        )
+      )
+    )
+  )
+)
+
+// ListOf(T) is List(Of(T)), said shorter.
+Concept(Fits(),
+  Realization(Fits($value, ListOf($type)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Call(
+            Member($api, "evaluate"),
+            Call(
+              Member($api, "call"),
+              "Fits",
+              Call(Member($bindings, "get"), "value"),
+              Call(
+                Member($api, "call"),
+                "List",
+                Call(
+                  Member($api, "call"),
+                  "Of",
+                  Call(Member($bindings, "get"), "type")
+                )
+              )
+            ),
+            Call(Member($api, "call"), "Execution")
+          )
+        )
+      )
+    )
+  )
+)
+
+// A list, position by position, as a pattern reads one: List(A, B) is two things, a Rest(C) in
+// the last place any number more of C.
+Concept(Fits(),
+  Realization(Fits($value, List(Rest($types))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($type, Member(Index($args, 1), "value")),
+            If(
+              Or(Not(Call($isCall, $value)), NotEquals(Member($value, "head"), "List")),
+              Return(Call(Member($api, "call"), "False")),
+              Undefined()
+            ),
+            Bind($items,
+              Map(
+                Filter(Member($value, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Bind($parts,
+              Map(
+                Filter(Member($type, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Bind($fits,
+              Async(
+                Lambda(List($v, $t),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Fits", $v, $t),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(And(Call($isCall, $r), Equals(Member($r, "head"), "True")))
+                  )
+                )
+              )
+            ),
+            Var($at, 0),
+            ForOf(
+              $t,
+              $parts,
+              Sequence(
+                If(
+                  And(Call($isCall, $t), Equals(Member($t, "head"), "Rest")),
+                  Sequence(
+                    Bind($each,
+                      If(
+                        Length(Member($t, "args")),
+                        Member(Index(Member($t, "args"), 0), "value"),
+                        $t
+                      )
+                    ),
+                    ForOf(
+                      $v,
+                      Call(Member($items, "slice"), $at),
+                      If(
+                        Not(Await(Call($fits, $v, $each))),
+                        Return(Call(Member($api, "call"), "False")),
+                        Undefined()
+                      )
+                    ),
+                    Return(Call(Member($api, "call"), "True"))
+                  ),
+                  Undefined()
+                ),
+                If(
+                  Or(AtLeast($at, Length($items)), Not(Await(Call($fits, Index($items, $at), $t)))),
+                  Return(Call(Member($api, "call"), "False")),
+                  Undefined()
+                ),
+                Assign($at, Add($at, 1))
+              )
+            ),
+            Return(
+              If(
+                Equals($at, Length($items)),
+                Call(Member($api, "call"), "True"),
+                Call(Member($api, "call"), "False")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Either of several.
+Concept(Fits(),
+  Realization(Fits($value, OneOf(Rest($types))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            ForOf(
+              $a,
+              Member(Member(Index($args, 1), "value"), "args"),
+              Sequence(
+                Bind($fits,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Fits",
+                        Call(Member($bindings, "get"), "value"),
+                        Member($a, "value")
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And(Call($isCall, $fits), Equals(Member($fits, "head"), "True")),
+                  Return(Call(Member($api, "call"), "True")),
+                  Undefined()
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "False"))
+          )
+        )
+      )
+    )
+  )
+)
+
+// Otherwise, what it is: a Concept its IsA chain reaches (a number is a Number), or, for a type
+// with more said of it (Foo(X())), what its own IsA says exactly.
+Concept(Fits(),
+  Realization(Fits($value, $type),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($type, Call(Member($bindings, "get"), "type")),
+            If(
+              Not(Call($isCall, $type)),
+              Return(
+                If(
+                  Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $type)),
+                  Call(Member($api, "call"), "True"),
+                  Call(Member($api, "call"), "False")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              Length(Member($type, "args")),
+              Sequence(
+                Bind($own,
+                  If(
+                    Call($isCall, $value),
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($value, "head")), "relations"),
+                      List()
+                    ),
+                    List()
+                  )
+                ),
+                Return(
+                  If(
+                    Call(
+                      Member($own, "some"),
+                      Lambda(List($r),
+                        And(
+                          And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                          Equals(
+                            Call(Member($api, "format"), Member(Index(Member(Member($r, "claim"), "args"), 0), "value")),
+                            Call(Member($api, "format"), $type)
+                          )
+                        )
+                      )
+                    ),
+                    Call(Member($api, "call"), "True"),
+                    Call(Member($api, "call"), "False")
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              If(
+                Includes(Call(Member($api, "typesOf"), $value), Member($type, "head")),
+                Call(Member($api, "call"), "True"),
+                Call(Member($api, "call"), "False")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A doing that takes two things, given them as one group ("add 5 and 3", "multiply 2, 3 and 4"):
 // done to the first two, then to that and the next. Derived onto every such doing (seed.ts,
 // deriveGroupings), so no doing lists what it folds.

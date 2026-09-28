@@ -39,7 +39,7 @@ import { budget, ConceptError, executionFailed, unbound } from "./errors.js";
 import { EvidenceStore, evidenceStoreFor, resetEvidenceCache } from "./evidence.js";
 import { activation } from "./activation.js";
 import { compiledFor } from "./compile.js";
-import { typesHold } from "./types.js";
+import { typesHold, typesOf } from "./types.js";
 import { bestCandidate, candidates, incomparable, tieBreakDecided, type Candidate } from "./select.js";
 import { Trace, realizationExpr } from "./trace.js";
 
@@ -156,6 +156,8 @@ export interface CodeApi {
   lemma(word: string): string;
   /** Whether a word is a name: the tagger says so, or it is not an English word at all. */
   properNoun(word: string): boolean;
+  /** What a value is, most particular first: its own head or primitive, then through IsA (runtime/types.ts). */
+  typesOf(value: Expr): string[];
   /** The words a heard thing was said in (Cheese(Parmesan()) is "parmesan cheese"), when hearing them gives it back. */
   sayPhrase(e: Expr): Promise<string | undefined>;
   /** A text's words in order, with their sentence and the tags the tagger proposes. */
@@ -463,7 +465,12 @@ export class Runtime {
       }
 
       // A variable of the wrong type ("add" given a list when this adds numbers): not this one.
-      if (!typesHold(this.store, realization.types, bindings)) {
+      // Fits's own realizations are never typed: checking a type must not need checking a type.
+      const fits = async (value: Expr, type: Expr): Promise<boolean> => {
+        const r = await this.run(call("Fits", [{ value }, { value: type }]), call("Execution", []), target.head, id, inner + 1, within);
+        return isCall(r) && r.head === "True";
+      };
+      if (target.head !== "Fits" && !(await typesHold(this.store, realization.types, bindings, fits))) {
         if (more) continue;
         trace.finish(id, "residual", call(target.head, args));
         return call(target.head, args);
@@ -656,6 +663,7 @@ export class Runtime {
       codeWords,
       verbatim,
       properNoun,
+      typesOf: (value) => typesOf(this.store, value),
       sayPhrase: async (e) => (await import("../ears/phrase.js")).sayPhrase(this.store, e),
       forgetTurns: (saidSeqs) => {
         if (this.tracePath === undefined || !saidSeqs.length) return;

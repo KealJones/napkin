@@ -1,22 +1,24 @@
 /**
- * Whether a value is of a type (concept-spec Part 6.7). A type is anything IsA can point at, and
- * is written like a pattern whose holes are types: a Concept (`Number()`, `Someone()`), a list
- * with a type in each position (`List(String(), Number())`), a repeating tail (`List(Rest(Number()))`
- * is any number of numbers, and ListOf(Number()) says it shorter), or either of several (`OneOf(Number(), String())`). A number is a
- * Number, text a String, true and false Booleans; a call is what its head is, through IsA and
- * SubclassOf. Nothing here names a type of thing in the world: only the shapes a type can take.
+ * Whether a realization's variables are of their types (concept-spec Part 6.7). A type is
+ * anything IsA can point at, written like a pattern whose holes are types: `Number()`,
+ * `List(String(), Rest(Number()))`, `List(Of(Number()))`, `OneOf(A, B)`, `Foo(X())`. What each
+ * shape means is the graph's, as realizations of `Fits` (packs/core.ncon); the host only walks
+ * what a value is, and binds type variables: in `Types(a = $T, b = $T)` both are one type.
  */
-import { type Expr, equal, format, isCall } from "../concept/expression.js";
+import { type Expr, call, isCall, isVariable } from "../concept/expression.js";
 import type { Bindings } from "../concept/match.js";
 import type { ConceptStore } from "../store/store.js";
 
 const positional = (e: Expr): Expr[] => (isCall(e) ? e.args.filter((a) => a.name === undefined).map((a) => a.value) : []);
 
-/** What a value is, most particular first: its own head or primitive, then what it is through IsA. */
-function typesOf(store: ConceptStore, value: Expr): string[] {
+/**
+ * What a value is, most particular first: its own head or primitive (a number is a Number, text
+ * a String, true and false Booleans), then what that is through IsA and SubclassOf, to types
+ * nothing more is known of too.
+ */
+export function typesOf(store: ConceptStore, value: Expr): string[] {
   const own = typeof value === "number" ? "Number" : typeof value === "string" ? "String" : typeof value === "boolean" ? "Boolean" : isCall(value) ? value.head : undefined;
   if (own === undefined) return [];
-  // Through IsA and SubclassOf, to types nothing more is known of too (Animal, with no unit).
   const out = [own];
   for (let i = 0; i < out.length && out.length < 64; i++) {
     for (const r of store.get(out[i])?.relations ?? []) {
@@ -27,43 +29,47 @@ function typesOf(store: ConceptStore, value: Expr): string[] {
   return out;
 }
 
-export function isType(store: ConceptStore, value: Expr, type: Expr): boolean {
-  if (!isCall(type)) return equal(value, type);
-  const parts = positional(type);
-  if (type.head === "OneOf") return parts.some((t) => isType(store, value, t));
-  // ListOf(T) says List(Rest(T)) shorter: any number of T.
-  if (type.head === "ListOf" && parts.length === 1) return isType(store, value, { head: "List", args: [{ value: { head: "Rest", args: [{ value: parts[0] }] } }] });
-  // A list, position by position, as a pattern reads one: List(A, B) is two, Rest(C) the rest.
-  if (type.head === "List" && type.args.every((a) => a.name === undefined)) {
-    if (!isCall(value) || value.head !== "List") return false;
-    const items = positional(value);
-    let at = 0;
-    for (const t of parts) {
-      if (isCall(t) && t.head === "Rest") return items.slice(at).every((v) => isType(store, v, positional(t)[0] ?? t));
-      if (at >= items.length || !isType(store, items[at], t)) return false;
-      at++;
+/**
+ * A type variable takes the type of what it first stands for: `$T` against 5 is Number(), and
+ * in `List(Of($T))` against a list, the type of its first item. Only where the value shows it.
+ */
+function infer(store: ConceptStore, value: Expr, type: Expr, found: Map<string, Expr>): void {
+  if (isVariable(type)) {
+    if (!found.has(type.variable)) {
+      const own = typesOf(store, value)[0];
+      if (own !== undefined) found.set(type.variable, call(own, []));
     }
-    return at === items.length;
+    return;
   }
-  // A type with more said of it: what a thing's own IsA says it is, exactly.
-  if (type.args.length) {
-    if (!isCall(value)) return false;
-    return (store.get(value.head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && format(r.claim.args[0]?.value) === format(type));
+  if (!isCall(type) || !isCall(value) || value.head !== "List") return;
+  const items = positional(value);
+  const parts = positional(type);
+  const of = parts.length === 1 && isCall(parts[0]) && (parts[0].head === "Of" || parts[0].head === "Rest") ? positional(parts[0])[0] : undefined;
+  if ((type.head === "List" || type.head === "ListOf") && (of !== undefined || type.head === "ListOf")) {
+    const each = of ?? parts[0];
+    if (items.length && each !== undefined) infer(store, items[0], each, found);
+    return;
   }
-  return typesOf(store, value).includes(type.head);
+  if (type.head === "List") parts.forEach((t, i) => i < items.length && !(isCall(t) && t.head === "Rest") && infer(store, items[i], t, found));
 }
+
+const substitute = (type: Expr, found: Map<string, Expr>): Expr =>
+  isVariable(type) ? (found.get(type.variable) ?? type) : isCall(type) ? { head: type.head, args: type.args.map((a) => ({ ...a, value: substitute(a.value, found) })) } : type;
 
 /**
  * Whether every variable a realization types (`types = Types(a = Number())`, each named for its
- * variable) holds a value of its type. A variable the pattern did not bind, or one not typed,
- * takes anything.
+ * variable) holds a value of its type, asked of `Fits`. A variable the pattern did not bind, or
+ * one not typed, takes anything; a type variable no value showed takes anything too.
  */
-export function typesHold(store: ConceptStore, types: Expr | undefined, bindings: Bindings): boolean {
+export async function typesHold(store: ConceptStore, types: Expr | undefined, bindings: Bindings, fits: (value: Expr, type: Expr) => Promise<boolean>): Promise<boolean> {
   if (types === undefined || !isCall(types)) return true;
-  for (const a of types.args) {
-    if (a.name === undefined) continue;
-    const value = bindings.get(a.name);
-    if (value !== undefined && !isType(store, value, a.value)) return false;
+  const typed = types.args.flatMap((a) => (a.name !== undefined && bindings.has(a.name) ? [{ value: bindings.get(a.name)!, type: a.value }] : []));
+  const found = new Map<string, Expr>();
+  for (const t of typed) infer(store, t.value, t.type, found);
+  for (const t of typed) {
+    const type = substitute(t.type, found);
+    if (isVariable(type)) continue;
+    if (!(await fits(t.value, type))) return false;
   }
   return true;
 }
