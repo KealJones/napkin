@@ -75,19 +75,36 @@ The user's own individuals (`Greg_1`, `ShoppingList_1`, a conversation) and what
 Napkin are never asked about outside: memory-spec Part 6.6 already says personal individuals
 are not researched. Only the derivations refresh for them.
 
-### Pack Concepts: world facts are senses, never behaviour
+### Pack Concepts: their own sense, found and tied; the others beside it
 
-A pack Concept (`Sequence`, `Mood`, `List`, `Human`) has behaviour Napkin runs on. What the
-world says of the word must never change that: this is how "clock" and `Mood` went wrong before
-(a pack word researched, then described as nonsense or answered by a stranger's meaning).
+A pack Concept is not "machinery, not the word". `Sequence` runs steps in order because a
+sequence is things in an order: what the pack does is one of the word's real senses. So a
+refresh finds **which** sense that is and ties the pack Concept to it, and keeps the word's
+other senses beside it:
 
-So for a Concept a pack declares, what a source says is held in a context named by the sense
-(the way `regroundSense` already keeps Pi's senses apart): `Relation(IsA(Instrument()),
-context = Sense(Wikidata("Q376")))`. The sense a question needs is picked by how the word is
-used (AGENTS.md: "pick the sense that makes the question make sense"). `Human` and `Male` gain
-their Wikidata facts; `Sequence` keeps working.
+```
+Sequence  SameAs(Wikidata("Q133250"))                      the sense the pack implements
+          IsA(Collection())  ...                             what that sense says, plainly
+          Relation(IsA(MusicalForm()), context = Sense(Wikidata("Q...")))   another sense of the word
+          Relation(IsA(FilmScene()),   context = Sense(Wikidata("Q...")))   and another
+```
 
-A Concept learned, not declared, holds its sources' facts plainly, as today.
+**Which sense is the pack's** is picked the way any sense is (AGENTS.md: "pick the sense that
+makes the question make sense"): the one whose kinds and description fit what the pack already
+says of the Concept (`Sequence IsA Collection`, a `Code` primitive; `Human IsA Someone`; `List
+IsA Collection`). When none fits clearly, the Concept gets no tie and every sense stays in its
+own context: an honest "not sure which", never the first label.
+
+**What the tied sense says is held plainly**, like any learned fact, because it describes the
+same thing the pack runs. **The other senses stay in their contexts**, so the word's music or
+film meaning never changes what `Sequence` does, and a question that means one of them
+("what is a sequence in music") picks it by use. This is how "clock" and `Mood` went wrong
+before: a stranger's sense taken plainly. With the tie, the right sense is plain and the
+strangers are contextual.
+
+What the pack declares always wins over a source where they disagree: a source's fact that
+contradicts a pack's (a `Functional` relation given a second value) is held in the sense's
+context, not plainly.
 
 ### When it runs
 
@@ -115,8 +132,11 @@ A Concept learned, not declared, holds its sources' facts plainly, as today.
    `~/.napkin/store.ncon` and on a phone export first; read the diff.
 4. On-use refresh after the reply, and grounding split into now and later.
 5. Wiktionary and the corpus as sources with records.
-6. Pack Concepts: senses in context, sense picked by use. The riskiest step; its tests are that
-   every existing test still passes and that "what is a sequence" and "clock" answer sensibly.
+6. Pack Concepts: the pack's own sense found by kind and tied (`SameAs`), its facts held
+   plainly; the word's other senses in their contexts, picked by use. The riskiest step; its
+   tests are that every existing test still passes, that "what is a sequence" answers with the
+   ordered sense and "what is a sequence in music" with the other, and that "clock" answers
+   sensibly.
 
 ### Open questions
 
