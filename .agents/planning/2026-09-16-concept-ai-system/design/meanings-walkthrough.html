@@ -132,11 +132,16 @@
   .q .ans { margin-left: auto; }
   .back { display: inline-block; margin-top: 18px; font-weight: 700; color: var(--blue); }
   a.card-link { text-decoration: none; color: inherit; display: inline-block; }
+  .backtop { position: fixed; top: 16px; left: 16px; z-index: 60; padding: 8px 14px; border-radius: 999px;
+    border: 2px solid var(--ink); background: #fff; color: var(--ink); font: 700 14px/1 system-ui;
+    text-decoration: none; box-shadow: 3px 3px 0 var(--ink); }
+  .backtop:hover { background: var(--paper-2); }
 </style>
 </head>
 <body>
 <div id="progress"></div>
 <nav id="nav"></nav>
+<a class="backtop" href="#" data-walkthrough="how" data-href="ir-walkthrough.html">&larr; How it works</a>
 
 <!-- 0. Title -->
 <section id="s0">
