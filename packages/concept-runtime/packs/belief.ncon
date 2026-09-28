@@ -1,0 +1,692 @@
+// Believing what was said: a statement is who or what it is about and what is said of it
+// ("my name is Keal", "Greg likes cats", "a whale is a mammal"), kept on its subject in the words
+// it was said in, each stamped from the Said it came from, so it can be recalled, traced and taken
+// back. One mechanism for every statement: nothing here knows what any word means. Written by
+// scripts/pack.mjs from sources/belief (edit those, not this).
+Requires(Core(), Basic(), Memory())
+
+// A statement read as who or what it is about and what is said of it. Its shape is
+// Subject(Doing(What...)): the subject is "I" (the user, an individual minted once and found by
+// IsA(User())), a thing, or several joined by "or"; "my X is Y" is the user's X, which is Y. The
+// doing is a verb of what was typed, kept as the relation it names: "is a" is IsA, a verb its
+// base form ("likes" is Like, or Likes where that is the relation the graph declares).
+// A claim whose relation is lasting (Enduring(): IsA, Likes, LivesIn ...) is kept on its subject,
+// stamped from what was said: Believed(Subject, List(claim)). Anything else stays in the Said it
+// already is, where Pursue finds it by shape; the line comes back unchanged.
+// Asked (Believe(line, Asked())), the same reading keeps nothing: a question in a statement's
+// words ("am I in a bad mood?", "does Greg like cats?", doing first) is whether that was said or
+// believed: Answer(True()) when it was, the line itself when it was not.
+Concept(Believe(),
+  Realization(Believe($line, Rest($asked)),
+    context = Execution(),
+    evaluateArguments = false,
+    properties = List(Effectful()),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($asking,
+              Call(
+                Member(Call(Member($args, "slice"), 1), "some"),
+                Lambda(List($a),
+                  And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Asked"))
+                )
+              )
+            ),
+            Bind($positional,
+              Lambda(List($e),
+                If(
+                  Call($isCall, $e),
+                  Map(
+                    Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                    Lambda(List($a), Member($a, "value"))
+                  ),
+                  List()
+                )
+              )
+            ),
+            Bind($has,
+              Lambda(List($head, $claim),
+                Call(
+                  Member(
+                    Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $head), "relations"), List()),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), $claim))
+                  )
+                )
+              )
+            ),
+            Bind($base,
+              Lambda(List($head),
+                Sequence(
+                  Bind($b,
+                    Call(
+                      Member($api, "lemma"),
+                      Call(
+                        Member(
+                          Call(
+                            Member($head, "replace"),
+                            Regex("([a-z])([A-Z])", "g"),
+                            "$1 $2"
+                          ),
+                          "toLowerCase"
+                        )
+                      )
+                    )
+                  ),
+                  Return(
+                    If(
+                      Equals($b, "be"),
+                      "Is",
+                      Call(
+                        Member(
+                          Map(
+                            Call(Member($b, "split"), " "),
+                            Lambda(List($w),
+                              Add(Call(Member(Index($w, 0), "toUpperCase")), Call(Member($w, "slice"), 1))
+                            )
+                          ),
+                          "join"
+                        ),
+                        ""
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("The relation a doing names: its base form, or that with an s where the graph declares that."),
+            Bind($relation,
+              Lambda(List($head),
+                Sequence(
+                  Bind($b, Call($base, $head)),
+                  Return(
+                    If(
+                      Call($has, $b, "Enduring"),
+                      $b,
+                      If(Call($has, Add($b, "s"), "Enduring"), Add($b, "s"), $b)
+                    )
+                  )
+                )
+              )
+            ),
+            Comment(
+              "A doing is a verb in what was typed (\"likes\" in \"Greg likes cats\", not \"for\" in \"thanks for"
+            ),
+            Comment(
+              "the help\"): what the sentence tags it, or what it is alone (\"like\" in \"does greg like cats\" is"
+            ),
+            Comment("tagged a preposition; alone it can be a verb)."),
+            Bind($tagged, Lambda(List($text), Call(Member($api, "words"), $text))),
+            Bind($verbIn,
+              Lambda(List($words, $head),
+                Sequence(
+                  Bind($first,
+                    Index(
+                      Call(
+                        Member(
+                          Call(
+                            Member(
+                              Call(
+                                Member($head, "replace"),
+                                Regex("([a-z])([A-Z])", "g"),
+                                "$1 $2"
+                              ),
+                              "toLowerCase"
+                            )
+                          ),
+                          "split"
+                        ),
+                        " "
+                      ),
+                      0
+                    )
+                  ),
+                  Return(
+                    Call(
+                      Member($words, "some"),
+                      Lambda(List($w),
+                        And(
+                          Equals(Call(Member(Member($w, "text"), "toLowerCase")), $first),
+                          Call(
+                            Member(Concat(Member($w, "tags"), Otherwise(Member($w, "could"), List())), "some"),
+                            Lambda(List($t), Or(Equals($t, "Verb"), Equals($t, "Copula")))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($userOf,
+              Lambda(List(),
+                OptionalMember(
+                  Call(
+                    Member(Call(Member(Member($api, "store"), "all")), "find"),
+                    Lambda(List($u),
+                      Call(
+                        Member(Member($u, "relations"), "some"),
+                        Lambda(List($r),
+                          And(
+                            And(
+                              And(
+                                Call($isCall, Member($r, "claim")),
+                                Equals(Member(Member($r, "claim"), "head"), "IsA")
+                              ),
+                              Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                            ),
+                            Equals(
+                              Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                              "User"
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  "identity"
+                )
+              )
+            ),
+            Bind($deictic,
+              Async(
+                Lambda(List($h),
+                  Sequence(
+                    Bind($k,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Closure", $h, "IsA"),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      And(
+                        Call($isCall, $k),
+                        Call(
+                          Member(Member($k, "args"), "some"),
+                          Lambda(List($a),
+                            And(
+                              Call($isCall, Member($a, "value")),
+                              Equals(Member(Member($a, "value"), "head"), "Deictic")
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("Each claim a line makes: { subject, claim, owned }. The subject \"Me\" is the user, found later."),
+            Bind($read,
+              Async(
+                Lambda(List($e, $words, $asked),
+                  Sequence(
+                    Bind($out, List()),
+                    Bind($claimOf,
+                      Lambda(List($p),
+                        Sequence(
+                          If(
+                            Or(
+                              Not(Call($isCall, $p)),
+                              And(NotEquals(Member($p, "head"), "IsA"), Not(Call($verbIn, $words, Member($p, "head"))))
+                            ),
+                            Return(Undefined()),
+                            Undefined()
+                          ),
+                          Bind($objects, Call($positional, $p)),
+                          Return(
+                            If(
+                              Length($objects),
+                              Object(
+                                head = If(
+                                  Equals(Member($p, "head"), "IsA"),
+                                  "IsA",
+                                  Call($relation, Member($p, "head"))
+                                ),
+                                args = Map($objects, Lambda(List($value), Object(value = $value)))
+                              ),
+                              Undefined()
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Bind($subject,
+                      Async(
+                        Lambda(List($s),
+                          If(
+                            And(
+                              And(Call($isCall, $s), Not(Length(Call($positional, $s)))),
+                              Or(
+                                Not(Await(Call($deictic, Member($s, "head")))),
+                                Includes(List("Me", "I"), Member($s, "head"))
+                              )
+                            ),
+                            Member($s, "head"),
+                            Undefined()
+                          )
+                        )
+                      )
+                    ),
+                    Bind($add,
+                      Async(
+                        Lambda(List($s, $claim, $owned),
+                          Sequence(
+                            Bind($who, Await(Call($subject, $s))),
+                            If(
+                              And($who, $claim),
+                              Call(Member($out, "push"), Object(subject = $who, claim = $claim, owned = $owned)),
+                              Undefined()
+                            ),
+                            Undefined()
+                          )
+                        )
+                      )
+                    ),
+                    If(Not(Call($isCall, $e)), Return($out), Undefined()),
+                    If(
+                      And(Equals(Member($e, "head"), "My"), Equals(Length(Call($positional, $e)), 1)),
+                      Sequence(
+                        Comment("\"My name is Keal\": the user's name, which is Keal."),
+                        Bind($owned, Index(Call($positional, $e), 0)),
+                        Bind($said, Index(Call($positional, $owned), 0)),
+                        If(
+                          And(
+                            And(
+                              And(
+                                And(Call($isCall, $owned), Call($isCall, $said)),
+                                Call($verbIn, $words, Member($said, "head"))
+                              ),
+                              Equals(Call($base, Member($said, "head")), "Is")
+                            ),
+                            Equals(Length(Call($positional, $said)), 1)
+                          ),
+                          Await(
+                            Call(
+                              $add,
+                              Call(Member($api, "call"), "Me"),
+                              Object(
+                                head = Member($owned, "head"),
+                                args = List(Object(value = Index(Call($positional, $said), 0)))
+                              ),
+                              true
+                            )
+                          ),
+                          Undefined()
+                        )
+                      ),
+                      If(
+                        Equals(Member($e, "head"), "Or"),
+                        Sequence(
+                          Comment("\"Woops or Whoops is a word\": said of each."),
+                          Bind($parts, Call($positional, $e)),
+                          Bind($claim, Call($claimOf, Index($parts, Subtract(Length($parts), 1)))),
+                          ForOf(
+                            $s,
+                            Call(Member($parts, "slice"), 0, Negate(1)),
+                            Await(Call($add, $s, $claim))
+                          )
+                        ),
+                        If(
+                          And(Equals(Length(Call($positional, $e)), 1), Equals(Length(Member($e, "args")), 1)),
+                          Sequence(
+                            Bind($inner, Index(Call($positional, $e), 0)),
+                            Comment(
+                              "Asked doing first (\"am I in a bad mood\", \"does Greg like cats\"): Doing(Subject(What)) is"
+                            ),
+                            Comment("Subject(Doing(What)), and a helper \"does\" is no doing of its own."),
+                            If(
+                              And(
+                                And(And($asked, Call($isCall, $inner)), Equals(Length(Call($positional, $inner)), 1)),
+                                Call($isCall, Index(Call($positional, $inner), 0))
+                              ),
+                              Sequence(
+                                Bind($rest, Index(Call($positional, $inner), 0)),
+                                Await(
+                                  Call(
+                                    $add,
+                                    Object(head = Member($inner, "head"), args = List()),
+                                    Call(
+                                      $claimOf,
+                                      If(
+                                        Equals(Call($base, Member($e, "head")), "Do"),
+                                        $rest,
+                                        Object(head = Member($e, "head"), args = List(Object(value = $rest)))
+                                      )
+                                    )
+                                  )
+                                )
+                              ),
+                              Undefined()
+                            ),
+                            Await(
+                              Call(
+                                $add,
+                                Object(head = Member($e, "head"), args = List()),
+                                Call($claimOf, $inner)
+                              )
+                            )
+                          ),
+                          Undefined()
+                        )
+                      )
+                    ),
+                    Return($out)
+                  )
+                )
+              )
+            ),
+            Bind($message, Call($String, Otherwise(Call(Member($api, "ambient"), "message"), ""))),
+            Bind($claims, Await(Call($read, $line, Call($tagged, $message), $asking))),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            If(
+              $asking,
+              Sequence(
+                Bind($user, Call($userOf)),
+                Bind($who, Lambda(List($s), If(Or(Equals($s, "Me"), Equals($s, "I")), $user, $s))),
+                Comment("Believed: kept on its subject."),
+                ForOf(
+                  $c,
+                  $claims,
+                  If(
+                    And(
+                      Call($who, Member($c, "subject")),
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Call($who, Member($c, "subject"))),
+                              "relations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r), Call($same, Member($r, "claim"), Member($c, "claim")))
+                      )
+                    ),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Answer",
+                        Call(Member($api, "call"), "True")
+                      )
+                    ),
+                    Undefined()
+                  )
+                ),
+                Comment("Said: a statement the user made, read the same way."),
+                ForOf(
+                  $unit,
+                  Call(Member(Member($api, "store"), "all")),
+                  ForOf(
+                    $r,
+                    Member($unit, "relations"),
+                    Sequence(
+                      Bind($s, Member($r, "claim")),
+                      If(
+                        Or(
+                          Or(
+                            Or(Not(Call($isCall, $s)), NotEquals(Member($s, "head"), "Said")),
+                            Not(Call($isCall, OptionalMember(Index(Member($s, "args"), 0), "value")))
+                          ),
+                          NotEquals(Member(Member(Index(Member($s, "args"), 0), "value"), "head"), "Me")
+                        ),
+                        Continue(),
+                        Undefined()
+                      ),
+                      Bind($content, OptionalMember(Index(Member($s, "args"), 1), "value")),
+                      Bind($text,
+                        OptionalMember(
+                          Call(Member(Member($s, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "text"))),
+                          "value"
+                        )
+                      ),
+                      Bind($lines,
+                        If(
+                          And(Call($isCall, $content), Equals(Member($content, "head"), "Sequence")),
+                          Call($positional, $content),
+                          List($content)
+                        )
+                      ),
+                      ForOf(
+                        $l,
+                        $lines,
+                        Sequence(
+                          If(
+                            Or(
+                              Or(
+                                Or(Not(Call($isCall, $l)), NotEquals(Member($l, "head"), "Mood")),
+                                Not(Call($isCall, OptionalMember(Index(Member($l, "args"), 0), "value")))
+                              ),
+                              NotEquals(Member(Member(Index(Member($l, "args"), 0), "value"), "head"), "Declarative")
+                            ),
+                            Continue(),
+                            Undefined()
+                          ),
+                          Bind($told,
+                            Await(
+                              Call(
+                                $read,
+                                Member(Index(Member($l, "args"), 1), "value"),
+                                Call($tagged, Call($String, Otherwise($text, ""))),
+                                false
+                              )
+                            )
+                          ),
+                          If(
+                            Call(
+                              Member($told, "some"),
+                              Lambda(List($t),
+                                Call(
+                                  Member($claims, "some"),
+                                  Lambda(List($c),
+                                    And(
+                                      Equals(Member($t, "subject"), Member($c, "subject")),
+                                      Call($same, Member($t, "claim"), Member($c, "claim"))
+                                    )
+                                  )
+                                )
+                              )
+                            ),
+                            Return(
+                              Call(
+                                Member($api, "call"),
+                                "Answer",
+                                Call(Member($api, "call"), "True")
+                              )
+                            ),
+                            Undefined()
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Return(
+                  Call(
+                    Member($api, "call"),
+                    "Believe",
+                    $line,
+                    Call(Member($api, "call"), "Asked")
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Comment("Only what lasts is kept on its subject; the rest is already kept, in the Said."),
+            Bind($lasting,
+              Filter(
+                $claims,
+                Lambda(List($c),
+                  Or(
+                    Equals(Member(Member($c, "claim"), "head"), "IsA"),
+                    Call($has, Member(Member($c, "claim"), "head"), "Enduring")
+                  )
+                )
+              )
+            ),
+            If(
+              Not(Length($lasting)),
+              Return(Call(Member($api, "call"), "Believe", $line)),
+              Undefined()
+            ),
+            Bind($believed, List()),
+            ForOf(
+              $c,
+              $lasting,
+              Sequence(
+                Var($who, Member($c, "subject")),
+                If(
+                  Or(Equals($who, "Me"), Equals($who, "I")),
+                  Sequence(
+                    Assign($who, Call($userOf)),
+                    If(
+                      Not($who),
+                      Sequence(
+                        Bind($minted,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(
+                                Member($api, "call"),
+                                "Mint",
+                                Call(Member($api, "call"), "User")
+                              ),
+                              Call(Member($api, "call"), "Execution")
+                            )
+                          )
+                        ),
+                        If(Not(Call($isCall, $minted)), Continue(), Undefined()),
+                        Assign($who, Member($minted, "head")),
+                        Call(
+                          Member(Member($api, "store"), "addRelation"),
+                          $who,
+                          Call(
+                            Member($api, "call"),
+                            "IsA",
+                            Call(Member($api, "call"), "User")
+                          ),
+                          Undefined(),
+                          Member(Member($api, "trace"), "cause")
+                        )
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  $who,
+                  Member($c, "claim"),
+                  Undefined(),
+                  Member(Member($api, "trace"), "cause")
+                ),
+                Call(
+                  Member($believed, "push"),
+                  Object(
+                    head = "Believed",
+                    args = Concat(
+                      List(
+                        Object(value = Call(Member($api, "call"), $who)),
+                        Object(value = Call(Member($api, "call"), "List", Member($c, "claim")))
+                      ),
+                      If(
+                        Member($c, "owned"),
+                        List(Object(name = "owned", value = Call(Member($api, "call"), "True"))),
+                        List()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              Not(Length($believed)),
+              Return(Call(Member($api, "call"), "Believe", $line)),
+              Undefined()
+            ),
+            Return(
+              If(
+                Equals(Length($believed), 1),
+                Index($believed, 0),
+                Call(Member($api, "call"), "Sequence", Spread($believed))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What was believed, said back in the words it was said in, turned to the one hearing it, so it
+// can be put right: "I am in a bad mood" is "Got it: you are in a bad mood."
+Concept(Believed(),
+  Realization(Believed(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($message,
+              Call(
+                Member(
+                  Call(Member(Call($String, Otherwise(Call(Member($api, "ambient"), "message"), "")), "trim")),
+                  "replace"
+                ),
+                Regex("[.!?]+$", ""),
+                ""
+              )
+            ),
+            Bind($TURN,
+              Object(
+                i = "you",
+                Pair("i'm", "you're"),
+                me = "you",
+                my = "your",
+                mine = "yours",
+                am = "are",
+                myself = "yourself"
+              )
+            ),
+            Bind($turned,
+              Call(
+                Member(
+                  Map(
+                    Call(Member($message, "split"), Regex("(\\s+)", "")),
+                    Lambda(List($w), Otherwise(Index($TURN, Call(Member($w, "toLowerCase"))), $w))
+                  ),
+                  "join"
+                ),
+                ""
+              )
+            ),
+            Comment("Lowercased to follow \"Got it:\", unless it starts with a name."),
+            Bind($first, Otherwise(Index(Call(Member($turned, "split"), Regex("\\s+", "")), 0), "")),
+            Bind($start,
+              If(
+                Call(Member($api, "properNoun"), $first),
+                $turned,
+                Add(Call(Member(Index($turned, 0), "toLowerCase")), Call(Member($turned, "slice"), 1))
+              )
+            ),
+            Return(If($turned, Add(Add("Got it: ", $start), "."), "Got it."))
+          )
+        )
+      )
+    )
+  )
+)

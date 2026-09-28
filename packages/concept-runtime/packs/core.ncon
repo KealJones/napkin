@@ -823,6 +823,41 @@ Concept(Mood(),
               ),
               Undefined()
             ),
+            Comment("A statement about someone or something is believed: kept on what it is about (Believe)."),
+            If(
+              And($kind, Equals(Member($kind, "head"), "Declarative")),
+              Sequence(
+                Bind($belief,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Believe", $line),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And(
+                    $belief,
+                    Or(
+                      Equals(Member($belief, "head"), "Believed"),
+                      And(
+                        Equals(Member($belief, "head"), "Sequence"),
+                        Call(
+                          Member(Member($belief, "args"), "every"),
+                          Lambda(List($a),
+                            And(Member($a, "value"), Equals(Member(Member($a, "value"), "head"), "Believed"))
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Return($belief),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               And($kind, Equals(Member($kind, "head"), "Declarative")),
               Sequence(
@@ -854,6 +889,44 @@ Concept(Mood(),
               )
             ),
             Bind($value, Await(Call(Member($api, "evaluate"), $line, $context))),
+            Comment("A question in the words of something told (\"am I in a bad mood?\"): whether it was believed."),
+            If(
+              And(
+                And($kind, Equals(Member($kind, "head"), "Interrogative")),
+                Or(
+                  Equals(Call(Member($api, "format"), $value), Call(Member($api, "format"), $line)),
+                  And(
+                    And(
+                      And(And($value, Equals(Member($value, "head"), "Answer")), Index(Member($value, "args"), 0)),
+                      Member(Index(Member($value, "args"), 0), "value")
+                    ),
+                    Equals(Member(Member(Index(Member($value, "args"), 0), "value"), "head"), "UnknownTruth")
+                  )
+                )
+              ),
+              Sequence(
+                Bind($told,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Believe",
+                        $line,
+                        Call(Member($api, "call"), "Asked")
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And($told, Equals(Member($told, "head"), "Answer")),
+                  Return($told),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               And(
                 And($kind, Equals(Member($kind, "head"), "Interrogative")),

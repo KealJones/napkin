@@ -1,0 +1,6 @@
+// Believing what was said: a statement is who or what it is about and what is said of it
+// ("my name is Keal", "Greg likes cats", "a whale is a mammal"), kept on its subject in the words
+// it was said in, each stamped from the Said it came from, so it can be recalled, traced and taken
+// back. One mechanism for every statement: nothing here knows what any word means. Written by
+// scripts/pack.mjs from sources/belief (edit those, not this).
+Requires(Core(), Basic(), Memory())
