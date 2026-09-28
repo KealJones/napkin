@@ -1,0 +1,33 @@
+// Grounding: what a word means, from what the dictionary says it is, read on the kind of value it
+// is done to, into a realization composed of primitives. Written by scripts/pack.mjs from
+// sources/grounding (edit those, not this).
+//
+// "reverse" is glossed "to turn something around so that it ... runs in the opposite sequence".
+// Read on a list, the list's sequence is its direction, first to last; the opposite of that is
+// last to first; and a thing running in a direction is the thing traversed that way:
+// Traverse($xs, Direction(Last(), First())). What it reads as is checked before it is kept.
+Requires(Core(), Basic(), Code())
+
+// Reading a gloss on a value: Grounding($x) holds the value it is read on.
+Concept(Grounding(), IsA(ContextFacet()))
+
+Concept(Grounded(), IsA(Result()))
+
+Concept(First(), IsA(Data()))
+
+Concept(Last(), IsA(Data()))
+
+Concept(Direction(), IsA(Data()))
+
+// The way a value runs, said as its direction, its order or its sequence, is its own direction.
+Concept(Direction(), Realization(Direction(), context = Grounding($x), body = DirectionOf($x)))
+
+Concept(Order(), Realization(Order(), context = Grounding($x), body = DirectionOf($x)))
+
+Concept(Sequence(), Realization(Sequence(), context = Grounding($x), body = DirectionOf($x)))
+
+Concept(Contrary(), SynonymOf(Opposite()))
+
+// The value going, running or placed in a direction is the value traversed that way. Kept as the
+// recipe it is (Quote), not run: grounding finds what a word does, not one result of it.
+Concept(In(), Realization(In(Direction($a, $b)), context = Grounding($x), body = Quote(Traverse($x, Direction($a, $b)))))

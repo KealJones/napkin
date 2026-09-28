@@ -446,6 +446,8 @@ export class Runtime {
           trace.finish(id, "residual", evaluated);
           return evaluated;
         }
+        // What the context pattern bound (`Grounding($x)`) holds whatever the arguments became.
+        for (const [k, v] of chosen.bindings) if (!bindings.has(k)) bindings.set(k, v);
       }
 
       const bodyContext =

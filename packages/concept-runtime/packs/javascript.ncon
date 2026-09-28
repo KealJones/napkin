@@ -1160,6 +1160,11 @@ To(OptionalCall($f, Rest($a)), "$f?.($a)")
 To(Default($n, $v), "$n = $v")
 To(Index($o, $i), "$o[$i]")
 To(Length($o), "$o.length")
+To(Traverse($xs, Direction(First(), Last())), "$xs")
+To(
+  Traverse($xs, Direction(Last(), First())),
+  "(typeof $xs === \"string\" ? [...$xs].reverse().join(\"\") : [...$xs].reverse())"
+)
 To(Map($xs, $f), "$xs.map($f)")
 To(Filter($xs, $f), "$xs.filter($f)")
 To(FlatMap($xs, $f), "$xs.flatMap($f)")

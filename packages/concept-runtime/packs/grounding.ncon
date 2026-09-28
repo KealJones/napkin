@@ -1,0 +1,818 @@
+// Grounding: what a word means, from what the dictionary says it is, read on the kind of value it
+// is done to, into a realization composed of primitives. Written by scripts/pack.mjs from
+// sources/grounding (edit those, not this).
+//
+// "reverse" is glossed "to turn something around so that it ... runs in the opposite sequence".
+// Read on a list, the list's sequence is its direction, first to last; the opposite of that is
+// last to first; and a thing running in a direction is the thing traversed that way:
+// Traverse($xs, Direction(Last(), First())). What it reads as is checked before it is kept.
+Requires(Core(), Basic(), Code())
+
+// Reading a gloss on a value: Grounding($x) holds the value it is read on.
+Concept(Grounding(), IsA(ContextFacet()))
+
+Concept(Grounded(), IsA(Result()))
+
+Concept(First(), IsA(Data()))
+
+Concept(Last(), IsA(Data()))
+
+Concept(Direction(), IsA(Data()))
+
+// The way a value runs, said as its direction, its order or its sequence, is its own direction.
+Concept(Direction(),
+  Realization(Direction(),
+    context = Grounding($x),
+    body = DirectionOf($x)
+  )
+)
+
+Concept(Order(),
+  Realization(Order(),
+    context = Grounding($x),
+    body = DirectionOf($x)
+  )
+)
+
+Concept(Sequence(),
+  Realization(Sequence(),
+    context = Grounding($x),
+    body = DirectionOf($x)
+  )
+)
+
+Concept(Contrary(), SynonymOf(Opposite()))
+
+// The value going, running or placed in a direction is the value traversed that way. Kept as the
+// recipe it is (Quote), not run: grounding finds what a word does, not one result of it.
+Concept(In(),
+  Realization(In(Direction($a, $b)),
+    context = Grounding($x),
+    body = Quote(Traverse($x, Direction($a, $b)))
+  )
+)
+
+// A sequence (a list, or text) runs from its first item to its last.
+Concept(DirectionOf(),
+  Realization(DirectionOf($xs),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Return(
+              If(
+                Or(Equals(TypeOf($xs), "string"), And(Call($isCall, $xs), Equals(Member($xs, "head"), "List"))),
+                Call(
+                  Member($api, "call"),
+                  "Direction",
+                  Call(Member($api, "call"), "First"),
+                  Call(Member($api, "call"), "Last")
+                ),
+                Call(Member($api, "call"), "DirectionOf", $xs)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What a doing means, from the dictionary, as a realization of primitives: each verb sense of its
+// word is read on a sample of the value it is done to (GroundIn), and the first whose recipe works
+// out is kept. When the doing already has behaviour of its own, the recipe must give what that
+// gives on every sample of the same kind, or it is not kept. Kept as a realization with where it
+// came from: Grounded(Doing, body, gloss = "...", from = Wiktionary(url)). The doing itself when no
+// sense grounds.
+Concept(Ground(),
+  Realization(Ground($doing, $sample),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($doing, Call($String, Call(Member($bindings, "get"), "doing"))),
+            Bind($sample, Call(Member($bindings, "get"), "sample")),
+            Bind($word,
+              Call(
+                Member($api, "lemma"),
+                Call(
+                  Member(
+                    Call(
+                      Member($doing, "replace"),
+                      Regex("([a-z])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                )
+              )
+            ),
+            Bind($senses, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Senses", $word, "Verb")))),
+            If(
+              Or(Not(Call($isCall, $senses)), NotEquals(Member($senses, "head"), "Senses")),
+              Return(Call(Member($api, "call"), "Ground", $doing, $sample)),
+              Undefined()
+            ),
+            Bind($glosses,
+              Map(
+                Member(Member(Index(Member($senses, "args"), 1), "value"), "args"),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Bind($from,
+              OptionalMember(
+                Call(Member(Member($senses, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "from"))),
+                "value"
+              )
+            ),
+            Bind($hypothetical,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Hypothetical")
+              )
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Comment("Samples of the same kind as the one given, to check a recipe on."),
+            Bind($kind,
+              Lambda(List($v),
+                If(
+                  Equals(TypeOf($v), "string"),
+                  "text",
+                  If(Call($isCall, $v), Member($v, "head"), TypeOf($v))
+                )
+              )
+            ),
+            Bind($samples,
+              Call(
+                Member(
+                  List(
+                    $sample,
+                    "abc",
+                    "hello",
+                    Call(Member($api, "call"), "List", 3, 1, 2),
+                    Call(Member($api, "call"), "List", "b", "a", "c")
+                  ),
+                  "filter"
+                ),
+                Lambda(List($s, $i, $all),
+                  And(
+                    Equals(Call($kind, $s), Call($kind, $sample)),
+                    Equals(Call(Member($all, "findIndex"), Lambda(List($t), Call($same, $t, $s))), $i)
+                  )
+                )
+              )
+            ),
+            Bind($replace,
+              Lambda(List($e, $from, $to),
+                If(
+                  Call($same, $e, $from),
+                  $to,
+                  If(
+                    Call($isCall, $e),
+                    Object(
+                      head = Member($e, "head"),
+                      args = Map(
+                        Member($e, "args"),
+                        Lambda(List($a), Object(Spread($a), value = Call($replace, Member($a, "value"), $from, $to)))
+                      )
+                    ),
+                    $e
+                  )
+                )
+              )
+            ),
+            Bind($behaves,
+              Call(
+                Member(
+                  Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $doing), "realizations"), List()),
+                  "some"
+                ),
+                Lambda(List($r), Not(Member($r, "retired")))
+              )
+            ),
+            ForOf(
+              $gloss,
+              $glosses,
+              Sequence(
+                Bind($found,
+                  Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "GroundIn", $gloss, $sample)))
+                ),
+                If(Not(Call($isCall, $found)), Continue(), Undefined()),
+                Bind($body, Call($replace, $found, $sample, Object(variable = "xs"))),
+                Var($fits, true),
+                ForOf(
+                  $s,
+                  $samples,
+                  Sequence(
+                    Var($got, Undefined()),
+                    Try(
+                      Assign(
+                        $got,
+                        Await(
+                          Call(
+                            Member($api, "evaluate"),
+                            Call($replace, $body, Object(variable = "xs"), $s),
+                            $hypothetical
+                          )
+                        )
+                      ),
+                      Catch($error, Assign($got, Undefined()))
+                    ),
+                    Comment("It must work out to a value of the sample's kind, not stay as said."),
+                    If(
+                      Or(
+                        Or(Equals($got, Undefined()), NotEquals(Call($kind, $got), Call($kind, $s))),
+                        Call(
+                          $same,
+                          $got,
+                          Call($replace, $body, Object(variable = "xs"), $s)
+                        )
+                      ),
+                      Assign($fits, false),
+                      If(
+                        $behaves,
+                        Sequence(
+                          Var($had, Undefined()),
+                          Try(
+                            Assign(
+                              $had,
+                              Await(
+                                Call(
+                                  Member($api, "evaluate"),
+                                  Call(Member($api, "call"), $doing, $s),
+                                  $hypothetical
+                                )
+                              )
+                            ),
+                            Catch($error, Assign($had, Undefined()))
+                          ),
+                          If(
+                            Or(Equals($had, Undefined()), Not(Call($same, $had, $got))),
+                            Assign($fits, false),
+                            Undefined()
+                          )
+                        ),
+                        Undefined()
+                      )
+                    ),
+                    If(Not($fits), Break(), Undefined())
+                  )
+                ),
+                If(Not($fits), Continue(), Undefined()),
+                Bind($learned,
+                  Call(
+                    Member($api, "call"),
+                    "Learned",
+                    Spread(If($from, List($from), List())),
+                    $gloss
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRealization"),
+                  $doing,
+                  Object(
+                    pattern = Call(Member($api, "call"), $doing, Object(variable = "xs")),
+                    context = Call(Member($api, "call"), "Execution"),
+                    body = $body,
+                    properties = List($learned),
+                    evaluateArguments = true,
+                    evaluateResult = false
+                  )
+                ),
+                Return(
+                  Object(
+                    head = "Grounded",
+                    args = Concat(
+                      List(
+                        Object(value = Call(Member($api, "call"), $doing)),
+                        Object(value = $body),
+                        Object(name = "gloss", value = $gloss)
+                      ),
+                      If(
+                        $from,
+                        List(Object(name = "from", value = $from)),
+                        List()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "Ground", $doing, $sample))
+          )
+        )
+      )
+    )
+  )
+)
+
+// A gloss read on a value: heard, then each phrase worked out under Grounding($x), from the words
+// up. "Something" and "it" are the value. A phrase that works out to nothing of its own takes what
+// its words grounded to, so "turn ... so that it runs in the opposite sequence" is what "in the
+// opposite sequence" is. The recipe found (a quoted doing of the value), or undefined.
+Concept(GroundIn(),
+  Realization(GroundIn($gloss, $x),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            Bind($heard,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Hear",
+                    Call($String, Call(Member($bindings, "get"), "gloss")),
+                    "rules"
+                  )
+                )
+              )
+            ),
+            Bind($ctx,
+              Call(
+                Member($api, "call"),
+                "Context",
+                Call(Member($api, "call"), "Execution"),
+                Call(Member($api, "call"), "Hypothetical"),
+                Call(Member($api, "call"), "Grounding", $x)
+              )
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Bind($mentions,
+              Lambda(List($e),
+                Or(
+                  Call($same, $e, $x),
+                  And(
+                    Call($isCall, $e),
+                    Call(Member(Member($e, "args"), "some"), Lambda(List($a), Call($mentions, Member($a, "value"))))
+                  )
+                )
+              )
+            ),
+            Comment(
+              "A recipe: something done to the value that works out to a value of its kind, not the value itself."
+            ),
+            Bind($kind,
+              Lambda(List($v),
+                If(
+                  Equals(TypeOf($v), "string"),
+                  "text",
+                  If(Call($isCall, $v), Member($v, "head"), TypeOf($v))
+                )
+              )
+            ),
+            Bind($recipe,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(
+                      Or(Or(Not(Call($isCall, $e)), Call($same, $e, $x)), Not(Call($mentions, $e))),
+                      Return(false),
+                      Undefined()
+                    ),
+                    Try(
+                      Sequence(
+                        Bind($v,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              $e,
+                              Call(
+                                Member($api, "call"),
+                                "Context",
+                                Call(Member($api, "call"), "Execution"),
+                                Call(Member($api, "call"), "Hypothetical")
+                              )
+                            )
+                          )
+                        ),
+                        Return(
+                          And(
+                            And(Equals(Call($kind, $v), Call($kind, $x)), Not(Call($same, $v, $e))),
+                            Not(
+                              And(
+                                And(
+                                  Call($isCall, $v),
+                                  Call(
+                                    Member(Member($v, "args"), "some"),
+                                    Lambda(List($a), Call($same, Member($a, "value"), $x))
+                                  )
+                                ),
+                                NotEquals(Member($v, "head"), "List")
+                              )
+                            )
+                          )
+                        )
+                      ),
+                      Catch($error, Return(false))
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Bind($firstRecipe,
+              Async(
+                Lambda(List($values),
+                  Sequence(
+                    ForOf(
+                      $v,
+                      $values,
+                      If(Await(Call($recipe, $v)), Return($v), Undefined())
+                    ),
+                    Return(Undefined())
+                  )
+                )
+              )
+            ),
+            Bind($THING, List("Something", "Someone", "It", "Them", "This", "That")),
+            Bind($ground,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return($e), Undefined()),
+                    If(
+                      Or(
+                        And(
+                          Equals(Member($e, "head"), "Ref"),
+                          Equals(TypeOf(OptionalMember(Index(Member($e, "args"), 0), "value")), "string")
+                        ),
+                        And(Includes($THING, Member($e, "head")), Not(Length(Member($e, "args"))))
+                      ),
+                      Return($x),
+                      Undefined()
+                    ),
+                    Bind($kids, List()),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Call(
+                        Member($kids, "push"),
+                        If(
+                          Equals(Member($a, "name"), Undefined()),
+                          Object(value = Await(Call($ground, Member($a, "value")))),
+                          $a
+                        )
+                      )
+                    ),
+                    Bind($values, Map($kids, Lambda(List($k), Member($k, "value")))),
+                    Comment(
+                      "Of alternatives said, one that is something done to the value (\"faces the opposite direction"
+                    ),
+                    Comment(
+                      "or runs in the opposite sequence\"), else the first that grounded (\"a contrary order or direction\")."
+                    ),
+                    If(
+                      Equals(Member($e, "head"), "Or"),
+                      Return(
+                        Otherwise(
+                          Otherwise(
+                            Await(Call($firstRecipe, $values)),
+                            Call(
+                              Member($values, "find"),
+                              Lambda(List($v, $i),
+                                Not(
+                                  Call(
+                                    $same,
+                                    $v,
+                                    OptionalMember(Index(Member($e, "args"), $i), "value")
+                                  )
+                                )
+                              )
+                            )
+                          ),
+                          Index($values, 0)
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Bind($rebuilt, Object(head = Member($e, "head"), args = $kids)),
+                    Var($v, Undefined()),
+                    Try(
+                      Assign($v, Await(Call(Member($api, "evaluate"), $rebuilt, $ctx))),
+                      Catch($error, Assign($v, Undefined()))
+                    ),
+                    If(
+                      And(NotEquals($v, Undefined()), Not(Call($same, $v, $rebuilt))),
+                      Return($v),
+                      Undefined()
+                    ),
+                    Return(Otherwise(Await(Call($firstRecipe, $values)), $rebuilt))
+                  )
+                )
+              )
+            ),
+            Bind($found, List()),
+            Bind($walk,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return(), Undefined()),
+                    If(
+                      Or(Equals(Member($e, "head"), "Mood"), Equals(Member($e, "head"), "Phrases")),
+                      Sequence(
+                        ForOf(
+                          $a,
+                          Member($e, "args"),
+                          Await(Call($walk, Member($a, "value")))
+                        ),
+                        Return()
+                      ),
+                      Undefined()
+                    ),
+                    Bind($g, Await(Call($ground, $e))),
+                    If(
+                      Await(Call($recipe, $g)),
+                      Call(Member($found, "push"), $g),
+                      Undefined()
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($walk, $heard)),
+            Return(
+              Otherwise(
+                Index($found, 0),
+                Call(
+                  Member($api, "call"),
+                  "GroundIn",
+                  Call($String, Call(Member($bindings, "get"), "gloss")),
+                  $x
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// The opposite of a thing with two ends has them the other way round: Direction(a, b) is
+// Direction(b, a). Anything else stays as said.
+Concept(Opposite(),
+  Realization(Opposite($x),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x, Call(Member($bindings, "get"), "x")),
+            If(
+              And(
+                And(Call($isCall, $x), Equals(Member($x, "head"), "Direction")),
+                Equals(Length(Member($x, "args")), 2)
+              ),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Direction",
+                  Member(Index(Member($x, "args"), 1), "value"),
+                  Member(Index(Member($x, "args"), 0), "value")
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "Opposite", $x))
+          )
+        )
+      )
+    )
+  )
+)
+
+// What the dictionary (Wiktionary) says a word means as a part of speech ("Verb"): every sense, as
+// plain text, with where it came from. Senses(word, List(...), from = Wiktionary(url)).
+Concept(Senses(),
+  Realization(Senses($word, $partOfSpeech),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($word,
+              Call(Member(Call(Member(Call($String, Call(Member($bindings, "get"), "word")), "trim")), "toLowerCase"))
+            ),
+            Bind($pos, Call($String, Call(Member($bindings, "get"), "partOfSpeech"))),
+            Bind($url,
+              Add(
+                "https://en.wiktionary.org/api/rest_v1/page/definition/",
+                Call($encodeURIComponent, Call(Member(Call(Member($word, "split"), " "), "join"), "_"))
+              )
+            ),
+            Bind($got,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($entries,
+              If(
+                And($got, Call(Member($Array, "isArray"), Member($got, "en"))),
+                Filter(Member($got, "en"), Lambda(List($e), Equals(Member($e, "partOfSpeech"), $pos))),
+                List()
+              )
+            ),
+            Bind($plain,
+              Lambda(List($html),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Call(
+                              Member(
+                                Call(
+                                  Member(
+                                    Call(
+                                      Member(Call($String, Or($html, "")), "replace"),
+                                      Regex("<style[\\s\\S]*?<\\/style>", "gi"),
+                                      ""
+                                    ),
+                                    "replace"
+                                  ),
+                                  Regex("<[^>]+>", "g"),
+                                  ""
+                                ),
+                                "replace"
+                              ),
+                              Regex("&[a-z#0-9]+;", "g"),
+                              " "
+                            ),
+                            "replace"
+                          ),
+                          Regex("\\.mw-parser-output[^}]*\\}", "g"),
+                          ""
+                        ),
+                        "replace"
+                      ),
+                      Regex("\\s+", "g"),
+                      " "
+                    ),
+                    "trim"
+                  )
+                )
+              )
+            ),
+            Bind($senses,
+              Filter(
+                FlatMap(
+                  $entries,
+                  Lambda(List($e),
+                    Map(Or(Member($e, "definitions"), List()), Lambda(List($x), Call($plain, Member($x, "definition"))))
+                  )
+                ),
+                Lambda(List($d), GreaterThan(Length($d), 2))
+              )
+            ),
+            Return(
+              Object(
+                head = "Senses",
+                args = List(
+                  Object(value = $word),
+                  Object(value = Call(Member($api, "call"), "List", Spread($senses))),
+                  Object(name = "from", value = Call(Member($api, "call"), "Wiktionary", $url))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A meaning grounded: the word, what the dictionary said, and what it does now.
+Concept(Grounded(),
+  Realization(Grounded(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($doing, Member(Index($args, 0), "value")),
+            Bind($gloss,
+              OptionalMember(
+                Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "gloss"))),
+                "value"
+              )
+            ),
+            Bind($body,
+              Call(
+                Member($api, "writeCode"),
+                Member(Index($args, 1), "value"),
+                "JavaScript"
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(
+                      Add(
+                        Add(
+                          Add(Add("I looked up ", Call(Member(Member($doing, "head"), "toLowerCase"))), ": \""),
+                          Call($String, $gloss)
+                        ),
+                        "\". Read on the value, that's `"
+                      ),
+                      Member($body, "text")
+                    ),
+                    "`, and it does what "
+                  ),
+                  Call(Member(Member($doing, "head"), "toLowerCase"))
+                ),
+                " does, so I've kept it."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A primitive: a sequence (a list, or text as its letters) gone through from one end to the other,
+// giving the same kind of sequence. First to last is as it is; last to first is the other way.
+Concept(Traverse(),
+  Realization(Traverse($xs, $direction),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($xs, Call(Member($bindings, "get"), "xs")),
+            Bind($d, Call(Member($bindings, "get"), "direction")),
+            Bind($end,
+              Lambda(List($i),
+                If(
+                  And(
+                    And(Call($isCall, $d), Equals(Member($d, "head"), "Direction")),
+                    Call($isCall, OptionalMember(Index(Member($d, "args"), $i), "value"))
+                  ),
+                  Member(Member(Index(Member($d, "args"), $i), "value"), "head"),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($from, Call($end, 0)),
+            If(
+              Or(Not(Includes(List("First", "Last"), $from)), Equals(Call($end, 1), $from)),
+              Return(Call(Member($api, "call"), "Traverse", $xs, $d)),
+              Undefined()
+            ),
+            If(
+              Equals(TypeOf($xs), "string"),
+              Return(
+                If(
+                  Equals($from, "First"),
+                  $xs,
+                  Call(Member(Call(Member(Concat($xs), "reverse")), "join"), "")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              And(Call($isCall, $xs), Equals(Member($xs, "head"), "List")),
+              Return(
+                If(
+                  Equals($from, "First"),
+                  $xs,
+                  Call(
+                    Member($api, "call"),
+                    "List",
+                    Spread(Call(Member(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value"))), "reverse")))
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "Traverse", $xs, $d))
+          )
+        )
+      )
+    )
+  )
+)

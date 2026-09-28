@@ -16,6 +16,7 @@ async (args, bindings, api) => {
   // The doing: the first word said that is, in its base form, a Concept with a realization of plain values.
   let doing = undefined;
   let noun = undefined;
+  let said = undefined;
   // Only what was said: not what a "that" points back to.
   const find = (e) => {
     if (!isCall(e) || e.head === "Ref") return;
@@ -23,6 +24,11 @@ async (args, bindings, api) => {
     if (!doing) {
       const base = api.lemma(e.head.toLowerCase());
       const name = base[0].toUpperCase() + base.slice(1);
+      // A word said in a verb's form ("inverts" is "invert"), in case nothing Napkin has does it.
+      if (!said && name !== e.head && e.args.length) {
+        const object = e.args.find((a) => a.name === undefined && isCall(a.value) && a.value.head !== "Ref");
+        said = { name, base, noun: object ? object.value : undefined };
+      }
       const unit = name !== e.head || e.args.length ? api.store.get(name) : undefined;
       // Of its realizations of plain values, the one taking fewest ("sort a list" is Sort($xs)).
       const r = unit?.realizations.filter((r) => !r.retired && isCall(r.pattern) && r.pattern.head === name && r.pattern.args.length > 0 && r.pattern.args.every((p) => isVar(p.value)) && !r.properties.some((p) => isCall(p) && p.head === "Effectful")).sort((a, b) => a.pattern.args.length - b.pattern.args.length)[0];
@@ -36,6 +42,16 @@ async (args, bindings, api) => {
   };
   for (const a of args) find(a.value);
   inContext(api.context);
+  // A doing Napkin has no behaviour for, said as a verb ("inverts"): what it means is looked up
+  // and grounded on a sample of what it is done to (Ground), then written as that.
+  if (!doing && said) {
+    const sample = typeof said.noun === "object" && said.noun && ["string", "text", "word"].includes(api.lemma(String(said.noun.head).toLowerCase())) ? "abc" : api.call("List", 3, 1, 2);
+    const grounded = await api.evaluate(api.call("Ground", said.name, sample));
+    if (isCall(grounded) && grounded.head === "Grounded") {
+      doing = { name: said.name, base: said.base, arity: 1 };
+      noun = said.noun;
+    }
+  }
   if (!doing) return api.call("Write", ...args.map((a) => a.value));
   const names = doing.arity === 1 ? ["x"] : ["a", "b", "c", "d"].slice(0, doing.arity);
   const params = names.map((n) => ({ variable: n }));

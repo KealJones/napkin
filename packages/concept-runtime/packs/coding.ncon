@@ -3977,6 +3977,7 @@ Concept(WriteDoing(),
             ),
             Var($doing, Undefined()),
             Var($noun, Undefined()),
+            Var($said, Undefined()),
             Comment("Only what was said: not what a \"that\" points back to."),
             Bind($find,
               Lambda(List($e),
@@ -4004,6 +4005,34 @@ Concept(WriteDoing(),
                     Sequence(
                       Bind($base, Call(Member($api, "lemma"), Call(Member(Member($e, "head"), "toLowerCase")))),
                       Bind($name, Add(Call(Member(Index($base, 0), "toUpperCase")), Call(Member($base, "slice"), 1))),
+                      Comment(
+                        "A word said in a verb's form (\"inverts\" is \"invert\"), in case nothing Napkin has does it."
+                      ),
+                      If(
+                        And(And(Not($said), NotEquals($name, Member($e, "head"))), Length(Member($e, "args"))),
+                        Sequence(
+                          Bind($object,
+                            Call(
+                              Member(Member($e, "args"), "find"),
+                              Lambda(List($a),
+                                And(
+                                  And(Equals(Member($a, "name"), Undefined()), Call($isCall, Member($a, "value"))),
+                                  NotEquals(Member(Member($a, "value"), "head"), "Ref")
+                                )
+                              )
+                            )
+                          ),
+                          Assign(
+                            $said,
+                            Object(
+                              name = $name,
+                              base = $base,
+                              noun = If($object, Member($object, "value"), Undefined())
+                            )
+                          )
+                        ),
+                        Undefined()
+                      ),
                       Bind($unit,
                         If(
                           Or(NotEquals($name, Member($e, "head")), Length(Member($e, "args"))),
@@ -4102,6 +4131,58 @@ Concept(WriteDoing(),
             ),
             ForOf($a, $args, Call($find, Member($a, "value"))),
             Call($inContext, Member($api, "context")),
+            Comment("A doing Napkin has no behaviour for, said as a verb (\"inverts\"): what it means is looked up"),
+            Comment("and grounded on a sample of what it is done to (Ground), then written as that."),
+            If(
+              And(Not($doing), $said),
+              Sequence(
+                Bind($sample,
+                  If(
+                    And(
+                      And(Equals(TypeOf(Member($said, "noun")), "object"), Member($said, "noun")),
+                      Includes(
+                        List("string", "text", "word"),
+                        Call(
+                          Member($api, "lemma"),
+                          Call(Member(Call($String, Member(Member($said, "noun"), "head")), "toLowerCase"))
+                        )
+                      )
+                    ),
+                    "abc",
+                    Call(Member($api, "call"), "List", 3, 1, 2)
+                  )
+                ),
+                Bind($grounded,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Ground",
+                        Member($said, "name"),
+                        $sample
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And(Call($isCall, $grounded), Equals(Member($grounded, "head"), "Grounded")),
+                  Sequence(
+                    Assign(
+                      $doing,
+                      Object(
+                        name = Member($said, "name"),
+                        base = Member($said, "base"),
+                        arity = 1
+                      )
+                    ),
+                    Assign($noun, Member($said, "noun"))
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               Not($doing),
               Return(
