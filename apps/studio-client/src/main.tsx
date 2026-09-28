@@ -369,19 +369,26 @@ function App() {
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    const updateHeight = () => {
+    const updateViewport = () => {
       document.documentElement.style.setProperty(
         "--studio-visual-height",
         `${viewport?.height ?? window.innerHeight}px`,
       );
+      document.documentElement.style.setProperty(
+        "--studio-visual-top",
+        `${viewport?.offsetTop ?? 0}px`,
+      );
     };
-    updateHeight();
-    viewport?.addEventListener("resize", updateHeight);
-    window.addEventListener("resize", updateHeight);
+    updateViewport();
+    viewport?.addEventListener("resize", updateViewport);
+    viewport?.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
     return () => {
-      viewport?.removeEventListener("resize", updateHeight);
-      window.removeEventListener("resize", updateHeight);
+      viewport?.removeEventListener("resize", updateViewport);
+      viewport?.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
       document.documentElement.style.removeProperty("--studio-visual-height");
+      document.documentElement.style.removeProperty("--studio-visual-top");
     };
   }, []);
 
