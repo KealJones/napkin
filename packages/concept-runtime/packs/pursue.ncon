@@ -1407,6 +1407,36 @@ Concept(Pursue(),
                       ),
                       Undefined()
                     ),
+                    Comment(
+                      "Whose it is (\"his wife\", His(Wife(), resolvedTo=StevenSpielberg())): the thing, of them."
+                    ),
+                    Bind($whose,
+                      Call(
+                        Member(Member($e, "args"), "find"),
+                        Lambda(List($a), Equals(Member($a, "name"), "resolvedTo"))
+                      )
+                    ),
+                    Bind($owned, Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
+                    If(
+                      And(
+                        And(And($whose, Equals(Length($owned), 1)), Call($isCall, Member($whose, "value"))),
+                        Call($isCall, Member(Index($owned, 0), "value"))
+                      ),
+                      Sequence(
+                        Bind($thing, Await(Call($pointed, Member(Index($owned, 0), "value")))),
+                        Return(
+                          If(
+                            Call($isCall, $thing),
+                            Object(
+                              head = Member($thing, "head"),
+                              args = Concat(Member($thing, "args"), List(Object(value = Member($whose, "value"))))
+                            ),
+                            $e
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
                     Bind($out, List()),
                     ForOf(
                       $a,
@@ -1527,28 +1557,84 @@ Concept(Pursue(),
                 )
               )
             ),
-            Bind($called,
+            Comment("A word said that names nothing by itself: how it is asked (\"in\", \"to\", \"the\"), not what."),
+            Bind($functionWord,
+              Lambda(List($h),
+                Call(
+                  Member(Call(Member($api, "typesOf"), Call(Member($api, "call"), $h)), "some"),
+                  Lambda(List($k), Includes(List("Preposition", "Determiner", "Conjunction", "Pronoun"), $k))
+                )
+              )
+            ),
+            Comment("What else a relation is called, as heard (Called(Married(To())) for Spouse): its words."),
+            Bind($aliases,
               Lambda(List($rel),
-                Map(
-                  Filter(
-                    Map(
-                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $rel), "relations"), List()),
-                      Lambda(List($r), Member($r, "claim"))
+                Filter(
+                  Map(
+                    Filter(
+                      Map(
+                        Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $rel), "relations"), List()),
+                        Lambda(List($r), Member($r, "claim"))
+                      ),
+                      Lambda(List($c),
+                        And(
+                          And(Call($isCall, $c), Equals(Member($c, "head"), "Called")),
+                          Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                        )
+                      )
                     ),
                     Lambda(List($c),
-                      And(
-                        And(Call($isCall, $c), Equals(Member($c, "head"), "Called")),
-                        Equals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "string")
+                      Sequence(
+                        Bind($words, List()),
+                        Bind($walk,
+                          Lambda(List($e),
+                            Sequence(
+                              If(Not(Call($isCall, $e)), Return(), Undefined()),
+                              If(
+                                Not(Call($functionWord, Member($e, "head"))),
+                                Call(
+                                  Member($words, "push"),
+                                  Spread(Call(Member(Call($spoken, Member($e, "head")), "split"), " "))
+                                ),
+                                Undefined()
+                              ),
+                              ForOf(
+                                $a,
+                                Member($e, "args"),
+                                Call($walk, Member($a, "value"))
+                              ),
+                              Undefined()
+                            )
+                          )
+                        ),
+                        Call($walk, Member(Index(Member($c, "args"), 0), "value")),
+                        Return(Call(Member($words, "join"), " "))
                       )
                     )
                   ),
-                  Lambda(List($c), Member(Index(Member($c, "args"), 0), "value"))
+                  Lambda(List($w), GreaterThan(Length($w), 0))
+                )
+              )
+            ),
+            Comment("A thing named by what else it is called: \"the USA\" is UnitedStates, Called(Usa()). Only for"),
+            Comment("finding what is held of it; the steps after look for the words as said."),
+            Bind($named, Concat($heads)),
+            ForOf(
+              $h,
+              $heads,
+              ForOf(
+                $t,
+                Call(Member(Member($api, "store"), "asObject"), $h),
+                If(
+                  And(Equals(Member($t, "predicate"), "Called"), Not(Includes($named, Member($t, "subject")))),
+                  Call(Member($named, "push"), Member($t, "subject")),
+                  Undefined()
                 )
               )
             ),
             ForOf(
               $h,
-              $heads,
+              $named,
               Sequence(
                 If(Not(Call($grounded, $h)), Continue(), Undefined()),
                 Bind($own, New($Set, Call(Member(Call($spoken, $h), "split"), " "))),
@@ -1624,7 +1710,7 @@ Concept(Pursue(),
                       Continue(),
                       Undefined()
                     ),
-                    Bind($names, Concat(List(Call($spoken, $rel)), Call($called, $rel))),
+                    Bind($names, Concat(List(Call($spoken, $rel)), Call($aliases, $rel))),
                     Bind($fitsWords,
                       Call(
                         Member($names, "some"),
@@ -1714,11 +1800,23 @@ Concept(Pursue(),
                 )
               )
             ),
-            Bind($fan,
+            Comment("What else something is called is a name, never an answer: its words are not facts."),
+            Bind($mentions,
               Lambda(List($h),
-                Length(Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $h)))
+                Filter(
+                  Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $h)),
+                  Lambda(List($m),
+                    Not(
+                      And(
+                        Call($isCall, Member(Member($m, "relation"), "claim")),
+                        Equals(Member(Member(Member($m, "relation"), "claim"), "head"), "Called")
+                      )
+                    )
+                  )
+                )
               )
             ),
+            Bind($fan, Lambda(List($h), Length(Call($mentions, $h)))),
             Bind($known, Filter($heads, Lambda(List($h), GreaterThan(Call($fan, $h), 0)))),
             If(
               Length($known),
@@ -1740,15 +1838,7 @@ Concept(Pursue(),
                 ),
                 Bind($held,
                   Call(
-                    Member(
-                      Call(
-                        Member(
-                          Call(Member(Member($api, "store"), "mentioning"), Call(Member($api, "call"), $rarest)),
-                          "slice"
-                        )
-                      ),
-                      "sort"
-                    ),
+                    Member(Call(Member(Call($mentions, $rarest), "slice")), "sort"),
                     Lambda(List($a, $b),
                       Subtract(Call($latest, Member($b, "relation")), Call($latest, Member($a, "relation")))
                     )

@@ -125,12 +125,25 @@ export function words(text: string): { text: string; typed: string; tags: string
   const out: { text: string; typed: string; tags: string[]; sentence: number; after: string; could: string[] }[] = [];
   const sentences = nlp(text).sentences().json() as { terms: { text: string; implicit?: string; post?: string; tags: string[] }[] }[];
   sentences.forEach((s, sentence) => {
-    for (const term of s.terms) {
-      const said = term.implicit || term.text;
+    for (let i = 0; i < s.terms.length; i++) {
+      const term = s.terms[i];
+      let said = term.implicit || term.text;
+      let typed = term.text;
+      let last = term;
+      // A hyphenated word is one word, whatever the tagger split: "common-law" is CommonLaw. It
+      // names a thing, which before another describes it ("common-law wife", "well-known
+      // actor", where "known" alone would be a verb); a number stays a number ("twenty-one").
+      while ((last.post ?? "").trim() === "-" && i + 1 < s.terms.length && s.terms[i + 1].tags.includes("Hyphenated")) {
+        last = s.terms[++i];
+        said = `${said}-${last.implicit || last.text}`;
+        typed = `${typed}-${last.text}`;
+      }
       // What was typed after the word, punctuation included: a "?" asks.
       // `could`: what the word is alone, which the sentence may have tagged away ("did hamlet
       // kill" tags kill a noun; alone it is a verb).
-      if (said) out.push({ text: said, typed: term.text, tags: [...term.tags], sentence, after: (term.post ?? "").trim(), could: aloneTags(said) });
+      const joined = last !== term;
+      const tags = !joined ? [...term.tags] : last.tags.includes("Value") ? [...last.tags] : ["Noun", "Singular", "Hyphenated"];
+      if (said) out.push({ text: said, typed, tags, sentence, after: (last.post ?? "").trim(), could: aloneTags(said) });
     }
   });
   return out;

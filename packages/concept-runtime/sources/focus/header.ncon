@@ -18,3 +18,6 @@ Concept(Him(), PointsAt(Someone()), PointsAt(Male()))
 Concept(She(), PointsAt(Someone()), PointsAt(Female()))
 
 Concept(Her(), PointsAt(Someone()), PointsAt(Female()))
+
+// Whose: "his wife" is the wife of whom "he" would point at.
+Concept(His(), IsA(Pointing()), PointsAt(Someone()), PointsAt(Male()))

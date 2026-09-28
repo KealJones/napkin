@@ -84,6 +84,7 @@ interface Entity {
   id: string;
   labels?: Record<string, { value: string }>;
   claims?: Record<string, Snak[]>;
+  aliases?: Record<string, { value: string }[]>;
   lastrevid?: number;
 }
 
@@ -241,7 +242,7 @@ async function groundSense(
   cause: number | undefined,
 ): Promise<Expr[]> {
   const item = sense.id;
-  const entity = (await entities([item], "claims", get))[item];
+  const entity = (await entities([item], "claims|aliases", get))[item];
   if (!entity) return [];
 
   const pairs: { relation: string; target: string }[] = [];
@@ -279,6 +280,8 @@ async function groundSense(
     if (kind && kind !== identity) keep(call("IsA", [{ value: c(kind) }]));
   }
   await everyClaim(store, identity, entity, keep, sameAs, get);
+  // What else it is called ("USA", "Spielberg"), so the words find it.
+  if (context === undefined) await keepAliases(store, identity, entity.aliases?.en ?? [], imported.seq);
   for (const { relation, target } of pairs) {
     const label = labelled[target]?.labels?.en?.value;
     if (!label) continue;
@@ -435,7 +438,7 @@ async function everyClaim(
       if (unit && unit !== "1") ids.add(unit);
     }
   }
-  const labels: Record<string, Entity & { aliases?: Record<string, { value: string }[]> }> = {};
+  const labels: Record<string, Entity> = {};
   const properties = [...ids].filter((q) => q.startsWith("P"));
   const items = [...ids].filter((q) => !q.startsWith("P"));
   // A property is fetched whole: what else it is called and what it is the inverse of.
@@ -449,7 +452,7 @@ async function everyClaim(
     // kept under, not a second one named from the label.
     const relation = store.asObject(format(call("Wikidata", [{ value: t.property }]))).find((r) => r.predicate === "SameAs")?.subject ?? nameOf(said);
     if (!relation || !/^[A-Z]/.test(relation)) continue;
-    describeRelation(store, relation, t.property, labels[t.property]);
+    await describeRelation(store, relation, t.property, labels[t.property]);
     for (const v of t.values) {
       if (!v) continue;
       if (t.type === "wikibase-item" && v.id) {
@@ -499,11 +502,25 @@ export function dateOf(time: string, precision = 11): Expr | undefined {
  * Called("wife")...), by which it is asked about, and whether it is its own inverse (Symmetric():
  * her spouse is him), which the relations derive from. Stamped from the property.
  */
-function describeRelation(store: ConceptStore, relation: string, property: string, entity: (Entity & { aliases?: Record<string, { value: string }[]> }) | undefined): void {
+async function describeRelation(store: ConceptStore, relation: string, property: string, entity: Entity | undefined): Promise<void> {
   if (!entity || (store.get(relation)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "SameAs")) return;
   const imported = store.addRelation("Wikidata", call("Imported", [{ value: property }, { name: "license", value: "CC0" }]));
   store.addRelation(relation, c("SameAs", call("Wikidata", [{ value: property }])), undefined, imported.seq);
-  for (const alias of (entity.aliases?.en ?? []).map((a) => a.value).slice(0, 20)) store.addRelation(relation, call("Called", [{ value: alias }]), undefined, imported.seq);
+  await keepAliases(store, relation, entity.aliases?.en ?? [], imported.seq);
   const inverse = (entity.claims?.P1696 ?? []).map((snak) => snak.mainsnak?.datavalue?.value?.id);
   if (inverse.includes(property)) store.addRelation(relation, c("Symmetric"), undefined, imported.seq);
+}
+
+/**
+ * What else a thing is called, as hearing hears it: "married to" is Called(Married(To())), "USA"
+ * Called(Usa()). Held as Concepts, so the graph reaches the thing from the words (Wife() finds
+ * Spouse through the index); an alias hearing cannot take as one thing is left out.
+ */
+async function keepAliases(store: ConceptStore, identity: string, aliases: readonly { value: string }[], seq: number): Promise<void> {
+  const { hearPhrase } = await import("../ears/phrase.js");
+  for (const alias of aliases.slice(0, 20)) {
+    const heard = await hearPhrase(store, alias.value);
+    if (heard === undefined || (isCall(heard) && heard.head === identity)) continue;
+    store.addRelation(identity, call("Called", [{ value: heard }]), undefined, seq);
+  }
 }

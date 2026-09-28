@@ -19,6 +19,13 @@ Concept(She(), PointsAt(Someone()), PointsAt(Female()))
 
 Concept(Her(), PointsAt(Someone()), PointsAt(Female()))
 
+// Whose: "his wife" is the wife of whom "he" would point at.
+Concept(His(),
+  IsA(Pointing()),
+  PointsAt(Someone()),
+  PointsAt(Male())
+)
+
 // The things a conversation has in play, newest first: what its answers were and were about, what
 // its pointing words pointed at, the things it named that have names, and what this turn made. An answer to
 // a question that asked for a kind is AskedAs(thing, kind): what "where" answered is a place. Read

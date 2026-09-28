@@ -332,6 +332,11 @@ async function pointAt(runtime: Runtime, expression: Expr): Promise<Expr> {
       const to = await hook.evaluate(call("ReferentOf", [{ value: e.args[0].value }]), c("Execution"));
       return isCall(to) && to.head !== "ReferentOf" && !to.args.length ? call("Ref", [e.args[0], { name: "resolvedTo", value: to }]) : e;
     }
+    // A pointing word that holds what it points to the owner of ("his wife" is His(Wife())): whose.
+    if (e.args.length === 1 && e.args[0].name === undefined && isCall(e.args[0].value)) {
+      const to = await hook.evaluate(call("ReferentOf", [{ value: e.head.toLowerCase() }]), c("Execution"));
+      if (isCall(to) && to.head !== "ReferentOf" && !to.args.length) return call(e.head, [{ value: await walk(e.args[0].value) }, { name: "resolvedTo", value: to }]);
+    }
     const args = [];
     for (const a of e.args) args.push({ ...a, value: await walk(a.value) });
     return { head: e.head, args };

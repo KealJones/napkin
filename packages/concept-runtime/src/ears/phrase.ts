@@ -16,7 +16,7 @@ export const heardPhrases = new Map<string, Expr | null>();
 const words = (identity: string): string => identity.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 
 /** A phrase heard as one thing: its one line, without the mood it was said in. */
-async function hearPhrase(store: ConceptStore, text: string): Promise<Expr | undefined> {
+export async function hearPhrase(store: ConceptStore, text: string): Promise<Expr | undefined> {
   if (heardPhrases.has(text)) return heardPhrases.get(text) ?? undefined;
   let heard: Expr;
   try {
