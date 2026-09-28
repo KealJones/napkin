@@ -12,7 +12,7 @@
  * over the parse that is about to become a `Said` (memory-spec Part 8.3), and what it found
  * is recorded in place, on the head itself, the same way a resolved `Ref` is.
  */
-import { type Expr, call, c, isCall, walk } from "../concept/expression.js";
+import { type Expr, call, c, equal, isCall, walk } from "../concept/expression.js";
 import { activation, type ActivationOptions } from "./activation.js";
 import type { ConceptStore } from "../store/store.js";
 import { objectKey } from "../store/store.js";
@@ -100,6 +100,15 @@ export function forSaying(store: ConceptStore, e: Expr): Expr {
   // what the word means to someone who named no sense, and the rest is noise to say:
   // "chess is a board game", not "also a musical and a surname".
   const listed = e.head === "Describes" ? e.args[1]?.value : undefined;
+  // How Napkin uses a word (a pack's facts: Mood is a Marker) is not what the thing is, when the
+  // world has said what it is: those are left out once something learned describes it.
+  const about = e.head === "Describes" ? e.args[0]?.value : undefined;
+  if (listed !== undefined && isCall(listed) && listed.head === "List" && about !== undefined && isCall(about)) {
+    const relations = store.get(about.head)?.relations ?? [];
+    const packOnly = (v: Expr) => relations.some((r) => equal(r.claim, v) && (r.stamps ?? []).length > 0 && r.stamps!.every((st) => st.pack !== undefined));
+    const learned = listed.args.filter((a) => !packOnly(isCall(a.value) && a.value.head === "In" ? a.value.args[0].value : a.value));
+    if (learned.length && learned.length < listed.args.length) return forSaying(store, call("Describes", [e.args[0], { value: call("List", learned) }]));
+  }
   if (listed !== undefined && isCall(listed) && listed.head === "List") {
     // A namesake learned flat, before namesakes were told apart, is still a namesake:
     // "IsA(ElectronicGame())" beside "IsA(Landform())" is the game called Volcano.

@@ -64,8 +64,11 @@ export function readable(identity: string): string {
 }
 
 /** An answer that says it does not know: Unknown(...), or a truth not known. */
-function unknownAnswer(result: Expr | undefined): boolean {
+function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]): boolean {
   if (result === undefined || !isCall(result)) return false;
+  // A description of only what packs say of a word (Mood is a Marker: how Napkin uses it) does
+  // not say what the thing is.
+  if (store && result.head === "Describes" && machineryOnly(store, result.args[0]?.value)) return true;
   if (result.head === "Unknown" || result.head === "NoDescription") return true;
   const inner = result.head === "Answer" ? result.args[0]?.value : undefined;
   return inner !== undefined && isCall(inner) && (inner.head === "UnknownTruth" || inner.head === "Unknown");
@@ -76,6 +79,13 @@ function unknownAnswer(result: Expr | undefined): boolean {
  * nothing learned is said of them. Words packs declare ("is", "in", "what") are how questions
  * are asked, not what they are about.
  */
+/** A Concept whose every fact a pack declared: how Napkin uses the word, nothing the world said. */
+function machineryOnly(store: Runtime["store"], e: Expr | undefined): boolean {
+  if (e === undefined || !isCall(e) || e.args.length) return false;
+  const relations = store.get(e.head)?.relations ?? [];
+  return relations.length > 0 && relations.every((r) => (r.stamps ?? []).length > 0 && r.stamps!.every((st) => st.pack !== undefined));
+}
+
 function unsourced(runtime: Runtime, expression: Expr): string[] {
   const out: string[] = [];
   for (const node of walk(expression)) {
@@ -128,13 +138,15 @@ export async function learn(
       // "I don't know" is where to look further, not where to stop: the words of the question
       // Napkin holds nothing sourced about yet ("tomato" in "is a tomato a fruit") are looked up,
       // once, and the question is worked out again with what was found.
-      if (options.research === false || researched || !unknownAnswer(result)) {
-        return { steps, result: researched && notFound && unknownAnswer(result) ? call("Answer", [{ value: c("ProbablyNot") }]) : result, passes, remaining: [] };
+      if (options.research === false || researched || !unknownAnswer(result, runtime.store)) {
+        return { steps, result: researched && notFound && unknownAnswer(result, runtime.store) ? call("Answer", [{ value: c("ProbablyNot") }]) : result, passes, remaining: [] };
       }
       researched = true;
       const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
       let found = false;
-      for (const identity of unsourced(runtime, expression).slice(0, 4)) {
+      const subject = result !== undefined && isCall(result) && result.head === "Describes" ? result.args[0]?.value : undefined;
+      const described = subject !== undefined && isCall(subject) && machineryOnly(runtime.store, subject) ? [subject.head] : [];
+      for (const identity of [...described, ...unsourced(runtime, expression)].slice(0, 4)) {
         if (attempted.has(identity)) continue;
         attempted.add(identity);
         try {
