@@ -2943,20 +2943,24 @@ Concept(Run(),
                     Or(Equals(TypeOf($e), "number"), Equals(TypeOf($e), "string")),
                     Call(Member($values, "push"), $e),
                     If(
-                      And(
-                        Call($isCall, $e),
-                        Not(Includes(List("InlineCode", "Block", "File", "SourceCode", "Ref"), Member($e, "head")))
-                      ),
-                      ForOf(
-                        $a,
-                        Member($e, "args"),
-                        If(
-                          Equals(Member($a, "name"), Undefined()),
-                          Call($collect, Member($a, "value")),
-                          Undefined()
-                        )
-                      ),
-                      Undefined()
+                      And(Call($isCall, $e), Equals(Member($e, "head"), "List")),
+                      Call(Member($values, "push"), Call(Member($api, "toHost"), $e)),
+                      If(
+                        And(
+                          Call($isCall, $e),
+                          Not(Includes(List("InlineCode", "Block", "File", "SourceCode", "Ref"), Member($e, "head")))
+                        ),
+                        ForOf(
+                          $a,
+                          Member($e, "args"),
+                          If(
+                            Equals(Member($a, "name"), Undefined()),
+                            Call($collect, Member($a, "value")),
+                            Undefined()
+                          )
+                        ),
+                        Undefined()
+                      )
                     )
                   ),
                   Undefined()

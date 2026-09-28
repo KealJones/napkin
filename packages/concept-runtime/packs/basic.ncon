@@ -1668,7 +1668,7 @@ Concept(Read(),
             Comment("The doing a word names, and how many values it takes: its own realization of plain"),
             Comment("values, or its synonym's, or its base form's (\"multiplied\" is Multiply)."),
             Bind($doing,
-              Lambda(List($h, Default($seen, 0)),
+              Lambda(List($h, Default($seen, 0), Default($count, Undefined())),
                 Sequence(
                   Bind($unit, Call(Member(Member($api, "store"), "get"), $h)),
                   Bind($same,
@@ -1694,7 +1694,8 @@ Concept(Read(),
                       Call(
                         $doing,
                         Member(Member(Index(Member($same, "args"), 0), "value"), "head"),
-                        Add($seen, 1)
+                        Add($seen, 1),
+                        $count
                       )
                     ),
                     Undefined()
@@ -1718,9 +1719,10 @@ Concept(Read(),
                       )
                     )
                   ),
-                  Bind($plain,
-                    Call(
-                      Member($live, "find"),
+                  Comment("Of its realizations of plain values, the one taking as many as were said, if there is one."),
+                  Bind($plains,
+                    Filter(
+                      $live,
                       Lambda(List($r),
                         And(
                           GreaterThan(Length(Member(Member($r, "pattern"), "args")), 0),
@@ -1732,6 +1734,15 @@ Concept(Read(),
                           )
                         )
                       )
+                    )
+                  ),
+                  Bind($plain,
+                    Otherwise(
+                      Call(
+                        Member($plains, "find"),
+                        Lambda(List($r), Equals(Length(Member(Member($r, "pattern"), "args")), $count))
+                      ),
+                      Index($plains, 0)
                     )
                   ),
                   If(
@@ -1770,7 +1781,7 @@ Concept(Read(),
                   Return(
                     If(
                       And(NotEquals($named, $h), LessThan($seen, 3)),
-                      Call($doing, $named, Add($seen, 1)),
+                      Call($doing, $named, Add($seen, 1), $count),
                       Undefined()
                     )
                   )
@@ -2054,7 +2065,7 @@ Concept(Read(),
                           ),
                           Undefined()
                         ),
-                        Bind($d, Call($doing, Member($e, "head"))),
+                        Bind($d, Call($doing, Member($e, "head"), 0, Length($positional))),
                         Comment(
                           "\"divide by 4 100\" heard as Divide(Ref(\"\"), Typed(100, By(4))): the number and its mark."
                         ),
@@ -4695,122 +4706,15 @@ Concept(CubeRoot(),
   )
 )
 
+// A percent is a value, a hundredth part; a percent of something is that part of it.
 Concept(Percent(),
-  Realization(Percent($p, Of($x)),
+  Realization(Percent($p),
     context = Execution(),
-    properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(
-            Element(
-              List(Argument(value = $p), Argument(value = Quote(Of($x)))),
-              SubtractValues(Length(List(Argument(value = $p), Argument(value = Quote(Of($x))))), 1)
-            ),
-            "value"
-          )
-        ),
-        Bind($p2,
-          Call($asNumber, $p),
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p2))),
-            MakeCall(
-              "Percent",
-              AsList(
-                Map(List(Argument(value = $p), Argument(value = Quote(Of($x)))), Lambda(List($a), FieldOf($a, "value")))
-              )
-            ),
-            MultiplyValues(DivideValues($p2, 100), $x2)
-          )
-        )
-      )
-    )
+    body = Divide($p, 100)
   ),
   Realization(Percent($p, $x),
     context = Execution(),
-    properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(
-            Element(
-              List(Argument(value = $p), Argument(value = $x)),
-              SubtractValues(Length(List(Argument(value = $p), Argument(value = $x))), 1)
-            ),
-            "value"
-          )
-        ),
-        Bind($p2,
-          Call($asNumber, $p),
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p2))),
-            MakeCall(
-              "Percent",
-              AsList(Map(List(Argument(value = $p), Argument(value = $x)), Lambda(List($a), FieldOf($a, "value"))))
-            ),
-            MultiplyValues(DivideValues($p2, 100), $x2)
-          )
-        )
-      )
-    )
+    body = Multiply(Percent($p), $x)
   )
 )
 

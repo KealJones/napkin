@@ -110,3 +110,10 @@ test("a doing no rule writes is written from what it does: its examples, in the 
   assert.match((await ask("write a function that sorts a list")).said, /return x\.toSorted\(\)/);
   assert.match((await ask("write a function that doubles a number")).said, /return \(x \* 2\)/);
 });
+
+test("a Concept no rule writes is written as what its realization composes", async () => {
+  assert.match((await ask("write a function that halves a number")).said, /function half\(x\) \{ return \(x \/ 2\) \}/);
+  const average = await ask("write a function that averages a list");
+  assert.match(average.said, /return \(x\.reduce\(.*, 0\) \/ x\.length\)/);
+  assert.equal((await ask("run it with [2, 4, 9]", [{ message: "write", result: average.result }])).said, "It gives 5.");
+});

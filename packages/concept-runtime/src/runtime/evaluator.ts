@@ -499,6 +499,20 @@ export class Runtime {
     }
   }
 
+  /**
+   * What a call means as other Concepts, in the context it is asked in: the realization that
+   * would be selected for it there, when that realization is the Concept's own and composes
+   * Concepts rather than running code, substituted. Code is written from this where no language
+   * rule writes the Concept (code/write.ts).
+   */
+  meaning(e: Expr, context: Expr | undefined): Expr | undefined {
+    if (!isCall(e)) return undefined;
+    const chosen = candidates(this.store, e, context, new Set())[0];
+    if (!chosen || chosen.owner !== e.head || chosen.realization.evaluateArguments === false) return undefined;
+    const body = chosen.realization.body;
+    return isCall(body) && body.head === "Code" ? undefined : substitute(body, chosen.bindings);
+  }
+
   private async runCode(
     realization: Realization,
     bindings: Bindings,
@@ -609,7 +623,7 @@ export class Runtime {
       runCode: (source) => runIsolated(source),
       patchText,
       writeCode: (ir, language) => {
-        const w = writeSource(ir, language);
+        const w = writeSource(ir, language, { meaning: (e) => this.meaning(e, context) });
         return { text: w.text, unwritable: w.unwritable };
       },
       lemma,

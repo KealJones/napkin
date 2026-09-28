@@ -27,6 +27,11 @@ export interface ImportOptions {
    * rules reads with them. By default, the built-in language packs alone.
    */
   store?: ConceptStore;
+  /**
+   * Where no To rule writes a Concept, what it means instead: the graph's own realization of
+   * it, substituted (code/write.ts). By default, nothing: what no rule writes is unwritable.
+   */
+  meaning?: (e: Expr) => Expr | undefined;
 }
 
 export interface ImportResult {
@@ -78,7 +83,7 @@ export async function importSource(source: string, language: string, options: Im
 
 /** Concepts written as source in a language, by its pack's To rules (and those it extends). */
 export function writeSource(expression: Expr, language: string, options: ImportOptions = {}): Writing {
-  return writeWith(writingRules(options.store ?? languagePackStore(), language), expression);
+  return writeWith(writingRules(options.store ?? languagePackStore(), language), expression, "statement", options.meaning);
 }
 
 export interface CodeLanguage {

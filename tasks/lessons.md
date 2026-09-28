@@ -14,3 +14,11 @@
   surface-checkable rule, try a mechanical pass on saved outputs first.
 - **Compare runs under the same expectations.** Changing the gold between two runs made a
   prompt look worse than it was. Rule: re-score old raw outputs before diffing.
+
+## 2026-09-27: Realization is the definition
+
+- **Don't invent a relation for something the graph already has.** I proposed `Defined(pattern,
+  ir)` for "what a Concept means as value maths". A Realization whose body is composed Concepts
+  (`Realization(Half($x), body = Divide($x, 2))`) already is that definition. Rule: before
+  proposing a new Concept or relation, check whether an existing one (Realization, SynonymOf,
+  To) already says it, and extend what reads it instead.

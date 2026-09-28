@@ -20,6 +20,10 @@
  * A value is written as JavaScript writes it unless the language gives it a rule of its own,
  * `To(Literal(null), "None")`.
  *
+ * A Concept no rule writes is written as what it means when a `meaning` is given: the graph's
+ * realization of it by composed Concepts (`Realization(Half($x), body = Divide($x, 2))`),
+ * substituted, so `Half(n)` is written `(n / 2)` in any language that writes Divide.
+ *
  * `Either("a", "b")` offers templates in order, the first that can be used winning: a
  * concise arrow where its body is an expression, a block where it is not. (Two rules for
  * one pattern would be one shadowing the other, which the store collects.)
@@ -111,8 +115,9 @@ export interface Writing {
   readonly unwritable: string[];
 }
 
-export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" | "statement" = "statement"): Writing {
+export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" | "statement" = "statement", meaning?: (e: Expr) => Expr | undefined): Writing {
   const unwritable: string[] = [];
+  const expanding = new Set<string>();
   const expressible = new WeakMap<object, boolean>();
 
   const literal = (e: Expr): string | undefined => {
@@ -152,7 +157,8 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
     const known = expressible.get(e);
     if (known !== undefined) return known;
     expressible.set(e, false);
-    const ok = found(e, false).some(({ rule, b }) => usable(rule, b));
+    const means = meaning && !expanding.has(e.head) ? meaning(e) : undefined;
+    const ok = found(e, false).some(({ rule, b }) => usable(rule, b)) || (means !== undefined && canExpress(means));
     expressible.set(e, ok);
     return ok;
   };
@@ -195,6 +201,18 @@ export function writeWith(rules: Map<string, Rule[]>, e: Expr, as: "expression" 
       const text = render(rule, b, inLines);
       // An expression standing as a statement must not read as a block or a declaration.
       return statement && !rule.statement && /^(\{|function\b|class\b)/.test(text) ? `(${text})` : text;
+    }
+    // No rule writes it: what it means, if the graph realizes it by composing Concepts, is
+    // written instead, while that is writable. A Concept being written inside its own meaning
+    // is not expanded again.
+    const means = isCall(e) && meaning && !expanding.has(e.head) ? meaning(e) : undefined;
+    if (means !== undefined && isCall(e)) {
+      const before = unwritable.length;
+      expanding.add(e.head);
+      const text = write(means, position, inLines);
+      expanding.delete(e.head);
+      if (unwritable.length === before) return text;
+      unwritable.length = before;
     }
     unwritable.push(isCall(e) ? e.head : format(e));
     return `undefined /* ${isCall(e) ? e.head : "?"} */`;

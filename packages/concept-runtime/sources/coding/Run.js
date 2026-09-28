@@ -12,6 +12,8 @@ async (args, bindings, api) => {
   const values = [];
   const collect = (e) => {
     if (typeof e === "number" || typeof e === "string") values.push(e);
+    // A list said is one value: "with [1, 2, 3]".
+    else if (isCall(e) && e.head === "List") values.push(api.toHost(e));
     else if (isCall(e) && !["InlineCode", "Block", "File", "SourceCode", "Ref"].includes(e.head)) for (const a of e.args) if (a.name === undefined) collect(a.value);
   };
   for (const a of args) collect(a.value);
