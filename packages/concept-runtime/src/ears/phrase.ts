@@ -45,14 +45,24 @@ export async function foldPhrases(store: ConceptStore, message?: string): Promis
   const said = message === undefined ? undefined : new Set(message.toLowerCase().match(/[a-z]+/g) ?? []);
   const { deriveFolds } = await import("../seed/seed.js");
   let heard = 0;
+  // A name whose words were heard already (to say a phrase, say) but that has no fold yet, a
+  // Concept just learned, needs one derived all the same.
+  const folded = new Set(
+    (store.get("Concept")?.realizations ?? []).flatMap((r) => r.properties.filter((p) => isCall(p) && p.head === "Fold").map((p) => (isCall(p) && isCall(p.args[0]?.value) ? p.args[0].value.head : ""))),
+  );
+  let unfolded = false;
   for (const unit of store.all()) {
     if (!multiWord(unit.identity)) continue;
     const text = words(unit.identity);
-    if (heardPhrases.has(text) || (said && !text.split(" ").every((w) => said.has(w)))) continue;
+    if (said && !text.split(" ").every((w) => said.has(w))) continue;
+    if (heardPhrases.has(text)) {
+      if (heardPhrases.get(text) && !folded.has(unit.identity)) unfolded = true;
+      continue;
+    }
     await hearPhrase(store, text);
     heard += 1;
   }
-  return heard ? deriveFolds(store) : 0;
+  return heard || unfolded ? deriveFolds(store) : 0;
 }
 
 /**

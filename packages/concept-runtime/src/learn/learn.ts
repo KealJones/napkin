@@ -70,6 +70,9 @@ function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]): bool
   // A description of only what packs say of a word (Mood is a Marker: how Napkin uses it) does
   // not say what the thing is.
   if (store && result.head === "Describes" && machineryOnly(store, result.args[0]?.value)) return true;
+  // Nor does one that has only its name ("Steven Spielberg", learned as who directed Jaws).
+  const subject = result.head === "Describes" ? result.args[0]?.value : undefined;
+  if (store && subject !== undefined && isCall(subject) && !subject.args.length && !(store.get(subject.head)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head))) return true;
   if (result.head === "Unknown" || result.head === "NoDescription") return true;
   const inner = result.head === "Answer" ? result.args[0]?.value : undefined;
   return inner !== undefined && isCall(inner) && (inner.head === "UnknownTruth" || inner.head === "Unknown");
@@ -81,6 +84,35 @@ function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]): bool
  * are asked, not what they are about.
  */
 /** A Concept whose every fact a pack declared: how Napkin uses the word, nothing the world said. */
+/** Whether a thing is described by anything but its name: what it is, is part of, means. */
+function describedAlready(runtime: Runtime, identity: string): boolean {
+  return (runtime.store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head));
+}
+
+/**
+ * What others hold of a thing describes it too: Jaws holds Director(Of(Jaws()), Is(StevenSpielberg())),
+ * so Steven Spielberg is Director(Of(Jaws())), the director of Jaws. Added to a description of
+ * it, or made one when nothing else was known.
+ */
+function withMentions(runtime: Runtime, result: Expr | undefined): Expr | undefined {
+  if (result === undefined || !isCall(result) || !["Describes", "NoDescription"].includes(result.head)) return result;
+  const about = result.args[0]?.value;
+  if (about === undefined || !isCall(about) || about.args.length) return result;
+  const roles: Expr[] = [];
+  for (const m of runtime.store.mentioning(c(about.head))) {
+    const claim = m.relation.claim;
+    if (!isCall(claim) || m.identity === about.head || /^(Conversation|IsolatedConversation|User)_/.test(m.identity)) continue;
+    const positional = claim.args.filter((a) => a.name === undefined);
+    const is = positional.find((a) => isCall(a.value) && a.value.head === "Is" && isCall(a.value.args[0]?.value) && a.value.args[0].value.head === about.head && !a.value.args[0].value.args.length);
+    if (!is) continue;
+    const role = call(claim.head, positional.filter((a) => a !== is));
+    if (!roles.some((r) => format(r) === format(role))) roles.push(role);
+  }
+  if (!roles.length) return result;
+  const held = result.head === "Describes" && isCall(result.args[1]?.value) ? result.args[1].value.args.map((a) => a.value) : [];
+  return call("Describes", [{ value: about }, { value: call("List", [...held, ...roles].map((value) => ({ value }))) }]);
+}
+
 function machineryOnly(store: Runtime["store"], e: Expr | undefined): boolean {
   if (e === undefined || !isCall(e) || e.args.length) return false;
   const relations = store.get(e.head)?.relations ?? [];
@@ -99,7 +131,12 @@ function unsourced(runtime: Runtime, expression: Expr): string[] {
   return out;
 }
 
-export async function learn(
+export async function learn(...args: Parameters<typeof learnOnce>): Promise<LearnResult> {
+  const out = await learnOnce(...args);
+  return { ...out, result: withMentions(args[0], out.result) };
+}
+
+async function learnOnce(
   runtime: Runtime,
   message: string,
   expression: Expr,
@@ -121,6 +158,8 @@ export async function learn(
   const attempted = options.asked ?? new Set<string>();
   /** Whether an answer of not knowing has been researched this turn: once is enough. */
   let researched = false;
+  /** Whether the gaps were learned from as far as they go, so an unknown answer is researched instead. */
+  let gapsSpent = false;
   /** Whether that research looked for what was asked and did not find it. */
   let notFound = false;
 
@@ -135,7 +174,7 @@ export async function learn(
 
     const all = collectGaps(runtime, result);
     const gaps = learnable(runtime, all);
-    if (!gaps.length) {
+    if (!gaps.length || gapsSpent) {
       // "I don't know" is where to look further, not where to stop: the words of the question
       // Napkin holds nothing sourced about yet ("tomato" in "is a tomato a fruit") are looked up,
       // once, and the question is worked out again with what was found.
@@ -147,6 +186,10 @@ export async function learn(
       let found = false;
       const subject = result !== undefined && isCall(result) && result.head === "Describes" ? result.args[0]?.value : undefined;
       const described = subject !== undefined && isCall(subject) && machineryOnly(runtime.store, subject) ? [subject.head] : [];
+      // The thing an answer says nothing is known about ("I don't know anything about Steven
+      // Spielberg": his name was learned from Jaws, nothing else) is looked up too.
+      const about = result !== undefined && isCall(result) && (result.head === "NoDescription" || result.head === "Unknown" || result.head === "Describes") ? result.args[0]?.value : undefined;
+      if (about !== undefined && isCall(about) && !about.args.length && !describedAlready(runtime, about.head)) described.push(about.head);
       for (const identity of [...described, ...unsourced(runtime, expression)].slice(0, 4)) {
         if (attempted.has(identity)) continue;
         attempted.add(identity);
@@ -210,7 +253,20 @@ export async function learn(
     // up whole before either word is. Found, it is a Concept with its own fold, and the next
     // pass reads the phrase as it.
     if (options.research !== false) {
-      for (const gap of gaps) {
+      // The phrase a word is part of, as well as the word's own: "Barack" in Obama(Barack()) is
+      // the first word of "barack obama", which is what is looked up.
+      const around = (input: Expr): Expr | undefined => {
+        // Not a word packs declare ("is", "who"): those are how it was asked, not part of a name.
+        const declared = (h: string) => {
+          const u = runtime.store.get(h);
+          return !!u && (u.realizations.length > 0 || u.relations.some((r) => r.stamps?.some((st) => st.pack !== undefined)));
+        };
+        for (const node of walk(expression)) if (isCall(node) && node.args.length === 1 && node.args[0].name === undefined && format(node.args[0].value) === format(input) && !declared(node.head)) return node;
+        return undefined;
+      };
+      const phrases = gaps.flatMap((gap) => [isCall(gap.input) && gap.input.args.length ? gap.input : undefined, around(gap.input)]).filter((x): x is Expr => x !== undefined);
+      for (const input of phrases) {
+        const gap = { input };
         const phrase = isCall(gap.input) && gap.input.args.length ? await sayPhrase(runtime.store, gap.input) : undefined;
         const name = phrase === undefined ? undefined : nameOf(phrase);
         if (name === undefined || runtime.store.has(name) || attempted.has(name)) continue;
@@ -305,8 +361,16 @@ export async function learn(
         }
       }
     }
-    // Nothing new was learned, so another pass repeats this one.
-    if (!learnedSomething) break;
+    // Nothing new was learned from the gaps. An answer of not knowing is researched still (the
+    // gaps may be the pieces of a name, "Steven" and "Spielberg"); otherwise another pass would
+    // only repeat this one.
+    if (!learnedSomething) {
+      if (!researched && options.research !== false && unknownAnswer(result, runtime.store)) {
+        gapsSpent = true;
+        continue;
+      }
+      break;
+    }
   }
 
   runtime.reset();

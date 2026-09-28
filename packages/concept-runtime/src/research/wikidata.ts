@@ -33,6 +33,8 @@ const PROPERTIES: Record<string, string> = {
   P361: "PartOf",
   P527: "HasPart",
   P366: "UsedFor",
+  // What a person is, by what they do: Steven Spielberg is a film director.
+  P106: "IsA",
 };
 
 /** Enough to cover a handful of classes without the list becoming a crawl of its own. */
@@ -211,7 +213,7 @@ export async function groundInWikidata(
   // One sense the world writes about far more than any other is the one meant when nothing said
   // picks one ("pi" is the number, not the family name; France the country, not the battleship).
   const ranked = [...senses].sort((a, b) => b.sitelinks - a.sitelinks);
-  const dominant = ranked.length > 1 && ranked[0].sitelinks >= 20 && ranked[0].sitelinks >= 10 * ranked[1].sitelinks ? [ranked[0]] : undefined;
+  const dominant = ranked.length > 1 && ranked[0].sitelinks >= 20 && ranked[0].sitelinks >= 3 * ranked[1].sitelinks ? [ranked[0]] : undefined;
   const one = senses.length === 1 || dominant !== undefined;
   // A sense's context is named by its kind, unless that name already means something here:
   // the kind "concept" is not the universal parent.
