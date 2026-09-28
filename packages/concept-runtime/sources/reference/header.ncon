@@ -1,0 +1,11 @@
+// What a language's own documentation says its built-in methods do: MDN for JavaScript. Read
+// when code uses a method, kept as a fact with where it came from, and said when the code is
+// explained. Written by scripts/pack.mjs from sources/reference (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+// MDN Web Docs: its pages are CC BY-SA 2.5, and a record is the page a summary was read from.
+Concept(MDN(), IsA(Source()), IsA(LearningSource()), License("CC BY-SA 2.5"))
+
+Concept(MethodDoc(), IsA(Result()))
+
+Concept(Documents(), IsA(Relation()))

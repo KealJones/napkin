@@ -1,0 +1,283 @@
+// What a language's own documentation says its built-in methods do: MDN for JavaScript. Read
+// when code uses a method, kept as a fact with where it came from, and said when the code is
+// explained. Written by scripts/pack.mjs from sources/reference (edit those, not this).
+Requires(Core(), Basic(), Code())
+
+// MDN Web Docs: its pages are CC BY-SA 2.5, and a record is the page a summary was read from.
+Concept(MDN(),
+  IsA(Source()),
+  IsA(LearningSource()),
+  License("CC BY-SA 2.5")
+)
+
+Concept(MethodDoc(), IsA(Result()))
+
+Concept(Documents(), IsA(Relation()))
+
+// What JavaScript's documentation (MDN) says a built-in method does. The kinds of value that have
+// the method are asked of the language itself (the VM); the first whose page says is read, its
+// summary kept as Documents(kind, method, summary) on JavaScript, stamped from the page. What was
+// kept is answered from then on. MethodDoc(method, kind, summary, from = MDN(page)), or the call
+// itself when no page says.
+Concept(MethodDoc(),
+  Realization(MethodDoc($method),
+    context = Execution(),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($method, Call($String, Call(Member($bindings, "get"), "method"))),
+            If(
+              Not(Call(Member(Regex("^[A-Za-z_$][\\w$]*$", ""), "test"), $method)),
+              Return(Call(Member($api, "call"), "MethodDoc", $method)),
+              Undefined()
+            ),
+            Bind($answer,
+              Lambda(List($kind, $summary, $page),
+                Object(
+                  head = "MethodDoc",
+                  args = Concat(
+                    List(
+                      Object(value = $method),
+                      Object(value = $kind),
+                      Object(value = $summary)
+                    ),
+                    If(
+                      $page,
+                      List(Object(name = "from", value = Call(Member($api, "call"), "MDN", $page))),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("Kept already."),
+            ForOf(
+              $r,
+              Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), "JavaScript"), "relations"), List()),
+              Sequence(
+                Bind($c, Member($r, "claim")),
+                If(
+                  Or(
+                    Or(Not(Call($isCall, $c)), NotEquals(Member($c, "head"), "Documents")),
+                    NotEquals(OptionalMember(Index(Member($c, "args"), 1), "value"), $method)
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($page,
+                  If(
+                    NotEquals(OptionalMember(OptionalIndex(Member($r, "stamps"), 0), "source"), Undefined()),
+                    Member(
+                      OptionalMember(
+                        Call(
+                          Member(Member($api, "store"), "findStamp"),
+                          Member(Index(Member($r, "stamps"), 0), "source")
+                        ),
+                        "relation"
+                      ),
+                      "claim"
+                    ),
+                    Undefined()
+                  )
+                ),
+                Return(
+                  Call(
+                    $answer,
+                    Member(Index(Member($c, "args"), 0), "value"),
+                    Member(Index(Member($c, "args"), 2), "value"),
+                    If(
+                      Call($isCall, $page),
+                      OptionalMember(Index(Member($page, "args"), 0), "value"),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($probe,
+              Call(
+                Member($api, "runCode"),
+                Add(
+                  Add(
+                    Add(
+                      "[['Array', []], ['String', ''], ['Number', 0], ['Map', new Map()], ['Set', new Set()], ['Object', {}], ['Promise', Promise.resolve()]]",
+                      ".filter(([k, v]) => Object.prototype.hasOwnProperty.call(Object.getPrototypeOf(v), "
+                    ),
+                    Call(Member($JSON, "stringify"), $method)
+                  ),
+                  ")).map(([k]) => k)"
+                )
+              )
+            ),
+            Bind($kinds,
+              If(
+                Call(Member($Array, "isArray"), Member($probe, "value")),
+                Member($probe, "value"),
+                List()
+              )
+            ),
+            ForOf(
+              $kind,
+              $kinds,
+              Sequence(
+                Bind($url,
+                  Add(
+                    Add(
+                      Add(
+                        Add(
+                          "https://raw.githubusercontent.com/mdn/content/main/files/en-us/web/javascript/reference/global_objects/",
+                          Call(Member($kind, "toLowerCase"))
+                        ),
+                        "/"
+                      ),
+                      Call(Member($method, "toLowerCase"))
+                    ),
+                    "/index.md"
+                  )
+                ),
+                Bind($text, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "FetchText", $url)))),
+                If(
+                  Or(NotEquals(TypeOf($text), "string"), Not(Call(Member($text, "startsWith"), "---"))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($end, Call(Member($text, "indexOf"), "\n---", 3)),
+                Bind($front, Call(Member($text, "slice"), 3, $end)),
+                Bind($slug, OptionalIndex(Call(Member(Regex("\\nslug:\\s*(\\S+)", ""), "exec"), Add("\n", $front)), 1)),
+                Bind($first,
+                  Call(
+                    Member(
+                      Map(
+                        Call(Member(Call(Member($text, "slice"), Add($end, 4)), "split"), Regex("\\n\\s*\\n", "")),
+                        Lambda(List($p), Call(Member($p, "trim")))
+                      ),
+                      "find"
+                    ),
+                    Lambda(List($p),
+                      And(
+                        And(
+                          And($p, Not(Call(Member($p, "startsWith"), "{{"))),
+                          Not(Call(Member($p, "startsWith"), "#"))
+                        ),
+                        Not(Call(Member($p, "startsWith"), ">"))
+                      )
+                    )
+                  )
+                ),
+                If(Not($first), Continue(), Undefined()),
+                Bind($plain,
+                  Call(
+                    Member(
+                      Call(
+                        Member(
+                          Call(
+                            Member(
+                              Call(
+                                Member(
+                                  Call(
+                                    Member(
+                                      Call(
+                                        Member(
+                                          Call(
+                                            Member($first, "replace"),
+                                            Regex(
+                                              "\\{\\{\\s*\\w+\\(\\s*\"[^\"]*\"\\s*,\\s*\"([^\"]*)\"[^}]*\\)\\s*\\}\\}",
+                                              "g"
+                                            ),
+                                            "$1"
+                                          ),
+                                          "replace"
+                                        ),
+                                        Regex("\\{\\{\\s*\\w+\\(\\s*\"([^\"]*)\"[^}]*\\)\\s*\\}\\}", "g"),
+                                        "$1"
+                                      ),
+                                      "replace"
+                                    ),
+                                    Regex("\\{\\{[^}]*\\}\\}", "g"),
+                                    ""
+                                  ),
+                                  "replace"
+                                ),
+                                Regex("\\[([^\\]]+)\\]\\([^)]*\\)", "g"),
+                                "$1"
+                              ),
+                              "replace"
+                            ),
+                            Regex("[*`]", "g"),
+                            ""
+                          ),
+                          "replace"
+                        ),
+                        Regex("\\s+", "g"),
+                        " "
+                      ),
+                      "trim"
+                    )
+                  )
+                ),
+                Comment("\"The push() method of Array instances adds ...\" is what it does: \"adds ...\"."),
+                Comment("Its first sentence only."),
+                Bind($summary,
+                  Call(
+                    Member(
+                      Index(
+                        Call(
+                          Member(
+                            Call(
+                              Member($plain, "replace"),
+                              Regex("^The \\S+ (static )?method( of \\S+( instances| values| objects)?)? ", ""),
+                              ""
+                            ),
+                            "split"
+                          ),
+                          Regex("(?<=\\.)\\s+(?=[A-Z])", "")
+                        ),
+                        0
+                      ),
+                      "replace"
+                    ),
+                    Regex("\\.$", ""),
+                    ""
+                  )
+                ),
+                Bind($page,
+                  If(
+                    $slug,
+                    Add("https://developer.mozilla.org/en-US/docs/", $slug),
+                    $url
+                  )
+                ),
+                Bind($record,
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    "MDN",
+                    Call(Member($api, "call"), "Imported", $page),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  "JavaScript",
+                  Call(
+                    Member($api, "call"),
+                    "Documents",
+                    $kind,
+                    $method,
+                    $summary
+                  ),
+                  Undefined(),
+                  Member($record, "seq")
+                ),
+                Return(Call($answer, $kind, $summary, $page))
+              )
+            ),
+            Return(Call(Member($api, "call"), "MethodDoc", $method))
+          )
+        )
+      )
+    )
+  )
+)

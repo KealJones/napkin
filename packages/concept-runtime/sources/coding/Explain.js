@@ -66,5 +66,17 @@ async (args, bindings, api) => {
     const words = await api.evaluate(named(s), api.call("Explaining"));
     said.push(typeof words === "string" ? words : "does `" + api.writeCode(s, "JavaScript").text.trim() + "`");
   }
-  return api.call("Explained", code, said.length ? said.join("; then ") : "nothing");
+  // Where what was said about each built-in method came from.
+  const from = [];
+  const docs = async (e) => {
+    if (!isCall(e)) return;
+    if (e.head === "Member" && typeof e.args[1]?.value === "string") {
+      const doc = await api.evaluate(api.call("MethodDoc", e.args[1].value), api.call("Execution"));
+      const f = isCall(doc) ? doc.args.find((a) => a.name === "from") : undefined;
+      if (f && !from.some((x) => api.format(x.value) === api.format(f.value))) from.push(f);
+    }
+    for (const a of e.args) await docs(a.value);
+  };
+  await docs(ir);
+  return { head: "Explained", args: [{ value: code }, { value: said.length ? said.join("; then ") : "nothing" }, ...from] };
 };

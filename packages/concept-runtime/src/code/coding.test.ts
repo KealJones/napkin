@@ -118,3 +118,13 @@ test("a Concept no rule writes is written as what its realization composes", asy
   assert.match(average.said, /return \(x\.reduce\(.*, 0\) \/ x\.length\)/);
   assert.equal((await ask("run it with [2, 4, 9]", [{ message: "write", result: average.result }])).said, "It gives 5.");
 });
+
+test("a built-in method is explained with what its documentation says, and where that came from", async () => {
+  const { sourcesOf } = await import("../store/provenance.js");
+  // As MethodDoc keeps a page it has read: the fact, stamped from the page.
+  const page = store.addRelation("MDN", c("Imported", "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push"));
+  store.addRelation("JavaScript", c("Documents", "Array", "push", "adds the specified elements to the end of an array and returns the new length of the array"), undefined, page.seq);
+  const r = await turn(new Runtime(store), "explain `names.push('bo')`", c("Execution"), { learn: false });
+  assert.equal(r.spoken, 'Here\'s what it does: calls names.push with "bo", which adds the specified elements to the end of an array and returns the new length of the array.');
+  assert.deepEqual(sourcesOf(store, r.result, r.expression), [{ label: "MDN", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push" }]);
+});

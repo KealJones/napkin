@@ -531,7 +531,9 @@ Concept(Block(),
   )
 )
 
-// A call said: "calls print with x"; a member called is said as written, "console.log".
+// A call said: "calls print with x"; a member called is said as written, "console.log", and a
+// built-in method with what its documentation says it does (MethodDoc): "calls names.push with bo,
+// which adds the specified elements to the end of an array ...".
 Concept(Call(),
   Realization(Call($f, Rest($with)),
     context = Explaining(),
@@ -541,6 +543,46 @@ Concept(Call(),
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Comment("A name (Name(\"xs\") while explaining) is written back as the name it is."),
+            Bind($unnamed,
+              Lambda(List($e),
+                If(
+                  And(
+                    And(Call($isCall, $e), Equals(Member($e, "head"), "Name")),
+                    Equals(TypeOf(OptionalMember(Index(Member($e, "args"), 0), "value")), "string")
+                  ),
+                  Object(variable = Member(Index(Member($e, "args"), 0), "value")),
+                  If(
+                    Call($isCall, $e),
+                    Object(
+                      head = Member($e, "head"),
+                      args = Map(
+                        Member($e, "args"),
+                        Lambda(List($a), Object(Spread($a), value = Call($unnamed, Member($a, "value"))))
+                      )
+                    ),
+                    $e
+                  )
+                )
+              )
+            ),
+            Bind($code,
+              Lambda(List($e),
+                Call(
+                  Member(
+                    Member(
+                      Call(
+                        Member($api, "writeCode"),
+                        Call($unnamed, $e),
+                        "JavaScript"
+                      ),
+                      "text"
+                    ),
+                    "trim"
+                  )
+                )
+              )
+            ),
             Bind($said,
               Async(
                 Lambda(List($e),
@@ -551,7 +593,18 @@ Concept(Call(),
                         Equals(Length(Member($e, "args")), 2)
                       ),
                       Sequence(
-                        Bind($o, Await(Call($said, Member(Index(Member($e, "args"), 0), "value")))),
+                        Bind($obj, Member(Index(Member($e, "args"), 0), "value")),
+                        Bind($o,
+                          If(
+                            And(Call($isCall, $obj), Equals(Member($obj, "head"), "Call")),
+                            Call($code, $obj),
+                            If(
+                              Equals(TypeOf($obj), "string"),
+                              Call(Member($JSON, "stringify"), $obj),
+                              Await(Call($said, $obj))
+                            )
+                          )
+                        ),
                         Return(
                           If(
                             Equals(TypeOf($o), "string"),
@@ -572,25 +625,34 @@ Concept(Call(),
             ForOf(
               $a,
               Call(Member($args, "slice"), 1),
-              Call(
-                Member($xs, "push"),
-                Await(
-                  Call(
-                    Member($api, "evaluate"),
-                    Member($a, "value"),
-                    Member($api, "context")
+              Sequence(
+                Comment("Text written in the code is said as text (\"bo\"); a name is said as the name."),
+                If(
+                  Equals(TypeOf(Member($a, "value")), "string"),
+                  Sequence(Call(Member($xs, "push"), Call(Member($JSON, "stringify"), Member($a, "value"))), Continue()),
+                  Undefined()
+                ),
+                Bind($v,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Member($a, "value"),
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                Call(
+                  Member($xs, "push"),
+                  If(
+                    Or(Equals(TypeOf($v), "string"), Equals(TypeOf($v), "number")),
+                    $v,
+                    Call($code, Member($a, "value"))
                   )
                 )
               )
             ),
             If(
-              Or(
-                NotEquals(TypeOf($f), "string"),
-                Call(
-                  Member($xs, "some"),
-                  Lambda(List($x), And(NotEquals(TypeOf($x), "string"), NotEquals(TypeOf($x), "number")))
-                )
-              ),
+              NotEquals(TypeOf($f), "string"),
               Return(Call(Member($api, "call"), "Call", $f, Spread($xs))),
               Undefined()
             ),
@@ -605,11 +667,48 @@ Concept(Call(),
                 )
               )
             ),
-            Return(
+            Bind($target, Member(Index($args, 0), "value")),
+            Bind($method,
               If(
-                Length($list),
-                Add(Add(Add("calls ", $f), " with "), $joined),
-                Add("calls ", $f)
+                And(
+                  And(Call($isCall, $target), Equals(Member($target, "head"), "Member")),
+                  Equals(TypeOf(OptionalMember(Index(Member($target, "args"), 1), "value")), "string")
+                ),
+                Member(Index(Member($target, "args"), 1), "value"),
+                Undefined()
+              )
+            ),
+            Bind($doc,
+              If(
+                $method,
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(Member($api, "call"), "MethodDoc", $method),
+                    Call(Member($api, "call"), "Execution")
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            Bind($does,
+              If(
+                And(
+                  And(Call($isCall, $doc), AtLeast(Length(Member($doc, "args")), 3)),
+                  Equals(TypeOf(Member(Index(Member($doc, "args"), 2), "value")), "string")
+                ),
+                Add(", which ", Member(Index(Member($doc, "args"), 2), "value")),
+                ""
+              )
+            ),
+            Return(
+              Add(
+                If(
+                  Length($list),
+                  Add(Add(Add("calls ", $f), " with "), $joined),
+                  Add("calls ", $f)
+                ),
+                $does
               )
             )
           )
@@ -2486,15 +2585,89 @@ Concept(Explain(),
                 )
               )
             ),
+            Comment("Where what was said about each built-in method came from."),
+            Bind($from, List()),
+            Bind($docs,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Not(Call($isCall, $e)), Return(), Undefined()),
+                    If(
+                      And(
+                        Equals(Member($e, "head"), "Member"),
+                        Equals(TypeOf(OptionalMember(Index(Member($e, "args"), 1), "value")), "string")
+                      ),
+                      Sequence(
+                        Bind($doc,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(
+                                Member($api, "call"),
+                                "MethodDoc",
+                                Member(Index(Member($e, "args"), 1), "value")
+                              ),
+                              Call(Member($api, "call"), "Execution")
+                            )
+                          )
+                        ),
+                        Bind($f,
+                          If(
+                            Call($isCall, $doc),
+                            Call(
+                              Member(Member($doc, "args"), "find"),
+                              Lambda(List($a), Equals(Member($a, "name"), "from"))
+                            ),
+                            Undefined()
+                          )
+                        ),
+                        If(
+                          And(
+                            $f,
+                            Not(
+                              Call(
+                                Member($from, "some"),
+                                Lambda(List($x),
+                                  Equals(
+                                    Call(Member($api, "format"), Member($x, "value")),
+                                    Call(Member($api, "format"), Member($f, "value"))
+                                  )
+                                )
+                              )
+                            )
+                          ),
+                          Call(Member($from, "push"), $f),
+                          Undefined()
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Await(Call($docs, Member($a, "value")))
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($docs, $ir)),
             Return(
-              Call(
-                Member($api, "call"),
-                "Explained",
-                $code,
-                If(
-                  Length($said),
-                  Call(Member($said, "join"), "; then "),
-                  "nothing"
+              Object(
+                head = "Explained",
+                args = Concat(
+                  List(
+                    Object(value = $code),
+                    Object(
+                      value = If(
+                        Length($said),
+                        Call(Member($said, "join"), "; then "),
+                        "nothing"
+                      )
+                    )
+                  ),
+                  $from
                 )
               )
             )
@@ -3248,15 +3421,27 @@ Concept(Sequence(),
   )
 )
 
-// Code said in words.
+// Code said in words (and where what it says about a method came from, from = ..., not said).
 Concept(Explained(),
-  Realization(Explained($code, $words),
+  Realization(Explained(Rest($x)),
     context = Speaking(),
+    evaluateArguments = false,
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($w, Call($String, Call(Member($bindings, "get"), "words"))),
+            Bind($w,
+              Call(
+                $String,
+                Otherwise(
+                  OptionalMember(
+                    Index(Filter($args, Lambda(List($a), Equals(Member($a, "name"), Undefined()))), 1),
+                    "value"
+                  ),
+                  ""
+                )
+              )
+            ),
             Return(Add(Add("Here's what it does: ", $w), If(Call(Member(Regex("[.!?]$", ""), "test"), $w), "", ".")))
           )
         )
