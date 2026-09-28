@@ -44,7 +44,7 @@ test("he points at the man in play, past a newer place and the women after him; 
   assert.equal(format(await runtime.evaluate(call("ReferentOf", [{ value: "it" }]), c("Execution"))), 'ReferentOf("it")');
 });
 
-test("a list made in conversation holds what is put on it and not taken off, and is found by what the words say of it", async () => {
+test("a thing made in conversation holds what is put in it and not taken out, and is found by what the words say of it", async () => {
   const { turn } = await import("./turn.js");
   const store = new ConceptStore();
   seed(store);
@@ -52,11 +52,16 @@ test("a list made in conversation holds what is put on it and not taken off, and
     const runtime = new Runtime(store);
     return (await turn(runtime, m, c("Execution"), { learn: false, conversation: "Conversation_2" })).spoken;
   };
-  assert.equal(await say("make a shopping list"), "Started your shopping list.");
+  assert.equal(await say("make a shopping list"), "Made a shopping list.");
   assert.equal(await say("add milk to my shopping list"), "Added milk to your shopping list.");
   assert.equal(await say("put eggs on my list"), "Added eggs to your shopping list.");
-  assert.equal(await say("remove milk from my list"), "Took milk off your shopping list.");
-  assert.equal(await say("what is on my shopping list?"), "Your shopping list has eggs.");
+  assert.equal(await say("remove milk from my list"), "Removed milk from your shopping list.");
+  assert.equal(await say("what is on my shopping list?"), "Eggs.");
+  // Nothing here is about lists: once a box is known to hold things, one made holds keys.
+  store.addRelation("Box", parse("IsA(Collection())"));
+  assert.equal(await say("make a box"), "Made a box.");
+  assert.equal(await say("put the keys in my box"), "Added keys to your box.");
+  assert.equal(await say("what is in the box?"), "Keys.");
 });
 
 test("a doing that takes two things takes them as one group", async () => {
@@ -65,4 +70,15 @@ test("a doing that takes two things takes them as one group", async () => {
   const runtime = new Runtime(store);
   assert.equal(format(await runtime.evaluate(parse("Add(And(5, 3))"), c("Execution"))), "8");
   assert.equal(format(await runtime.evaluate(parse("Multiply(List(2, 3, 4))"), c("Execution"))), "24");
+});
+
+test("a relation's properties declared in a context hold only for facts there: what a list contains is not a time", async () => {
+  const { Relations } = await import("../store/relations.js");
+  const store = new ConceptStore();
+  seed(store);
+  store.addRelation("ShoppingList_1", parse("Contains(Milk())"));
+  store.addRelation("Morning", parse("Contains(Breakfast())"), parse("Interval()"));
+  const of = (x: string) => new Relations(store).of(x).map((t) => format(t.expr));
+  assert.ok(!of("Milk").includes("During(ShoppingList_1())"));
+  assert.ok(of("Breakfast").includes("During(Morning())"));
 });

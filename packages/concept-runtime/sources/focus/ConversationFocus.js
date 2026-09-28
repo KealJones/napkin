@@ -32,7 +32,7 @@ async (args, bindings, api) => {
   const answered = (e, kind) => {
     if (!isCall(e)) return;
     if ((e.head === "Answer" || e.head === "Describes") && e.args.length) return answered(e.args[0].value, e.head === "Answer" ? kind : undefined);
-    // A result that says what came of something (ListMade(ShoppingList_1)) is about that thing.
+    // A result that says what came of something (Made(ShoppingList_1)) is about that thing.
     const result = (api.store.get(e.head)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0].value) && r.claim.args[0].value.head === "Result");
     if (result && e.args.length && e.head !== "Noted") {
       for (const a of e.args) if (a.name === undefined && isCall(a.value) && !a.value.args.length) add(a.value);

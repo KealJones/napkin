@@ -1,4 +1,4 @@
-// @realization ReferentOf($word), context = Execution(), evaluateArguments = false
+// @realization ReferentOf($word), context = Execution(), evaluateArguments = false, types = Types(word = String())
 // What a pointing word ("he", "she") points at in this conversation: the newest thing in play of
 // every kind it points at (someone, male), else the newest nothing is known of, else the newest
 // of the first kind. The call itself

@@ -25,16 +25,24 @@ const PROPERTY = {
 export class Relations {
   constructor(private readonly store: ConceptStore) {}
 
-  /** Does this relation Concept declare the given property? */
-  private declares(predicate: string, property: string): boolean {
+  /**
+   * Does this relation Concept declare the given property, for a fact held where `where` says?
+   * A property declared in a context holds only for facts in it: Contains is the inverse of
+   * During between intervals (Interval()), and says nothing of what a list holds.
+   */
+  private declares(predicate: string, property: string, where?: Expr): boolean {
     const unit = this.store.get(predicate);
-    return unit?.relations.some((r) => isCall(r.claim) && r.claim.head === property) ?? false;
+    return unit?.relations.some((r) => isCall(r.claim) && r.claim.head === property && this.applies(r.context, where)) ?? false;
   }
 
-  private inverseOf(predicate: string): string | undefined {
+  private applies(declared: Expr | undefined, where: Expr | undefined): boolean {
+    return declared === undefined || (where !== undefined && matchContext(declared, where, new Map()).ok);
+  }
+
+  private inverseOf(predicate: string, where?: Expr): string | undefined {
     const unit = this.store.get(predicate);
-    for (const { claim: r } of unit?.relations ?? []) {
-      if (isCall(r) && r.head === PROPERTY.inverseOf) {
+    for (const { claim: r, context } of unit?.relations ?? []) {
+      if (isCall(r) && r.head === PROPERTY.inverseOf && this.applies(context, where)) {
         const target = r.args[0]?.value;
         if (isCall(target)) return target.head;
       }
@@ -77,7 +85,7 @@ export class Relations {
     for (const t of this.store.asObject(identity)) {
       if (!holds(t)) continue;
       const carried = t.context === undefined ? {} : { context: t.context };
-      if (this.declares(t.predicate, PROPERTY.symmetric)) {
+      if (this.declares(t.predicate, PROPERTY.symmetric, t.context)) {
         add({
           subject: identity,
           predicate: t.predicate,
@@ -86,7 +94,7 @@ export class Relations {
           ...carried,
         });
       }
-      const inverse = this.inverseOf(t.predicate);
+      const inverse = this.inverseOf(t.predicate, t.context);
       if (inverse) {
         add({
           subject: identity,
@@ -100,7 +108,7 @@ export class Relations {
 
     if (options.transitive !== false) {
       for (const t of [...out]) {
-        if (!this.declares(t.predicate, PROPERTY.transitive)) continue;
+        if (!this.declares(t.predicate, PROPERTY.transitive, t.context)) continue;
         for (const reached of this.closure(t)) add(reached);
       }
     }
@@ -231,8 +239,8 @@ export class Relations {
         // Symmetric alone makes something a neighbour. Only symmetric AND transitive makes
         // it a neighbour's neighbour: a relation that does not close must not be walked as
         // though it did, or every synonym chain collapses into one blob.
-        const isSymmetric = this.declares(t.predicate, PROPERTY.symmetric);
-        const closes = isSymmetric && this.declares(t.predicate, PROPERTY.transitive);
+        const isSymmetric = this.declares(t.predicate, PROPERTY.symmetric, t.context);
+        const closes = isSymmetric && this.declares(t.predicate, PROPERTY.transitive, t.context);
         const isParent = !equivalenceOnly && t.predicate === "IsA";
         if (!isSymmetric && !isParent) continue;
         const other = t.subject === current ? objectKey(t.object) : t.subject;

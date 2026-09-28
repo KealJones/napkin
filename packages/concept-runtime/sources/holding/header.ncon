@@ -1,0 +1,14 @@
+// Things made in conversation, and one thing holding others (memory-spec Part 6.1 and 7).
+// "Make a shopping list" makes ShoppingList_1, a ShoppingList, which is a List; "add milk to my
+// shopping list" puts Contains(Milk()) on it, "take milk off it" retracts that, and "what is on
+// my list" is what still holds (Contains, packs/basic.ncon). Which thing the words mean is focus's (ReferentOf, given the
+// description). Nothing here is about lists or shopping. Written by scripts/pack.mjs from
+// sources/holding (edit those, not this).
+Requires(Core(), Basic(), Memory(), Focus())
+
+// What came of making, adding and removing: said by packs/english.ncon.
+Concept(Made(), IsA(Result()))
+
+Concept(Added(), IsA(Result()))
+
+Concept(Removed(), IsA(Result()))

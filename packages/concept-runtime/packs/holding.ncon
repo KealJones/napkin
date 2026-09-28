@@ -1,0 +1,874 @@
+// Things made in conversation, and one thing holding others (memory-spec Part 6.1 and 7).
+// "Make a shopping list" makes ShoppingList_1, a ShoppingList, which is a List; "add milk to my
+// shopping list" puts Contains(Milk()) on it, "take milk off it" retracts that, and "what is on
+// my list" is what still holds (Contains, packs/basic.ncon). Which thing the words mean is focus's (ReferentOf, given the
+// description). Nothing here is about lists or shopping. Written by scripts/pack.mjs from
+// sources/holding (edit those, not this).
+Requires(Core(), Basic(), Memory(), Focus())
+
+// What came of making, adding and removing: said by packs/english.ncon.
+Concept(Made(), IsA(Result()))
+
+Concept(Added(), IsA(Result()))
+
+Concept(Removed(), IsA(Result()))
+
+// "can you add cheetos to my list?": asked for, so done. Asked, not worked out, so hearing still reads Add as taking two.
+Concept(Add(),
+  Realization(Add($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Add",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "add milk and eggs to my list", heard as the two things Add takes: put in the thing named;
+// naming none, Add's next realization adds.
+Concept(Add(),
+  Realization(Add($item, $said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(
+                      Member($api, "call"),
+                      "And",
+                      Call(Member($bindings, "get"), "item"),
+                      Call(Member($bindings, "get"), "said")
+                    )
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Add",
+                  Call(Member($bindings, "get"), "item"),
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "add cheetos to my shopping list": put in the thing it names; naming none, Add's next realization adds.
+Concept(Add(),
+  Realization(Add(Ref(Rest($r)), $said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Add",
+                  Member(Index($args, 0), "value"),
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Things put in or taken out of the thing the words name: "add cheetos to my shopping list" is
+// heard Cheetos(To(My(List(Shopping())))), where it goes said inside what goes. $doing is Add
+// or Remove. Adding to a kind of collection nothing is made of yet makes one. Answered, so a
+// statement that does this is taken as done; supposed (Hypothetical), nothing changes. The call
+// itself when the words name no such thing.
+Concept(Change(),
+  Realization(Change($doing, $said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($doing, Call(Member($bindings, "get"), "doing")),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($none, Call(Member($api, "call"), "Change", $doing, $said)),
+            Bind($adding, And(Call($isCall, $doing), Equals(Member($doing, "head"), "Add"))),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Bind($supposed,
+              Call(
+                Member($facets, "some"),
+                Lambda(List($f), And(Call($isCall, $f), Equals(Member($f, "head"), "Hypothetical")))
+              )
+            ),
+            Comment("Where: the one word inside that says where (to, on, in, from) and holds what names a thing."),
+            Bind($refer,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "ReferentOf", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        And(Call($isCall, $r), NotEquals(Member($r, "head"), "ReferentOf")),
+                        $r,
+                        Undefined()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Var($target, Undefined()),
+            Var($place, Undefined()),
+            Bind($look,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(
+                      Or(Not(Call($isCall, $e)), $target),
+                      Return($e),
+                      Undefined()
+                    ),
+                    Bind($args, List()),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      Sequence(
+                        Bind($v, Member($a, "value")),
+                        If(
+                          And(
+                            And(And(Not($target), Equals(Member($a, "name"), Undefined())), Call($isCall, $v)),
+                            Equals(Length(Member($v, "args")), 1)
+                          ),
+                          Sequence(
+                            Bind($inner, Member(Index(Member($v, "args"), 0), "value")),
+                            Bind($found, Await(Call($refer, $inner))),
+                            If(
+                              $found,
+                              Sequence(Assign($target, $found), Continue()),
+                              Undefined()
+                            ),
+                            Bind($collection,
+                              And(
+                                Call($isCall, $inner),
+                                Await(
+                                  Call(
+                                    Member($api, "evaluate"),
+                                    Call(
+                                      Member($api, "call"),
+                                      "Fits",
+                                      $inner,
+                                      Call(Member($api, "call"), "Collection")
+                                    ),
+                                    Call(Member($api, "call"), "Execution")
+                                  )
+                                )
+                              )
+                            ),
+                            If(
+                              And(
+                                And(And($adding, Not($supposed)), Call($isCall, $collection)),
+                                Equals(Member($collection, "head"), "True")
+                              ),
+                              Sequence(Assign($place, $inner), Continue()),
+                              Undefined()
+                            )
+                          ),
+                          Undefined()
+                        ),
+                        Call(Member($args, "push"), Object(Spread($a), value = Await(Call($look, $v))))
+                      )
+                    ),
+                    Return(Object(head = Member($e, "head"), args = $args))
+                  )
+                )
+              )
+            ),
+            Bind($rest, Await(Call($look, $said))),
+            If(
+              And(Not($target), $place),
+              Sequence(
+                Bind($made,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Write", $place),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                Assign(
+                  $target,
+                  If(
+                    And(Call($isCall, $made), Equals(Member($made, "head"), "Made")),
+                    Member(Index(Member($made, "args"), 0), "value"),
+                    Undefined()
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            If(Not($target), Return($none), Undefined()),
+            Bind($items, List()),
+            Bind($flat,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(
+                      And(Call($isCall, $e), Includes(List("And", "List", "Sequence"), Member($e, "head"))),
+                      ForOf(
+                        $a,
+                        Member($e, "args"),
+                        Await(Call($flat, Member($a, "value")))
+                      ),
+                      If(
+                        And(Call($isCall, $e), NotEquals(Member($e, "head"), "Ref")),
+                        Call(
+                          Member($items, "push"),
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Call(Member($api, "call"), "Read", $e),
+                              Call(Member($api, "call"), "Execution")
+                            )
+                          )
+                        ),
+                        Undefined()
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($flat, $rest)),
+            If(Not(Length($items)), Return($none), Undefined()),
+            Bind($unit, Call(Member(Member($api, "store"), "get"), Member($target, "head"))),
+            Bind($held,
+              Lambda(List($item),
+                Filter(
+                  Otherwise(OptionalMember($unit, "relations"), List()),
+                  Lambda(List($r),
+                    And(
+                      And(
+                        And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Contains")),
+                        Equals(
+                          Call(Member($api, "format"), Member(Index(Member(Member($r, "claim"), "args"), 0), "value")),
+                          Call(Member($api, "format"), $item)
+                        )
+                      ),
+                      Not(
+                        Call(
+                          Member(Member($api, "store"), "retracted"),
+                          Member($target, "head"),
+                          Member($r, "claim")
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $item,
+              If($supposed, List(), $items),
+              If(
+                $adding,
+                If(
+                  Not(Length(Call($held, $item))),
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    Member($target, "head"),
+                    Call(Member($api, "call"), "Contains", $item),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  ),
+                  Undefined()
+                ),
+                ForOf(
+                  $r,
+                  Call($held, $item),
+                  ForOf(
+                    $s,
+                    Otherwise(Member($r, "stamps"), List()),
+                    Call(
+                      Member(Member($api, "store"), "addRelation"),
+                      Member($target, "head"),
+                      Call(Member($api, "call"), "Retracts", Member($s, "seq")),
+                      Undefined(),
+                      Member(Member($api, "trace"), "cause")
+                    )
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Answer",
+                Call(
+                  Member($api, "call"),
+                  If($adding, "Added", "Removed"),
+                  Call(Member($api, "call"), "List", Spread($items)),
+                  $target
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What the thing the words name holds: every item put in it and not taken out. The call itself
+// when the words name nothing made.
+Concept(Held(),
+  Realization(Held($said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ReferentOf", $said),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $thing)), Equals(Member($thing, "head"), "ReferentOf")),
+              Return(Call(Member($api, "call"), "Held", $said)),
+              Undefined()
+            ),
+            Bind($items,
+              Map(
+                Filter(
+                  Otherwise(
+                    OptionalMember(Call(Member(Member($api, "store"), "get"), Member($thing, "head")), "relations"),
+                    List()
+                  ),
+                  Lambda(List($r),
+                    And(
+                      And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Contains")),
+                      Not(
+                        Call(
+                          Member(Member($api, "store"), "retracted"),
+                          Member($thing, "head"),
+                          Member($r, "claim")
+                        )
+                      )
+                    )
+                  )
+                ),
+                Lambda(List($r), Member(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Answer",
+                Call(Member($api, "call"), "List", Spread($items))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "make a shopping list": a thing of that kind, made here, when none is in play yet. Its kind
+// (ShoppingList) is a kind of what was said (List), so "my list" finds it too.
+Concept(Write(),
+  Realization(Write($said),
+    context = Execution(),
+    evaluateArguments = false,
+    types = Types(said = Collection()),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($said, Call(Member($bindings, "get"), "said")),
+            Bind($found,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "ReferentOf", $said),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              And(Call($isCall, $found), NotEquals(Member($found, "head"), "ReferentOf")),
+              Return(Call(Member($api, "call"), "Made", $found)),
+              Undefined()
+            ),
+            Bind($kind,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "KindNamed", $said),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $kind)), Equals(Member($kind, "head"), "KindNamed")),
+              Return(Call(Member($api, "call"), "Write", $said)),
+              Undefined()
+            ),
+            If(
+              And(
+                NotEquals(Member($kind, "head"), Member($said, "head")),
+                Not(Includes(Call(Member($api, "typesOf"), $kind), Member($said, "head")))
+              ),
+              Call(
+                Member(Member($api, "store"), "addRelation"),
+                Member($kind, "head"),
+                Call(
+                  Member($api, "call"),
+                  "IsA",
+                  Call(Member($api, "call"), Member($said, "head"))
+                ),
+                Undefined(),
+                Member(Member($api, "trace"), "cause")
+              ),
+              Undefined()
+            ),
+            Bind($thing,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Mint", Member($kind, "head")),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Call(
+              Member(Member($api, "store"), "addRelation"),
+              Member($thing, "head"),
+              Call(Member($api, "call"), "IsA", $kind),
+              Undefined(),
+              Member(Member($api, "trace"), "cause")
+            ),
+            Return(Call(Member($api, "call"), "Made", $thing))
+          )
+        )
+      )
+    )
+  )
+)
+
+// "put the keys in the box": put in the thing it names.
+Concept(Put(),
+  Realization(Put($said),
+    context = Imperative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Put",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "can you put eggs on my list?": asked for, so done.
+Concept(Put(),
+  Realization(Put($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Put",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "remove milk from my list": taken out of the thing it names.
+Concept(Remove(),
+  Realization(Remove($said),
+    context = Imperative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Remove"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Remove",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "can you remove milk from my list?": asked for, so done.
+Concept(Remove(),
+  Realization(Remove($said),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Remove"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Remove",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what's in the list": what the thing it names holds.
+Concept(What(),
+  Realization(What(Is(In($said))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Held",
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Held")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what is in my list?": what the thing it names holds.
+Concept(What(),
+  Realization(What(Is(In(), $said)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Held",
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Held")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what's on the list": what the thing it names holds.
+Concept(What(),
+  Realization(What(Is(On($said))),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Held",
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Held")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "what is on my list?": what the thing it names holds.
+Concept(What(),
+  Realization(What(Is(On(), $said)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Held",
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Held")),
+                Call(
+                  Member($api, "call"),
+                  "What",
+                  Member(Index($args, 0), "value")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

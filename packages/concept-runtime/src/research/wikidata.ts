@@ -15,7 +15,7 @@
  * `SameAs(Wikidata("Q..."))` on the Concept and on every Concept a relation points to, so
  * the next lookup of that word lands on the same sense instead of guessing again.
  */
-import { call, c, isCall, type Expr } from "../concept/expression.js";
+import { call, c, format, isCall, type Expr } from "../concept/expression.js";
 import type { ConceptStore } from "../store/store.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words } from "../runtime/host.js";
@@ -445,7 +445,9 @@ async function everyClaim(
   for (const t of taken) {
     const said = label(t.property);
     if (!said || BOOKKEEPING.test(said)) continue;
-    const relation = nameOf(said);
+    // A relation already tied to this property (Contains is P4330, "contains") is the one it is
+    // kept under, not a second one named from the label.
+    const relation = store.asObject(format(call("Wikidata", [{ value: t.property }]))).find((r) => r.predicate === "SameAs")?.subject ?? nameOf(said);
     if (!relation || !/^[A-Z]/.test(relation)) continue;
     describeRelation(store, relation, t.property, labels[t.property]);
     for (const v of t.values) {

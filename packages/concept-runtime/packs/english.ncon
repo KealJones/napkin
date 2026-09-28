@@ -2239,18 +2239,17 @@ Concept(List(),
   )
 )
 
-// Lists made in conversation (packs/lists.ncon), said.
+// Things made, and what one holds (packs/holding.ncon), said.
 // "Added milk and eggs to your shopping list."
-Concept(ListAdded(),
-  Realization(ListAdded($items, $list),
+Concept(Added(),
+  Realization(Added($items, $to),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($say,
+            Bind($words,
               Async(
                 Lambda(List($e),
                   Sequence(
@@ -2268,36 +2267,45 @@ Concept(ListAdded(),
                 )
               )
             ),
-            Comment("ShoppingList_1 is \"your shopping list\"."),
-            Bind($named,
-              Lambda(List($list),
-                Add(
-                  "your ",
-                  Call(
-                    Member(
-                      Call(
-                        Member(
-                          Call(
-                            Member(Call($String, Member($list, "head")), "replace"),
-                            Regex("_[0-9]+$", ""),
-                            ""
-                          ),
-                          "replace"
+            Comment("ShoppingList_1 is \"shopping list\": what it was made as."),
+            Bind($called,
+              Lambda(List($thing),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(Call($String, Member($thing, "head")), "replace"),
+                          Regex("_[0-9]+$", ""),
+                          ""
                         ),
-                        Regex("([a-z0-9])([A-Z])", "g"),
-                        "$1 $2"
+                        "replace"
                       ),
-                      "toLowerCase"
-                    )
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
                   )
+                )
+              )
+            ),
+            Bind($article,
+              Lambda(List($w),
+                Add(
+                  If(
+                    Call(Member(Regex("^[aeiou]", ""), "test"), $w),
+                    "an ",
+                    "a "
+                  ),
+                  $w
                 )
               )
             ),
             Return(
               Add(
                 Add(
-                  Add(Add("Added ", Await(Call($say, Call(Member($bindings, "get"), "items")))), " to "),
-                  Call($named, Call(Member($bindings, "get"), "list"))
+                  Add(Add("Added ", Await(Call($words, Call(Member($bindings, "get"), "items")))), " to your "),
+                  Call($called, Call(Member($bindings, "get"), "to"))
                 ),
                 "."
               )
@@ -2309,17 +2317,16 @@ Concept(ListAdded(),
   )
 )
 
-// "Your shopping list has milk, eggs and parmesan cheese.", or that it is empty.
-Concept(ListHolds(),
-  Realization(ListHolds($list, $items),
+// "Made a shopping list."
+Concept(Made(),
+  Realization(Made($thing),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($say,
+            Bind($words,
               Async(
                 Lambda(List($e),
                   Sequence(
@@ -2337,40 +2344,41 @@ Concept(ListHolds(),
                 )
               )
             ),
-            Comment("ShoppingList_1 is \"your shopping list\"."),
-            Bind($named,
-              Lambda(List($list),
-                Add(
-                  "your ",
-                  Call(
-                    Member(
-                      Call(
-                        Member(
-                          Call(
-                            Member(Call($String, Member($list, "head")), "replace"),
-                            Regex("_[0-9]+$", ""),
-                            ""
-                          ),
-                          "replace"
+            Comment("ShoppingList_1 is \"shopping list\": what it was made as."),
+            Bind($called,
+              Lambda(List($thing),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(Call($String, Member($thing, "head")), "replace"),
+                          Regex("_[0-9]+$", ""),
+                          ""
                         ),
-                        Regex("([a-z0-9])([A-Z])", "g"),
-                        "$1 $2"
+                        "replace"
                       ),
-                      "toLowerCase"
-                    )
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
                   )
                 )
               )
             ),
-            Bind($items, Call(Member($bindings, "get"), "items")),
-            Bind($whose, Call($named, Call(Member($bindings, "get"), "list"))),
-            Bind($Whose, Add(Call(Member(Index($whose, 0), "toUpperCase")), Call(Member($whose, "slice"), 1))),
-            If(
-              Or(Not(Call($isCall, $items)), Not(Length(Member($items, "args")))),
-              Return(Add($Whose, " is empty.")),
-              Undefined()
+            Bind($article,
+              Lambda(List($w),
+                Add(
+                  If(
+                    Call(Member(Regex("^[aeiou]", ""), "test"), $w),
+                    "an ",
+                    "a "
+                  ),
+                  $w
+                )
+              )
             ),
-            Return(Add(Add(Add($Whose, " has "), Await(Call($say, $items))), "."))
+            Return(Add(Add("Made ", Call($article, Call($called, Call(Member($bindings, "get"), "thing")))), "."))
           )
         )
       )
@@ -2378,17 +2386,16 @@ Concept(ListHolds(),
   )
 )
 
-// "Started your shopping list."
-Concept(ListMade(),
-  Realization(ListMade($list),
+// "Removed milk from your shopping list."
+Concept(Removed(),
+  Realization(Removed($items, $from),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($say,
+            Bind($words,
               Async(
                 Lambda(List($e),
                   Sequence(
@@ -2406,97 +2413,45 @@ Concept(ListMade(),
                 )
               )
             ),
-            Comment("ShoppingList_1 is \"your shopping list\"."),
-            Bind($named,
-              Lambda(List($list),
-                Add(
-                  "your ",
-                  Call(
-                    Member(
-                      Call(
-                        Member(
-                          Call(
-                            Member(Call($String, Member($list, "head")), "replace"),
-                            Regex("_[0-9]+$", ""),
-                            ""
-                          ),
-                          "replace"
-                        ),
-                        Regex("([a-z0-9])([A-Z])", "g"),
-                        "$1 $2"
-                      ),
-                      "toLowerCase"
-                    )
-                  )
-                )
-              )
-            ),
-            Return(Add(Add("Started ", Call($named, Call(Member($bindings, "get"), "list"))), "."))
-          )
-        )
-      )
-    )
-  )
-)
-
-// "Took milk off your shopping list."
-Concept(ListRemoved(),
-  Realization(ListRemoved($items, $list),
-    context = Speaking(),
-    evaluateArguments = false,
-    body = Code(
-      ir = Async(
-        Lambda(List($args, $bindings, $api),
-          Sequence(
-            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($say,
-              Async(
-                Lambda(List($e),
-                  Sequence(
-                    Bind($r,
-                      Await(
+            Comment("ShoppingList_1 is \"shopping list\": what it was made as."),
+            Bind($called,
+              Lambda(List($thing),
+                Call(
+                  Member(
+                    Call(
+                      Member(
                         Call(
-                          Member($api, "evaluate"),
-                          Call(Member($api, "call"), "Words", $e),
-                          Call(Member($api, "call"), "Execution")
-                        )
-                      )
+                          Member(Call($String, Member($thing, "head")), "replace"),
+                          Regex("_[0-9]+$", ""),
+                          ""
+                        ),
+                        "replace"
+                      ),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
                     ),
-                    Return(If(Equals(TypeOf($r), "string"), $r, ""))
+                    "toLowerCase"
                   )
                 )
               )
             ),
-            Comment("ShoppingList_1 is \"your shopping list\"."),
-            Bind($named,
-              Lambda(List($list),
+            Bind($article,
+              Lambda(List($w),
                 Add(
-                  "your ",
-                  Call(
-                    Member(
-                      Call(
-                        Member(
-                          Call(
-                            Member(Call($String, Member($list, "head")), "replace"),
-                            Regex("_[0-9]+$", ""),
-                            ""
-                          ),
-                          "replace"
-                        ),
-                        Regex("([a-z0-9])([A-Z])", "g"),
-                        "$1 $2"
-                      ),
-                      "toLowerCase"
-                    )
-                  )
+                  If(
+                    Call(Member(Regex("^[aeiou]", ""), "test"), $w),
+                    "an ",
+                    "a "
+                  ),
+                  $w
                 )
               )
             ),
             Return(
               Add(
                 Add(
-                  Add(Add("Took ", Await(Call($say, Call(Member($bindings, "get"), "items")))), " off "),
-                  Call($named, Call(Member($bindings, "get"), "list"))
+                  Add(Add("Removed ", Await(Call($words, Call(Member($bindings, "get"), "items")))), " from your "),
+                  Call($called, Call(Member($bindings, "get"), "from"))
                 ),
                 "."
               )

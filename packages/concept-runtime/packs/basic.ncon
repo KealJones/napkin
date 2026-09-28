@@ -3098,12 +3098,15 @@ Concept(During(),
   Irreflexive()
 )
 
+// Contains: between intervals, the inverse of During; otherwise what a thing holds, which is
+// what Wikidata calls "contains" (P4330). Holding chains and is never of itself as well.
 Concept(Contains(),
   IsA(IntervalRelation()),
-  InverseOf(During()),
+  Relation(InverseOf(During()), context = Interval()),
   Transitive(),
   Asymmetric(),
-  Irreflexive()
+  Irreflexive(),
+  SameAs(Wikidata("P4330"))
 )
 
 Concept(Finishes(),
