@@ -9,6 +9,7 @@
 import { type Call, type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
+import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
 import { learn, unknownAnswer, type LearnStep } from "../learn/learn.js";
@@ -20,7 +21,7 @@ import { Runtime } from "./evaluator.js";
 import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
-import { regroundSense } from "../research/wikidata.js";
+import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
   /**
@@ -431,6 +432,46 @@ function lift(runtime: Runtime, expression: Expr, given: Expr): { expression: Ex
   return { expression: scoped, context: given };
 }
 
+/**
+ * Which of the senses asked about ("which platypus: the taxon or the musical group?") is the
+ * kind a reply names ("the animal?"): the one whose Wikidata item reaches the kind's item in the
+ * world's hierarchy, when only one does.
+ */
+async function pickByKind(store: ConceptStore, asked: string, kind: string, said: string, parse: (s: string) => Expr): Promise<{ name: string; chosen: string; said: string; sense: boolean } | undefined> {
+  let which: Expr;
+  try {
+    which = parse(asked);
+  } catch {
+    return undefined;
+  }
+  if (!isCall(which) || !which.args.some((a) => a.name === "sense")) return undefined;
+  const about = which.args[0]?.value;
+  const options = which.args[1]?.value;
+  const was = which.args.find((a) => a.name === "said")?.value;
+  if (!isCall(about) || !isCall(options) || typeof was !== "string") return undefined;
+  let target = wikidataItem(store, kind);
+  if (!target) {
+    await groundInWikidata(store, kind, { said }).catch(() => undefined);
+    target = wikidataItem(store, kind);
+  }
+  if (!target) return undefined;
+  const fits: string[] = [];
+  for (const { value: option } of options.args) {
+    if (!isCall(option)) continue;
+    const items = (store.get(about.head)?.relations ?? [])
+      .filter((r) => r.context !== undefined && isCall(r.context) && r.context.head === option.head && isCall(r.claim) && r.claim.head === "SameAs")
+      .map((r) => (isCall(r.claim) && isCall(r.claim.args[0]?.value) ? r.claim.args[0].value.args[0]?.value : undefined))
+      .filter((q): q is string => typeof q === "string");
+    for (const item of items) {
+      if (item === target || (await reachesInWikidata(item, target).catch(() => undefined))) {
+        fits.push(option.head);
+        break;
+      }
+    }
+  }
+  return fits.length === 1 ? { name: about.head, chosen: fits[0], said: was, sense: true } : undefined;
+}
+
 export async function turn(
   runtime: Runtime,
   message: string,
@@ -468,7 +509,20 @@ export async function turn(
       // Not a description that can be read: the words are heard as they are.
     }
   }
-  const answering = answerToWhich(asked, message, parse);
+  let answering = asked ? answerToWhich(asked, message, parse) : undefined;
+  if (asked) {
+    // What the reply is: a thing named ("the animal?", "the taxon") picks, a question in the
+    // words packs declare ("what is a taxon?") asks about an option rather than picking it.
+    const reply = await hear(runtime.store, message, options).catch(() => undefined);
+    let line = reply?.expression;
+    while (line !== undefined && isCall(line) && (line.head === "ContextScope" || line.head === "Mood") && line.args.length === 2) line = line.args[1].value;
+    // A word that does something ("what", "is") makes the reply a question; a thing does not.
+    const declared = (h: string) => (runtime.store.get(h)?.realizations ?? []).some((r) => !r.retired);
+    if (answering && line !== undefined && isCall(line) && declared(line.head)) answering = undefined;
+    // A kind no option is worded as ("the animal?", of the taxon and the band): the option whose
+    // thing the world says is one of those.
+    if (!answering && line !== undefined && isCall(line) && !line.args.length && !declared(line.head)) answering = await pickByKind(runtime.store, asked, line.head, message, parse);
+  }
   // A name picks a person; a sense picks what a word is taken to mean ("the dessert").
   const chosen = new Map(answering && !answering.sense ? [[answering.name, answering.chosen]] : []);
   const pickedSense = answering?.sense ? answering.chosen : undefined;

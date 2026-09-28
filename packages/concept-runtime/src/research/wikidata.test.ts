@@ -36,8 +36,9 @@ test("a word is tied to the sense what was said fits, and takes its classifying 
   const grounded = await groundInWikidata(store, "Emoji", { fetch: fake, said: "i put an emoji in my messages" });
   assert.equal(grounded?.item, "Q1049294", "the sense the messages fit, not the single");
   assert.deepEqual(holds(store, "Emoji").filter((r) => !r.startsWith("SameAs")), [
+    'Means("pictogram used in electronic messages")', "IsA(Pictogram())",
     "IsA(Notation())", "SubclassOf(Ideogram())", "SubclassOf(UnicodeCharacter())", "DistinctFrom(Emoticon())",
-  ], "instance of and subclass of kept apart, and a deprecated claim skipped");
+  ], "what it is in words and the kind those words name, then instance of and subclass of kept apart, and a deprecated claim skipped");
   assert.equal(wikidataItem(store, "Emoji"), "Q1049294");
   assert.equal(wikidataItem(store, "Emoticon"), "Q31963", "each target is tied to its own item");
   const isA = store.get("Emoji")!.relations.find((r) => format(r.claim) === "SubclassOf(Ideogram())")!;

@@ -1712,3 +1712,8 @@ details > summary { cursor: pointer; }
     display: none !important;
   }
 }
+
+.clear-graph:hover {
+  color: var(--red);
+  border-color: var(--red);
+}

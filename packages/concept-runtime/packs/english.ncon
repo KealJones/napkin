@@ -1074,6 +1074,112 @@ Concept(Describes(),
                 )
               )
             ),
+            Comment("What it is in words (a description: \"semi-aquatic egg-laying mammal endemic to Australia\")"),
+            Comment("is said first, as what it is; the kinds it names are that already, and what it is told apart"),
+            Comment("from is for telling senses apart, not for saying what it is."),
+            Bind($means,
+              Call(
+                Member($items, "find"),
+                Lambda(List($f),
+                  And(
+                    And(Call($isCall, $f), Equals(Member($f, "head"), "Means")),
+                    Equals(TypeOf(Index(Call($positional, $f), 0)), "string")
+                  )
+                )
+              )
+            ),
+            If(
+              $means,
+              Sequence(
+                Bind($words, Call($String, Index(Call($positional, $means), 0))),
+                Bind($an,
+                  Lambda(List($w),
+                    If(
+                      Call(Member(Regex("^(a|an|the)\\s", "i"), "test"), $w),
+                      $w,
+                      Add(
+                        If(
+                          Call(Member(Regex("^[aeiou]", "i"), "test"), $w),
+                          "an ",
+                          "a "
+                        ),
+                        $w
+                      )
+                    )
+                  )
+                ),
+                Bind($proper,
+                  Or(NotEquals($subject, Call(Member($subject, "toLowerCase"))), NotEquals($name, Undefined()))
+                ),
+                Bind($head,
+                  Add(
+                    Add(
+                      Add(
+                        Add(
+                          If(
+                            Or(Or($proper, Equals($subject, "I")), Equals($subject, "you")),
+                            $subject,
+                            Call($an, $subject)
+                          ),
+                          " "
+                        ),
+                        $verb
+                      ),
+                      " "
+                    ),
+                    Call($an, $words)
+                  )
+                ),
+                Bind($rest, List()),
+                ForOf(
+                  $f,
+                  $items,
+                  Sequence(
+                    If(
+                      Or(
+                        Or(Not(Call($isCall, $f)), Equals($f, $means)),
+                        Includes(
+                          List(
+                            "IsA",
+                            "SubclassOf",
+                            "Means",
+                            "DistinctFrom",
+                            "Named",
+                            "SameAs"
+                          ),
+                          Member($f, "head")
+                        )
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind(List($v), Call($positional, $f)),
+                    Call(
+                      Member($rest, "push"),
+                      If(
+                        Equals($v, Undefined()),
+                        Await(Call($sayOf, $f)),
+                        Add(
+                          Add(Await(Call($sayOf, Call(Member($api, "call"), Member($f, "head")))), " "),
+                          Await(Call($sayOf, $v))
+                        )
+                      )
+                    )
+                  )
+                ),
+                Return(
+                  Add(
+                    Call($sentence, $head),
+                    If(
+                      Length($rest),
+                      Add(" ", Call($sentence, Call(Member(Call(Member($rest, "slice"), 0, 3), "join"), ", "))),
+                      ""
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($parts, List()),
             If(
               And($name, NotEquals($name, $subject)),
@@ -1865,6 +1971,15 @@ Concept(ProbablyNot(),
   Realization(ProbablyNot(),
     context = Speaking(),
     body = "Probably not, but I can't say for sure."
+  )
+)
+
+// What was found in something the user said, said back in their words.
+Concept(YouSaid(),
+  IsA(Result()),
+  Realization(YouSaid($text),
+    context = Speaking(),
+    body = Text("You told me: \"", $text, "\"")
   )
 )
 

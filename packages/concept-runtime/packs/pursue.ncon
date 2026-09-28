@@ -1500,6 +1500,52 @@ Concept(Pursue(),
                         ),
                         Bind($value, Call($answer, Map(Member($left, "args"), Lambda(List($a), Member($a, "value"))))),
                         If(Not(Call($fits, $value)), Continue(), Undefined()),
+                        Comment("A phrase found in what was said (\"any group or unit of organisms that ...\") is said"),
+                        Comment("back in the words it was said in, not as the pieces it was heard as."),
+                        Bind($text,
+                          If(
+                            Equals(Member($claim, "head"), "Said"),
+                            OptionalMember(
+                              Call(
+                                Member(Member($claim, "args"), "find"),
+                                Lambda(List($a), Equals(Member($a, "name"), "text"))
+                              ),
+                              "value"
+                            ),
+                            Undefined()
+                          )
+                        ),
+                        Bind($size,
+                          Lambda(List($e),
+                            If(
+                              Call($isCall, $e),
+                              Add(
+                                1,
+                                Reduce(
+                                  Member($e, "args"),
+                                  Lambda(List($n, $a), Add($n, Call($size, Member($a, "value")))),
+                                  0
+                                )
+                              ),
+                              1
+                            )
+                          )
+                        ),
+                        If(
+                          And(
+                            And(Call($isCall, $value), GreaterThan(Call($size, $value), 4)),
+                            Equals(TypeOf($text), "string")
+                          ),
+                          Return(
+                            Call(
+                              Member($api, "call"),
+                              "Found",
+                              Call(Member($api, "call"), "YouSaid", $text),
+                              $content
+                            )
+                          ),
+                          Undefined()
+                        ),
                         Return(Call(Member($api, "call"), "Found", $value, $content))
                       )
                     )

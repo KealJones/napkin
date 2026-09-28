@@ -385,6 +385,17 @@ export function openGraph(store: ConceptStore, path: string, seedPacks: (store: 
   return report;
 }
 
+/**
+ * Everything learned, said and told taken out of the graph at `path`: the journal emptied and
+ * the store back to what the packs seed, still journaled from now on.
+ */
+export async function clearGraph(store: ConceptStore, path: string): Promise<void> {
+  closeGraph(store, path);
+  for (const unit of [...store.all()]) store.forgetConcept(unit.identity);
+  write(path, "");
+  await openNapkinGraph(store, path);
+}
+
 /** Stop appending to the journal (a test's store, or a process handing the graph over). */
 export function closeGraph(store: ConceptStore, path: string): void {
   store.onChange = undefined;

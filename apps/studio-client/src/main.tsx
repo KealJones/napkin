@@ -208,6 +208,16 @@ async function exportGraph(): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
+/**
+ * Start the graph over: everything learned, said and told taken out, the packs kept. Asked
+ * first, and offered as an export before it goes.
+ */
+async function clearGraph(): Promise<void> {
+  if (!window.confirm("Clear the graph? Everything Napkin has learned, and every conversation, will be gone. The packs stay. (Export first to keep a copy.)")) return;
+  await request("/api/graph/clear", { method: "POST" });
+  window.location.reload();
+}
+
 function conversationTitle(summary: ConversationSummary): string {
   return summary.lastMessage?.trim() || "New conversation";
 }
@@ -887,6 +897,15 @@ function App() {
             >
               Export
             </button>
+            {page === "concepts" && (
+              <button
+                className="export-graph clear-graph"
+                title="Take out everything learned, said and told; the packs stay"
+                onClick={() => void clearGraph()}
+              >
+                Clear graph
+              </button>
+            )}
           </div>
         </header>
         {page === "guide" ? (

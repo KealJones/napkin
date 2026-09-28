@@ -18,6 +18,7 @@ import {
   parse,
   Relations,
   Runtime,
+  clearGraph,
   journalText,
   openNapkinGraph,
   sourcesOf,
@@ -150,6 +151,13 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
 
     // The whole graph as a journal (store.ncon), to keep or hand to someone: what this host has
     // learned, said and been told, which opens over the packs anywhere.
+    // Start over: everything learned, said and told is taken out; the packs stay.
+    if (method === "POST" && path === "/api/graph/clear") {
+      await clearGraph(store, graphPath);
+      traces.length = 0;
+      return json(200, { graph: store.size() });
+    }
+
     if (method === "GET" && path === "/api/graph/export") {
       return new Response(journalText(store), {
         status: 200,

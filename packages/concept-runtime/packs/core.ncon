@@ -767,6 +767,9 @@ Concept(Answer(), IsA(Result()))
 // only noted (Noted), left out of the reply when its words are not known yet.
 Concept(Noted(), IsA(Result()))
 
+// The turn reads what a thing is tied to in Wikidata, in each sense of it.
+Concept(SameAs(), IsA(Relation()))
+
 Concept(Sequence(), IsA(CodePrimitive()))
 
 Concept(Describes(), IsA(Result()))

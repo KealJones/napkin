@@ -18,6 +18,7 @@
 import { call, c, isCall, type Expr } from "../concept/expression.js";
 import type { ConceptStore } from "../store/store.js";
 import { nameOf } from "../ears/parser/names.js";
+import { lemma, words } from "../runtime/host.js";
 
 /**
  * Wikidata property to Napkin relation. Instance of is IsA ("is a" is its own alias on
@@ -265,8 +266,14 @@ async function groundSense(
     store.addRelation(identity, claim, context, imported.seq);
     relations.push(context === undefined ? claim : call("In", [{ value: claim }, { value: context }]));
   };
-  // Told apart, a sense says what it is in words, so the one meant can be asked about.
-  if (context !== undefined && sense.description) keep(call("Means", [{ value: sense.description }]));
+  // What it is, in the words Wikidata describes it with ("semi-aquatic egg-laying mammal endemic
+  // to Australia"): said first when it is described, and what tells senses apart. The kind the
+  // description names (its last noun before any "of", "to", "in": a mammal) is what it is.
+  if (sense.description) {
+    keep(call("Means", [{ value: sense.description }]));
+    const kind = kindOfDescription(sense.description);
+    if (kind && kind !== identity) keep(call("IsA", [{ value: c(kind) }]));
+  }
   for (const { relation, target } of pairs) {
     const label = labelled[target]?.labels?.en?.value;
     if (!label) continue;
@@ -335,7 +342,7 @@ export async function regroundSense(
  */
 export async function reachesInWikidata(from: string, to: string, options: { fetch?: Fetch; limit?: number } = {}): Promise<string[] | undefined> {
   const get = options.fetch ?? defaultFetch;
-  const limit = options.limit ?? 60;
+  const limit = options.limit ?? 200;
   const came = new Map<string, string | undefined>([[from, undefined]]);
   let frontier = [from];
   let seen = 0;
@@ -345,7 +352,8 @@ export async function reachesInWikidata(from: string, to: string, options: { fet
     seen += batch.length;
     const found = await entities(batch, "claims", get);
     for (const id of batch) {
-      for (const property of ["P279", "P31", "P171"]) {
+      // Parent taxon first: a living thing's line to what it is runs through its taxa.
+      for (const property of ["P171", "P279", "P31"]) {
         for (const snak of found[id]?.claims?.[property] ?? []) {
           const up = snak.mainsnak?.datavalue?.value?.id;
           if (!up || came.has(up)) continue;
@@ -361,4 +369,20 @@ export async function reachesInWikidata(from: string, to: string, options: { fet
     }
   }
   return undefined;
+}
+
+/**
+ * The kind a description names: its last plain noun before the first preposition or joining word
+ * ("semi-aquatic egg-laying mammal endemic to Australia" is a Mammal, "constant ratio of the
+ * circumference..." a Ratio, "American film director" a Director), by the tagger hearing uses.
+ */
+export function kindOfDescription(description: string): string | undefined {
+  let last: string | undefined;
+  for (const w of words(description)) {
+    if (w.tags.some((t) => t === "Preposition" || t === "Conjunction")) break;
+    if (w.tags.includes("Noun") && !w.tags.includes("ProperNoun") && !w.tags.includes("Hyphenated") && !w.tags.includes("Possessive")) last = w.text;
+  }
+  if (!last) return undefined;
+  const base = lemma(last.toLowerCase());
+  return /^[a-z]+$/.test(base) ? base[0].toUpperCase() + base.slice(1) : undefined;
 }
