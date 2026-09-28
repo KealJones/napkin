@@ -190,13 +190,14 @@ function expressionOrNull(source: string): Expr | null {
 
 /**
  * The whole graph as a file (store.ncon): shared through the device's share sheet where it has
- * one (a phone can AirDrop it), else downloaded. A share sheet opens only close to a tap, and
+ * one on a touch screen (a phone can AirDrop it), else downloaded: a desktop browser's share
+ * sheet (Chrome on a Mac has one) offers no plain save. A share sheet opens only close to a tap, and
  * writing out a big graph can outlast that, so a refused share (anything but the user closing
  * the sheet) downloads instead.
  */
 async function exportGraph(): Promise<void> {
   const file = await graphFile();
-  if (navigator.canShare?.({ files: [file] })) {
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: file.name });
       return;
