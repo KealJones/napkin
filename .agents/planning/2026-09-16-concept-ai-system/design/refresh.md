@@ -77,6 +77,11 @@ asked about outside (memory-spec Part 6.6). Only the derivations refresh for the
 
 ### Every Concept is a word: no kind of Concept is special
 
+A word's meanings are held with the mechanism Napkin already has, context: one meaning's facts
+hold in a context named by what that meaning is (`MusicalForm()`), the way `regroundSense`
+already keeps Pi's family-name meaning under `FamilyName()`. "A sense" below is only talk for
+"one of a word's meanings"; in the graph it is that context, nothing more.
+
 There are no "pack Concepts" and "world Concepts". Every Concept in any pack could be a real
 word, and Napkin already has what a word with many meanings needs: several realizations, context,
 more than one argument shape, and typed arguments. What a pack declares is one meaning among the
@@ -89,10 +94,10 @@ one word:
 
 ```
 Sequence  Realization(Sequence(Rest($steps)), context = Execution(), ...)     the pack's, as now
-          SameAs(Wikidata("Q133250"))                                      the sense that is
+          SameAs(Wikidata("Q133250"))                                      the meaning that is
           IsA(Collection())                                                 what it says
-          Relation(IsA(MusicalForm()), context = Sense(Wikidata("Q...")))   another sense
-          Relation(IsA(FilmScene()),   context = Sense(Wikidata("Q...")))   another
+          Relation(IsA(MusicalForm()), context = MusicalForm())             another meaning
+          Relation(IsA(FilmScene()),   context = FilmScene())               another
 ```
 
 - **Which sense a meaning already held is**, a refresh finds the way any sense is picked
