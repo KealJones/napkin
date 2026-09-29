@@ -780,7 +780,7 @@ Concept(LookUp(),
                   "slice"
                 ),
                 0,
-                3
+                6
               )
             ),
             Bind($name,
@@ -812,10 +812,23 @@ Concept(LookUp(),
               )
             ),
             Bind($values, List()),
+            Comment("Which claim each value came from, for what it is qualified by."),
+            Bind($owner, List()),
+            Var($current, Undefined()),
+            Bind($take,
+              Lambda(List($v),
+                Sequence(
+                  Call(Member($values, "push"), $v),
+                  Call(Member($owner, "push"), $current),
+                  Undefined()
+                )
+              )
+            ),
             ForOf(
               $c,
               $chosen,
               Sequence(
+                Assign($current, $c),
                 Bind($v,
                   If(
                     And(Member($c, "mainsnak"), Member(Member($c, "mainsnak"), "datavalue")),
@@ -826,7 +839,7 @@ Concept(LookUp(),
                 If(Equals($v, Undefined()), Continue(), Undefined()),
                 If(
                   Equals(TypeOf($v), "string"),
-                  Call(Member($values, "push"), $v),
+                  Call($take, $v),
                   If(
                     Member($v, "id"),
                     Sequence(
@@ -890,14 +903,14 @@ Concept(LookUp(),
                             ),
                             Undefined()
                           ),
-                          Call(Member($values, "push"), Call(Member($api, "call"), $head))
+                          Call($take, Call(Member($api, "call"), $head))
                         ),
-                        Call(Member($values, "push"), $label)
+                        Call($take, $label)
                       )
                     ),
                     If(
                       NotEquals(Member($v, "amount"), Undefined()),
-                      Call(Member($values, "push"), Call($Number, Member($v, "amount"))),
+                      Call($take, Call($Number, Member($v, "amount"))),
                       If(
                         NotEquals(Member($v, "time"), Undefined()),
                         Sequence(
@@ -912,7 +925,7 @@ Concept(LookUp(),
                           Bind($precision, Otherwise(Member($v, "precision"), 11)),
                           If(
                             Not($m),
-                            Call(Member($values, "push"), Member($v, "time")),
+                            Call($take, Member($v, "time")),
                             Sequence(
                               Bind($year,
                                 Multiply(If(Equals(Index($m, 1), "-"), Negate(1), 1), Call($Number, Index($m, 2)))
@@ -962,18 +975,188 @@ Concept(LookUp(),
                                 ),
                                 Undefined()
                               ),
-                              Call(Member($values, "push"), Object(head = "Date", args = $parts))
+                              Call($take, Object(head = "Date", args = $parts))
                             )
                           )
                         ),
                         If(
                           NotEquals(Member($v, "text"), Undefined()),
-                          Call(Member($values, "push"), Member($v, "text")),
+                          Call($take, Member($v, "text")),
                           Undefined()
                         )
                       )
                     )
                   )
+                )
+              )
+            ),
+            Comment("What Wikidata qualifies each value by (a release date's place of publication, a spouse's"),
+            Comment("start and end), kept on it, named for the qualifier, so a question can narrow by it."),
+            Bind($qualifierIds,
+              Concat(
+                New(
+                  $Set,
+                  FlatMap(
+                    $chosen,
+                    Lambda(List($c),
+                      FlatMap(
+                        Call(Member($Object, "entries"), Or(Member($c, "qualifiers"), Object())),
+                        Lambda(List(List($k, $vs)),
+                          Concat(
+                            List($k),
+                            Filter(
+                              Map(
+                                $vs,
+                                Lambda(List($x),
+                                  Or(
+                                    And(
+                                      And(Member($x, "datavalue"), Member(Member($x, "datavalue"), "value")),
+                                      Member(Member(Member($x, "datavalue"), "value"), "id")
+                                    ),
+                                    ""
+                                  )
+                                )
+                              ),
+                              Lambda(List($x), $x)
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($qualifierLabels,
+              If(
+                Length($qualifierIds),
+                Call(
+                  Member($api, "toHost"),
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Fetch",
+                        Add(
+                          Add($api_, "action=wbgetentities&props=labels&languages=en&ids="),
+                          Call(Member(Call(Member($qualifierIds, "slice"), 0, 50), "join"), "|")
+                        )
+                      )
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            Bind($labelOf,
+              Lambda(List($x),
+                Sequence(
+                  Bind($e,
+                    And(
+                      And($qualifierLabels, Member($qualifierLabels, "entities")),
+                      Index(Member($qualifierLabels, "entities"), $x)
+                    )
+                  ),
+                  Return(
+                    If(
+                      And(And($e, Member($e, "labels")), Member(Member($e, "labels"), "en")),
+                      Member(Member(Member($e, "labels"), "en"), "value"),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Call(
+              Member($values, "forEach"),
+              Lambda(List($v, $i),
+                Sequence(
+                  Bind($c, Index($owner, $i)),
+                  If(
+                    Or(Or(Or(Not($c), Not($v)), NotEquals(TypeOf($v), "object")), Not(In("head", $v))),
+                    Return(),
+                    Undefined()
+                  ),
+                  Bind($extra, List()),
+                  ForOf(
+                    List($k, $vs),
+                    Call(Member($Object, "entries"), Or(Member($c, "qualifiers"), Object())),
+                    Sequence(
+                      Bind($qv,
+                        If(
+                          And(Index($vs, 0), Member(Index($vs, 0), "datavalue")),
+                          Member(Member(Index($vs, 0), "datavalue"), "value"),
+                          Undefined()
+                        )
+                      ),
+                      Bind($label,
+                        If(
+                          Equals($k, "P580"),
+                          "from",
+                          If(Equals($k, "P582"), "until", Call($labelOf, $k))
+                        )
+                      ),
+                      Bind($argName,
+                        If(
+                          $label,
+                          Call(
+                            Member(Call($name, $label), "replace"),
+                            Regex("^.", ""),
+                            Lambda(List($x), Call(Member($x, "toLowerCase")))
+                          ),
+                          ""
+                        )
+                      ),
+                      If(
+                        Or(Or(Not($argName), Not($qv)), Not(Member($qv, "id"))),
+                        Continue(),
+                        Undefined()
+                      ),
+                      Bind($thing, Call($name, Or(Call($labelOf, Member($qv, "id")), ""))),
+                      If(
+                        Or(Not($thing), And(AtLeast(Index($thing, 0), "0"), AtMost(Index($thing, 0), "9"))),
+                        Continue(),
+                        Undefined()
+                      ),
+                      If(
+                        Not(
+                          Call(
+                            Member(
+                              Member(
+                                Or(Call(Member(Member($api, "store"), "get"), $thing), Object(relations = List())),
+                                "relations"
+                              ),
+                              "some"
+                            ),
+                            Lambda(List($r),
+                              And(Member($r, "claim"), Equals(Member(Member($r, "claim"), "head"), "Named"))
+                            )
+                          )
+                        ),
+                        Call(
+                          Member(Member($api, "store"), "addRelation"),
+                          $thing,
+                          Call(
+                            Member($api, "call"),
+                            "Named",
+                            Call($labelOf, Member($qv, "id"))
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      Call(Member($extra, "push"), Object(name = $argName, value = Call(Member($api, "call"), $thing)))
+                    )
+                  ),
+                  If(
+                    Length($extra),
+                    Assign(
+                      Index($values, $i),
+                      Object(head = Member($v, "head"), args = Concat(Member($v, "args"), $extra))
+                    ),
+                    Undefined()
+                  ),
+                  Undefined()
                 )
               )
             ),
@@ -1544,6 +1727,74 @@ Concept(Pursue(),
                 )
               )
             ),
+            Comment("Several found, qualified (release dates by place): the ones the question names a qualifier"),
+            Comment("of (\"in the United States\"), when it names one; else all."),
+            Bind($narrowed,
+              Lambda(List($v),
+                Sequence(
+                  If(
+                    Or(
+                      Or(Not(Call($isCall, $v)), NotEquals(Member($v, "head"), "List")),
+                      LessThan(Length(Member($v, "args")), 2)
+                    ),
+                    Return($v),
+                    Undefined()
+                  ),
+                  Bind($says,
+                    Lambda(List($q),
+                      And(
+                        And(Call($isCall, $q), Not(Length(Member($q, "args")))),
+                        Call(
+                          Member(Call(Member(Call($spoken, Member($q, "head")), "split"), " "), "every"),
+                          Lambda(List($w), Call(Member($questionWords, "has"), Call(Member($api, "lemma"), $w)))
+                        )
+                      )
+                    )
+                  ),
+                  Bind($kept,
+                    Filter(
+                      Member($v, "args"),
+                      Lambda(List($a),
+                        And(
+                          Call($isCall, Member($a, "value")),
+                          Call(
+                            Member(Member(Member($a, "value"), "args"), "some"),
+                            Lambda(List($x),
+                              And(NotEquals(Member($x, "name"), Undefined()), Call($says, Member($x, "value")))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Return(
+                    If(
+                      And(Length($kept), LessThan(Length($kept), Length(Member($v, "args")))),
+                      If(
+                        Equals(Length($kept), 1),
+                        Member(Index($kept, 0), "value"),
+                        Call(
+                          Member($api, "call"),
+                          "List",
+                          Spread(Map($kept, Lambda(List($a), Member($a, "value"))))
+                        )
+                      ),
+                      $v
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($foundIt,
+              Lambda(List($v, Spread($rest)),
+                Call(
+                  Member($api, "call"),
+                  "Found",
+                  Call($narrowed, $v),
+                  Spread($rest)
+                )
+              )
+            ),
             Bind($grounded,
               Lambda(List($h),
                 Call(
@@ -1800,8 +2051,7 @@ Concept(Pursue(),
                     Bind($values, Map($holding, Lambda(List($f), Member($f, "value")))),
                     Return(
                       Call(
-                        Member($api, "call"),
-                        "Found",
+                        $foundIt,
                         If(
                           Equals(Length($values), 1),
                           Index($values, 0),
@@ -1998,15 +2248,14 @@ Concept(Pursue(),
                           ),
                           Return(
                             Call(
-                              Member($api, "call"),
-                              "Found",
+                              $foundIt,
                               Call(Member($api, "call"), "YouSaid", $text),
                               $content
                             )
                           ),
                           Undefined()
                         ),
-                        Return(Call(Member($api, "call"), "Found", $value, $content))
+                        Return(Call($foundIt, $value, $content))
                       )
                     )
                   )
@@ -2128,8 +2377,7 @@ Concept(Pursue(),
                       Call($fits, $value),
                       Return(
                         Call(
-                          Member($api, "call"),
-                          "Found",
+                          $foundIt,
                           $value,
                           Call(
                             Member($api, "call"),
@@ -2473,7 +2721,7 @@ Concept(Pursue(),
                         If(Not(Length($besides)), Continue(), Undefined()),
                         Bind($value, Call($answer, List(Index($besides, 0)))),
                         If(Not(Call($fits, $value)), Continue(), Undefined()),
-                        Return(Call(Member($api, "call"), "Found", $value, $line))
+                        Return(Call($foundIt, $value, $line))
                       )
                     )
                   )
@@ -2563,7 +2811,7 @@ Concept(Pursue(),
                       Continue(),
                       Undefined()
                     ),
-                    Return(Call(Member($api, "call"), "Found", $r, $attempt))
+                    Return(Call($foundIt, $r, $attempt))
                   )
                 )
               )
@@ -2673,6 +2921,40 @@ Concept(Pursue(),
                       )
                     )
                   )
+                )
+              )
+            ),
+            Bind($placedHeads, New($Set)),
+            Bind($place,
+              Lambda(List($e, $inside),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    $inside,
+                    Call(Member($placedHeads, "add"), Member($e, "head")),
+                    Undefined()
+                  ),
+                  Bind($preposition,
+                    Includes(
+                      Call(Member($api, "typesOf"), Call(Member($api, "call"), Member($e, "head"))),
+                      "Preposition"
+                    )
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    Call($place, Member($a, "value"), Or($inside, $preposition))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($place, $goal, false),
+            Bind($isPlaced,
+              Lambda(List($t),
+                Or(
+                  Call(Member($placedHeads, "has"), Member($t, "head")),
+                  And(NotEquals(Member($t, "also"), Undefined()), Call(Member($placedHeads, "has"), Member($t, "also")))
                 )
               )
             ),
@@ -2867,11 +3149,20 @@ Concept(Pursue(),
                     )
                   )
                 ),
-                Bind($about,
+                Bind($lead, Lambda(List($t), And(Call($named, $t), Not(Call($isPlaced, $t))))),
+                Bind($aboutAll,
                   If(
-                    Call(Member($open, "some"), $named),
-                    Filter($open, $named),
+                    Call(Member($open, "some"), $lead),
+                    Filter($open, $lead),
                     $open
+                  )
+                ),
+                Comment("What is named in where or when it is asked (\"released in the United States\") narrows"),
+                Comment("the question; the thing it is about comes first (\"Jaws\")."),
+                Bind($about,
+                  Concat(
+                    Filter($aboutAll, Lambda(List($t), Not(Call($isPlaced, $t)))),
+                    Filter($aboutAll, Lambda(List($t), Call($isPlaced, $t)))
                   )
                 ),
                 Comment("Every property the word names, not only the first (\"language\" is programmed in, and the"),
@@ -3090,7 +3381,7 @@ Concept(Pursue(),
                         ),
                         Undefined()
                       ),
-                      Return(Call(Member($api, "call"), "Found", $value, $fact))
+                      Return(Call($foundIt, $value, $fact))
                     )
                   )
                 )

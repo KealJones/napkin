@@ -3,6 +3,9 @@
 // then looked for further (Pursue), then asked again with what its unknown words were said to be
 // (Recall).
 async (args, bindings, api) => {
+  // Only what narrows the last question: that question, with it (Continues).
+  const continued = await api.evaluate(api.call("Continues", bindings.get("line")), api.context);
+  if (continued && continued.head !== "Continues") return continued;
   const line = await api.evaluate(api.call("Read", bindings.get("line")));
   const value = await api.evaluate(line, api.context);
   const same = (a, b) => api.format(a) === api.format(b);

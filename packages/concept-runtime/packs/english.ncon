@@ -141,6 +141,62 @@ Concept(Words(),
                         Lambda(List($a), Member($a, "value"))
                       )
                     ),
+                    Comment("A record (Date(year=..., ...)) is said as it says itself, and a thing it is qualified by"),
+                    Comment("beside it: \"Friday, June 20, 1975 (United States)\"."),
+                    If(
+                      And(Not(Length($positional)), Length(Member($e, "args"))),
+                      Sequence(
+                        Bind($own,
+                          Await(
+                            Call(
+                              Member($api, "evaluate"),
+                              Object(
+                                head = Member($e, "head"),
+                                args = Filter(
+                                  Member($e, "args"),
+                                  Lambda(List($a),
+                                    Not(
+                                      And(
+                                        Call($isCall, Member($a, "value")),
+                                        Not(Length(Member(Member($a, "value"), "args")))
+                                      )
+                                    )
+                                  )
+                                )
+                              ),
+                              Call(Member($api, "call"), "Speaking")
+                            )
+                          )
+                        ),
+                        If(
+                          Equals(TypeOf($own), "string"),
+                          Sequence(
+                            Bind($things, List()),
+                            ForOf(
+                              $a,
+                              Member($e, "args"),
+                              If(
+                                And(
+                                  Call($isCall, Member($a, "value")),
+                                  Not(Length(Member(Member($a, "value"), "args")))
+                                ),
+                                Call(Member($things, "push"), Await(Call($say, Member($a, "value")))),
+                                Undefined()
+                              )
+                            ),
+                            Return(
+                              If(
+                                Length($things),
+                                Add(Add(Add($own, " ("), Call(Member($things, "join"), ", ")), ")"),
+                                $own
+                              )
+                            )
+                          ),
+                          Undefined()
+                        )
+                      ),
+                      Undefined()
+                    ),
                     If(
                       Equals(Member($e, "head"), "List"),
                       Return(Call($list, Await(Call(Member($Promise, "all"), Map($positional, $say))))),
@@ -2542,6 +2598,74 @@ Concept(CannotDo(),
               )
             ),
             Return(Add(Add("I can't ", If(Equals(TypeOf($said), "string"), $said, "do that")), " yet."))
+          )
+        )
+      )
+    )
+  )
+)
+
+// A date said as precisely as it is known: "Friday, June 20, 1975", "June 1975", "1975".
+Concept(Date(),
+  Realization(Date(Rest($parts)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($field,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($year, Call($field, "year")),
+            Bind($month, Call($field, "month")),
+            Bind($day, Call($field, "day")),
+            If(
+              NotEquals(TypeOf($year), "number"),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Date",
+                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              NotEquals(TypeOf($month), "number"),
+              Return(Call($String, $year)),
+              Undefined()
+            ),
+            Bind($at,
+              New(
+                $Date,
+                Call(
+                  Member($Date, "UTC"),
+                  $year,
+                  Subtract($month, 1),
+                  If(Equals(TypeOf($day), "number"), $day, 1)
+                )
+              )
+            ),
+            Bind($options,
+              If(
+                Equals(TypeOf($day), "number"),
+                Object(
+                  weekday = "long",
+                  month = "long",
+                  day = "numeric",
+                  year = "numeric",
+                  timeZone = "UTC"
+                ),
+                Object(month = "long", year = "numeric", timeZone = "UTC")
+              )
+            ),
+            Return(Call(Member($at, "toLocaleDateString"), "en-US", $options))
           )
         )
       )

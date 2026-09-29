@@ -78,7 +78,7 @@ interface Snak {
     datavalue?: { value?: { id?: string; time?: string; precision?: number; amount?: string; unit?: string } };
   };
   rank?: string;
-  qualifiers?: Record<string, { datavalue?: { value?: { time?: string; precision?: number } } }[]>;
+  qualifiers?: Record<string, { datavalue?: { value?: { time?: string; precision?: number; id?: string; amount?: string } } }[]>;
 }
 
 interface Entity {
@@ -434,6 +434,13 @@ async function everyClaim(
   const ids = new Set<string>();
   for (const t of taken) {
     ids.add(t.property);
+    // What each fact is qualified by (where, when, in what role), and the things it names.
+    for (const snak of t.snaks) {
+      for (const [q, vs] of Object.entries(snak.qualifiers ?? {})) {
+        ids.add(q);
+        for (const v of vs) if (v.datavalue?.value?.id) ids.add(v.datavalue.value.id);
+      }
+    }
     for (const v of t.values) {
       if (v?.id) ids.add(v.id);
       const unit = v?.unit?.split("/").pop();
@@ -457,12 +464,25 @@ async function everyClaim(
     await describeRelation(store, relation, t.property, labels[t.property]);
     for (const [n, v] of t.values.entries()) {
       if (!v) continue;
-      // When it held, as Wikidata says: from its start time (P580) until its end time (P582).
-      // A fact with an end no longer holds ("who is his wife" is not the one he divorced).
-      const span = ([["P580", "from"], ["P582", "until"]] as const).flatMap(([q, name]) => {
-        const time = t.snaks[n]?.qualifiers?.[q]?.[0]?.datavalue?.value;
-        const date = time?.time ? dateOf(time.time, time.precision) : undefined;
-        return date ? [{ name, value: date }] : [];
+      // What Wikidata qualifies the fact by, kept on it: when it held, from its start time (P580)
+      // until its end time (P582) (a fact with an end no longer holds: "who is his wife" is not
+      // the one he divorced), and every other qualifier by its own name (a release date's place
+      // of publication), so a question can narrow by it ("in the United States").
+      const span = Object.entries(t.snaks[n]?.qualifiers ?? {}).flatMap(([q, vs]) => {
+        const name = q === "P580" ? "from" : q === "P582" ? "until" : lowerFirst(nameOf(label(q) ?? ""));
+        if (!name || !/^[a-z]/.test(name)) return [];
+        const v = vs[0]?.datavalue?.value;
+        if (v?.time) {
+          const date = dateOf(v.time, v.precision);
+          return date ? [{ name, value: date }] : [];
+        }
+        if (v?.id) {
+          const thing = nameOf(label(v.id) ?? "");
+          if (!thing || !/^[A-Z]/.test(thing)) return [];
+          if (!wikidataItem(store, thing)) sameAs(thing, v.id);
+          return [{ name, value: c(thing) }];
+        }
+        return [];
       });
       if (t.type === "wikibase-item" && v.id) {
         const name = nameOf(label(v.id) ?? "");
@@ -474,7 +494,7 @@ async function everyClaim(
         keep(call(relation, [{ value: c(name) }, ...span]));
       } else if (t.type === "time" && v.time) {
         const when = dateOf(v.time, v.precision);
-        if (when) keep(call(relation, [{ value: when }]));
+        if (when) keep(call(relation, [{ value: when }, ...span]));
       } else if (t.type === "quantity" && v.amount !== undefined) {
         const n = Number(v.amount);
         if (!Number.isFinite(n)) continue;
@@ -535,3 +555,5 @@ async function keepAliases(store: ConceptStore, identity: string, aliases: reado
     store.addRelation(identity, call("Called", [{ value: heard }]), undefined, seq);
   }
 }
+
+const lowerFirst = (name: string): string => (name ? name[0].toLowerCase() + name.slice(1) : name);

@@ -5,6 +5,176 @@
 // from sources/mood (edit those, not this).
 Requires(Core(), Basic())
 
+// A question that is only what narrows the last one ("In the United States?", after "When was
+// the film Jaws released?"): the last question asked, with it, heard as one and asked again. The
+// call itself when it is not only a phrase of where or when, or nothing was asked before.
+Concept(Continues(),
+  Realization(Continues($line),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($none, Call(Member($api, "call"), "Continues", $line)),
+            If(
+              Or(
+                Or(Not(Call($isCall, $line)), NotEquals(Length(Member($line, "args")), 1)),
+                Not(
+                  Includes(
+                    Call(Member($api, "typesOf"), Call(Member($api, "call"), Member($line, "head"))),
+                    "Preposition"
+                  )
+                )
+              ),
+              Return($none),
+              Undefined()
+            ),
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            Bind($message, Call(Member($api, "ambient"), "message")),
+            If(
+              Or(Not($conversation), NotEquals(TypeOf($message), "string")),
+              Return($none),
+              Undefined()
+            ),
+            Bind($seq,
+              Lambda(List($r),
+                Call(
+                  Member($Math, "max"),
+                  0,
+                  Spread(Map(Otherwise(Member($r, "stamps"), List()), Lambda(List($s), Member($s, "seq"))))
+                )
+              )
+            ),
+            Comment("The last question that was a whole one: a narrowing said before this (\"In the United"),
+            Comment("States?\", then \"in Germany?\") is passed over for the question it narrowed."),
+            Bind($line_,
+              Lambda(List($e),
+                If(
+                  And(
+                    And(Call($isCall, $e), Equals(Member($e, "head"), "ContextScope")),
+                    Equals(Length(Member($e, "args")), 2)
+                  ),
+                  Member(Index(Member($e, "args"), 1), "value"),
+                  $e
+                )
+              )
+            ),
+            Bind($narrows,
+              Lambda(List($e),
+                And(
+                  And(Call($isCall, $e), Equals(Length(Member($e, "args")), 1)),
+                  Includes(Call(Member($api, "typesOf"), Call(Member($api, "call"), Member($e, "head"))), "Preposition")
+                )
+              )
+            ),
+            Bind($asked,
+              Call(
+                Member(
+                  Map(
+                    Filter(
+                      Call(
+                        Member(
+                          Filter(
+                            Otherwise(
+                              OptionalMember(
+                                Call(Member(Member($api, "store"), "get"), Call($String, $conversation)),
+                                "relations"
+                              ),
+                              List()
+                            ),
+                            Lambda(List($r),
+                              And(
+                                And(
+                                  And(
+                                    Call($isCall, Member($r, "claim")),
+                                    Equals(Member(Member($r, "claim"), "head"), "Said")
+                                  ),
+                                  Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                                ),
+                                Equals(
+                                  Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                                  "Me"
+                                )
+                              )
+                            )
+                          ),
+                          "sort"
+                        ),
+                        Lambda(List($a, $b), Subtract(Call($seq, $b), Call($seq, $a)))
+                      ),
+                      Lambda(List($r),
+                        Not(
+                          Call(
+                            $narrows,
+                            Call($line_, OptionalMember(Index(Member(Member($r, "claim"), "args"), 1), "value"))
+                          )
+                        )
+                      )
+                    ),
+                    Lambda(List($r),
+                      OptionalMember(
+                        Call(
+                          Member(Member(Member($r, "claim"), "args"), "find"),
+                          Lambda(List($a), Equals(Member($a, "name"), "text"))
+                        ),
+                        "value"
+                      )
+                    )
+                  ),
+                  "find"
+                ),
+                Lambda(List($t),
+                  And(
+                    And(Equals(TypeOf($t), "string"), Call(Member($t, "trim"))),
+                    NotEquals(Call(Member($t, "trim")), Call(Member($message, "trim")))
+                  )
+                )
+              )
+            ),
+            If(Not($asked), Return($none), Undefined()),
+            Bind($said,
+              Add(
+                Add(
+                  Call(
+                    Member(Call(Member($asked, "trim")), "replace"),
+                    Regex("[?.!]+$", ""),
+                    ""
+                  ),
+                  " "
+                ),
+                Call(
+                  Member(Call(Member($message, "trim")), "replace"),
+                  Regex("^[A-Z]", ""),
+                  Lambda(List($x), Call(Member($x, "toLowerCase")))
+                )
+              )
+            ),
+            Bind($heard, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Hear", $said, "rules")))),
+            Bind($lines,
+              If(
+                And(Call($isCall, $heard), Equals(Member($heard, "head"), "Phrases")),
+                Filter(Member($heard, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                List()
+              )
+            ),
+            If(NotEquals(Length($lines), 1), Return($none), Undefined()),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Member(Index($lines, 0), "value"),
+                Call(Member($api, "call"), "Execution")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A word said alone that the dictionary gives as an interjection ("k", "lol", "hmm"): talk, not
 // a thing to look up. What it is is kept, from Wiktionary, and it is noted as told, with a reply.
 // The call itself when it is not one.
@@ -314,6 +484,25 @@ Concept(Line(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
+            Comment("Only what narrows the last question: that question, with it (Continues)."),
+            Bind($continued,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Continues",
+                    Call(Member($bindings, "get"), "line")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            If(
+              And($continued, NotEquals(Member($continued, "head"), "Continues")),
+              Return($continued),
+              Undefined()
+            ),
             Bind($line,
               Await(
                 Call(
