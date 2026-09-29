@@ -44,6 +44,10 @@ test("rambling: sentences stay apart, contractions are their words, filler is se
   assert.equal(await hear("i like uh pie"), "Phrases(Me(Like(Pie())), MarkAside(\"uh\"))");
 });
 
+test("after a determiner with no noun, a describer is the thing: the average of", async () => {
+  assert.equal(await hear("the average of 3, 5 and 10"), "Phrases(Average(Of(List(3, 5, 10))))");
+});
+
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
   assert.equal(await hear("the americanpie"), "Phrases(Americanpie())");
 });

@@ -393,6 +393,7 @@ Concept(ThingAfter(),
             Var($thing, Negate(1)),
             Comment("Filler is passed over: \"like uh pie\" likes pie."),
             Var($value, Negate(1)),
+            Var($described, Negate(1)),
             Bind($after,
               Lambda(List($i),
                 If(
@@ -455,13 +456,24 @@ Concept(ThingAfter(),
                   If(
                     Or(Or(Call($has, $j, "Value"), Call($has, $j, "Time")), Call($has, $j, "Date")),
                     Assign($value, $j),
-                    Undefined()
+                    If(
+                      Call($has, $j, "Adjective"),
+                      Assign($described, $j),
+                      Undefined()
+                    )
                   )
                 )
               )
             ),
             Comment("\"take 10\", \"the second one\": with no noun, the last number is the thing."),
             If(LessThan($thing, 0), Assign($thing, $value), Undefined()),
+            Comment("\"the average of 3, 5 and 10\", \"the rich\": after a determiner, with nothing else, a"),
+            Comment("describer is the thing."),
+            If(
+              And(LessThan($thing, 0), Call($has, $at, "Determiner")),
+              Assign($thing, $described),
+              Undefined()
+            ),
             Return($thing)
           )
         )
