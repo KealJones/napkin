@@ -449,6 +449,57 @@ Concept(RenderResponse(),
 
 // An answer is what it answers with, as a sentence. A record (a time, a date) is left to its own wording.
 Concept(Answer(),
+  // A literal answer (a word, a number said back) is sentence-cased and said as is.
+  Realization(Answer($lit),
+    context = Speaking(),
+    evaluateArguments = false,
+    types = Types(lit = OneOf(String(), Number())),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($sayOf,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Say", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(If(Equals(TypeOf($r), "string"), $r, ""))
+                  )
+                )
+              )
+            ),
+            Bind($sentence,
+              Lambda(List($s),
+                Sequence(
+                  Bind($t, Call(Member(Call($String, $s), "trim"))),
+                  If(Not($t), Return(""), Undefined()),
+                  Bind($up, Add(Call(Member(Index($t, 0), "toUpperCase")), Call(Member($t, "slice"), 1))),
+                  Return(
+                    If(
+                      Call(Member(Regex("[.!?]$", ""), "test"), $up),
+                      $up,
+                      Add($up, ".")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($x, Member(Index($args, 0), "value")),
+            Return(Call($sentence, Await(Call($sayOf, $x))))
+          )
+        )
+      )
+    )
+  ),
+  // Anything else is a call: try its own Speaking(), fall to the whole call handed over, then to Say.
   Realization(Answer($x),
     context = Speaking(),
     evaluateArguments = false,
@@ -491,28 +542,7 @@ Concept(Answer(),
                 )
               )
             ),
-            Bind($named,
-              Lambda(List($e, $n),
-                Sequence(
-                  Bind($a, Call(Member(Member($e, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
-                  Return(If($a, Member($a, "value"), Undefined()))
-                )
-              )
-            ),
-            Bind($positional,
-              Lambda(List($e),
-                Map(
-                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
-                  Lambda(List($a), Member($a, "value"))
-                )
-              )
-            ),
             Bind($x, Member(Index($args, 0), "value")),
-            If(
-              Or(Equals(TypeOf($x), "string"), Equals(TypeOf($x), "number")),
-              Return(Call($sentence, Await(Call($sayOf, $x)))),
-              Undefined()
-            ),
             If(
               Not(Call($isCall, $x)),
               Return(Call(Member($api, "call"), "Answer", $x)),
@@ -929,7 +959,7 @@ Concept(Reply(),
 
 // What is known of something: its name, what it is a kind of, and the rest.
 Concept(Describes(),
-  Realization(Describes(Rest($x)),
+  Realization(Describes($thing, $facts),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
@@ -987,16 +1017,8 @@ Concept(Describes(),
                 )
               )
             ),
-            Bind(List($thing, $facts),
-              List(
-                Member(Index($args, 0), "value"),
-                If(
-                  Index($args, 1),
-                  Member(Index($args, 1), "value"),
-                  Undefined()
-                )
-              )
-            ),
+            Bind($thing, Member(Index($args, 0), "value")),
+            Bind($facts, Member(Index($args, 1), "value")),
             If(
               Call($isCall, $thing),
               Sequence(
@@ -1286,7 +1308,7 @@ Concept(Describes(),
 
 // The value, and the rule that gave it, the operation by its own shorter word.
 Concept(Predicted(),
-  Realization(Predicted(Rest($x)),
+  Realization(Predicted($value, $rule),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
@@ -1344,16 +1366,8 @@ Concept(Predicted(),
                 )
               )
             ),
-            Bind(List($value, $rule),
-              List(
-                Member(Index($args, 0), "value"),
-                If(
-                  Index($args, 1),
-                  Member(Index($args, 1), "value"),
-                  Undefined()
-                )
-              )
-            ),
+            Bind($value, Member(Index($args, 0), "value")),
+            Bind($rule, Member(Index($args, 1), "value")),
             Bind($v, Await(Call($sayOf, $value))),
             If(
               Not(Call($isCall, $rule)),
@@ -1380,7 +1394,62 @@ Concept(Predicted(),
 
 // Both are that kind; if you want this, that one. Never picks unless it leans.
 Concept(Judged(),
-  Realization(Judged(Rest($x)),
+  // Couldn't compare: not the same kind of thing.
+  Realization(Judged($options, NoCommonKind(), Rest($rest)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($sayOf,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Say", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(If(Equals(TypeOf($r), "string"), $r, ""))
+                  )
+                )
+              )
+            ),
+            Bind($positional,
+              Lambda(List($e),
+                Map(
+                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                )
+              )
+            ),
+            Bind($options, Member(Index($args, 0), "value")),
+            Bind($opts,
+              If(
+                Call($isCall, $options),
+                Call($positional, $options),
+                List()
+              )
+            ),
+            Bind($names, Await(Call(Member($Promise, "all"), Map($opts, $sayOf)))),
+            Return(
+              Add(
+                Add("I couldn't find ", Call(Member($names, "join"), " and ")),
+                " as two of the same kind of thing, so I can't compare them yet."
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
+  Realization(Judged($options, $kind, Rest($rest)),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
@@ -1447,16 +1516,6 @@ Concept(Judged(),
               )
             ),
             Bind($names, Await(Call(Member($Promise, "all"), Map($opts, $sayOf)))),
-            If(
-              And(Call($isCall, $kind), Equals(Member($kind, "head"), "NoCommonKind")),
-              Return(
-                Add(
-                  Add("I couldn't find ", Call(Member($names, "join"), " and ")),
-                  " as two of the same kind of thing, so I can't compare them yet."
-                )
-              ),
-              Undefined()
-            ),
             Bind($kinds, If(Call($isCall, $kind), Call($positional, $kind), List())),
             Bind($out, List()),
             If(
@@ -1551,7 +1610,7 @@ Concept(Judged(),
 )
 
 Concept(Lacks(),
-  Realization(Lacks(Rest($x)),
+  Realization(Lacks($plan, $items, Rest($rest)),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(
@@ -1611,14 +1670,7 @@ Concept(Lacks(),
             ),
             Bind($items,
               If(
-                Call(
-                  $isCall,
-                  If(
-                    Index($args, 1),
-                    Member(Index($args, 1), "value"),
-                    Undefined()
-                  )
-                ),
+                Call($isCall, Member(Index($args, 1), "value")),
                 Call($positional, Member(Index($args, 1), "value")),
                 List()
               )
@@ -1651,9 +1703,29 @@ Concept(Lacks(),
 )
 
 Concept(Meaning(),
+  // Nothing found to say (a hint like Verb() stood in for the text): hand the call back unchanged.
   Realization(Meaning(Rest($x)),
     context = Speaking(),
     evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Return(
+            Call(
+              Member($api, "call"),
+              "Meaning",
+              Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+            )
+          )
+        )
+      )
+    )
+  ),
+  // A found meaning: word, its text, and how it was found (as=, from=).
+  Realization(Meaning($word, $text, Rest($named)),
+    context = Speaking(),
+    evaluateArguments = false,
+    types = Types(text = String()),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
@@ -1694,35 +1766,16 @@ Concept(Meaning(),
               )
             ),
             Bind($named,
-              Lambda(List($e, $n),
+              Lambda(List($n),
                 Sequence(
-                  Bind($a, Call(Member(Member($e, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
                   Return(If($a, Member($a, "value"), Undefined()))
                 )
               )
             ),
-            Bind($positional,
-              Lambda(List($e),
-                Map(
-                  Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
-                  Lambda(List($a), Member($a, "value"))
-                )
-              )
-            ),
-            Bind($call, Object(head = "Meaning", args = $args)),
-            Bind(List($word, $text), Call($positional, $call)),
-            If(
-              NotEquals(TypeOf($text), "string"),
-              Return(
-                Call(
-                  Member($api, "call"),
-                  "Meaning",
-                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
-                )
-              ),
-              Undefined()
-            ),
-            Bind($from, Call($named, $call, "from")),
+            Bind($word, Member(Index($args, 0), "value")),
+            Bind($text, Member(Index($args, 1), "value")),
+            Bind($from, Call($named, "from")),
             Bind($w, Call(Member(Await(Call($sayOf, $word)), "toLowerCase"))),
             Bind($body, Call(Member($text, "replace"), Regex("[.\\s]+$", ""), "")),
             If(

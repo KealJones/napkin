@@ -72,13 +72,14 @@ Concept(Reply(),
   Realization(Reply($said),
     context = Execution(),
     evaluateArguments = false,
+    types = Types(said = String()),
     body = Code(
       ir = Lambda(List($args, $bindings, $api),
         Sequence(
           Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-          Bind($said, Call(Member($api, "toHost"), Member(Index($args, 0), "value"))),
+          Bind($said, Member(Index($args, 0), "value")),
           If(
-            Or(NotEquals(TypeOf($said), "string"), Not(Call(Member($said, "trim")))),
+            Not(Call(Member($said, "trim"))),
             Return(
               Call(
                 Member($api, "call"),
@@ -193,27 +194,9 @@ Concept(Reply(),
             )
           ),
           Bind($turns, List()),
-          Bind($textLines,
-            Call(
-              Member($text, "split"),
-              """
-  """
-            )
-          ),
-          Bind($actLines,
-            Call(
-              Member($acts, "split"),
-              """
-  """
-            )
-          ),
-          Bind($feelLines,
-            Call(
-              Member($feels, "split"),
-              """
-  """
-            )
-          ),
+          Bind($textLines, Call(Member($text, "split"), "\n  ")),
+          Bind($actLines, Call(Member($acts, "split"), "\n  ")),
+          Bind($feelLines, Call(Member($feels, "split"), "\n  ")),
           For(
             Var($d, 0),
             LessThan($d, Length($textLines)),

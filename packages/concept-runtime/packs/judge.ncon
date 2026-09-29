@@ -42,7 +42,7 @@ Concept(Recognition(), IsA(Data()))
 
 Concept(Judge(),
   IsA(Category()),
-  Realization(Judge($options),
+  Realization(Judge(List($a, $b)),
     context = Execution(),
     evaluateArguments = false,
     body = Code(
@@ -51,14 +51,6 @@ Concept(Judge(),
           Sequence(
             Bind($list, Member(Index($args, 0), "value")),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            If(
-              Or(
-                Or(Not(Call($isCall, $list)), NotEquals(Member($list, "head"), "List")),
-                NotEquals(Length(Member($list, "args")), 2)
-              ),
-              Return(Call(Member($api, "call"), "Judge", $list)),
-              Undefined()
-            ),
             Bind($options, Map(Member($list, "args"), Lambda(List($a), Member($a, "value")))),
             Bind($words,
               Map(
