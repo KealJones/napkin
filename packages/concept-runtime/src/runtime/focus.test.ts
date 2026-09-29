@@ -69,12 +69,12 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   assert.equal(await say("what is in the box?"), "Keys.");
 });
 
-test("a doing that takes two things takes them as one group", async () => {
+test("a doing says how many it takes: two, or as many as are given", async () => {
   const store = new ConceptStore();
   seed(store);
   const runtime = new Runtime(store);
-  assert.equal(format(await runtime.evaluate(parse("Add(And(5, 3))"), c("Execution"))), "8");
-  assert.equal(format(await runtime.evaluate(parse("Multiply(List(2, 3, 4))"), c("Execution"))), "24");
+  assert.equal(format(await runtime.evaluate(parse("Add(3, 4, 5)"), c("Execution"))), "12");
+  assert.equal(format(await runtime.evaluate(parse("Multiply(2, 3, 4)"), c("Execution"))), "24");
 });
 
 test("a relation's properties declared in a context hold only for facts there: what a list contains is not a time", async () => {

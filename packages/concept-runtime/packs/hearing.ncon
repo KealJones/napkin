@@ -4318,7 +4318,8 @@ Concept(Hear(),
                       Undefined()
                     )
                   ),
-                  Comment("\"add 3, 4 and 5\": a group of more than two is what it works on, whole (FoldOver)."),
+                  Comment("\"add 3, 4 and 5\": a group of more than two is the things it takes, each"),
+                  Comment("its own: Add(3, 4, 5), which a doing that takes more says it does."),
                   Bind($group,
                     Lambda(List($g),
                       And(Call($isCall, $g), Or(Equals(Member($g, "head"), "List"), Equals(Member($g, "head"), "And")))
@@ -4333,10 +4334,26 @@ Concept(Hear(),
                       )
                     )
                   ),
+                  Bind($spread,
+                    Lambda(List($g),
+                      If(
+                        Call($group, $g),
+                        FlatMap(
+                          Filter(Member($g, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                          Lambda(List($a), Call($spread, Member($a, "value")))
+                        ),
+                        List($g)
+                      )
+                    )
+                  ),
                   Bind($y,
                     If(
                       $many,
-                      Call(Member($api, "call"), Member($x, "head"), $only),
+                      Call(
+                        Member($api, "call"),
+                        Member($x, "head"),
+                        Spread(Call($spread, $only))
+                      ),
                       If(
                         $pair,
                         Call(

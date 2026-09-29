@@ -35,8 +35,10 @@ export interface Forgotten {
   readonly reason: "shadowed" | "retired";
 }
 
+// One meaning: same pattern, context and types, from the same place. Two packs' realizations
+// of one shape (Add in basic and in holding) are two meanings, and neither shadows the other.
 const key = (r: Realization): string =>
-  `${format(r.pattern)}||${r.context === undefined ? "any" : format(r.context)}||${r.types === undefined ? "" : format(r.types)}`;
+  `${format(r.pattern)}||${r.context === undefined ? "any" : format(r.context)}||${r.types === undefined ? "" : format(r.types)}||${r.seededFrom ?? ""}`;
 
 export function forget(store: ConceptStore, options: ForgetOptions = {}): Forgotten[] {
   const unusedFor = options.unusedForMs ?? 30 * 24 * 60 * 60 * 1000;

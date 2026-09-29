@@ -3521,10 +3521,20 @@ Concept(Multiply(),
     properties = List(Program()),
     types = Types(left = Number(), right = Number()),
     body = MultiplyValues($left, $right)
+  ),
+  // "multiply 2, 3 and 4": as many as are given, the first two, then that and the next.
+  Realization(Multiply($a, $b, $c, Rest($more)),
+    context = Execution(),
+    body = Multiply(Multiply($a, $b), $c, Rest($more))
   )
 )
 
 Concept(Add(),
+  // "add 3, 4 and 5": as many as are given, the first two, then that and the next.
+  Realization(Add($a, $b, $c, Rest($more)),
+    context = Execution(),
+    body = Add(Add($a, $b), $c, Rest($more))
+  ),
   // Stays untyped and plain: packs/holding.ncon's own Add($item, $said) shares this
   // pattern and shape untyped too, so typing this one would change tie-break order
   // against it (a more-typed realization is tried first) and let holding's fallback,

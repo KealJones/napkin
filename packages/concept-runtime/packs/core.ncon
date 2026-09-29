@@ -1097,60 +1097,6 @@ Concept(Fits(),
   )
 )
 
-// A doing that takes two things, given them as one group ("add 5 and 3", "multiply 2, 3 and 4"):
-// done to the first two, then to that and the next. Derived onto every such doing (seed.ts,
-// deriveGroupings), so no doing lists what it folds.
-Concept(FoldOver(),
-  Realization(FoldOver($doing, $group),
-    context = Execution(),
-    evaluateArguments = false,
-    body = Code(
-      ir = Async(
-        Lambda(List($args, $bindings, $api),
-          Sequence(
-            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($doing, Call($String, Call(Member($api, "toHost"), Call(Member($bindings, "get"), "doing")))),
-            Bind($items, List()),
-            Bind($flat,
-              Lambda(List($e),
-                Sequence(
-                  If(
-                    And(Call($isCall, $e), Or(Equals(Member($e, "head"), "And"), Equals(Member($e, "head"), "List"))),
-                    ForOf(
-                      $a,
-                      Member($e, "args"),
-                      If(
-                        Equals(Member($a, "name"), Undefined()),
-                        Call($flat, Member($a, "value")),
-                        Undefined()
-                      )
-                    ),
-                    Call(Member($items, "push"), $e)
-                  ),
-                  Undefined()
-                )
-              )
-            ),
-            Call($flat, Call(Member($bindings, "get"), "group")),
-            If(
-              LessThan(Length($items), 2),
-              Return(Call(Member($api, "call"), $doing, Spread($items))),
-              Undefined()
-            ),
-            Var($done, Await(Call(Member($api, "evaluate"), Index($items, 0)))),
-            ForOf(
-              $next,
-              Call(Member($items, "slice"), 1),
-              Assign($done, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), $doing, $done, $next))))
-            ),
-            Return($done)
-          )
-        )
-      )
-    )
-  )
-)
-
 Concept(Sequence(), IsA(CodePrimitive()))
 
 Concept(Describes(), IsA(Result()))

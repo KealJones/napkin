@@ -36,15 +36,21 @@ patterns: `Add` takes two, so "add 2 and 3" is heard as the two things it takes.
 one-argument `Add($x)` in `Execution()` would change how every "add" sentence is heard (it did,
 once: "add 5 and 3" became `Add(And(5, 3))`). Shape is the most global choice there is.
 
-### 2. Shape, derived: a group
+### 2. Shape: as many as are given
 
-"add 3, 4 and 5" is `Add(List(3, 4, 5))`. Nobody wrote an `Add` for a group:
-`deriveGroupings` (seed.ts) gives every Concept that takes two things `Op(And($a, $b))` and
-`Op(List(Rest($items)))` on the **universal parent**, folding with `FoldOver`. On the parent,
-not on `Add`, because hearing reads only `Add`'s own shapes.
+"add 3, 4 and 5" is `Add(3, 4, 5)`: hearing spreads a group said as one thing into the things
+the doing takes. `packs/basic.ncon` says `Add` takes as many as are given:
 
-**Rule:** a behaviour every doing of a shape shares is derived onto the parent, not written on
-each.
+```
+Realization(Add($a, $b, $c, Rest($more)), body = Add(Add($a, $b), $c, Rest($more)))
+```
+
+the first two, then that and the next, down to the two-thing `Add($left, $right)`. Hearing
+still reads "takes two" from `Add($left, $right)` (the least it takes), so "add 5", said after
+4, still gets its first slot filled with the last answer.
+
+**Rule:** a doing says how many it takes in its own patterns; nothing is derived onto the
+parent to cover for a pattern that says less than is true.
 
 ### 3. Types: the same shape, different things
 
@@ -148,7 +154,7 @@ says nothing extra.
 
 1. **Is it the same thing under another name?** `SynonymOf` (or `Called` if it only names it).
 2. **Are these several words one thing?** A Concept with that name; the fold is derived.
-3. **Does every doing of this shape do it?** Derive it onto the parent.
+3. **Does it take any number of things?** Say so in its pattern, with `Rest`.
 4. **Is it told apart by the situation** (mood, saying, explaining, a language, supposing)?
    Context.
 5. **Is it told apart by what it is given** (numbers, a date, a list of words)? Types.

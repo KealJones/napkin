@@ -102,6 +102,50 @@ Concept(Add(),
   )
 )
 
+// "add cheese and pie and nuts to the list", heard as the things Add takes, each its own: put in
+// the thing named; naming none, Add's next realization adds them.
+Concept(Add(),
+  Realization(Add($a, $b, $c, Rest($more)),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($all,
+              Map(
+                Filter($args, Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                Lambda(List($a), Member($a, "value"))
+              )
+            ),
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($api, "call"), "And", Spread($all))
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(Member($api, "call"), "Add", Spread($all)),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // "add cheetos to my shopping list": put in the thing it names; naming none, Add's next realization adds.
 Concept(Add(),
   Realization(Add(Ref(Rest($r)), $said),

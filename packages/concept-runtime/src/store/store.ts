@@ -273,10 +273,13 @@ export class ConceptStore {
       // The seed is the source of truth for what it seeds: an older seeded copy of the same
       // pattern, context and language, left in a saved graph, is retired rather than merely
       // shadowed, or evidence about the old copy can choose it over the current one. Only a
-      // copy with no `addedAt` came from a seed; what a Teacher or an edit added is kept.
+      // copy with no `addedAt` came from a seed; what a Teacher or an edit added is kept. Only
+      // this pack's own copy (or one no pack is named on, an older seed's): another pack's
+      // realization with the same shape is another meaning of the word (Add in basic and in
+      // holding), not an older copy of this one.
       if (options.authoritative) {
         realizations = realizations.map((x) =>
-          !x.retired && x.addedAt === undefined && sameKey(x, r) && !sameRealization(x, r) ? { ...x, retired: true } : x,
+          !x.retired && x.addedAt === undefined && (x.seededFrom === undefined || x.seededFrom === pack) && sameKey(x, r) && !sameRealization(x, r) ? { ...x, retired: true } : x,
         );
       }
       const same = realizations.findIndex((x) => sameRealization(x, r));
