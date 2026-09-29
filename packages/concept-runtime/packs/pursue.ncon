@@ -2370,8 +2370,11 @@ Concept(Pursue(),
                             Sequence(
                               If(
                                 And(
-                                  Call($isCall, OptionalMember(Index(Member($e, "args"), 0), "value")),
-                                  Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Declarative")
+                                  And(
+                                    Call($isCall, OptionalMember(Index(Member($e, "args"), 0), "value")),
+                                    Equals(Member(Member(Index(Member($e, "args"), 0), "value"), "head"), "Declarative")
+                                  ),
+                                  Index(Member($e, "args"), 1)
                                 ),
                                 Call(Member($lines, "push"), Member(Index(Member($e, "args"), 1), "value")),
                                 Undefined()
