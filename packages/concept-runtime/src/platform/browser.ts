@@ -91,8 +91,14 @@ export function mount(entries: Record<string, string>): void {
   for (const [path, text] of Object.entries(entries)) files.set(normal(path), { text, mtime: 0 });
 }
 
-/** Read back what this browser kept, and open `claimed` for synchronous writing. */
-export async function restore(claimed: readonly string[] = []): Promise<void> {
+/**
+ * Read back what this browser kept, and open `claimed` for synchronous writing. Answers which
+ * of `claimed` had nothing here yet: a host telling a first visit from a returning one (even a
+ * returning one whose file happens to be empty, cleared or otherwise) needs that, not a guess
+ * from the content read back, which looks the same either way.
+ */
+export async function restore(claimed: readonly string[] = []): Promise<Set<string>> {
+  const created = new Set<string>();
   // Asked, not assumed: without it the browser may evict the graph when storage runs low.
   await storage().persist?.().catch(() => false);
   root ??= opfs();
@@ -103,17 +109,23 @@ export async function restore(claimed: readonly string[] = []): Promise<void> {
     // No origin private file system (Safari's Private Browsing): what is learned lives in memory
     // for this visit, rather than nothing working at all.
     inMemory = true;
-    return;
+    // Nothing is kept here, so every visit is a first one.
+    for (const path of claimed) created.add(normal(path));
+    return created;
   }
+  const found = new Set<string>();
   for await (const entry of dir.values()) {
     if (entry.kind !== "file") continue;
     const path = decodeURIComponent(entry.name);
+    found.add(path);
     await open(entry, path);
   }
   for (const path of claimed.map(normal)) {
     if (handles.has(path) || heldElsewhere.has(path)) continue;
+    if (!found.has(path)) created.add(path);
     await open(await dir.getFileHandle(entryName(path), { create: true }), path);
   }
+  return created;
 }
 
 async function open(entry: FileEntry, path: string): Promise<SyncHandle | undefined> {

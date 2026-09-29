@@ -23,11 +23,13 @@ async function boot() {
   mount(Object.fromEntries(paths.map((p, i) => [p, texts[i]!])));
   const graphPath = join(home(), ".napkin/store.ncon");
   const tracePath = join(home(), ".napkin/trace.jsonl");
-  await restore([graphPath, tracePath]);
+  const created = await restore([graphPath, tracePath]);
   // A first visit starts from what was learned before, without anyone's talk (scripts/seed.mjs);
-  // from then on the journal is this browser's own.
+  // from then on the journal is this browser's own. Never had a file, not read back empty: a
+  // cleared graph is empty too, and reseeding whatever reads back empty would seed it right back
+  // over a graph someone had just cleared.
   const seed = read("/seed/store.ncon");
-  if (!read(graphPath) && seed) write(graphPath, seed);
+  if (created.has(graphPath) && seed) write(graphPath, seed);
   // The runtime reads its word lists as it loads, so it is imported only once they are mounted.
   const { createStudio } = await import("@napkin/studio-server/handler");
   return createStudio({ graphPath, tracePath });

@@ -7,7 +7,7 @@ import { c, format, parse } from "../concept/expression.js";
 import { concept, realization } from "../concept/unit.js";
 import { formatNcon } from "../code/format.js";
 import { seed } from "../seed/seed.js";
-import { closeGraph, compact, openGraph } from "./journal.js";
+import { clearGraph, closeGraph, compact, openGraph } from "./journal.js";
 import { load, save } from "./persist.js";
 import { ConceptStore } from "./store.js";
 
@@ -132,6 +132,25 @@ test("another process holding the graph opens it to read only", () => {
   assert.ok(report.readOnly);
   store.mint("User");
   assert.ok(!existsSync(path), "nothing written");
+});
+
+test("a cleared graph is back to what the packs seed, and stays cleared on reopening", async () => {
+  const path = join(home(), "store.ncon");
+  const store = new ConceptStore();
+  openGraph(store, path, packs);
+  changeAGraph(store);
+  await clearGraph(store, path);
+  closeGraph(store, path);
+  const packsOnly = new ConceptStore();
+  openGraph(packsOnly, path, packs);
+  closeGraph(packsOnly, path);
+  assert.deepEqual(view(packsOnly).filter((u) => !u.identity.startsWith("User")), view(store).filter((u) => !u.identity.startsWith("User")));
+  // The file left behind is started, not missing: a host that treats a missing graph as a
+  // first visit (the studio on Pages) must not mistake a cleared one for that and reseed it
+  // with whatever it seeds a first visit from.
+  const text = readFileSync(path, "utf8");
+  assert.ok(text.length > 0, "the journal keeps its header, not an empty file");
+  assert.ok(text.includes("Journal("));
 });
 
 test("the formatter leaves a journal as it is written", () => {
