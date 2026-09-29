@@ -618,10 +618,35 @@ Concept(Answer(),
               Return($own),
               Undefined()
             ),
+            Comment("A record (Record(a=1)) says nothing by itself; a thing in the world qualified as it was found"),
+            Comment("(Paris(validInPeriod=...)) is still that thing."),
+            Bind($worldly,
+              Call(
+                Member(
+                  Otherwise(
+                    OptionalMember(Call(Member(Member($api, "store"), "get"), Member($x, "head")), "relations"),
+                    List()
+                  ),
+                  "some"
+                ),
+                Lambda(List($r),
+                  And(
+                    Call($isCall, Member($r, "claim")),
+                    Includes(List("SameAs", "Named"), Member(Member($r, "claim"), "head"))
+                  )
+                )
+              )
+            ),
             If(
               And(
-                Length(Member($x, "args")),
-                Call(Member(Member($x, "args"), "every"), Lambda(List($a), NotEquals(Member($a, "name"), Undefined())))
+                And(
+                  Length(Member($x, "args")),
+                  Call(
+                    Member(Member($x, "args"), "every"),
+                    Lambda(List($a), NotEquals(Member($a, "name"), Undefined()))
+                  )
+                ),
+                Not($worldly)
               ),
               Return(Call(Member($api, "call"), "Answer", $x)),
               Undefined()
