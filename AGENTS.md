@@ -36,7 +36,8 @@ what a particular question means, are answer paths even when they look general.
   If you are about to write fifty similar lines, write the derivation.
 - **Where answers come from, in order:** what the graph holds, what the user said (matched
   by shape and by base form), behaviour the question names, then the world (Wikidata,
-  Wiktionary, the DailyDialog corpus). No model hears, speaks or teaches, and none should be
+  Wiktionary, the DailyDialog corpus, pages of the Wikimedia sister projects). Whatever a line
+  leaves undone is looked for there (`Unworked`), never only reported. No model hears, speaks or teaches, and none should be
   added back: a message is heard by `Hear()` (`packs/hearing.ncon`), and what nothing sourced
   can answer stays a residual.
 - **Pick the sense that makes the question make sense,** never the first label: the sense

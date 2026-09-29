@@ -271,3 +271,23 @@ The word lists that decide meaning (filler, vocative, answer words, fixed phrase
 first slice to move into the graph as Concepts the parser reads. Then the parser's passes, as
 IR bodies behind a tagging host facility, with Predict ranking candidate readings where the
 rules now pick one by keyword.
+
+### What a line leaves undone, 2026-09-29
+
+Pursue used to run only when a question came back exactly as it was said. "Can you give me a
+cake recipe" did not: `Can` and `Give` did their part and left `Recipe(Cake())` standing, so the
+residual was reported and nothing looked for it. Now every line, asked or commanded, ends with
+`Unworked(line, value, since)` (packs/mood.ncon) when its value is undone: the line as said,
+`Unknown(...)`, or something that stayed as it was said. The value, the line, and each residual
+still inside the value are pursued (`Pursue`, with what the question word `Asks` for), then read
+from what the world has written (`Written`, packs/pages.ncon), the one with most of the line
+first. Recall (what the user said) still comes before the world.
+
+`Written(goal)` reads pages of the Wikimedia sister projects. Where to look is derived: a word
+whose Wikidata sense has a page in a namespace of a sister project names a kind written there
+(`recipe` is Cookbook:Recipes on Wikibooks, so a recipe of cake is looked for in the Cookbook),
+and `How` asks for `Steps`, which are `WrittenAt(Wikibooks())`, when one of the words is a doing
+(the first part of speech Wiktionary gives). Pages are searched by the words, most linked to
+first; a page that only points (Cookbook:Bread to its category of recipes) is followed once. A
+page is its sections that hold lists, `Page(title, Section(heading, List(...), numbered=true),
+from=Site(url), license=...)`, said with where it came from.

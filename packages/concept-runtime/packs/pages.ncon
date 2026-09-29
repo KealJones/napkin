@@ -1,0 +1,920 @@
+// What the world has written down: pages of the Wikimedia sister projects (Wikibooks, Wikivoyage,
+// Wikiquote), read as sections of lists. Where to look is derived, not listed: a word whose
+// Wikidata item has a page in a namespace of a sister project ("recipe" is Cookbook:Recipes on
+// Wikibooks) says that things of that kind are written there, and "how" asks for steps, which are
+// written at Wikibooks. Pages are CC BY-SA and are said with where they came from. Written by
+// scripts/pack.mjs from sources/pages (edit those, not this).
+Requires(Basic(), Pursue())
+
+// A page read from a site: its title, and each section that holds a list, in order.
+Concept(Page(), IsA(Result()))
+
+Concept(Section(), IsA(Data()))
+
+// "How do you bake a cake" asks for the steps to do it.
+Concept(Steps(), IsA(Category()), WrittenAt(Wikibooks()))
+
+Concept(How(), Asks(Steps()))
+
+// Where a kind of thing is written: the site that holds it.
+Concept(WrittenAt(), IsA(Relation()))
+
+Concept(Wikibooks(), Site("https://en.wikibooks.org"))
+
+Concept(Site(), IsA(Relation()))
+
+// "Sponge Cake I (from https://en.wikibooks.org/wiki/Cookbook:Sponge_Cake_I, CC BY-SA 4.0):", then
+// each section, its heading and its list, numbered when the page numbers it.
+Concept(Page(),
+  Realization(Page(Rest($parts)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($title,
+              Call(
+                $String,
+                Member(Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))), "value")
+              )
+            ),
+            Bind($from, Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "from")))),
+            Bind($license, Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "license")))),
+            Bind($where,
+              If(
+                And($from, Call($isCall, Member($from, "value"))),
+                Call($String, Member(Index(Member(Member($from, "value"), "args"), 0), "value")),
+                ""
+              )
+            ),
+            Bind($lines,
+              List(
+                Add(
+                  Add(
+                    $title,
+                    If(
+                      $where,
+                      Add(
+                        Add(
+                          Add(" (from ", $where),
+                          If(
+                            $license,
+                            Add(", ", Call($String, Member($license, "value"))),
+                            ""
+                          )
+                        ),
+                        ")"
+                      ),
+                      ""
+                    )
+                  ),
+                  ":"
+                )
+              )
+            ),
+            ForOf(
+              $a,
+              $args,
+              Sequence(
+                If(
+                  Or(
+                    Or(NotEquals(Member($a, "name"), Undefined()), Not(Call($isCall, Member($a, "value")))),
+                    NotEquals(Member(Member($a, "value"), "head"), "Section")
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($heading, Call($String, Member(Index(Member(Member($a, "value"), "args"), 0), "value"))),
+                Bind($items,
+                  Call(
+                    Member(Member($api, "lists"), "values"),
+                    Member(Index(Member(Member($a, "value"), "args"), 1), "value")
+                  )
+                ),
+                Bind($numbered,
+                  Call(
+                    Member(Member(Member($a, "value"), "args"), "some"),
+                    Lambda(List($x), And(Equals(Member($x, "name"), "numbered"), Equals(Member($x, "value"), true)))
+                  )
+                ),
+                Call(Member($lines, "push"), "", Add($heading, ":")),
+                Call(
+                  Member($items, "forEach"),
+                  Lambda(List($item, $i),
+                    Call(Member($lines, "push"), Add(If($numbered, Add(Add($i, 1), ". "), "- "), Call($String, $item)))
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($lines, "join"), "\n"))
+          )
+        )
+      )
+    )
+  )
+)
+
+// What was asked, read from a page someone wrote: Found(Page(...)), or the call itself. Where to
+// look comes from the words asked. A word whose Wikidata sense has a page in a namespace of a
+// sister project names a kind written there ("recipe": the Cookbook on Wikibooks), and the rest of
+// the words are what to look for in it. A question that asks for steps ("how do you bake a cake")
+// is looked for, all its words, where steps are written, when one of its words can be a doing.
+Concept(Written(),
+  Realization(Written($goal),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($goal, Call(Member($bindings, "get"), "goal")),
+            If(
+              Not(Call($isCall, $goal)),
+              Return(Call(Member($api, "call"), "Written", $goal)),
+              Undefined()
+            ),
+            Bind($heads, List()),
+            Bind($walk,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  If(
+                    Not(Includes($heads, Member($e, "head"))),
+                    Call(Member($heads, "push"), Member($e, "head")),
+                    Undefined()
+                  ),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    If(
+                      Equals(Member($a, "name"), Undefined()),
+                      Call($walk, Member($a, "value")),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($walk, $goal),
+            Comment("The words that say what, not how it is asked: none a pack declares (\"do\", \"you\", \"how\")."),
+            Bind($declared,
+              Lambda(List($h),
+                Sequence(
+                  Bind($u, Call(Member(Member($api, "store"), "get"), $h)),
+                  Return(
+                    And(
+                      Not(Not($u)),
+                      Or(
+                        GreaterThan(Length(Member($u, "realizations")), 0),
+                        Call(
+                          Member(Member($u, "relations"), "some"),
+                          Lambda(List($r),
+                            Call(
+                              Member(Or(Member($r, "stamps"), List()), "some"),
+                              Lambda(List($st), NotEquals(Member($st, "pack"), Undefined()))
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($text,
+              Lambda(List($h),
+                Call(
+                  Member(
+                    Call(
+                      Member($h, "replace"),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                )
+              )
+            ),
+            Bind($open, Filter($heads, Lambda(List($h), Not(Call($declared, $h))))),
+            If(
+              Not(Length($open)),
+              Return(Call(Member($api, "call"), "Written", $goal)),
+              Undefined()
+            ),
+            Bind($places, List()),
+            Bind($namespaces, New($Map)),
+            Bind($spaces,
+              Async(
+                Lambda(List($site),
+                  Sequence(
+                    If(
+                      Not(Call(Member($namespaces, "has"), $site)),
+                      Sequence(
+                        Bind($got,
+                          Call(
+                            Member($api, "toHost"),
+                            Await(
+                              Call(
+                                Member($api, "evaluate"),
+                                Call(
+                                  Member($api, "call"),
+                                  "Fetch",
+                                  Add(
+                                    $site,
+                                    "/w/api.php?action=query&meta=siteinfo&siprop=namespaces&format=json&origin=*"
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        ),
+                        Call(
+                          Member($namespaces, "set"),
+                          $site,
+                          If(
+                            And(And($got, Member($got, "query")), Member(Member($got, "query"), "namespaces")),
+                            Call(Member($Object, "values"), Member(Member($got, "query"), "namespaces")),
+                            List()
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Return(Call(Member($namespaces, "get"), $site))
+                  )
+                )
+              )
+            ),
+            Comment("A kind, by where its word's sense is written."),
+            ForOf(
+              $w,
+              $open,
+              Sequence(
+                Bind($others, Filter($open, Lambda(List($h), NotEquals($h, $w)))),
+                If(Not(Length($others)), Continue(), Undefined()),
+                Bind($senses,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "WikidataSenses",
+                        Call($text, $w)
+                      )
+                    )
+                  )
+                ),
+                Bind($ids,
+                  If(
+                    And(Call($isCall, $senses), Equals(Member($senses, "head"), "List")),
+                    Map(
+                      Call(Member(Member($senses, "args"), "slice"), 0, 3),
+                      Lambda(List($a), Member(Index(Member(Member($a, "value"), "args"), 0), "value"))
+                    ),
+                    List()
+                  )
+                ),
+                If(Not(Length($ids)), Continue(), Undefined()),
+                Bind($got,
+                  Call(
+                    Member($api, "toHost"),
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        Call(
+                          Member($api, "call"),
+                          "Fetch",
+                          Add(
+                            "https://www.wikidata.org/w/api.php?action=wbgetentities&props=sitelinks&format=json&origin=*&ids=",
+                            Call(Member($ids, "join"), "|")
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                ForOf(
+                  $id,
+                  $ids,
+                  Sequence(
+                    Bind($links,
+                      If(
+                        And(
+                          And(And($got, Member($got, "entities")), Index(Member($got, "entities"), $id)),
+                          Member(Index(Member($got, "entities"), $id), "sitelinks")
+                        ),
+                        Member(Index(Member($got, "entities"), $id), "sitelinks"),
+                        Object()
+                      )
+                    ),
+                    ForOf(
+                      $key,
+                      Call(Member($Object, "keys"), $links),
+                      Sequence(
+                        If(
+                          Or(Not(Call(Member(Regex("^en[a-z]+$", ""), "test"), $key)), Equals($key, "enwiki")),
+                          Continue(),
+                          Undefined()
+                        ),
+                        Bind($title, Call($String, Or(Member(Index($links, $key), "title"), ""))),
+                        Bind($colon, Call(Member($title, "indexOf"), ":")),
+                        If(LessThan($colon, 1), Continue(), Undefined()),
+                        Bind($site, Add(Add("https://en.", Call(Member($key, "slice"), 2)), ".org")),
+                        Bind($space,
+                          Call(
+                            Member(Await(Call($spaces, $site)), "find"),
+                            Lambda(List($n), Equals(Index($n, "*"), Call(Member($title, "slice"), 0, $colon)))
+                          )
+                        ),
+                        If(
+                          And(
+                            $space,
+                            Not(
+                              Call(
+                                Member($places, "some"),
+                                Lambda(List($p),
+                                  And(
+                                    Equals(Member($p, "site"), $site),
+                                    Equals(Member($p, "ns"), Call($String, Member($space, "id")))
+                                  )
+                                )
+                              )
+                            )
+                          ),
+                          Call(
+                            Member($places, "push"),
+                            Object(
+                              site = $site,
+                              ns = Call($String, Member($space, "id")),
+                              titled = Map($others, $text),
+                              also = List()
+                            )
+                          ),
+                          Undefined()
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("Steps, where they are written, for a question about doing something."),
+            Bind($asks,
+              Call(
+                Member(
+                  Map(
+                    $heads,
+                    Lambda(List($h),
+                      Call(
+                        Member(
+                          Map(
+                            Otherwise(
+                              OptionalMember(Call(Member(Member($api, "store"), "get"), $h), "relations"),
+                              List()
+                            ),
+                            Lambda(List($r), Member($r, "claim"))
+                          ),
+                          "find"
+                        ),
+                        Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "Asks")))
+                      )
+                    )
+                  ),
+                  "find"
+                ),
+                Lambda(List($c), $c)
+              )
+            ),
+            Bind($kind,
+              If(
+                And($asks, Call($isCall, Member(Index(Member($asks, "args"), 0), "value"))),
+                Member(Member(Index(Member($asks, "args"), 0), "value"), "head"),
+                Undefined()
+              )
+            ),
+            Bind($at,
+              If(
+                $kind,
+                Call(
+                  Member(
+                    Map(
+                      Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $kind), "relations"), List()),
+                      Lambda(List($r), Member($r, "claim"))
+                    ),
+                    "find"
+                  ),
+                  Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "WrittenAt")))
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              And($at, Call($isCall, Member(Index(Member($at, "args"), 0), "value"))),
+              Sequence(
+                Bind($site,
+                  Call(
+                    Member(
+                      Map(
+                        Otherwise(
+                          OptionalMember(
+                            Call(
+                              Member(Member($api, "store"), "get"),
+                              Member(Member(Index(Member($at, "args"), 0), "value"), "head")
+                            ),
+                            "relations"
+                          ),
+                          List()
+                        ),
+                        Lambda(List($r), Member($r, "claim"))
+                      ),
+                      "find"
+                    ),
+                    Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "Site")))
+                  )
+                ),
+                Comment("A word is what the dictionary gives first for it: \"bake\" a doing, \"cake\" a thing. A doing"),
+                Comment("a pack knows (\"make\") is one too; how it is asked (\"do\", \"you\", \"how\") is neither."),
+                Bind($doings, List()),
+                Bind($things, List()),
+                ForOf(
+                  $h,
+                  $heads,
+                  Sequence(
+                    Bind($kinds, Call(Member($api, "typesOf"), Call(Member($api, "call"), $h))),
+                    If(
+                      And(
+                        Not(Includes($open, $h)),
+                        Call(
+                          Member(
+                            List(
+                              "Helper",
+                              "Deictic",
+                              "QuestionWord",
+                              "Marker",
+                              "MoodKind"
+                            ),
+                            "some"
+                          ),
+                          Lambda(List($k), Includes($kinds, $k))
+                        )
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($can,
+                      Await(
+                        Call(Member($api, "evaluate"), Call(Member($api, "call"), "PartsOfSpeech", Call($text, $h)))
+                      )
+                    ),
+                    Bind($first,
+                      If(
+                        And(
+                          And(
+                            And(Call($isCall, $can), Equals(Member($can, "head"), "List")),
+                            Length(Member($can, "args"))
+                          ),
+                          Call($isCall, Member(Index(Member($can, "args"), 0), "value"))
+                        ),
+                        Member(Member(Index(Member($can, "args"), 0), "value"), "head"),
+                        Undefined()
+                      )
+                    ),
+                    If(
+                      Equals($first, "Verb"),
+                      Call(Member($doings, "push"), Call($text, $h)),
+                      If(
+                        Includes($open, $h),
+                        Call(Member($things, "push"), Call($text, $h)),
+                        Undefined()
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And(And($site, Length($doings)), Length($things)),
+                  Sequence(
+                    Bind($url, Call($String, Member(Index(Member($site, "args"), 0), "value"))),
+                    Bind($content,
+                      Map(
+                        Filter(
+                          Await(Call($spaces, $url)),
+                          Lambda(List($n), NotEquals(Member($n, "content"), Undefined()))
+                        ),
+                        Lambda(List($n), Call($String, Member($n, "id")))
+                      )
+                    ),
+                    Call(
+                      Member($places, "push"),
+                      Object(
+                        site = $url,
+                        ns = Or(Call(Member($content, "join"), "|"), "0"),
+                        titled = $things,
+                        also = $doings,
+                        steps = true
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Bind($clean,
+              Lambda(List($s),
+                Call(
+                  Member(
+                    Call(
+                      Member(
+                        Call(
+                          Member(
+                            Call(
+                              Member(
+                                Call(
+                                  Member(
+                                    Call(
+                                      Member(
+                                        Call(
+                                          Member(
+                                            Call(
+                                              Member($s, "replace"),
+                                              Regex("<ref[\\s\\S]*?(<\\/ref>|\\/>)", "g"),
+                                              ""
+                                            ),
+                                            "replace"
+                                          ),
+                                          Regex("<[^>]+>", "g"),
+                                          ""
+                                        ),
+                                        "replace"
+                                      ),
+                                      Regex("\\{\\{[^{}]*\\}\\}", "g"),
+                                      ""
+                                    ),
+                                    "replace"
+                                  ),
+                                  Regex("\\[\\[(?:[^\\]|]*\\|)?([^\\]]*)\\]\\]", "g"),
+                                  "$1"
+                                ),
+                                "replace"
+                              ),
+                              Regex("\\[https?:[^\\s\\]]+ ([^\\]]*)\\]", "g"),
+                              "$1"
+                            ),
+                            "replace"
+                          ),
+                          Regex("'{2,}", "g"),
+                          ""
+                        ),
+                        "replace"
+                      ),
+                      Regex("\\s+", "g"),
+                      " "
+                    ),
+                    "trim"
+                  )
+                )
+              )
+            ),
+            Comment("A page as its sections that hold lists; a section's own sections are part of it. A section"),
+            Comment("whose items are only links (other recipes, external links) points elsewhere: what it links to"),
+            Comment("is kept apart, to read when the page says nothing itself."),
+            Bind($read,
+              Lambda(List($raw),
+                Sequence(
+                  Bind($sections, List()),
+                  Bind($links, List()),
+                  Var($current, Undefined()),
+                  Bind($kinds,
+                    Map(
+                      Concat(Call(Member($raw, "matchAll"), Regex("<categorytree[^>]*>([^<]+)<\\/categorytree>", "g"))),
+                      Lambda(List($m), Call(Member(Index($m, 1), "trim")))
+                    )
+                  ),
+                  ForOf(
+                    $line,
+                    Call(Member($raw, "split"), "\n"),
+                    Sequence(
+                      Bind($heading, Call(Member(Regex("^(=+)\\s*(.*?)\\s*=+\\s*$", ""), "exec"), $line)),
+                      If(
+                        $heading,
+                        Sequence(
+                          If(
+                            Or(AtMost(Length(Index($heading, 1)), 2), Not($current)),
+                            Sequence(
+                              Assign(
+                                $current,
+                                Object(
+                                  heading = Call($clean, Index($heading, 2)),
+                                  items = List(),
+                                  numbered = false,
+                                  pointers = 0
+                                )
+                              ),
+                              Call(Member($sections, "push"), $current)
+                            ),
+                            Undefined()
+                          ),
+                          Continue()
+                        ),
+                        Undefined()
+                      ),
+                      Bind($item, Call(Member(Regex("^([*#]+)\\s*(.*)$", ""), "exec"), $line)),
+                      If(Or(Not($item), Not($current)), Continue(), Undefined()),
+                      Bind($whole,
+                        Call(
+                          Member(Regex("^\\s*\\[\\[([^\\]|]+)(?:\\|[^\\]]*)?\\]\\][\\s.,;:]*$", ""), "exec"),
+                          Index($item, 2)
+                        )
+                      ),
+                      If(
+                        Or(
+                          $whole,
+                          Call(Member(Regex("^\\s*\\[https?:[^\\]]*\\][\\s.,;:]*$", ""), "test"), Index($item, 2))
+                        ),
+                        PostIncrement(Member($current, "pointers")),
+                        Undefined()
+                      ),
+                      If(
+                        $whole,
+                        Call(Member($links, "push"), Call(Member(Index($whole, 1), "trim"))),
+                        Undefined()
+                      ),
+                      Bind($said, Call($clean, Index($item, 2))),
+                      If(
+                        $said,
+                        Call(Member(Member($current, "items"), "push"), $said),
+                        Undefined()
+                      ),
+                      If(
+                        Equals(Index(Index($item, 1), 0), "#"),
+                        Assign(Member($current, "numbered"), true),
+                        Undefined()
+                      )
+                    )
+                  ),
+                  Return(
+                    Object(
+                      sections = Filter(
+                        $sections,
+                        Lambda(List($s),
+                          And(
+                            Length(Member($s, "items")),
+                            LessThan(Multiply(Member($s, "pointers"), 2), Length(Member($s, "items")))
+                          )
+                        )
+                      ),
+                      links = $links,
+                      kinds = $kinds
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($pageOf,
+              Async(
+                Lambda(List($place, $title),
+                  Sequence(
+                    Bind($raw,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "FetchText",
+                            Add(
+                              Add(Member($place, "site"), "/w/index.php?action=raw&title="),
+                              Call($encodeURIComponent, $title)
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      Or(NotEquals(TypeOf($raw), "string"), Call(Member(Regex("^#REDIRECT", "i"), "test"), $raw)),
+                      Return(Object(links = List(), kinds = List())),
+                      Undefined()
+                    ),
+                    Bind($got, Call($read, $raw)),
+                    If(
+                      Or(
+                        Not(Length(Member($got, "sections"))),
+                        And(
+                          Member($place, "steps"),
+                          Not(Call(Member(Member($got, "sections"), "some"), Lambda(List($s), Member($s, "numbered"))))
+                        )
+                      ),
+                      Return($got),
+                      Undefined()
+                    ),
+                    Bind($url,
+                      Add(
+                        Add(Member($place, "site"), "/wiki/"),
+                        Call(
+                          Member(
+                            Call($encodeURIComponent, Call(Member(Call(Member($title, "split"), " "), "join"), "_")),
+                            "replace"
+                          ),
+                          Regex("%3A", "g"),
+                          ":"
+                        )
+                      )
+                    ),
+                    Return(
+                      Object(
+                        page = Object(
+                          head = "Page",
+                          args = Concat(
+                            List(
+                              Object(
+                                value = Call(Member($title, "slice"), Add(Call(Member($title, "indexOf"), ":"), 1))
+                              )
+                            ),
+                            Map(
+                              Member($got, "sections"),
+                              Lambda(List($s),
+                                Object(
+                                  value = Object(
+                                    head = "Section",
+                                    args = Concat(
+                                      List(
+                                        Object(value = Member($s, "heading")),
+                                        Object(
+                                          value = Call(
+                                            Member($api, "call"),
+                                            "List",
+                                            Spread(Member($s, "items"))
+                                          )
+                                        )
+                                      ),
+                                      If(
+                                        Member($s, "numbered"),
+                                        List(Object(name = "numbered", value = true)),
+                                        List()
+                                      )
+                                    )
+                                  )
+                                )
+                              )
+                            ),
+                            List(
+                              Object(name = "from", value = Call(Member($api, "call"), "Site", $url)),
+                              Object(name = "license", value = "CC BY-SA 4.0")
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("Most linked to first (the page others point at for it), titles that name what was asked."),
+            Bind($search,
+              Async(
+                Lambda(List($place, $within),
+                  Sequence(
+                    Bind($terms,
+                      Concat(
+                        If(
+                          $within,
+                          List(Add(Add("incategory:\"", $within), "\"")),
+                          List()
+                        ),
+                        Map(Member($place, "titled"), Lambda(List($w), Add("intitle:", $w))),
+                        Member($place, "also")
+                      )
+                    ),
+                    Bind($found,
+                      Call(
+                        Member($api, "toHost"),
+                        Await(
+                          Call(
+                            Member($api, "evaluate"),
+                            Call(
+                              Member($api, "call"),
+                              "Fetch",
+                              Add(
+                                Add(
+                                  Add(
+                                    Add(
+                                      Member($place, "site"),
+                                      "/w/api.php?action=query&list=search&format=json&origin=*&srlimit=10&srsort=incoming_links_desc&srnamespace="
+                                    ),
+                                    Call($encodeURIComponent, Member($place, "ns"))
+                                  ),
+                                  "&srsearch="
+                                ),
+                                Call($encodeURIComponent, Call(Member($terms, "join"), " "))
+                              )
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        And(
+                          And($found, Member($found, "query")),
+                          Call(Member($Array, "isArray"), Member(Member($found, "query"), "search"))
+                        ),
+                        Map(
+                          Member(Member($found, "query"), "search"),
+                          Lambda(List($h), Call($String, Member($h, "title")))
+                        ),
+                        List()
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            ForOf(
+              $place,
+              $places,
+              Sequence(
+                Bind($says,
+                  Lambda(List($t),
+                    Call(
+                      Member(Member($place, "titled"), "every"),
+                      Lambda(List($w),
+                        Includes(
+                          Call(Member($t, "toLowerCase")),
+                          Call(
+                            Member(Call(Member(Call(Member($w, "split"), " "), "pop")), "replace"),
+                            Regex("s$", ""),
+                            ""
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Bind($titled,
+                  Call(
+                    Member(Filter(Await(Call($search, $place)), $says), "slice"),
+                    0,
+                    4
+                  )
+                ),
+                ForOf(
+                  $title,
+                  $titled,
+                  Sequence(
+                    Bind($got, Await(Call($pageOf, $place, $title))),
+                    If(
+                      Member($got, "page"),
+                      Return(
+                        Call(
+                          Member($api, "call"),
+                          "Found",
+                          Member($got, "page"),
+                          $goal
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Comment("A page that only points (Cookbook:Bread, to its recipes for bread): what it points at."),
+                    Bind($next, Concat(Filter(Member($got, "links"), $says))),
+                    ForOf(
+                      $kind,
+                      Member($got, "kinds"),
+                      Call(Member($next, "push"), Spread(Filter(Await(Call($search, $place, $kind)), $says)))
+                    ),
+                    ForOf(
+                      $link,
+                      Call(
+                        Member(Filter($next, Lambda(List($l), Not(Includes($titled, $l)))), "slice"),
+                        0,
+                        3
+                      ),
+                      Sequence(
+                        Bind($then, Await(Call($pageOf, $place, $link))),
+                        If(
+                          Member($then, "page"),
+                          Return(
+                            Call(
+                              Member($api, "call"),
+                              "Found",
+                              Member($then, "page"),
+                              $goal
+                            )
+                          ),
+                          Undefined()
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(Call(Member($api, "call"), "Written", $goal))
+          )
+        )
+      )
+    )
+  )
+)

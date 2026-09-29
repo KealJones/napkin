@@ -1,0 +1,24 @@
+// What the world has written down: pages of the Wikimedia sister projects (Wikibooks, Wikivoyage,
+// Wikiquote), read as sections of lists. Where to look is derived, not listed: a word whose
+// Wikidata item has a page in a namespace of a sister project ("recipe" is Cookbook:Recipes on
+// Wikibooks) says that things of that kind are written there, and "how" asks for steps, which are
+// written at Wikibooks. Pages are CC BY-SA and are said with where they came from. Written by
+// scripts/pack.mjs from sources/pages (edit those, not this).
+Requires(Basic(), Pursue())
+
+// A page read from a site: its title, and each section that holds a list, in order.
+Concept(Page(), IsA(Result()))
+
+Concept(Section(), IsA(Data()))
+
+// "How do you bake a cake" asks for the steps to do it.
+Concept(Steps(), IsA(Category()), WrittenAt(Wikibooks()))
+
+Concept(How(), Asks(Steps()))
+
+// Where a kind of thing is written: the site that holds it.
+Concept(WrittenAt(), IsA(Relation()))
+
+Concept(Wikibooks(), Site("https://en.wikibooks.org"))
+
+Concept(Site(), IsA(Relation()))

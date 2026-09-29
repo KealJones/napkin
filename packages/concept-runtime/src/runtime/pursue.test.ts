@@ -84,3 +84,11 @@ test("what my or your names is what that one holds by it", async () => {
   const { say } = conversation();
   assert.equal((await say("what is your name?")).rendered, 'Answer("Napkin")');
 });
+
+test("what a line leaves undone is looked for further, in what the world has written", async () => {
+  const { say } = conversation();
+  // "give me" does its part and leaves Recipe(Cake()) as it was said: that is what is looked for.
+  assert.match((await say("can you give me a cake recipe?")).rendered, /^Answer\(Page\(.*Section\("Ingredients"/);
+  // How asks for steps, and steps are written at Wikibooks.
+  assert.match((await say("how do you bake a cake?")).rendered, /^Answer\(Page\(.*numbered=true/);
+});

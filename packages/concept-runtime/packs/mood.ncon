@@ -423,6 +423,7 @@ Concept(Line(),
                 )
               )
             ),
+            Bind($since, Call(Member(Member($api, "trace"), "mark"))),
             Bind($done,
               Await(
                 Call(
@@ -431,6 +432,62 @@ Concept(Line(),
                   Member($api, "context")
                 )
               )
+            ),
+            Comment("Undone: as it was said, not known, or something that stayed as it was said."),
+            Bind($undone,
+              Lambda(List($v, $l),
+                Sequence(
+                  Var($core, $v),
+                  ForOf(
+                    $wrap,
+                    List("Answer", "Unknown"),
+                    If(
+                      And(And($core, Equals(Member($core, "head"), $wrap)), Length(Member($core, "args"))),
+                      Assign($core, Member(Index(Member($core, "args"), 0), "value")),
+                      Undefined()
+                    )
+                  ),
+                  Bind($held, Call(Member($api, "format"), $core)),
+                  Return(
+                    Or(
+                      Or(
+                        Or(
+                          Equals($held, Call(Member($api, "format"), $l)),
+                          And($v, Equals(Member($v, "head"), "Unknown"))
+                        ),
+                        And($core, Equals(Member($core, "head"), "Unknown"))
+                      ),
+                      Call(
+                        Member(Call(Member(Member($api, "trace"), "residuals"), $since), "some"),
+                        Lambda(List($e),
+                          And(Member($e, "output"), Equals(Call(Member($api, "format"), Member($e, "output")), $held))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("What it left undone (\"give me a cake recipe\"), looked for further."),
+            If(
+              And(And(And($line, Member($line, "head")), Length(Member($line, "args"))), Call($undone, $done, $line)),
+              Sequence(
+                Bind($found,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Unworked", $line, $done, $since),
+                      Member($api, "context")
+                    )
+                  )
+                ),
+                If(
+                  And($found, Equals(Member($found, "head"), "Answer")),
+                  Return($found),
+                  Undefined()
+                )
+              ),
+              Undefined()
             ),
             If(
               Or(
@@ -474,8 +531,8 @@ Concept(Line(),
 )
 
 // A question: read and worked out. Left unworked, or not known: whether it was told (Believe),
-// then looked for further (Pursue), then asked again with what its unknown words were said to be
-// (Recall).
+// then asked again with what its unknown words were said to be (Recall), then what is still undone
+// in it looked for further (Unworked).
 Concept(Line(),
   Realization(Line($line),
     context = Interrogative(),
@@ -515,6 +572,7 @@ Concept(Line(),
                 )
               )
             ),
+            Bind($since, Call(Member(Member($api, "trace"), "mark"))),
             Bind($value,
               Await(
                 Call(
@@ -561,32 +619,6 @@ Concept(Line(),
               ),
               Undefined()
             ),
-            If(
-              Call($same, $value, $line),
-              Sequence(
-                Bind($found,
-                  Await(
-                    Call(
-                      Member($api, "evaluate"),
-                      Call(Member($api, "call"), "Pursue", $line),
-                      Member($api, "context")
-                    )
-                  )
-                ),
-                If(
-                  And($found, Equals(Member($found, "head"), "Found")),
-                  Return(
-                    Call(
-                      Member($api, "call"),
-                      "Answer",
-                      Member(Index(Member($found, "args"), 0), "value")
-                    )
-                  ),
-                  Undefined()
-                )
-              ),
-              Undefined()
-            ),
             Comment("An answer that is a result (CannotDo, Added, Made) is whole: no word in it is wanting."),
             Bind($inner,
               If(
@@ -609,11 +641,73 @@ Concept(Line(),
                 )
               )
             ),
-            Return(
+            Bind($worked,
               If(
                 And($recalled, Equals(Member($recalled, "head"), "Recall")),
                 $value,
                 $recalled
+              )
+            ),
+            Comment("Undone: as it was said, not known, or something that stayed as it was said."),
+            Bind($undone,
+              Lambda(List($v, $l),
+                Sequence(
+                  Var($core, $v),
+                  ForOf(
+                    $wrap,
+                    List("Answer", "Unknown"),
+                    If(
+                      And(And($core, Equals(Member($core, "head"), $wrap)), Length(Member($core, "args"))),
+                      Assign($core, Member(Index(Member($core, "args"), 0), "value")),
+                      Undefined()
+                    )
+                  ),
+                  Bind($held, Call(Member($api, "format"), $core)),
+                  Return(
+                    Or(
+                      Or(
+                        Or(
+                          Equals($held, Call(Member($api, "format"), $l)),
+                          And($v, Equals(Member($v, "head"), "Unknown"))
+                        ),
+                        And($core, Equals(Member($core, "head"), "Unknown"))
+                      ),
+                      Call(
+                        Member(Call(Member(Member($api, "trace"), "residuals"), $since), "some"),
+                        Lambda(List($e),
+                          And(Member($e, "output"), Equals(Call(Member($api, "format"), Member($e, "output")), $held))
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              Not(Call($undone, $worked, $line)),
+              Return($worked),
+              Undefined()
+            ),
+            Bind($found,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Unworked",
+                    $line,
+                    $worked,
+                    $since
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($found, Equals(Member($found, "head"), "Answer")),
+                $found,
+                $worked
               )
             )
           )
@@ -1114,6 +1208,177 @@ Concept(Recollect(),
                 NotEquals(Call(Member($api, "format"), $again), Call(Member($api, "format"), $changed)),
                 $again,
                 $none
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What a line left undone, looked for further: the value it was worked out to is undone (the
+// line as it was said, something that stayed as it was said, as Recipe(Cake()) did from "can you
+// give me a cake recipe", or not known). That, the line, and what stands undone in it are pursued,
+// then read from what the world has written, the one with most of the line in it first.
+// Answer(found), or the call itself when nothing was found. What the question word asks for
+// (Who asks for Someone) is asked of what is pursued, so an answer of another kind is passed over.
+Concept(Unworked(),
+  Realization(Unworked($line, $value, $since),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($held, Call(Member($api, "format"), $value)),
+            Bind($residuals,
+              Filter(
+                Call(Member(Member($api, "trace"), "residuals"), Call($Number, Call(Member($bindings, "get"), "since"))),
+                Lambda(List($e), Call($isCall, Member($e, "output")))
+              )
+            ),
+            Var($core, $value),
+            ForOf(
+              $wrap,
+              List("Answer", "Unknown"),
+              If(
+                And(And(Call($isCall, $core), Equals(Member($core, "head"), $wrap)), Length(Member($core, "args"))),
+                Assign($core, Member(Index(Member($core, "args"), 0), "value")),
+                Undefined()
+              )
+            ),
+            Bind($open, List()),
+            Bind($add,
+              Lambda(List($e),
+                Sequence(
+                  If(
+                    Or(
+                      Or(Not(Call($isCall, $e)), Equals(Member($e, "head"), "Ref")),
+                      Not(
+                        Call(
+                          Member(Member($e, "args"), "some"),
+                          Lambda(List($a), Equals(Member($a, "name"), Undefined()))
+                        )
+                      )
+                    ),
+                    Return(),
+                    Undefined()
+                  ),
+                  If(
+                    Not(
+                      Call(
+                        Member($open, "some"),
+                        Lambda(List($o), Equals(Call(Member($api, "format"), $o), Call(Member($api, "format"), $e)))
+                      )
+                    ),
+                    Call(Member($open, "push"), $e),
+                    Undefined()
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($add, $core),
+            Call($add, $line),
+            ForOf(
+              $event,
+              $residuals,
+              If(
+                Includes($held, Call(Member($api, "format"), Member($event, "output"))),
+                Call($add, Member($event, "output")),
+                Undefined()
+              )
+            ),
+            Call(
+              Member($open, "sort"),
+              Lambda(List($a, $b),
+                Subtract(Length(Call(Member($api, "format"), $b)), Length(Call(Member($api, "format"), $a)))
+              )
+            ),
+            Var($asks, Undefined()),
+            Bind($ask,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    If(Or(Not(Call($isCall, $e)), $asks), Return(), Undefined()),
+                    Bind($k,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "Closure",
+                            Member($e, "head"),
+                            "Asks"
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      And(And(Call($isCall, $k), Equals(Member($k, "head"), "List")), Length(Member($k, "args"))),
+                      Assign($asks, Member(Index(Member($k, "args"), 0), "value")),
+                      Undefined()
+                    ),
+                    ForOf(
+                      $a,
+                      Member($e, "args"),
+                      If(
+                        Equals(Member($a, "name"), Undefined()),
+                        Await(Call($ask, Member($a, "value"))),
+                        Undefined()
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Await(Call($ask, $line)),
+            ForOf(
+              $goal,
+              Call(Member($open, "slice"), 0, 3),
+              ForOf(
+                $step,
+                List("Pursue", "Written"),
+                Sequence(
+                  Bind($found,
+                    Await(
+                      Call(
+                        Member($api, "evaluate"),
+                        If(
+                          And(Equals($step, "Pursue"), $asks),
+                          Call(Member($api, "call"), $step, $goal, $asks),
+                          Call(Member($api, "call"), $step, $goal)
+                        ),
+                        Member($api, "context")
+                      )
+                    )
+                  ),
+                  If(
+                    And(Call($isCall, $found), Equals(Member($found, "head"), "Found")),
+                    Return(
+                      Call(
+                        Member($api, "call"),
+                        "Answer",
+                        Member(Index(Member($found, "args"), 0), "value")
+                      )
+                    ),
+                    Undefined()
+                  )
+                )
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "Unworked",
+                $line,
+                $value,
+                Call(Member($bindings, "get"), "since")
               )
             )
           )
