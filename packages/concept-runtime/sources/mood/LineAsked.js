@@ -15,6 +15,9 @@ async (args, bindings, api) => {
     const found = await api.evaluate(api.call("Pursue", line), api.context);
     if (found && found.head === "Found") return api.call("Answer", found.args[0].value);
   }
+  // An answer that is a result (CannotDo, Added, Made) is whole: no word in it is wanting.
+  const inner = value && value.head === "Answer" && value.args[0] ? value.args[0].value : undefined;
+  if (inner && inner.head && api.typesOf(inner).includes("Result")) return value;
   const recalled = await api.evaluate(api.call("Recall", line, value), api.context);
   return recalled && recalled.head === "Recall" ? value : recalled;
 };

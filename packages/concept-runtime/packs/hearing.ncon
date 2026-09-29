@@ -4404,17 +4404,87 @@ Concept(Hear(),
               Lambda(List($e),
                 Sequence(
                   Bind($x, Call($inner, $e)),
+                  Bind($y, Call($settled, $x, true)),
+                  Return(
+                    If(
+                      Equals($y, $x),
+                      $e,
+                      If(
+                        Equals($x, $e),
+                        $y,
+                        Call(
+                          Member($api, "call"),
+                          "ContextScope",
+                          Member(Index(Member($e, "args"), 0), "value"),
+                          $y
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Comment("The doing a phrase ends in takes its things, however deep it sits: \"can you add 2 and 3\""),
+            Comment("is Can(You(), Add(2, 3))."),
+            Bind($settled,
+              Lambda(List($x, $top),
+                Sequence(
                   If(
                     Or(
-                      Or(Not(Call($isCall, $x)), Not(Call($takesTwo, Member($x, "head")))),
+                      Not(Call($isCall, $x)),
                       Call(
                         Member(Member($x, "args"), "some"),
                         Lambda(List($a), NotEquals(Member($a, "name"), Undefined()))
                       )
                     ),
-                    Return($e),
+                    Return($x),
                     Undefined()
                   ),
+                  Bind($own,
+                    If(
+                      Call($takesTwo, Member($x, "head")),
+                      Call($takes, $x, $top),
+                      $x
+                    )
+                  ),
+                  If(NotEquals($own, $x), Return($own), Undefined()),
+                  Bind($last,
+                    If(
+                      Length(Member($x, "args")),
+                      Member(Index(Member($x, "args"), Subtract(Length(Member($x, "args")), 1)), "value"),
+                      Undefined()
+                    )
+                  ),
+                  Bind($inside,
+                    If(
+                      Call($isCall, $last),
+                      Call($settled, $last, false),
+                      $last
+                    )
+                  ),
+                  Return(
+                    If(
+                      Equals($inside, $last),
+                      $x,
+                      Call(
+                        Member($api, "call"),
+                        Member($x, "head"),
+                        Spread(
+                          Map(
+                            Call(Member(Member($x, "args"), "slice"), 0, Negate(1)),
+                            Lambda(List($a), Member($a, "value"))
+                          )
+                        ),
+                        $inside
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($takes,
+              Lambda(List($x, $top),
+                Sequence(
                   Comment("\"and plus 3\": the word that carries the talk on is not the first thing added."),
                   Bind($first,
                     If(
@@ -4431,7 +4501,7 @@ Concept(Hear(),
                   ),
                   If(
                     And(NotEquals(Length(Member($x, "args")), 1), Not($carried)),
-                    Return($e),
+                    Return($x),
                     Undefined()
                   ),
                   Bind($only, Member(Index(Member($x, "args"), Subtract(Length(Member($x, "args")), 1)), "value")),
@@ -4474,7 +4544,9 @@ Concept(Hear(),
                       )
                     )
                   ),
-                  Bind($y,
+                  Comment("The empty slot for what was last answered belongs to a doing said on its own (\"add 5\"),"),
+                  Comment("not one inside a phrase (\"how are you\")."),
+                  Return(
                     If(
                       $many,
                       Call(
@@ -4489,24 +4561,16 @@ Concept(Hear(),
                           Member($x, "head"),
                           Spread($pair)
                         ),
-                        Call(
-                          Member($api, "call"),
-                          Member($x, "head"),
-                          Call(Member($api, "call"), "Ref", ""),
-                          $only
+                        If(
+                          $top,
+                          Call(
+                            Member($api, "call"),
+                            Member($x, "head"),
+                            Call(Member($api, "call"), "Ref", ""),
+                            $only
+                          ),
+                          $x
                         )
-                      )
-                    )
-                  ),
-                  Return(
-                    If(
-                      Equals($x, $e),
-                      $y,
-                      Call(
-                        Member($api, "call"),
-                        "ContextScope",
-                        Member(Index(Member($e, "args"), 0), "value"),
-                        $y
                       )
                     )
                   )

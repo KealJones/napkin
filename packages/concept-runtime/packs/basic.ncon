@@ -1191,7 +1191,90 @@ Concept(Can(),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Lossy(), Program()),
-    body = $x
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Read",
+                    Call(Member($bindings, "get"), "x")
+                  )
+                )
+              )
+            ),
+            Comment("Asked for a doing Napkin has no way to do (\"can you post to Reddit\"): said so, \"I can't"),
+            Comment("post to Reddit yet\", not tried, and not \"couldn't work it out\"."),
+            Bind($can,
+              And(
+                Call($isCall, $x),
+                Call(
+                  Member(
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($x, "head")), "realizations"),
+                      List()
+                    ),
+                    "some"
+                  ),
+                  Lambda(List($r), Not(Member($r, "retired")))
+                )
+              )
+            ),
+            Comment("A doing: something done to something, or a word that is a verb said alone (\"fly\")."),
+            Bind($doing,
+              And(
+                Call($isCall, $x),
+                Or(
+                  GreaterThan(Length(Member($x, "args")), 0),
+                  Includes(
+                    Otherwise(
+                      OptionalMember(
+                        Index(
+                          Call(
+                            Member($api, "words"),
+                            Call(
+                              Member(
+                                Call(
+                                  Member(Member($x, "head"), "replace"),
+                                  Regex("([a-z0-9])([A-Z])", "g"),
+                                  "$1 $2"
+                                ),
+                                "toLowerCase"
+                              )
+                            )
+                          ),
+                          0
+                        ),
+                        "tags"
+                      ),
+                      List()
+                    ),
+                    "Verb"
+                  )
+                )
+              )
+            ),
+            If(
+              And($doing, Not($can)),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Answer",
+                  Call(Member($api, "call"), "CannotDo", $x)
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "evaluate"), $x, Member($api, "context")))
+          )
+        )
+      )
+    )
   )
 )
 
@@ -1201,7 +1284,90 @@ Concept(Could(),
     context = Context(Execution(), Interrogative()),
     evaluateArguments = false,
     properties = List(Lossy(), Program()),
-    body = $x
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($x,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Read",
+                    Call(Member($bindings, "get"), "x")
+                  )
+                )
+              )
+            ),
+            Comment("Asked for a doing Napkin has no way to do (\"can you post to Reddit\"): said so, \"I can't"),
+            Comment("post to Reddit yet\", not tried, and not \"couldn't work it out\"."),
+            Bind($can,
+              And(
+                Call($isCall, $x),
+                Call(
+                  Member(
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($x, "head")), "realizations"),
+                      List()
+                    ),
+                    "some"
+                  ),
+                  Lambda(List($r), Not(Member($r, "retired")))
+                )
+              )
+            ),
+            Comment("A doing: something done to something, or a word that is a verb said alone (\"fly\")."),
+            Bind($doing,
+              And(
+                Call($isCall, $x),
+                Or(
+                  GreaterThan(Length(Member($x, "args")), 0),
+                  Includes(
+                    Otherwise(
+                      OptionalMember(
+                        Index(
+                          Call(
+                            Member($api, "words"),
+                            Call(
+                              Member(
+                                Call(
+                                  Member(Member($x, "head"), "replace"),
+                                  Regex("([a-z0-9])([A-Z])", "g"),
+                                  "$1 $2"
+                                ),
+                                "toLowerCase"
+                              )
+                            )
+                          ),
+                          0
+                        ),
+                        "tags"
+                      ),
+                      List()
+                    ),
+                    "Verb"
+                  )
+                )
+              )
+            ),
+            If(
+              And($doing, Not($can)),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Answer",
+                  Call(Member($api, "call"), "CannotDo", $x)
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "evaluate"), $x, Member($api, "context")))
+          )
+        )
+      )
+    )
   )
 )
 

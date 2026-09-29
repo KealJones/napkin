@@ -90,3 +90,12 @@ test("a relation's properties declared in a context hold only for facts there: w
   assert.ok(!of("Milk").includes("During(ShoppingList_1())"));
   assert.ok(of("Breakfast").includes("During(Morning())"));
 });
+
+test("asked for a doing it has no way to do, Napkin says so; asked for one it has, it does it", async () => {
+  const { turn } = await import("./turn.js");
+  const store = new ConceptStore();
+  seed(store);
+  const say = async (m: string) => (await turn(new Runtime(store), m, c("Execution"), { learn: false })).spoken;
+  assert.equal(await say("can you post to reddit?"), "I can't post to Reddit yet.");
+  assert.equal(await say("can you add 2 and 3?"), "5");
+});

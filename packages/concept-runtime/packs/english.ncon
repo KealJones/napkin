@@ -2515,3 +2515,36 @@ Concept(Removed(),
     )
   )
 )
+
+// A doing asked for that Napkin has no way to do (packs/basic.ncon, Can), said.
+Concept(CannotDo(), IsA(Result()))
+
+// "I can't post to Reddit yet."
+Concept(CannotDo(),
+  Realization(CannotDo($x),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Words",
+                    Call(Member($bindings, "get"), "x")
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(Add(Add("I can't ", If(Equals(TypeOf($said), "string"), $said, "do that")), " yet."))
+          )
+        )
+      )
+    )
+  )
+)

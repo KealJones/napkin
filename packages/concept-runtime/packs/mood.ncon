@@ -398,6 +398,19 @@ Concept(Line(),
               ),
               Undefined()
             ),
+            Comment("An answer that is a result (CannotDo, Added, Made) is whole: no word in it is wanting."),
+            Bind($inner,
+              If(
+                And(And($value, Equals(Member($value, "head"), "Answer")), Index(Member($value, "args"), 0)),
+                Member(Index(Member($value, "args"), 0), "value"),
+                Undefined()
+              )
+            ),
+            If(
+              And(And($inner, Member($inner, "head")), Includes(Call(Member($api, "typesOf"), $inner), "Result")),
+              Return($value),
+              Undefined()
+            ),
             Bind($recalled,
               Await(
                 Call(
