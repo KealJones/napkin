@@ -824,6 +824,19 @@ Concept(Write(),
               ),
               Undefined()
             ),
+            Comment("Made or found again, it is what this message is about now: said so with its kind, stamped"),
+            Comment("by this message, so what the rest of it names goes in it (Fills)."),
+            If(
+              $exactly,
+              Call(
+                Member(Member($api, "store"), "addRelation"),
+                Member($thing, "head"),
+                Call(Member($api, "call"), "IsA", $kind),
+                Undefined(),
+                Member(Member($api, "trace"), "cause")
+              ),
+              Undefined()
+            ),
             Bind($made, Call(Member($api, "call"), "Made", $thing)),
             If(Not(Length($withs)), Return($made), Undefined()),
             Bind($items,

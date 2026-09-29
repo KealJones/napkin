@@ -12,6 +12,7 @@
  * over the parse that is about to become a `Said` (memory-spec Part 8.3), and what it found
  * is recorded in place, on the head itself, the same way a resolved `Ref` is.
  */
+import { typesOf } from "./types.js";
 import { type Expr, call, c, equal, isCall, walk } from "../concept/expression.js";
 import { activation, type ActivationOptions } from "./activation.js";
 import type { ConceptStore } from "../store/store.js";
@@ -150,9 +151,11 @@ const PRONOUNS = new Set(["He", "She", "Him", "Her"]);
  */
 export function resolvePronouns(store: ConceptStore, expression: Expr, options: ActivationOptions = {}): Expr {
   // A minted individual, not the user, and not the system.
+  // A minted individual, not the user, and not a thing made to hold things (a list is no "he").
   const minted = (identity: string): boolean =>
     /_\d+$/.test(identity) &&
-    !store.asSubject(identity).some((t) => t.predicate === "IsA" && t.object !== undefined && isCall(t.object) && t.object.head === "User");
+    !store.asSubject(identity).some((t) => t.predicate === "IsA" && t.object !== undefined && isCall(t.object) && t.object.head === "User") &&
+    !typesOf(store, c(identity)).includes("Collection");
   const among = store.all().map((u) => u.identity).filter(minted);
   if (!among.length) return expression;
   const named = [...walk(expression)].filter(isCall).map((e) => e.head).filter((h) => !PRONOUNS.has(h) && store.has(h));

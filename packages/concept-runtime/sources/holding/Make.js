@@ -19,6 +19,9 @@ async (args, bindings, api) => {
     thing = await api.evaluate(api.call("Mint", kind.head), api.call("Execution"));
     api.store.addRelation(thing.head, api.call("IsA", kind), undefined, api.trace.cause);
   }
+  // Made or found again, it is what this message is about now: said so with its kind, stamped
+  // by this message, so what the rest of it names goes in it (Fills).
+  if (exactly) api.store.addRelation(thing.head, api.call("IsA", kind), undefined, api.trace.cause);
   const made = api.call("Made", thing);
   if (!withs.length) return made;
   const items = withs.flatMap((w) => w.value.args.filter((a) => a.name === undefined).map((a) => a.value));
