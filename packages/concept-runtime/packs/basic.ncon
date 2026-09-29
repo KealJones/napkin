@@ -82,6 +82,7 @@ Concept(In(),
   Realization(In($x),
     context = Execution(),
     properties = List(Program()),
+    types = Types(x = Duration()),
     body = Bind($field,
       Lambda(List($r, $n),
         Bind($a,
@@ -106,196 +107,142 @@ Concept(In(),
             Hours = List(60, "minute"),
             Minutes = List(1, "minute")
           ),
-          Bind($isDuration,
-            Lambda(List($v),
-              Bind($t2,
-                Bind($t1,
-                  Bind($t0,
-                    $v,
-                    If(Truthy($t0), Element($units, Head($v)), $t0)
-                  ),
-                  If(Truthy($t1), Identical(Length(Arguments($v)), 1), $t1)
-                ),
-                If(
-                  Truthy($t2),
-                  Identical(TypeOf(FieldOf(Element(Arguments($v), 0), "value")), "number"),
-                  $t2
+          Bind($clock,
+            Lambda(List($t),
+              Bind($h24,
+                RoundDown(DivideValues($t, 60)),
+                Bind($mm,
+                  RemainderOf($t, 60),
+                  Bind($h12,
+                    If(
+                      Identical(RemainderOf($h24, 12), 0),
+                      12,
+                      RemainderOf($h24, 12)
+                    ),
+                    CallOf(
+                      "Time",
+                      List(
+                        Record(name = "hour", value = $h24),
+                        Record(name = "minute", value = $mm),
+                        Record(
+                          name = "spoken",
+                          value = AddValues(
+                            AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
+                            If(Below($h24, 12), "AM", "PM")
+                          )
+                        )
+                      )
+                    )
+                  )
                 )
               )
             ),
-            Bind($isRecord,
-              Lambda(List($v2),
-                Bind($t4,
-                  Bind($t3,
-                    $v2,
-                    If(
-                      Truthy($t3),
+            Bind($date,
+              Lambda(List($d, $time),
+                CallOf(
+                  "Date",
+                  Concat(
+                    List(
+                      Record(name = "year", value = YearOf($d)),
+                      Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+                      Record(name = "day", value = DayOf($d)),
+                      Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
+                    ),
+                    AsList(
                       If(
-                        Identical(Head($v2), "Date"),
-                        true,
-                        Identical(Head($v2), "Time")
-                      ),
-                      $t3
+                        Truthy($time),
+                        List(Record(name = "time", value = $time)),
+                        List()
+                      )
                     )
-                  ),
-                  If(
-                    Truthy($t4),
-                    AllSatisfy(Arguments($v2), Lambda(List($a2), NotIdentical(FieldOf($a2, "name"), Undefined()))),
-                    $t4
                   )
                 )
               ),
-              Bind($clock,
-                Lambda(List($t),
-                  Bind($h24,
-                    RoundDown(DivideValues($t, 60)),
-                    Bind($mm,
-                      RemainderOf($t, 60),
-                      Bind($h12,
-                        If(
-                          Identical(RemainderOf($h24, 12), 0),
-                          12,
-                          RemainderOf($h24, 12)
-                        ),
-                        CallOf(
-                          "Time",
-                          List(
-                            Record(name = "hour", value = $h24),
-                            Record(name = "minute", value = $mm),
-                            Record(
-                              name = "spoken",
-                              value = AddValues(
-                                AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
-                                If(Below($h24, 12), "AM", "PM")
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
+              Bind($minutesOf,
+                Lambda(List($t5),
+                  AddValues(
+                    MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
+                    ToNumber(Call($field, $t5, "minute"))
                   )
                 ),
-                Bind($date,
-                  Lambda(List($d, $time),
-                    CallOf(
-                      "Date",
-                      Concat(
-                        List(
-                          Record(name = "year", value = YearOf($d)),
-                          Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                          Record(name = "day", value = DayOf($d)),
-                          Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
-                        ),
-                        AsList(
-                          If(
-                            Truthy($time),
-                            List(Record(name = "time", value = $time)),
-                            List()
-                          )
-                        )
-                      )
-                    )
-                  ),
-                  Bind($minutesOf,
-                    Lambda(List($t5),
-                      AddValues(
-                        MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
-                        ToNumber(Call($field, $t5, "minute"))
-                      )
-                    ),
-                    Bind($shift,
-                      Lambda(List($record, $duration, $sign),
-                        Bind($t6,
-                          Element($units, Head($duration)),
-                          Bind($per,
-                            Element($t6, 0),
-                            Bind($kind,
-                              Element($t6, 1),
-                              Bind($n2,
-                                MultiplyValues(
-                                  MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
-                                  $sign
-                                ),
-                                If(
-                                  Identical(Head($record), "Date"),
-                                  Bind($time2,
-                                    Call($field, $record, "time"),
-                                    Bind($total,
-                                      If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                      If(
-                                        Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
-                                        Undefined(),
-                                        Bind($t7,
-                                          AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
-                                          Bind($carry,
-                                            RoundDown(DivideValues($t7, 1440)),
-                                            Bind($rest,
-                                              RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
-                                              Bind($d2,
-                                                LocalInstant(
-                                                  ToNumber(Call($field, $record, "year")),
-                                                  AddValues(
-                                                    SubtractValues(ToNumber(Call($field, $record, "month")), 1),
-                                                    1
-                                                  ),
-                                                  AddValues(ToNumber(Call($field, $record, "day")), $carry)
-                                                ),
-                                                Call(
-                                                  $date,
-                                                  $d2,
-                                                  If(Truthy($time2), Call($clock, $rest), Undefined())
-                                                )
-                                              )
+                Bind($shift,
+                  Lambda(List($record, $duration, $sign),
+                    Bind($t6,
+                      Element($units, Head($duration)),
+                      Bind($per,
+                        Element($t6, 0),
+                        Bind($kind,
+                          Element($t6, 1),
+                          Bind($n2,
+                            MultiplyValues(
+                              MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
+                              $sign
+                            ),
+                            If(
+                              Identical(Head($record), "Date"),
+                              Bind($time2,
+                                Call($field, $record, "time"),
+                                Bind($total,
+                                  If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                  If(
+                                    Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
+                                    Undefined(),
+                                    Bind($t7,
+                                      AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
+                                      Bind($carry,
+                                        RoundDown(DivideValues($t7, 1440)),
+                                        Bind($rest,
+                                          RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
+                                          Bind($d2,
+                                            LocalInstant(
+                                              ToNumber(Call($field, $record, "year")),
+                                              AddValues(SubtractValues(ToNumber(Call($field, $record, "month")), 1), 1),
+                                              AddValues(ToNumber(Call($field, $record, "day")), $carry)
+                                            ),
+                                            Call(
+                                              $date,
+                                              $d2,
+                                              If(Truthy($time2), Call($clock, $rest), Undefined())
                                             )
                                           )
                                         )
                                       )
                                     )
-                                  ),
-                                  Bind($total2,
-                                    If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                    Call(
-                                      $clock,
-                                      RemainderOf(
-                                        AddValues(
-                                          RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440),
-                                          1440
-                                        ),
-                                        1440
-                                      )
-                                    )
+                                  )
+                                )
+                              ),
+                              Bind($total2,
+                                If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                Call(
+                                  $clock,
+                                  RemainderOf(
+                                    AddValues(RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440), 1440),
+                                    1440
                                   )
                                 )
                               )
                             )
                           )
                         )
-                      ),
-                      Bind($now,
-                        Lambda(List($duration2),
-                          Evaluate(
-                            MakeCall(
-                              If(
-                                Identical(Element(Element($units, Head($duration2)), 1), "day"),
-                                "Today",
-                                "Time"
-                              ),
-                              List()
-                            )
-                          )
-                        ),
-                        Bind($x3,
-                          $x,
+                      )
+                    )
+                  ),
+                  Bind($now,
+                    Lambda(List($duration2),
+                      Evaluate(
+                        MakeCall(
                           If(
-                            Truthy(Call($isDuration, $x3)),
-                            Bind($t8,
-                              Call($shift, Call($now, $x3), $x3, 1),
-                              If(IsNothing($t8), MakeCall("In", List($x3)), $t8)
-                            ),
-                            MakeCall("In", List($x3))
-                          )
+                            Identical(Element(Element($units, Head($duration2)), 1), "day"),
+                            "Today",
+                            "Time"
+                          ),
+                          List()
                         )
                       )
+                    ),
+                    Bind($t8,
+                      Call($shift, Call($now, $x), $x, 1),
+                      If(IsNothing($t8), MakeCall("In", List($x)), $t8)
                     )
                   )
                 )
@@ -2377,64 +2324,33 @@ Concept(Whether(),
     properties = List(Program()),
     body = Bind($p,
       Quote($proposition),
-      Bind($asking,
-        Bind($t3,
-          Bind($t2,
-            Bind($t1,
-              Bind($t0,
-                $p,
-                If(
-                  Truthy($t0),
-                  Truthy(Includes(List("Can", "Could", "Would", "Will"), Head($p))),
-                  $t0
-                )
-              ),
-              If(Truthy($t1), Identical(Length(Arguments($p)), 2), $t1)
-            ),
-            If(
-              Truthy($t2),
-              FieldOf(Element(Arguments($p), 0), "value"),
-              $t2
-            )
-          ),
-          If(
-            Truthy($t3),
-            Identical(Head(FieldOf(Element(Arguments($p), 0), "value")), "You"),
-            $t3
-          )
-        ),
+      Bind($v,
+        Evaluate($p),
         If(
-          Truthy($asking),
-          Evaluate(FieldOf(Element(Arguments($p), 1), "value")),
-          Bind($v,
-            Evaluate($p),
+          Truthy(
             If(
-              Truthy(
-                If(
-                  Identical($v, true),
-                  true,
-                  Bind($t4,
-                    $v,
-                    If(Truthy($t4), Identical(Head($v), "True"), $t4)
-                  )
-                )
-              ),
-              MakeCall("Answer", List(MakeCall("True", List()))),
-              If(
-                Truthy(
-                  If(
-                    Identical($v, false),
-                    true,
-                    Bind($t5,
-                      $v,
-                      If(Truthy($t5), Identical(Head($v), "False"), $t5)
-                    )
-                  )
-                ),
-                MakeCall("Answer", List(MakeCall("False", List()))),
-                MakeCall("Answer", List(MakeCall("UnknownTruth", List())))
+              Identical($v, true),
+              true,
+              Bind($t4,
+                $v,
+                If(Truthy($t4), Identical(Head($v), "True"), $t4)
               )
             )
+          ),
+          MakeCall("Answer", List(MakeCall("True", List()))),
+          If(
+            Truthy(
+              If(
+                Identical($v, false),
+                true,
+                Bind($t5,
+                  $v,
+                  If(Truthy($t5), Identical(Head($v), "False"), $t5)
+                )
+              )
+            ),
+            MakeCall("Answer", List(MakeCall("False", List()))),
+            MakeCall("Answer", List(MakeCall("UnknownTruth", List())))
           )
         )
       )
@@ -3412,51 +3328,37 @@ Concept(ShiftDays(),
   Realization(ShiftDays($date, $days),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($date2,
-      $date,
-      Bind($days2,
-        $days,
-        If(
-          Truthy(
-            Bind($t0,
-              If(Falsy($date2), true, NotIdentical(Head($date2), "Date")),
-              If(Truthy($t0), $t0, NotIdentical(TypeOf($days2), "number"))
-            )
+    types = Types(date = Date(), days = Number()),
+    body = Bind($get,
+      Lambda(List($n),
+        Bind($a,
+          FirstSatisfying(Arguments($date), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
+          If(Truthy($a), FieldOf($a, "value"), Undefined())
+        )
+      ),
+      Bind($d,
+        LocalInstant(
+          ToNumber(Call($get, "year")),
+          AddValues(SubtractValues(ToNumber(Call($get, "month")), 1), 1),
+          AddValues(ToNumber(Call($get, "day")), $days)
+        ),
+        Bind($names,
+          List(
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday"
           ),
-          MakeCall("ShiftDays", List($date2, $days2)),
-          Bind($get,
-            Lambda(List($n),
-              Bind($a,
-                FirstSatisfying(Arguments($date2), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
-                If(Truthy($a), FieldOf($a, "value"), Undefined())
-              )
-            ),
-            Bind($d,
-              LocalInstant(
-                ToNumber(Call($get, "year")),
-                AddValues(SubtractValues(ToNumber(Call($get, "month")), 1), 1),
-                AddValues(ToNumber(Call($get, "day")), $days2)
-              ),
-              Bind($names,
-                List(
-                  "Sunday",
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday"
-                ),
-                CallOf(
-                  "Date",
-                  List(
-                    Record(name = "year", value = YearOf($d)),
-                    Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                    Record(name = "day", value = DayOf($d)),
-                    Record(name = "weekday", value = Element($names, WeekdayOf($d)))
-                  )
-                )
-              )
+          CallOf(
+            "Date",
+            List(
+              Record(name = "year", value = YearOf($d)),
+              Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+              Record(name = "day", value = DayOf($d)),
+              Record(name = "weekday", value = Element($names, WeekdayOf($d)))
             )
           )
         )
@@ -3508,84 +3410,47 @@ Concept(ShiftHours(),
   Realization(ShiftHours($time, $hours),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($time2,
-      $time,
-      Bind($raw,
-        $hours,
-        Bind($hours2,
-          If(
-            Identical(TypeOf($raw), "number"),
-            $raw,
-            If(
-              Truthy(
-                Bind($t1,
-                  Bind($t0,
-                    $raw,
-                    If(Truthy($t0), Identical(Head($raw), "Number"), $t0)
-                  ),
-                  If(
-                    Truthy($t1),
-                    Identical(TypeOf(FieldOf(Element(Arguments($raw), 0), "value")), "number"),
-                    $t1
-                  )
-                )
-              ),
-              FieldOf(Element(Arguments($raw), 0), "value"),
-              NotANumber()
-            )
-          ),
+    types = Types(time = Time(), hours = Number()),
+    body = Bind($named,
+      Lambda(List($n),
+        Bind($a,
+          FirstSatisfying(Arguments($time), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
+          If(Truthy($a), FieldOf($a, "value"), Undefined())
+        )
+      ),
+      Bind($h0,
+        ToNumber(Call($named, "hour")),
+        Bind($m0,
+          ToNumber(Call($named, "minute")),
           If(
             Truthy(
-              Bind($t2,
-                If(Falsy($time2), true, NotIdentical(Head($time2), "Time")),
-                If(Truthy($t2), $t2, Falsy(IsFiniteNumber($hours2)))
+              If(
+                Falsy(IsFiniteNumber($h0)),
+                true,
+                Falsy(IsFiniteNumber($m0))
               )
             ),
-            MakeCall("ShiftHours", List($time2, $hours)),
-            Bind($named,
-              Lambda(List($n),
-                Bind($a,
-                  FirstSatisfying(Arguments($time2), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
-                  If(Truthy($a), FieldOf($a, "value"), Undefined())
-                )
-              ),
-              Bind($h0,
-                ToNumber(Call($named, "hour")),
-                Bind($m0,
-                  ToNumber(Call($named, "minute")),
+            MakeCall("ShiftHours", List($time, $hours)),
+            Bind($total,
+              RemainderOf(AddValues(RemainderOf(AddValues($h0, $hours), 24), 24), 24),
+              Bind($mm,
+                PadStart(ToText($m0), 2, "0"),
+                Bind($h12,
                   If(
-                    Truthy(
-                      If(
-                        Falsy(IsFiniteNumber($h0)),
-                        true,
-                        Falsy(IsFiniteNumber($m0))
-                      )
-                    ),
-                    MakeCall("ShiftHours", List($time2, $hours)),
-                    Bind($total,
-                      RemainderOf(AddValues(RemainderOf(AddValues($h0, $hours2), 24), 24), 24),
-                      Bind($mm,
-                        PadStart(ToText($m0), 2, "0"),
-                        Bind($h12,
-                          If(
-                            Identical(RemainderOf($total, 12), 0),
-                            12,
-                            RemainderOf($total, 12)
-                          ),
-                          CallOf(
-                            "Time",
-                            List(
-                              Record(name = "hour", value = $total),
-                              Record(name = "minute", value = $m0),
-                              Record(
-                                name = "spoken",
-                                value = AddValues(
-                                  AddValues(AddValues(AddValues($h12, ":"), $mm), " "),
-                                  If(Below($total, 12), "AM", "PM")
-                                )
-                              )
-                            )
-                          )
+                    Identical(RemainderOf($total, 12), 0),
+                    12,
+                    RemainderOf($total, 12)
+                  ),
+                  CallOf(
+                    "Time",
+                    List(
+                      Record(name = "hour", value = $total),
+                      Record(name = "minute", value = $m0),
+                      Record(
+                        name = "spoken",
+                        value = AddValues(
+                          AddValues(AddValues(AddValues($h12, ":"), $mm), " "),
+                          If(Below($total, 12), "AM", "PM")
                         )
                       )
                     )
@@ -3654,81 +3519,36 @@ Concept(Multiply(),
   Realization(Multiply($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Multiply", List($left, $right)),
-            MultiplyValues($l, $r)
-          )
-        )
-      )
-    )
+    types = Types(left = Number(), right = Number()),
+    body = MultiplyValues($left, $right)
   )
 )
 
 Concept(Add(),
+  // Stays untyped and plain: packs/holding.ncon's own Add($item, $said) shares this
+  // pattern and shape untyped too, so typing this one would change tie-break order
+  // against it (a more-typed realization is tried first) and let holding's fallback,
+  // built from what was said rather than what it evaluated to, answer instead of this
+  // one. The guard below is what keeps a non-number from reaching AddValues.
   Realization(Add($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
+    body = If(
+      Truthy(
+        If(
+          Falsy(IsFiniteNumber($left)),
+          true,
+          Falsy(IsFiniteNumber($right))
         )
       ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Add", List($left, $right)),
-            AddValues($l, $r)
-          )
-        )
-      )
+      MakeCall("Add", List($left, $right)),
+      AddValues($left, $right)
     )
   ),
   Realization(Add($a, $b),
     context = Execution(),
     properties = List(Program()),
+    types = Types(a = OneOf(Date(), Time()), b = Duration()),
     body = Bind($field,
       Lambda(List($r, $n),
         Bind($a2,
@@ -3753,225 +3573,117 @@ Concept(Add(),
             Hours = List(60, "minute"),
             Minutes = List(1, "minute")
           ),
-          Bind($isDuration,
-            Lambda(List($v),
-              Bind($t2,
-                Bind($t1,
-                  Bind($t0,
-                    $v,
-                    If(Truthy($t0), Element($units, Head($v)), $t0)
-                  ),
-                  If(Truthy($t1), Identical(Length(Arguments($v)), 1), $t1)
-                ),
-                If(
-                  Truthy($t2),
-                  Identical(TypeOf(FieldOf(Element(Arguments($v), 0), "value")), "number"),
-                  $t2
+          Bind($clock,
+            Lambda(List($t),
+              Bind($h24,
+                RoundDown(DivideValues($t, 60)),
+                Bind($mm,
+                  RemainderOf($t, 60),
+                  Bind($h12,
+                    If(
+                      Identical(RemainderOf($h24, 12), 0),
+                      12,
+                      RemainderOf($h24, 12)
+                    ),
+                    CallOf(
+                      "Time",
+                      List(
+                        Record(name = "hour", value = $h24),
+                        Record(name = "minute", value = $mm),
+                        Record(
+                          name = "spoken",
+                          value = AddValues(
+                            AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
+                            If(Below($h24, 12), "AM", "PM")
+                          )
+                        )
+                      )
+                    )
+                  )
                 )
               )
             ),
-            Bind($isRecord,
-              Lambda(List($v2),
-                Bind($t4,
-                  Bind($t3,
-                    $v2,
-                    If(
-                      Truthy($t3),
+            Bind($date,
+              Lambda(List($d, $time),
+                CallOf(
+                  "Date",
+                  Concat(
+                    List(
+                      Record(name = "year", value = YearOf($d)),
+                      Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+                      Record(name = "day", value = DayOf($d)),
+                      Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
+                    ),
+                    AsList(
                       If(
-                        Identical(Head($v2), "Date"),
-                        true,
-                        Identical(Head($v2), "Time")
-                      ),
-                      $t3
+                        Truthy($time),
+                        List(Record(name = "time", value = $time)),
+                        List()
+                      )
                     )
-                  ),
-                  If(
-                    Truthy($t4),
-                    AllSatisfy(Arguments($v2), Lambda(List($a3), NotIdentical(FieldOf($a3, "name"), Undefined()))),
-                    $t4
                   )
                 )
               ),
-              Bind($clock,
-                Lambda(List($t),
-                  Bind($h24,
-                    RoundDown(DivideValues($t, 60)),
-                    Bind($mm,
-                      RemainderOf($t, 60),
-                      Bind($h12,
-                        If(
-                          Identical(RemainderOf($h24, 12), 0),
-                          12,
-                          RemainderOf($h24, 12)
-                        ),
-                        CallOf(
-                          "Time",
-                          List(
-                            Record(name = "hour", value = $h24),
-                            Record(name = "minute", value = $mm),
-                            Record(
-                              name = "spoken",
-                              value = AddValues(
-                                AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
-                                If(Below($h24, 12), "AM", "PM")
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
+              Bind($minutesOf,
+                Lambda(List($t5),
+                  AddValues(
+                    MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
+                    ToNumber(Call($field, $t5, "minute"))
                   )
                 ),
-                Bind($date,
-                  Lambda(List($d, $time),
-                    CallOf(
-                      "Date",
-                      Concat(
-                        List(
-                          Record(name = "year", value = YearOf($d)),
-                          Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                          Record(name = "day", value = DayOf($d)),
-                          Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
-                        ),
-                        AsList(
-                          If(
-                            Truthy($time),
-                            List(Record(name = "time", value = $time)),
-                            List()
-                          )
-                        )
-                      )
-                    )
-                  ),
-                  Bind($minutesOf,
-                    Lambda(List($t5),
-                      AddValues(
-                        MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
-                        ToNumber(Call($field, $t5, "minute"))
-                      )
-                    ),
-                    Bind($shift,
-                      Lambda(List($record, $duration, $sign),
-                        Bind($t6,
-                          Element($units, Head($duration)),
-                          Bind($per,
-                            Element($t6, 0),
-                            Bind($kind,
-                              Element($t6, 1),
-                              Bind($n2,
-                                MultiplyValues(
-                                  MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
-                                  $sign
-                                ),
-                                If(
-                                  Identical(Head($record), "Date"),
-                                  Bind($time2,
-                                    Call($field, $record, "time"),
-                                    Bind($total,
-                                      If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                      If(
-                                        Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
-                                        Undefined(),
-                                        Bind($t7,
-                                          AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
-                                          Bind($carry,
-                                            RoundDown(DivideValues($t7, 1440)),
-                                            Bind($rest,
-                                              RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
-                                              Bind($d2,
-                                                LocalInstant(
-                                                  ToNumber(Call($field, $record, "year")),
-                                                  AddValues(
-                                                    SubtractValues(ToNumber(Call($field, $record, "month")), 1),
-                                                    1
-                                                  ),
-                                                  AddValues(ToNumber(Call($field, $record, "day")), $carry)
-                                                ),
-                                                Call(
-                                                  $date,
-                                                  $d2,
-                                                  If(Truthy($time2), Call($clock, $rest), Undefined())
-                                                )
-                                              )
+                Bind($shift,
+                  Lambda(List($record, $duration, $sign),
+                    Bind($t6,
+                      Element($units, Head($duration)),
+                      Bind($per,
+                        Element($t6, 0),
+                        Bind($kind,
+                          Element($t6, 1),
+                          Bind($n2,
+                            MultiplyValues(
+                              MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
+                              $sign
+                            ),
+                            If(
+                              Identical(Head($record), "Date"),
+                              Bind($time2,
+                                Call($field, $record, "time"),
+                                Bind($total,
+                                  If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                  If(
+                                    Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
+                                    Undefined(),
+                                    Bind($t7,
+                                      AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
+                                      Bind($carry,
+                                        RoundDown(DivideValues($t7, 1440)),
+                                        Bind($rest,
+                                          RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
+                                          Bind($d2,
+                                            LocalInstant(
+                                              ToNumber(Call($field, $record, "year")),
+                                              AddValues(SubtractValues(ToNumber(Call($field, $record, "month")), 1), 1),
+                                              AddValues(ToNumber(Call($field, $record, "day")), $carry)
+                                            ),
+                                            Call(
+                                              $date,
+                                              $d2,
+                                              If(Truthy($time2), Call($clock, $rest), Undefined())
                                             )
                                           )
                                         )
                                       )
                                     )
-                                  ),
-                                  Bind($total2,
-                                    If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                    Call(
-                                      $clock,
-                                      RemainderOf(
-                                        AddValues(
-                                          RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440),
-                                          1440
-                                        ),
-                                        1440
-                                      )
-                                    )
                                   )
                                 )
-                              )
-                            )
-                          )
-                        )
-                      ),
-                      Bind($now,
-                        Lambda(List($duration2),
-                          Evaluate(
-                            MakeCall(
-                              If(
-                                Identical(Element(Element($units, Head($duration2)), 1), "day"),
-                                "Today",
-                                "Time"
                               ),
-                              List()
-                            )
-                          )
-                        ),
-                        Bind($t8,
-                          Map(
-                            List(Argument(value = $a), Argument(value = $b)),
-                            Lambda(List($x2), FieldOf($x2, "value"))
-                          ),
-                          Bind($a4,
-                            Element($t8, 0),
-                            Bind($b2,
-                              Element($t8, 1),
-                              If(
-                                Truthy(
-                                  If(
-                                    Identical(TypeOf($a4), "number"),
-                                    Identical(TypeOf($b2), "number"),
-                                    false
-                                  )
-                                ),
-                                AddValues($a4, MultiplyValues(1, $b2)),
-                                If(
-                                  Truthy(
-                                    Bind($t9,
-                                      Call($isRecord, $a4),
-                                      If(Truthy($t9), Call($isDuration, $b2), $t9)
-                                    )
-                                  ),
-                                  Bind($t10,
-                                    Call($shift, $a4, $b2, 1),
-                                    If(IsNothing($t10), MakeCall("Add", List($a4, $b2)), $t10)
-                                  ),
-                                  If(
-                                    Truthy(
-                                      Bind($t11,
-                                        If(Identical(1, 1), Call($isDuration, $a4), false),
-                                        If(Truthy($t11), Call($isRecord, $b2), $t11)
-                                      )
-                                    ),
-                                    Bind($t12,
-                                      Call($shift, $b2, $a4, 1),
-                                      If(IsNothing($t12), MakeCall("Add", List($a4, $b2)), $t12)
-                                    ),
-                                    MakeCall("Add", List($a4, $b2))
+                              Bind($total2,
+                                If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                Call(
+                                  $clock,
+                                  RemainderOf(
+                                    AddValues(RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440), 1440),
+                                    1440
                                   )
                                 )
                               )
@@ -3979,6 +3691,198 @@ Concept(Add(),
                           )
                         )
                       )
+                    )
+                  ),
+                  Bind($now,
+                    Lambda(List($duration2),
+                      Evaluate(
+                        MakeCall(
+                          If(
+                            Identical(Element(Element($units, Head($duration2)), 1), "day"),
+                            "Today",
+                            "Time"
+                          ),
+                          List()
+                        )
+                      )
+                    ),
+                    Bind($t10,
+                      Call($shift, $a, $b, 1),
+                      If(IsNothing($t10), MakeCall("Add", List($a, $b)), $t10)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  ),
+  Realization(Add($a, $b),
+    context = Execution(),
+    properties = List(Program()),
+    types = Types(a = Duration(), b = OneOf(Date(), Time())),
+    body = Bind($field,
+      Lambda(List($r, $n),
+        Bind($a2,
+          FirstSatisfying(Arguments($r), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
+          If(Truthy($a2), FieldOf($a2, "value"), Undefined())
+        )
+      ),
+      Bind($DAY,
+        List(
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday"
+        ),
+        Bind($units,
+          Record(
+            Days = List(1, "day"),
+            Weeks = List(7, "day"),
+            Hours = List(60, "minute"),
+            Minutes = List(1, "minute")
+          ),
+          Bind($clock,
+            Lambda(List($t),
+              Bind($h24,
+                RoundDown(DivideValues($t, 60)),
+                Bind($mm,
+                  RemainderOf($t, 60),
+                  Bind($h12,
+                    If(
+                      Identical(RemainderOf($h24, 12), 0),
+                      12,
+                      RemainderOf($h24, 12)
+                    ),
+                    CallOf(
+                      "Time",
+                      List(
+                        Record(name = "hour", value = $h24),
+                        Record(name = "minute", value = $mm),
+                        Record(
+                          name = "spoken",
+                          value = AddValues(
+                            AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
+                            If(Below($h24, 12), "AM", "PM")
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($date,
+              Lambda(List($d, $time),
+                CallOf(
+                  "Date",
+                  Concat(
+                    List(
+                      Record(name = "year", value = YearOf($d)),
+                      Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+                      Record(name = "day", value = DayOf($d)),
+                      Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
+                    ),
+                    AsList(
+                      If(
+                        Truthy($time),
+                        List(Record(name = "time", value = $time)),
+                        List()
+                      )
+                    )
+                  )
+                )
+              ),
+              Bind($minutesOf,
+                Lambda(List($t5),
+                  AddValues(
+                    MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
+                    ToNumber(Call($field, $t5, "minute"))
+                  )
+                ),
+                Bind($shift,
+                  Lambda(List($record, $duration, $sign),
+                    Bind($t6,
+                      Element($units, Head($duration)),
+                      Bind($per,
+                        Element($t6, 0),
+                        Bind($kind,
+                          Element($t6, 1),
+                          Bind($n2,
+                            MultiplyValues(
+                              MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
+                              $sign
+                            ),
+                            If(
+                              Identical(Head($record), "Date"),
+                              Bind($time2,
+                                Call($field, $record, "time"),
+                                Bind($total,
+                                  If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                  If(
+                                    Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
+                                    Undefined(),
+                                    Bind($t7,
+                                      AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
+                                      Bind($carry,
+                                        RoundDown(DivideValues($t7, 1440)),
+                                        Bind($rest,
+                                          RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
+                                          Bind($d2,
+                                            LocalInstant(
+                                              ToNumber(Call($field, $record, "year")),
+                                              AddValues(SubtractValues(ToNumber(Call($field, $record, "month")), 1), 1),
+                                              AddValues(ToNumber(Call($field, $record, "day")), $carry)
+                                            ),
+                                            Call(
+                                              $date,
+                                              $d2,
+                                              If(Truthy($time2), Call($clock, $rest), Undefined())
+                                            )
+                                          )
+                                        )
+                                      )
+                                    )
+                                  )
+                                )
+                              ),
+                              Bind($total2,
+                                If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                Call(
+                                  $clock,
+                                  RemainderOf(
+                                    AddValues(RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440), 1440),
+                                    1440
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Bind($now,
+                    Lambda(List($duration2),
+                      Evaluate(
+                        MakeCall(
+                          If(
+                            Identical(Element(Element($units, Head($duration2)), 1), "day"),
+                            "Today",
+                            "Time"
+                          ),
+                          List()
+                        )
+                      )
+                    ),
+                    Bind($t12,
+                      Call($shift, $b, $a, 1),
+                      If(IsNothing($t12), MakeCall("Add", List($a, $b)), $t12)
                     )
                   )
                 )
@@ -3995,42 +3899,15 @@ Concept(Subtract(),
   Realization(Subtract($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Subtract", List($left, $right)),
-            SubtractValues($l, $r)
-          )
-        )
-      )
-    )
+    types = Types(left = Number(), right = Number()),
+    body = SubtractValues($left, $right)
   ),
+  // Only date/time minus a duration makes sense; a duration has nothing to subtract a date
+  // from, so there is no reversed-order sibling here the way Add has one.
   Realization(Subtract($a, $b),
     context = Execution(),
     properties = List(Program()),
+    types = Types(a = OneOf(Date(), Time()), b = Duration()),
     body = Bind($field,
       Lambda(List($r, $n),
         Bind($a2,
@@ -4055,243 +3932,145 @@ Concept(Subtract(),
             Hours = List(60, "minute"),
             Minutes = List(1, "minute")
           ),
-          Bind($isDuration,
-            Lambda(List($v),
-              Bind($t2,
-                Bind($t1,
-                  Bind($t0,
-                    $v,
-                    If(Truthy($t0), Element($units, Head($v)), $t0)
-                  ),
-                  If(Truthy($t1), Identical(Length(Arguments($v)), 1), $t1)
-                ),
-                If(
-                  Truthy($t2),
-                  Identical(TypeOf(FieldOf(Element(Arguments($v), 0), "value")), "number"),
-                  $t2
+          Bind($clock,
+            Lambda(List($t),
+              Bind($h24,
+                RoundDown(DivideValues($t, 60)),
+                Bind($mm,
+                  RemainderOf($t, 60),
+                  Bind($h12,
+                    If(
+                      Identical(RemainderOf($h24, 12), 0),
+                      12,
+                      RemainderOf($h24, 12)
+                    ),
+                    CallOf(
+                      "Time",
+                      List(
+                        Record(name = "hour", value = $h24),
+                        Record(name = "minute", value = $mm),
+                        Record(
+                          name = "spoken",
+                          value = AddValues(
+                            AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
+                            If(Below($h24, 12), "AM", "PM")
+                          )
+                        )
+                      )
+                    )
+                  )
                 )
               )
             ),
-            Bind($isRecord,
-              Lambda(List($v2),
-                Bind($t4,
-                  Bind($t3,
-                    $v2,
-                    If(
-                      Truthy($t3),
+            Bind($date,
+              Lambda(List($d, $time),
+                CallOf(
+                  "Date",
+                  Concat(
+                    List(
+                      Record(name = "year", value = YearOf($d)),
+                      Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+                      Record(name = "day", value = DayOf($d)),
+                      Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
+                    ),
+                    AsList(
                       If(
-                        Identical(Head($v2), "Date"),
-                        true,
-                        Identical(Head($v2), "Time")
-                      ),
-                      $t3
+                        Truthy($time),
+                        List(Record(name = "time", value = $time)),
+                        List()
+                      )
                     )
-                  ),
-                  If(
-                    Truthy($t4),
-                    AllSatisfy(Arguments($v2), Lambda(List($a3), NotIdentical(FieldOf($a3, "name"), Undefined()))),
-                    $t4
                   )
                 )
               ),
-              Bind($clock,
-                Lambda(List($t),
-                  Bind($h24,
-                    RoundDown(DivideValues($t, 60)),
-                    Bind($mm,
-                      RemainderOf($t, 60),
-                      Bind($h12,
-                        If(
-                          Identical(RemainderOf($h24, 12), 0),
-                          12,
-                          RemainderOf($h24, 12)
-                        ),
-                        CallOf(
-                          "Time",
-                          List(
-                            Record(name = "hour", value = $h24),
-                            Record(name = "minute", value = $mm),
-                            Record(
-                              name = "spoken",
-                              value = AddValues(
-                                AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
-                                If(Below($h24, 12), "AM", "PM")
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
+              Bind($minutesOf,
+                Lambda(List($t5),
+                  AddValues(
+                    MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
+                    ToNumber(Call($field, $t5, "minute"))
                   )
                 ),
-                Bind($date,
-                  Lambda(List($d, $time),
-                    CallOf(
-                      "Date",
-                      Concat(
-                        List(
-                          Record(name = "year", value = YearOf($d)),
-                          Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                          Record(name = "day", value = DayOf($d)),
-                          Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
-                        ),
-                        AsList(
-                          If(
-                            Truthy($time),
-                            List(Record(name = "time", value = $time)),
-                            List()
-                          )
-                        )
-                      )
-                    )
-                  ),
-                  Bind($minutesOf,
-                    Lambda(List($t5),
-                      AddValues(
-                        MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
-                        ToNumber(Call($field, $t5, "minute"))
-                      )
-                    ),
-                    Bind($shift,
-                      Lambda(List($record, $duration, $sign),
-                        Bind($t6,
-                          Element($units, Head($duration)),
-                          Bind($per,
-                            Element($t6, 0),
-                            Bind($kind,
-                              Element($t6, 1),
-                              Bind($n2,
-                                MultiplyValues(
-                                  MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
-                                  $sign
-                                ),
-                                If(
-                                  Identical(Head($record), "Date"),
-                                  Bind($time2,
-                                    Call($field, $record, "time"),
-                                    Bind($total,
-                                      If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                      If(
-                                        Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
-                                        Undefined(),
-                                        Bind($t7,
-                                          AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
-                                          Bind($carry,
-                                            RoundDown(DivideValues($t7, 1440)),
-                                            Bind($rest,
-                                              RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
-                                              Bind($d2,
-                                                LocalInstant(
-                                                  ToNumber(Call($field, $record, "year")),
-                                                  AddValues(
-                                                    SubtractValues(ToNumber(Call($field, $record, "month")), 1),
-                                                    1
-                                                  ),
-                                                  AddValues(ToNumber(Call($field, $record, "day")), $carry)
-                                                ),
-                                                Call(
-                                                  $date,
-                                                  $d2,
-                                                  If(Truthy($time2), Call($clock, $rest), Undefined())
-                                                )
-                                              )
+                Bind($shift,
+                  Lambda(List($record, $duration, $sign),
+                    Bind($t6,
+                      Element($units, Head($duration)),
+                      Bind($per,
+                        Element($t6, 0),
+                        Bind($kind,
+                          Element($t6, 1),
+                          Bind($n2,
+                            MultiplyValues(
+                              MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
+                              $sign
+                            ),
+                            If(
+                              Identical(Head($record), "Date"),
+                              Bind($time2,
+                                Call($field, $record, "time"),
+                                Bind($total,
+                                  If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                  If(
+                                    Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
+                                    Undefined(),
+                                    Bind($t7,
+                                      AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
+                                      Bind($carry,
+                                        RoundDown(DivideValues($t7, 1440)),
+                                        Bind($rest,
+                                          RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
+                                          Bind($d2,
+                                            LocalInstant(
+                                              ToNumber(Call($field, $record, "year")),
+                                              AddValues(SubtractValues(ToNumber(Call($field, $record, "month")), 1), 1),
+                                              AddValues(ToNumber(Call($field, $record, "day")), $carry)
+                                            ),
+                                            Call(
+                                              $date,
+                                              $d2,
+                                              If(Truthy($time2), Call($clock, $rest), Undefined())
                                             )
                                           )
                                         )
                                       )
                                     )
-                                  ),
-                                  Bind($total2,
-                                    If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                    Call(
-                                      $clock,
-                                      RemainderOf(
-                                        AddValues(
-                                          RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440),
-                                          1440
-                                        ),
-                                        1440
-                                      )
-                                    )
                                   )
                                 )
-                              )
-                            )
-                          )
-                        )
-                      ),
-                      Bind($now,
-                        Lambda(List($duration2),
-                          Evaluate(
-                            MakeCall(
-                              If(
-                                Identical(Element(Element($units, Head($duration2)), 1), "day"),
-                                "Today",
-                                "Time"
                               ),
-                              List()
-                            )
-                          )
-                        ),
-                        Bind($t8,
-                          Map(
-                            List(Argument(value = $a), Argument(value = $b)),
-                            Lambda(List($x2), FieldOf($x2, "value"))
-                          ),
-                          Bind($a4,
-                            Element($t8, 0),
-                            Bind($b2,
-                              Element($t8, 1),
-                              If(
-                                Truthy(
-                                  If(
-                                    Identical(TypeOf($a4), "number"),
-                                    Identical(TypeOf($b2), "number"),
-                                    false
-                                  )
-                                ),
-                                AddValues($a4, MultiplyValues(NegateValue(1), $b2)),
-                                If(
-                                  Truthy(
-                                    Bind($t9,
-                                      Call($isRecord, $a4),
-                                      If(Truthy($t9), Call($isDuration, $b2), $t9)
-                                    )
-                                  ),
-                                  Bind($t10,
-                                    Call($shift, $a4, $b2, NegateValue(1)),
-                                    If(
-                                      IsNothing($t10),
-                                      MakeCall("Subtract", List($a4, $b2)),
-                                      $t10
-                                    )
-                                  ),
-                                  If(
-                                    Truthy(
-                                      Bind($t11,
-                                        If(
-                                          Identical(NegateValue(1), 1),
-                                          Call($isDuration, $a4),
-                                          false
-                                        ),
-                                        If(Truthy($t11), Call($isRecord, $b2), $t11)
-                                      )
-                                    ),
-                                    Bind($t12,
-                                      Call($shift, $b2, $a4, 1),
-                                      If(
-                                        IsNothing($t12),
-                                        MakeCall("Subtract", List($a4, $b2)),
-                                        $t12
-                                      )
-                                    ),
-                                    MakeCall("Subtract", List($a4, $b2))
+                              Bind($total2,
+                                If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                Call(
+                                  $clock,
+                                  RemainderOf(
+                                    AddValues(RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440), 1440),
+                                    1440
                                   )
                                 )
                               )
                             )
                           )
                         )
+                      )
+                    )
+                  ),
+                  Bind($now,
+                    Lambda(List($duration2),
+                      Evaluate(
+                        MakeCall(
+                          If(
+                            Identical(Element(Element($units, Head($duration2)), 1), "day"),
+                            "Today",
+                            "Time"
+                          ),
+                          List()
+                        )
+                      )
+                    ),
+                    Bind($t10,
+                      Call($shift, $a, $b, NegateValue(1)),
+                      If(
+                        IsNothing($t10),
+                        MakeCall("Subtract", List($a, $b)),
+                        $t10
                       )
                     )
                   )
@@ -4309,41 +4088,11 @@ Concept(GreaterThan(),
   Realization(GreaterThan($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("GreaterThan", List($left, $right)),
-            If(
-              Above($l, $r),
-              CallOf("True", List()),
-              CallOf("False", List())
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      Above($left, $right),
+      CallOf("True", List()),
+      CallOf("False", List())
     )
   )
 )
@@ -4352,41 +4101,11 @@ Concept(LessThan(),
   Realization(LessThan($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("LessThan", List($left, $right)),
-            If(
-              Below($l, $r),
-              CallOf("True", List()),
-              CallOf("False", List())
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      Below($left, $right),
+      CallOf("True", List()),
+      CallOf("False", List())
     )
   )
 )
@@ -4395,41 +4114,11 @@ Concept(AtLeast(),
   Realization(AtLeast($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("AtLeast", List($left, $right)),
-            If(
-              NotBelow($l, $r),
-              CallOf("True", List()),
-              CallOf("False", List())
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      NotBelow($left, $right),
+      CallOf("True", List()),
+      CallOf("False", List())
     )
   )
 )
@@ -4438,41 +4127,11 @@ Concept(AtMost(),
   Realization(AtMost($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("AtMost", List($left, $right)),
-            If(
-              NotAbove($l, $r),
-              CallOf("True", List()),
-              CallOf("False", List())
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      NotAbove($left, $right),
+      CallOf("True", List()),
+      CallOf("False", List())
     )
   )
 )
@@ -4482,41 +4141,11 @@ Concept(Divide(),
   Realization(Divide($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Divide", List($left, $right)),
-            If(
-              Identical($r, 0),
-              MakeCall("Undefined", List()),
-              DivideValues($l, $r)
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      Identical($right, 0),
+      MakeCall("Undefined", List()),
+      DivideValues($left, $right)
     )
   )
 )
@@ -4525,41 +4154,11 @@ Concept(Modulo(),
   Realization(Modulo($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Modulo", List($left, $right)),
-            If(
-              Identical($r, 0),
-              MakeCall("Undefined", List()),
-              RemainderOf($l, $r)
-            )
-          )
-        )
-      )
+    types = Types(left = Number(), right = Number()),
+    body = If(
+      Identical($right, 0),
+      MakeCall("Undefined", List()),
+      RemainderOf($left, $right)
     )
   )
 )
@@ -4570,38 +4169,8 @@ Concept(Power(),
   Realization(Power($left, $right),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($x),
-          If(
-            Identical(TypeOf($x), "number"),
-            $x,
-            If(
-              Truthy(
-                Bind($t0,
-                  $x,
-                  If(Truthy($t0), Identical(Head($x), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($x), 0), "value")),
-              NotANumber()
-            )
-          )
-        )
-      ),
-      Bind($l,
-        Call($asNumber, $left),
-        Bind($r,
-          Call($asNumber, $right),
-          If(
-            Truthy(If(IsNotANumber($l), true, IsNotANumber($r))),
-            MakeCall("Power", List($left, $right)),
-            RaiseToPower($l, $r)
-          )
-        )
-      )
-    )
+    types = Types(left = Number(), right = Number()),
+    body = RaiseToPower($left, $right)
   )
 )
 
@@ -4611,114 +4180,21 @@ Concept(SquareRoot(),
   Realization(SquareRoot($x),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(Element(List(Argument(value = $x)), SubtractValues(Length(List(Argument(value = $x))), 1)), "value")
-        ),
-        Bind($p,
-          0,
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p))),
-            MakeCall("SquareRoot", AsList(Map(List(Argument(value = $x)), Lambda(List($a), FieldOf($a, "value"))))),
-            If(
-              Below($x2, 0),
-              MakeCall("Undefined", List()),
-              SquareRootOf($x2)
-            )
-          )
-        )
-      )
+    types = Types(x = Number()),
+    body = If(
+      Below($x, 0),
+      MakeCall("Undefined", List()),
+      SquareRootOf($x)
     )
   ),
   Realization(SquareRoot(Of($x)),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(
-            Element(
-              List(Argument(value = Quote(Of($x)))),
-              SubtractValues(Length(List(Argument(value = Quote(Of($x))))), 1)
-            ),
-            "value"
-          )
-        ),
-        Bind($p,
-          0,
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p))),
-            MakeCall(
-              "SquareRoot",
-              AsList(Map(List(Argument(value = Quote(Of($x)))), Lambda(List($a), FieldOf($a, "value"))))
-            ),
-            If(
-              Below($x2, 0),
-              MakeCall("Undefined", List()),
-              SquareRootOf($x2)
-            )
-          )
-        )
-      )
+    types = Types(x = Number()),
+    body = If(
+      Below($x, 0),
+      MakeCall("Undefined", List()),
+      SquareRootOf($x)
     )
   )
 )
@@ -4727,107 +4203,14 @@ Concept(CubeRoot(),
   Realization(CubeRoot($x),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(Element(List(Argument(value = $x)), SubtractValues(Length(List(Argument(value = $x))), 1)), "value")
-        ),
-        Bind($p,
-          0,
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p))),
-            MakeCall("CubeRoot", AsList(Map(List(Argument(value = $x)), Lambda(List($a), FieldOf($a, "value"))))),
-            CubeRootOf($x2)
-          )
-        )
-      )
-    )
+    types = Types(x = Number()),
+    body = CubeRootOf($x)
   ),
   Realization(CubeRoot(Of($x)),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($asNumber,
-      Recursive(
-        $asNumber,
-        Lambda(List($v),
-          If(
-            Identical(TypeOf($v), "number"),
-            $v,
-            If(
-              Truthy(
-                Bind($t0,
-                  $v,
-                  If(Truthy($t0), Identical(Head($v), "Number"), $t0)
-                )
-              ),
-              Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-              If(
-                Truthy(
-                  Bind($t1,
-                    $v,
-                    If(Truthy($t1), Identical(Head($v), "Of"), $t1)
-                  )
-                ),
-                Call($asNumber, FieldOf(Element(Arguments($v), 0), "value")),
-                NotANumber()
-              )
-            )
-          )
-        )
-      ),
-      Bind($x2,
-        Call(
-          $asNumber,
-          FieldOf(
-            Element(
-              List(Argument(value = Quote(Of($x)))),
-              SubtractValues(Length(List(Argument(value = Quote(Of($x))))), 1)
-            ),
-            "value"
-          )
-        ),
-        Bind($p,
-          0,
-          If(
-            Truthy(If(IsNotANumber($x2), true, IsNotANumber($p))),
-            MakeCall(
-              "CubeRoot",
-              AsList(Map(List(Argument(value = Quote(Of($x)))), Lambda(List($a), FieldOf($a, "value"))))
-            ),
-            CubeRootOf($x2)
-          )
-        )
-      )
-    )
+    types = Types(x = Number()),
+    body = CubeRootOf($x)
   )
 )
 
@@ -4847,11 +4230,8 @@ Concept(Negative(),
   Realization(Negative($x),
     context = Execution(),
     properties = List(Program()),
-    body = If(
-      Identical(TypeOf($x), "number"),
-      NegateValue($x),
-      MakeCall("Negative", List($x))
-    )
+    types = Types(x = Number()),
+    body = NegateValue($x)
   )
 )
 
@@ -4870,41 +4250,8 @@ Concept(Count(),
   Realization(Count($needle, $haystack),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($text,
-      Lambda(List($x),
-        If(
-          Identical(TypeOf($x), "string"),
-          $x,
-          If(
-            Truthy(
-              Bind($t0,
-                $x,
-                If(Truthy($t0), Identical(Head($x), "String"), $t0)
-              )
-            ),
-            FieldOf(Element(Arguments($x), 0), "value"),
-            null
-          )
-        )
-      ),
-      Bind($needle2,
-        Call($text, $needle),
-        Bind($haystack2,
-          Call($text, $haystack),
-          If(
-            Truthy(
-              If(
-                Identical($needle2, null),
-                true,
-                Identical($haystack2, null)
-              )
-            ),
-            MakeCall("Count", List($needle, $haystack)),
-            SubtractValues(Length(Split($haystack2, $needle2)), 1)
-          )
-        )
-      )
-    )
+    types = Types(needle = String(), haystack = String()),
+    body = SubtractValues(Length(Split($haystack, $needle)), 1)
   )
 )
 
@@ -5084,8 +4431,8 @@ Concept(Capability(), IsA(Category()))
 //
 // "what day will it be in 5 days" reads as What(Day(Will(Be(In(Days(5)))))): every word as
 // said. A duration is data. In, Ago, Add and Subtract shift a date or a clock time by one,
-// sharing one routine, and each checks the value it received rather than its pattern,
-// because patterns cannot yet say "any date" (no typed variables; reading-spec Part 5.7).
+// sharing one routine, and each claims its case with types = Types(x = Duration()) rather
+// than checking the value it received inside its body.
 // ------------------------------------------------------------------
 Concept(Days(), IsA(Duration()), IsA(Data()))
 
@@ -5102,6 +4449,7 @@ Concept(Ago(),
   Realization(Ago($x),
     context = Execution(),
     properties = List(Program()),
+    types = Types(x = Duration()),
     body = Bind($field,
       Lambda(List($r, $n),
         Bind($a,
@@ -5126,196 +4474,142 @@ Concept(Ago(),
             Hours = List(60, "minute"),
             Minutes = List(1, "minute")
           ),
-          Bind($isDuration,
-            Lambda(List($v),
-              Bind($t2,
-                Bind($t1,
-                  Bind($t0,
-                    $v,
-                    If(Truthy($t0), Element($units, Head($v)), $t0)
-                  ),
-                  If(Truthy($t1), Identical(Length(Arguments($v)), 1), $t1)
-                ),
-                If(
-                  Truthy($t2),
-                  Identical(TypeOf(FieldOf(Element(Arguments($v), 0), "value")), "number"),
-                  $t2
+          Bind($clock,
+            Lambda(List($t),
+              Bind($h24,
+                RoundDown(DivideValues($t, 60)),
+                Bind($mm,
+                  RemainderOf($t, 60),
+                  Bind($h12,
+                    If(
+                      Identical(RemainderOf($h24, 12), 0),
+                      12,
+                      RemainderOf($h24, 12)
+                    ),
+                    CallOf(
+                      "Time",
+                      List(
+                        Record(name = "hour", value = $h24),
+                        Record(name = "minute", value = $mm),
+                        Record(
+                          name = "spoken",
+                          value = AddValues(
+                            AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
+                            If(Below($h24, 12), "AM", "PM")
+                          )
+                        )
+                      )
+                    )
+                  )
                 )
               )
             ),
-            Bind($isRecord,
-              Lambda(List($v2),
-                Bind($t4,
-                  Bind($t3,
-                    $v2,
-                    If(
-                      Truthy($t3),
+            Bind($date,
+              Lambda(List($d, $time),
+                CallOf(
+                  "Date",
+                  Concat(
+                    List(
+                      Record(name = "year", value = YearOf($d)),
+                      Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
+                      Record(name = "day", value = DayOf($d)),
+                      Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
+                    ),
+                    AsList(
                       If(
-                        Identical(Head($v2), "Date"),
-                        true,
-                        Identical(Head($v2), "Time")
-                      ),
-                      $t3
+                        Truthy($time),
+                        List(Record(name = "time", value = $time)),
+                        List()
+                      )
                     )
-                  ),
-                  If(
-                    Truthy($t4),
-                    AllSatisfy(Arguments($v2), Lambda(List($a2), NotIdentical(FieldOf($a2, "name"), Undefined()))),
-                    $t4
                   )
                 )
               ),
-              Bind($clock,
-                Lambda(List($t),
-                  Bind($h24,
-                    RoundDown(DivideValues($t, 60)),
-                    Bind($mm,
-                      RemainderOf($t, 60),
-                      Bind($h12,
-                        If(
-                          Identical(RemainderOf($h24, 12), 0),
-                          12,
-                          RemainderOf($h24, 12)
-                        ),
-                        CallOf(
-                          "Time",
-                          List(
-                            Record(name = "hour", value = $h24),
-                            Record(name = "minute", value = $mm),
-                            Record(
-                              name = "spoken",
-                              value = AddValues(
-                                AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
-                                If(Below($h24, 12), "AM", "PM")
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
+              Bind($minutesOf,
+                Lambda(List($t5),
+                  AddValues(
+                    MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
+                    ToNumber(Call($field, $t5, "minute"))
                   )
                 ),
-                Bind($date,
-                  Lambda(List($d, $time),
-                    CallOf(
-                      "Date",
-                      Concat(
-                        List(
-                          Record(name = "year", value = YearOf($d)),
-                          Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                          Record(name = "day", value = DayOf($d)),
-                          Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
-                        ),
-                        AsList(
-                          If(
-                            Truthy($time),
-                            List(Record(name = "time", value = $time)),
-                            List()
-                          )
-                        )
-                      )
-                    )
-                  ),
-                  Bind($minutesOf,
-                    Lambda(List($t5),
-                      AddValues(
-                        MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
-                        ToNumber(Call($field, $t5, "minute"))
-                      )
-                    ),
-                    Bind($shift,
-                      Lambda(List($record, $duration, $sign),
-                        Bind($t6,
-                          Element($units, Head($duration)),
-                          Bind($per,
-                            Element($t6, 0),
-                            Bind($kind,
-                              Element($t6, 1),
-                              Bind($n2,
-                                MultiplyValues(
-                                  MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
-                                  $sign
-                                ),
-                                If(
-                                  Identical(Head($record), "Date"),
-                                  Bind($time2,
-                                    Call($field, $record, "time"),
-                                    Bind($total,
-                                      If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                      If(
-                                        Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
-                                        Undefined(),
-                                        Bind($t7,
-                                          AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
-                                          Bind($carry,
-                                            RoundDown(DivideValues($t7, 1440)),
-                                            Bind($rest,
-                                              RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
-                                              Bind($d2,
-                                                LocalInstant(
-                                                  ToNumber(Call($field, $record, "year")),
-                                                  AddValues(
-                                                    SubtractValues(ToNumber(Call($field, $record, "month")), 1),
-                                                    1
-                                                  ),
-                                                  AddValues(ToNumber(Call($field, $record, "day")), $carry)
-                                                ),
-                                                Call(
-                                                  $date,
-                                                  $d2,
-                                                  If(Truthy($time2), Call($clock, $rest), Undefined())
-                                                )
-                                              )
+                Bind($shift,
+                  Lambda(List($record, $duration, $sign),
+                    Bind($t6,
+                      Element($units, Head($duration)),
+                      Bind($per,
+                        Element($t6, 0),
+                        Bind($kind,
+                          Element($t6, 1),
+                          Bind($n2,
+                            MultiplyValues(
+                              MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
+                              $sign
+                            ),
+                            If(
+                              Identical(Head($record), "Date"),
+                              Bind($time2,
+                                Call($field, $record, "time"),
+                                Bind($total,
+                                  If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                  If(
+                                    Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
+                                    Undefined(),
+                                    Bind($t7,
+                                      AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
+                                      Bind($carry,
+                                        RoundDown(DivideValues($t7, 1440)),
+                                        Bind($rest,
+                                          RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
+                                          Bind($d2,
+                                            LocalInstant(
+                                              ToNumber(Call($field, $record, "year")),
+                                              AddValues(SubtractValues(ToNumber(Call($field, $record, "month")), 1), 1),
+                                              AddValues(ToNumber(Call($field, $record, "day")), $carry)
+                                            ),
+                                            Call(
+                                              $date,
+                                              $d2,
+                                              If(Truthy($time2), Call($clock, $rest), Undefined())
                                             )
                                           )
                                         )
                                       )
                                     )
-                                  ),
-                                  Bind($total2,
-                                    If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                    Call(
-                                      $clock,
-                                      RemainderOf(
-                                        AddValues(
-                                          RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440),
-                                          1440
-                                        ),
-                                        1440
-                                      )
-                                    )
+                                  )
+                                )
+                              ),
+                              Bind($total2,
+                                If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
+                                Call(
+                                  $clock,
+                                  RemainderOf(
+                                    AddValues(RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440), 1440),
+                                    1440
                                   )
                                 )
                               )
                             )
                           )
                         )
-                      ),
-                      Bind($now,
-                        Lambda(List($duration2),
-                          Evaluate(
-                            MakeCall(
-                              If(
-                                Identical(Element(Element($units, Head($duration2)), 1), "day"),
-                                "Today",
-                                "Time"
-                              ),
-                              List()
-                            )
-                          )
-                        ),
-                        Bind($x3,
-                          $x,
+                      )
+                    )
+                  ),
+                  Bind($now,
+                    Lambda(List($duration2),
+                      Evaluate(
+                        MakeCall(
                           If(
-                            Truthy(Call($isDuration, $x3)),
-                            Bind($t8,
-                              Call($shift, Call($now, $x3), $x3, NegateValue(1)),
-                              If(IsNothing($t8), MakeCall("Ago", List($x3)), $t8)
-                            ),
-                            MakeCall("Ago", List($x3))
-                          )
+                            Identical(Element(Element($units, Head($duration2)), 1), "day"),
+                            "Today",
+                            "Time"
+                          ),
+                          List()
                         )
                       )
+                    ),
+                    Bind($t8,
+                      Call($shift, Call($now, $x), $x, NegateValue(1)),
+                      If(IsNothing($t8), MakeCall("Ago", List($x)), $t8)
                     )
                   )
                 )
@@ -5335,274 +4629,24 @@ Concept(At(),
   Realization(At($a, $b),
     context = Execution(),
     properties = List(Program()),
-    body = Bind($field,
-      Lambda(List($r, $n),
-        Bind($a2,
-          FirstSatisfying(Arguments($r), Lambda(List($x), Identical(FieldOf($x, "name"), $n))),
-          If(Truthy($a2), FieldOf($a2, "value"), Undefined())
-        )
-      ),
-      Bind($DAY,
-        List(
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday"
-        ),
-        Bind($units,
-          Record(
-            Days = List(1, "day"),
-            Weeks = List(7, "day"),
-            Hours = List(60, "minute"),
-            Minutes = List(1, "minute")
-          ),
-          Bind($isDuration,
-            Lambda(List($v),
-              Bind($t2,
-                Bind($t1,
-                  Bind($t0,
-                    $v,
-                    If(Truthy($t0), Element($units, Head($v)), $t0)
-                  ),
-                  If(Truthy($t1), Identical(Length(Arguments($v)), 1), $t1)
-                ),
-                If(
-                  Truthy($t2),
-                  Identical(TypeOf(FieldOf(Element(Arguments($v), 0), "value")), "number"),
-                  $t2
-                )
-              )
-            ),
-            Bind($isRecord,
-              Lambda(List($v2),
-                Bind($t4,
-                  Bind($t3,
-                    $v2,
-                    If(
-                      Truthy($t3),
-                      If(
-                        Identical(Head($v2), "Date"),
-                        true,
-                        Identical(Head($v2), "Time")
-                      ),
-                      $t3
-                    )
-                  ),
-                  If(
-                    Truthy($t4),
-                    AllSatisfy(Arguments($v2), Lambda(List($a3), NotIdentical(FieldOf($a3, "name"), Undefined()))),
-                    $t4
-                  )
-                )
-              ),
-              Bind($clock,
-                Lambda(List($t),
-                  Bind($h24,
-                    RoundDown(DivideValues($t, 60)),
-                    Bind($mm,
-                      RemainderOf($t, 60),
-                      Bind($h12,
-                        If(
-                          Identical(RemainderOf($h24, 12), 0),
-                          12,
-                          RemainderOf($h24, 12)
-                        ),
-                        CallOf(
-                          "Time",
-                          List(
-                            Record(name = "hour", value = $h24),
-                            Record(name = "minute", value = $mm),
-                            Record(
-                              name = "spoken",
-                              value = AddValues(
-                                AddValues(AddValues(AddValues($h12, ":"), PadStart(ToText($mm), 2, "0")), " "),
-                                If(Below($h24, 12), "AM", "PM")
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
-                  )
-                ),
-                Bind($date,
-                  Lambda(List($d, $time),
-                    CallOf(
-                      "Date",
-                      Concat(
-                        List(
-                          Record(name = "year", value = YearOf($d)),
-                          Record(name = "month", value = AddValues(SubtractValues(MonthOf($d), 1), 1)),
-                          Record(name = "day", value = DayOf($d)),
-                          Record(name = "weekday", value = Element($DAY, WeekdayOf($d)))
-                        ),
-                        AsList(
-                          If(
-                            Truthy($time),
-                            List(Record(name = "time", value = $time)),
-                            List()
-                          )
-                        )
-                      )
-                    )
-                  ),
-                  Bind($minutesOf,
-                    Lambda(List($t5),
-                      AddValues(
-                        MultiplyValues(ToNumber(Call($field, $t5, "hour")), 60),
-                        ToNumber(Call($field, $t5, "minute"))
-                      )
-                    ),
-                    Bind($shift,
-                      Lambda(List($record, $duration, $sign),
-                        Bind($t6,
-                          Element($units, Head($duration)),
-                          Bind($per,
-                            Element($t6, 0),
-                            Bind($kind,
-                              Element($t6, 1),
-                              Bind($n2,
-                                MultiplyValues(
-                                  MultiplyValues(FieldOf(Element(Arguments($duration), 0), "value"), $per),
-                                  $sign
-                                ),
-                                If(
-                                  Identical(Head($record), "Date"),
-                                  Bind($time2,
-                                    Call($field, $record, "time"),
-                                    Bind($total,
-                                      If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                      If(
-                                        Truthy(If(NotIdentical($kind, "day"), Falsy($time2), false)),
-                                        Undefined(),
-                                        Bind($t7,
-                                          AddValues(If(Truthy($time2), Call($minutesOf, $time2), 0), $total),
-                                          Bind($carry,
-                                            RoundDown(DivideValues($t7, 1440)),
-                                            Bind($rest,
-                                              RemainderOf(AddValues(RemainderOf($t7, 1440), 1440), 1440),
-                                              Bind($d2,
-                                                LocalInstant(
-                                                  ToNumber(Call($field, $record, "year")),
-                                                  AddValues(
-                                                    SubtractValues(ToNumber(Call($field, $record, "month")), 1),
-                                                    1
-                                                  ),
-                                                  AddValues(ToNumber(Call($field, $record, "day")), $carry)
-                                                ),
-                                                Call(
-                                                  $date,
-                                                  $d2,
-                                                  If(Truthy($time2), Call($clock, $rest), Undefined())
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  ),
-                                  Bind($total2,
-                                    If(Identical($kind, "day"), MultiplyValues($n2, 1440), $n2),
-                                    Call(
-                                      $clock,
-                                      RemainderOf(
-                                        AddValues(
-                                          RemainderOf(AddValues(Call($minutesOf, $record), $total2), 1440),
-                                          1440
-                                        ),
-                                        1440
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
-                      ),
-                      Bind($now,
-                        Lambda(List($duration2),
-                          Evaluate(
-                            MakeCall(
-                              If(
-                                Identical(Element(Element($units, Head($duration2)), 1), "day"),
-                                "Today",
-                                "Time"
-                              ),
-                              List()
-                            )
-                          )
-                        ),
-                        Bind($t8,
-                          Map(
-                            List(Argument(value = $a), Argument(value = $b)),
-                            Lambda(List($x2), FieldOf($x2, "value"))
-                          ),
-                          Bind($a4,
-                            Element($t8, 0),
-                            Bind($b2,
-                              Element($t8, 1),
-                              Bind($t10,
-                                If(
-                                  Truthy(
-                                    Bind($t9,
-                                      $a4,
-                                      If(Truthy($t9), Identical(Head($a4), "Date"), $t9)
-                                    )
-                                  ),
-                                  List($a4, $b2),
-                                  List($b2, $a4)
-                                ),
-                                Bind($d3,
-                                  Element($t10, 0),
-                                  Bind($t11,
-                                    Element($t10, 1),
-                                    If(
-                                      Truthy(
-                                        Bind($t13,
-                                          Bind($t12,
-                                            If(
-                                              Falsy(Call($isRecord, $d3)),
-                                              true,
-                                              NotIdentical(Head($d3), "Date")
-                                            ),
-                                            If(Truthy($t12), $t12, Falsy(Call($isRecord, $t11)))
-                                          ),
-                                          If(Truthy($t13), $t13, NotIdentical(Head($t11), "Time"))
-                                        )
-                                      ),
-                                      MakeCall("At", List($a4, $b2)),
-                                      CallOf(
-                                        "Date",
-                                        Concat(
-                                          AsList(
-                                            Filter(
-                                              Arguments($d3),
-                                              Lambda(List($x3), NotIdentical(FieldOf($x3, "name"), "time"))
-                                            )
-                                          ),
-                                          List(Record(name = "time", value = $t11))
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
-                      )
-                    )
-                  )
-                )
-              )
-            )
-          )
-        )
+    types = Types(a = Date(), b = Time()),
+    body = CallOf(
+      "Date",
+      Concat(
+        AsList(Filter(Arguments($a), Lambda(List($x3), NotIdentical(FieldOf($x3, "name"), "time")))),
+        List(Record(name = "time", value = $b))
+      )
+    )
+  ),
+  Realization(At($a, $b),
+    context = Execution(),
+    properties = List(Program()),
+    types = Types(a = Time(), b = Date()),
+    body = CallOf(
+      "Date",
+      Concat(
+        AsList(Filter(Arguments($b), Lambda(List($x3), NotIdentical(FieldOf($x3, "name"), "time")))),
+        List(Record(name = "time", value = $a))
       )
     )
   )
