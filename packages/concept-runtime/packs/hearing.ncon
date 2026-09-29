@@ -2950,7 +2950,8 @@ Concept(Hear(),
                 Comment("What the graph knows comes first, and the tagger's guesses stay beside it: \"like\" is a"),
                 Comment("preposition, and a verb when nothing follows it to take."),
                 Bind($known, Call($classOf, Member(Index($said, $i), "text"))),
-                Bind($tags,
+                Var(
+                  $tags,
                   Concat(
                     If(
                       Member(Index($said, $i), "stutter"),
@@ -2960,6 +2961,35 @@ Concept(Hear(),
                     $known,
                     Filter(Member(Index($said, $i), "tags"), Lambda(List($t), Not(Includes($known, $t))))
                   )
+                ),
+                Comment("A pronoun takes no determiner: \"the us\" is the US, a name, not \"we\"."),
+                Bind($before,
+                  If(
+                    And(
+                      GreaterThan($i, 0),
+                      Equals(Member(Index($said, Subtract($i, 1)), "sentence"), Member(Index($said, $i), "sentence"))
+                    ),
+                    Member(Index($said, Subtract($i, 1)), "tags"),
+                    List()
+                  )
+                ),
+                If(
+                  And(
+                    And(Includes($tags, "Pronoun"), Not(Includes($tags, "Possessive"))),
+                    Includes($before, "Determiner")
+                  ),
+                  Sequence(
+                    Assign(
+                      $tags,
+                      Concat(
+                        Filter($tags, Lambda(List($t), NotEquals($t, "Pronoun"))),
+                        If(Includes($tags, "Noun"), List(), List("Noun")),
+                        List("ProperNoun")
+                      )
+                    ),
+                    Assign(Member(Index($said, $i), "named"), true)
+                  ),
+                  Undefined()
                 ),
                 Assign(Member(Index($said, $i), "tags"), $tags),
                 Call(
@@ -3630,7 +3660,9 @@ Concept(Hear(),
                             "A symbol (\"+\") or a code (\"1st\", \"a1\") has no name to be a Concept by: a Concept name"
                           ),
                           Comment("starts with a letter. It is kept as it was typed."),
-                          Bind($called, Or(Call($heardAs, $t), Call($name, $t))),
+                          Bind($called,
+                            Or(And(Not(Member(Index($said, $i), "named")), Call($heardAs, $t)), Call($name, $t))
+                          ),
                           If(
                             Equals($e, Undefined()),
                             Assign(
@@ -3693,7 +3725,10 @@ Concept(Hear(),
                           Call(
                             Member($api, "call"),
                             Or(
-                              Call($heardAs, Member(Index($said, $j), "text")),
+                              And(
+                                Not(Member(Index($said, $j), "named")),
+                                Call($heardAs, Member(Index($said, $j), "text"))
+                              ),
                               Call($name, Member(Index($said, $j), "text"))
                             ),
                             $e

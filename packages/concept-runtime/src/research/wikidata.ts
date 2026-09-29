@@ -528,7 +528,9 @@ async function describeRelation(store: ConceptStore, relation: string, property:
 async function keepAliases(store: ConceptStore, identity: string, aliases: readonly { value: string }[], seq: number): Promise<void> {
   const { hearPhrase } = await import("../ears/phrase.js");
   for (const alias of aliases.slice(0, 20)) {
-    const heard = await hearPhrase(store, alias.value);
+    // An acronym is a name as it stands ("US", "NASA"): heard alone it may be another word ("us").
+    const acronym = /^[A-Z][A-Z.]+$/.test(alias.value.trim()) ? nameOf(alias.value.replace(/\./g, "")) : undefined;
+    const heard = acronym ? c(acronym) : await hearPhrase(store, alias.value);
     if (heard === undefined || (isCall(heard) && heard.head === identity)) continue;
     store.addRelation(identity, call("Called", [{ value: heard }]), undefined, seq);
   }

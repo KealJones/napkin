@@ -48,6 +48,11 @@ test("after a determiner with no noun, a describer is the thing: the average of"
   assert.equal(await hear("the average of 3, 5 and 10"), "Phrases(Average(Of(List(3, 5, 10))))");
 });
 
+test("a pronoun takes no determiner: the us is a name, us alone is we", async () => {
+  assert.equal(await hear("the us"), "Phrases(Us())");
+  assert.equal(await hear("tell us a joke"), "Phrases(Tell(We(), Joke()))");
+});
+
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
   assert.equal(await hear("the americanpie"), "Phrases(Americanpie())");
 });
