@@ -3378,6 +3378,66 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("\"the written message\", \"a broken glass\": a doing done, between a determiner and a thing,"),
+            Comment("describes the thing; the word after it is that thing when the dictionary says it can be."),
+            For(
+              Var($i, 1),
+              LessThan(Add($i, 1), Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind($w, Index($said, $i)),
+                Bind($before, Index($said, Subtract($i, 1))),
+                Bind($after, Index($said, Add($i, 1))),
+                If(
+                  Or(
+                    Or(
+                      Or(
+                        Or(
+                          Or(Not(Includes(Member($w, "tags"), "PastTense")), Includes(Member($w, "tags"), "Noun")),
+                          NotEquals(Member($before, "sentence"), Member($w, "sentence"))
+                        ),
+                        NotEquals(Member($after, "sentence"), Member($w, "sentence"))
+                      ),
+                      Not(
+                        Or(
+                          Includes(Member($before, "tags"), "Determiner"),
+                          Includes(Member($before, "tags"), "Possessive")
+                        )
+                      )
+                    ),
+                    Includes(Member($after, "tags"), "Pronoun")
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($thing, Or(Includes(Member($after, "tags"), "Noun"), Await(Call($canBe, $after, "Noun")))),
+                If(Not($thing), Continue(), Undefined()),
+                Assign(
+                  Member($w, "tags"),
+                  Concat(
+                    List("Adjective"),
+                    Filter(
+                      Member($w, "tags"),
+                      Lambda(List($t), Not(Includes(List("Verb", "PastTense", "Participle"), $t)))
+                    )
+                  )
+                ),
+                If(
+                  Not(Includes(Member($after, "tags"), "Noun")),
+                  Assign(
+                    Member($after, "tags"),
+                    Concat(
+                      List("Noun", "Singular"),
+                      Filter(
+                        Member($after, "tags"),
+                        Lambda(List($t), Not(Includes(List("Verb", "PresentTense", "Infinitive", "Imperative"), $t)))
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
             Bind($words, List()),
             For(
               Var($i, 0),

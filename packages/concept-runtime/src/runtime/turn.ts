@@ -7,6 +7,7 @@
  * state that can disagree with it.
  */
 import { type Call, type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
+import { typesOf } from "./types.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import type { ConceptStore } from "../store/store.js";
@@ -539,16 +540,24 @@ export async function turn(
       // Not a description that can be read: the words are heard as they are.
     }
   }
-  let answering = asked ? answerToWhich(asked, message, parse) : undefined;
+  let answering = asked ? answerToWhich(asked, message, parse, runtime.store) : undefined;
   if (asked) {
     // What the reply is: a thing named ("the animal?", "the taxon") picks, a question in the
     // words packs declare ("what is a taxon?") asks about an option rather than picking it.
     const reply = await hear(runtime.store, message, options).catch(() => undefined);
     let line = reply?.expression;
-    while (line !== undefined && isCall(line) && (line.head === "ContextScope" || line.head === "Mood") && line.args.length === 2) line = line.args[1].value;
-    // A word that does something ("what", "is") makes the reply a question; a thing does not.
+    let mood: string | undefined;
+    while (line !== undefined && isCall(line) && (line.head === "ContextScope" || line.head === "Mood") && line.args.length === 2) {
+      const facet = line.args[0].value;
+      if (isCall(facet)) mood = facet.head;
+      line = line.args[1].value;
+    }
+    // A question ("what is a taxon?") asks about an option rather than picking it; a thing
+    // named or described ("the written message from one to another") picks. A question is told
+    // by a word in it of the mood it was heard in (What is Interrogative), read off the reply.
     const declared = (h: string) => (runtime.store.get(h)?.realizations ?? []).some((r) => !r.retired);
-    if (answering && line !== undefined && isCall(line) && declared(line.head)) answering = undefined;
+    const asking = mood !== undefined && line !== undefined && [...walk(line)].some((x) => isCall(x) && typesOf(runtime.store, c(x.head)).includes(mood!));
+    if (answering && asking) answering = undefined;
     // A kind no option is worded as ("the animal?", of the taxon and the band): the option whose
     // thing the world says is one of those.
     if (!answering && line !== undefined && isCall(line) && !line.args.length && !declared(line.head)) answering = await pickByKind(runtime.store, asked, line.head, message, parse);

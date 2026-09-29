@@ -17,6 +17,7 @@ import { type Expr, call, c, equal, isCall, walk } from "../concept/expression.j
 import { activation, type ActivationOptions } from "./activation.js";
 import type { ConceptStore } from "../store/store.js";
 import { objectKey } from "../store/store.js";
+import { words as hostWords } from "./host.js";
 
 /** Every individual holding `Named(text)`, through the object index -- never by identity. */
 export function findNamed(store: ConceptStore, text: string): string[] {
@@ -225,6 +226,7 @@ export function answerToWhich(
   lastResult: string | undefined,
   message: string,
   parse: (s: string) => Expr,
+  store?: ConceptStore,
 ): { name: string; chosen: string; said: string; sense: boolean } | undefined {
   if (!lastResult?.startsWith("Which(")) return undefined;
   let asked: Expr;
@@ -240,13 +242,39 @@ export function answerToWhich(
   const said = asked.args.find((a) => a.name === "said")?.value;
   if (name === undefined || ids === undefined || described === undefined || !isCall(name) || !isCall(ids) || !isCall(described) || typeof said !== "string") return undefined;
   const words = new Set(message.toLowerCase().match(/[a-z]+/g) ?? []);
+  // The words that say which: things, doings and qualities, not how it is said ("the", "one").
+  const content = new Set(
+    hostWords(message)
+      .filter((w) => ["Noun", "Verb", "Adjective"].some((k) => w.tags.includes(k)) && !["Pronoun", "Determiner", "Value"].some((k) => w.tags.includes(k)))
+      .map((w) => w.text.toLowerCase()),
+  );
   const ORDINALS = ["first", "second", "third", "fourth"];
-  const candidates = ids.args.map((a, i) => ({ id: isCall(a.value) ? a.value.head : "", text: String(described.args[i]?.value ?? "") }));
-  const byOrder = candidates.findIndex((_, i) => words.has(ORDINALS[i]));
-  // "the pie" picks the sweet pie: any word of three letters or more that only one option has.
-  const byWords = candidates.filter((cand) => cand.text.split(" ").some((w) => w.length > 2 && words.has(w)));
-  const pick = byOrder >= 0 ? candidates[byOrder] : byWords.length === 1 ? byWords[0] : undefined;
   const sense = asked.args.some((a) => a.name === "sense");
+  // A sense is its name and what is held of the word in it ("written message from one to
+  // another", said of note as a literary genre), so a reply can describe the one it means.
+  const heldIn = (context: string): string =>
+    sense && store
+      ? (store.get(name.head)?.relations ?? [])
+          .filter((r) => r.context !== undefined && isCall(r.context) && r.context.head === context)
+          .flatMap((r) => [...walk(r.claim)].map((x) => (typeof x === "string" ? x : isCall(x) ? spoken(x.head) : "")))
+          .join(" ")
+      : "";
+  const candidates = ids.args.map((a, i) => {
+    const id = isCall(a.value) ? a.value.head : "";
+    return { id, text: String(described.args[i]?.value ?? ""), held: heldIn(id) };
+  });
+  const byOrder = candidates.findIndex((_, i) => words.has(ORDINALS[i]));
+  // "the pie" picks the sweet pie, and "the literary genre" the literary genre over the genre:
+  // the option that has the most words said, of three letters or more, when only one has most.
+  // Its name counts first; what is held of it, when its name picks none.
+  const best = (score: (cand: (typeof candidates)[number]) => number) => {
+    const scored = candidates.map((cand) => ({ cand, n: score(cand) }));
+    const top = Math.max(0, ...scored.map((x) => x.n));
+    const at = scored.filter((x) => x.n === top);
+    return top > 0 && at.length === 1 ? at[0].cand : undefined;
+  };
+  const count = (text: string) => new Set((text.toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => w.length > 2 && content.has(w))).size;
+  const pick = byOrder >= 0 ? candidates[byOrder] : (best((cand) => count(cand.text)) ?? best((cand) => count(cand.held)));
   return pick ? { name: name.head, chosen: pick.id, said, sense } : undefined;
 }
 
