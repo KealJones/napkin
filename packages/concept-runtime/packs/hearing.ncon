@@ -3157,13 +3157,31 @@ Concept(Hear(),
                   Continue(),
                   Undefined()
                 ),
+                Comment("A subject of more than one word (\"my sister\", \"the dog\") is not this one's to settle."),
                 If(
-                  Or(Includes(Member($subject, "tags"), "Pronoun"), Includes(Member($subject, "tags"), "Determiner")),
+                  Or(
+                    Or(Includes(Member($subject, "tags"), "Pronoun"), Includes(Member($subject, "tags"), "Determiner")),
+                    Includes(Member($subject, "tags"), "Possessive")
+                  ),
                   Continue(),
                   Undefined()
                 ),
+                Bind($laterDoing,
+                  Call(
+                    Member(Call(Member($said, "slice"), Add($i, 3)), "some"),
+                    Lambda(List($w),
+                      And(
+                        Equals(Member($w, "sentence"), Member($doing, "sentence")),
+                        Includes(Member($w, "tags"), "Verb")
+                      )
+                    )
+                  )
+                ),
                 If(
-                  And(Not(Includes(Member($doing, "tags"), "Verb")), Await(Call($canBe, $doing, "Verb"))),
+                  And(
+                    And(Not(Includes(Member($doing, "tags"), "Verb")), Not($laterDoing)),
+                    Await(Call($canBe, $doing, "Verb"))
+                  ),
                   Assign(
                     Member($doing, "tags"),
                     Concat(
