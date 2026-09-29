@@ -245,9 +245,20 @@ export class Trace {
     return this.events.length;
   }
 
+  /**
+   * Set aside the work between two marks: arguments evaluated for a realization that then
+   * handed the call over, when the one that took it read them as said. What they left undone
+   * was never part of the answer, so it is no gap. Kept in the trace, for reading.
+   */
+  abandon(from: number, to: number): void {
+    for (const e of this.events.slice(from, to)) this.abandoned.add(e.id);
+  }
+
+  private readonly abandoned = new Set<string>();
+
   /** Residual events are the learning path's work queue (concept-spec Part 12). */
   residuals(since = 0): TraceEvent[] {
-    return this.events.slice(since).filter((e) => e.outcome === "residual");
+    return this.events.slice(since).filter((e) => e.outcome === "residual" && !this.abandoned.has(e.id));
   }
 
   render(): string {

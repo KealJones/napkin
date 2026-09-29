@@ -435,6 +435,10 @@ export class Runtime {
       // Only its own: what it inherits is not asked to overrule it (a code Comment kept as it is
       // stays kept).
       let worked: readonly Argument[] | undefined;
+      // Where working the arguments out began and ended in the trace, to set it aside when the
+      // realization that takes the call reads them as said.
+      let workedFrom = 0;
+      let workedTo = 0;
       for (let at = 0; at < found.length; at++) {
       const chosen = found[at];
       const more = at + 1 < found.length && found[at + 1].owner === chosen.owner;
@@ -444,13 +448,18 @@ export class Runtime {
       let bindings = chosen.bindings;
       let args: readonly Argument[] = target.args;
 
+      // An earlier realization worked the arguments out and handed over; this one reads them as
+      // said, so what that working-out left undone was not this answer's.
+      if (!realization.evaluateArguments && worked !== undefined) this.trace.abandon(workedFrom, workedTo);
       if (realization.evaluateArguments && !this.given.has(target)) {
+        if (worked === undefined) workedFrom = this.trace.mark();
         worked ??= await Promise.all(
           target.args.map(async (a) => {
             const value = await this.run(a.value, context, target.head, id, inner + 1, within);
             return a.name === undefined ? { value } : { name: a.name, value };
           }),
         );
+        workedTo = this.trace.mark();
         args = worked;
         const evaluated = call(target.head, args);
         trace.evaluated(id, args.map((a) => a.value));
