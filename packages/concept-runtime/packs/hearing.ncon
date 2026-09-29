@@ -3066,18 +3066,43 @@ Concept(Hear(),
             Comment("A comma before a doing starts another clause: \"take 10, double it, then subtract 5\"; so"),
             Comment("does one before someone doing something (\"make a list, I need milk\")."),
             Var($clause, 0),
+            Var($didAt, Negate(1)),
+            Bind($setAside, List()),
             Bind($sentences, Map($said, Lambda(List($w), Member($w, "sentence")))),
             For(
               Var($i, 0),
               LessThan($i, Length($said)),
               PostIncrement($i),
               Sequence(
+                Comment("So does a joining word before a doing, when the clause has done something to something"),
+                Comment("already: \"make a shopping list and add cheese to it\" is two things to do (\"add 2 and 3\""),
+                Comment(
+                  "and \"cheese and eggs\" are one). A joining word as the graph knows it: \"to\" in \"remind me to"
+                ),
+                Comment("call\" is not one, whatever the tagger says. It is set aside."),
+                Bind($joined,
+                  And(
+                    And(
+                      And(
+                        And(And(GreaterThan($i, 1), AtLeast($didAt, 0)), LessThan($didAt, Subtract($i, 2))),
+                        Includes(Call($classOf, Member(Index($said, Subtract($i, 1)), "text")), "Conjunction")
+                      ),
+                      Includes(Member(Index($said, $i), "tags"), "Infinitive")
+                    ),
+                    Not(Includes(Member(Index($said, $i), "tags"), "Noun"))
+                  )
+                ),
+                If(
+                  $joined,
+                  Call(Member($setAside, "push"), Subtract($i, 1)),
+                  Undefined()
+                ),
                 Bind($breaks,
                   And(
                     GreaterThan($i, 0),
                     Or(
                       Or(
-                        NotEquals(Index($sentences, $i), Index($sentences, Subtract($i, 1))),
+                        Or($joined, NotEquals(Index($sentences, $i), Index($sentences, Subtract($i, 1)))),
                         And(
                           And(
                             And(
@@ -3105,9 +3130,27 @@ Concept(Hear(),
                     )
                   )
                 ),
-                If($breaks, Assign($clause, Add($clause, 1)), Undefined()),
+                If(
+                  $breaks,
+                  Sequence(Assign($clause, Add($clause, 1)), Assign($didAt, Negate(1))),
+                  Undefined()
+                ),
+                If(
+                  And(
+                    And(LessThan($didAt, 0), Includes(Member(Index($said, $i), "tags"), "Verb")),
+                    Not(Includes(Member(Index($said, $i), "tags"), "Noun"))
+                  ),
+                  Assign($didAt, $i),
+                  Undefined()
+                ),
                 Assign(Member(Index($said, $i), "sentence"), $clause)
               )
+            ),
+            For(
+              Var($j, Subtract(Length($setAside), 1)),
+              AtLeast($j, 0),
+              PostDecrement($j),
+              Call(Member($said, "splice"), Index($setAside, $j), 1)
             ),
             Comment("A word said twice running (\"if if\") was said once: the first is set aside like filler."),
             For(

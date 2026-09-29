@@ -220,10 +220,43 @@ Concept(Change(),
               )
             ),
             Comment("Where: the one word inside that says where (to, on, in, from) and holds what names a thing."),
+            Comment("\"to it\": what the word points at, when it was pointed at already (resolvedTo) or by the word."),
             Bind($refer,
               Async(
                 Lambda(List($e),
                   Sequence(
+                    If(
+                      And(Call($isCall, $e), Equals(Member($e, "head"), "Ref")),
+                      Sequence(
+                        Bind($to,
+                          Call(
+                            Member(Member($e, "args"), "find"),
+                            Lambda(List($a), Equals(Member($a, "name"), "resolvedTo"))
+                          )
+                        ),
+                        If(
+                          $to,
+                          Return(
+                            If(
+                              Call($isCall, Member($to, "value")),
+                              Member($to, "value"),
+                              Undefined()
+                            )
+                          ),
+                          Undefined()
+                        ),
+                        If(
+                          Or(
+                            NotEquals(TypeOf(OptionalMember(Index(Member($e, "args"), 0), "value")), "string"),
+                            Not(Member(Index(Member($e, "args"), 0), "value"))
+                          ),
+                          Return(Undefined()),
+                          Undefined()
+                        ),
+                        Assign($e, Member(Index(Member($e, "args"), 0), "value"))
+                      ),
+                      Undefined()
+                    ),
                     Bind($r,
                       Await(
                         Call(
@@ -726,13 +759,30 @@ Concept(Write(),
   Realization(Write($said),
     context = Execution(),
     evaluateArguments = false,
-    types = Types(said = Collection()),
+    types = Types(said = OneOf(Collection(), Described(Collection()))),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($whole, Call(Member($bindings, "get"), "said")),
+            Var($whole, Call(Member($bindings, "get"), "said")),
+            Comment("\"a new shopping list\": the describer around the list says which one, not what kind, and one"),
+            Comment("described is another one, not one already in play."),
+            Bind($wrapped, Not(Includes(Call(Member($api, "typesOf"), $whole), "Collection"))),
+            If(
+              $wrapped,
+              Assign(
+                $whole,
+                Member(
+                  Call(
+                    Member(Member($whole, "args"), "find"),
+                    Lambda(List($a), Equals(Member($a, "name"), Undefined()))
+                  ),
+                  "value"
+                )
+              ),
+              Undefined()
+            ),
             Comment("The things it is made with are what goes in it, not what kind of thing it is."),
             Bind($withs,
               Filter(
@@ -762,18 +812,59 @@ Concept(Write(),
             ),
             If(
               Or(Not(Call($isCall, $kind)), Equals(Member($kind, "head"), "KindNamed")),
-              Return(Call(Member($api, "call"), "Write", $whole)),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "Write",
+                  Call(Member($bindings, "get"), "said")
+                )
+              ),
               Undefined()
             ),
             Comment("One of exactly that kind already in play is the one meant (\"make a shopping list\", said"),
             Comment("again); \"make a list\" after a grocery list makes a list."),
+            Comment("One described by more than its kind (\"a new shopping list\", \"a red box\") is another one."),
+            Bind($described,
+              Or(
+                $wrapped,
+                And(
+                  GreaterThan(Length(Member($said, "args")), 0),
+                  NotEquals(
+                    Member($kind, "head"),
+                    Add(
+                      Call(
+                        Member(
+                          Map(
+                            Member($said, "args"),
+                            Lambda(List($a),
+                              If(
+                                Call($isCall, Member($a, "value")),
+                                Member(Member($a, "value"), "head"),
+                                ""
+                              )
+                            )
+                          ),
+                          "join"
+                        ),
+                        ""
+                      ),
+                      Member($said, "head")
+                    )
+                  )
+                )
+              )
+            ),
             Var(
               $thing,
-              Await(
-                Call(
-                  Member($api, "evaluate"),
-                  Call(Member($api, "call"), "ReferentOf", $said),
-                  Call(Member($api, "call"), "Execution")
+              If(
+                $described,
+                Undefined(),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(Member($api, "call"), "ReferentOf", $said),
+                    Call(Member($api, "call"), "Execution")
+                  )
                 )
               )
             ),

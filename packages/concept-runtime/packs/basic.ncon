@@ -470,7 +470,19 @@ Concept(Sequence(),
                         Call($String, Member(Index(Member($e, "args"), 0), "value"))
                       )
                     ),
-                    Return($prev),
+                    Sequence(
+                      Comment("An empty slot takes the last value to work on (\"add 5\"), never a thing pointed at."),
+                      Return(
+                        If(
+                          And(
+                            And(Call($isCall, $prev), Equals(Member($prev, "head"), "Ref")),
+                            Equals(Member(Index(Member($e, "args"), 0), "value"), "")
+                          ),
+                          $e,
+                          $prev
+                        )
+                      )
+                    ),
                     Undefined()
                   ),
                   Bind($carried,
@@ -504,7 +516,7 @@ Concept(Sequence(),
                     Or(Equals(TypeOf($last), "number"), Call($isCall, $last))
                   ),
                   Sequence(
-                    Bind($prev,
+                    Bind($said,
                       If(
                         And(
                           And(Call($isCall, $last), Equals(Member($last, "head"), "Answer")),
@@ -512,6 +524,40 @@ Concept(Sequence(),
                         ),
                         Member(Index(Member($last, "args"), 0), "value"),
                         $last
+                      )
+                    ),
+                    Comment("A result about one thing (\"make a shopping list\": Made(ShoppingList_1())) is pointed at"),
+                    Comment("as that thing, and as pointed at: \"and add milk to it\" is to the list, not its making."),
+                    Bind($about,
+                      If(
+                        Call($isCall, $said),
+                        Call(
+                          Member(Member($said, "args"), "find"),
+                          Lambda(List($x), Equals(Member($x, "name"), Undefined()))
+                        ),
+                        Undefined()
+                      )
+                    ),
+                    Bind($prev,
+                      If(
+                        And(
+                          And(
+                            And(
+                              And(Call($isCall, $said), Includes(Call(Member($api, "typesOf"), $said), "Result")),
+                              NotEquals($about, Undefined())
+                            ),
+                            Call($isCall, Member($about, "value"))
+                          ),
+                          Not(Length(Member(Member($about, "value"), "args")))
+                        ),
+                        Object(
+                          head = "Ref",
+                          args = List(
+                            Object(value = "it"),
+                            Object(name = "resolvedTo", value = Member($about, "value"))
+                          )
+                        ),
+                        $said
                       )
                     ),
                     Assign($line, Call($carry, $line, $prev)),

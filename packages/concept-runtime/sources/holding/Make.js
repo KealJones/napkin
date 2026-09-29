@@ -1,18 +1,24 @@
-// @realization Write($said), context = Execution(), evaluateArguments = false, types = Types(said = Collection())
+// @realization Write($said), context = Execution(), evaluateArguments = false, types = Types(said = OneOf(Collection(), Described(Collection())))
 // "make a shopping list": a thing of that kind, made here, when none is in play yet. Its kind
 // (ShoppingList) is a kind of what was said (List), so "my list" finds it too. What it is made
 // with ("with eggs, aspirin and cheese") is put in it.
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
-  const whole = bindings.get("said");
+  let whole = bindings.get("said");
+  // "a new shopping list": the describer around the list says which one, not what kind, and one
+  // described is another one, not one already in play.
+  const wrapped = !api.typesOf(whole).includes("Collection");
+  if (wrapped) whole = whole.args.find((a) => a.name === undefined).value;
   // The things it is made with are what goes in it, not what kind of thing it is.
   const withs = whole.args.filter((a) => a.name === undefined && isCall(a.value) && a.value.head === "With");
   const said = { head: whole.head, args: whole.args.filter((a) => !withs.includes(a)) };
   const kind = await api.evaluate(api.call("KindNamed", said), api.call("Execution"));
-  if (!isCall(kind) || kind.head === "KindNamed") return api.call("Write", whole);
+  if (!isCall(kind) || kind.head === "KindNamed") return api.call("Write", bindings.get("said"));
   // One of exactly that kind already in play is the one meant ("make a shopping list", said
   // again); "make a list" after a grocery list makes a list.
-  let thing = await api.evaluate(api.call("ReferentOf", said), api.call("Execution"));
+  // One described by more than its kind ("a new shopping list", "a red box") is another one.
+  const described = wrapped || (said.args.length > 0 && kind.head !== said.args.map((a) => (isCall(a.value) ? a.value.head : "")).join("") + said.head);
+  let thing = described ? undefined : await api.evaluate(api.call("ReferentOf", said), api.call("Execution"));
   const exactly = isCall(thing) && thing.head !== "ReferentOf" && api.typesOf(thing)[1] === kind.head;
   if (!exactly) {
     if (kind.head !== said.head && !api.typesOf(kind).includes(said.head)) api.store.addRelation(kind.head, api.call("IsA", api.call(said.head)), undefined, api.trace.cause);

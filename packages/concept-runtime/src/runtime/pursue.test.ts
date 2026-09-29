@@ -92,3 +92,8 @@ test("what a line leaves undone is looked for further, in what the world has wri
   // How asks for steps, and steps are written at Wikibooks.
   assert.match((await say("how do you bake a cake?")).rendered, /^Answer\(Page\(.*numbered=true/);
 });
+
+test("a command is not answered with a fact found for its words", async () => {
+  const { say } = conversation();
+  assert.doesNotMatch((await say('make a function that console logs "Hi Keal"')).rendered, /^Answer\(/);
+});

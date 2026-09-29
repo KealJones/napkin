@@ -13,7 +13,14 @@ async (args, bindings, api) => {
   const facets = api.context && api.context.head === "Context" ? api.context.args.map((a) => a.value) : [api.context];
   const supposed = facets.some((f) => isCall(f) && f.head === "Hypothetical");
   // Where: the one word inside that says where (to, on, in, from) and holds what names a thing.
+  // "to it": what the word points at, when it was pointed at already (resolvedTo) or by the word.
   const refer = async (e) => {
+    if (isCall(e) && e.head === "Ref") {
+      const to = e.args.find((a) => a.name === "resolvedTo");
+      if (to) return isCall(to.value) ? to.value : undefined;
+      if (typeof e.args[0]?.value !== "string" || !e.args[0].value) return undefined;
+      e = e.args[0].value;
+    }
     const r = await api.evaluate(api.call("ReferentOf", e), api.call("Execution"));
     return isCall(r) && r.head !== "ReferentOf" ? r : undefined;
   };

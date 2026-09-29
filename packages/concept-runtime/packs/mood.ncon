@@ -1338,12 +1338,27 @@ Concept(Unworked(),
               )
             ),
             Await(Call($ask, $line)),
+            Comment("Pursue finds what a question asks for; a command (\"make a function that ...\") asks nothing,"),
+            Comment("and a fact found for its words is no answer to it. What is written may still be what it wants."),
+            Bind($facets,
+              If(
+                And(Call($isCall, Member($api, "context")), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Bind($asked,
+              Call(
+                Member($facets, "some"),
+                Lambda(List($f), And(Call($isCall, $f), Equals(Member($f, "head"), "Interrogative")))
+              )
+            ),
             ForOf(
               $goal,
               Call(Member($open, "slice"), 0, 3),
               ForOf(
                 $step,
-                List("Pursue", "Written"),
+                If($asked, List("Pursue", "Written"), List("Written")),
                 Sequence(
                   Bind($found,
                     Await(

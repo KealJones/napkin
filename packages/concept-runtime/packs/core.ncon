@@ -1026,6 +1026,56 @@ Concept(Fits(),
   )
 )
 
+// A thing with what describes it around it.
+Concept(Fits(),
+  Realization(Fits($value, Described($type)),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($inner,
+              If(
+                Call($isCall, $value),
+                Filter(Member($value, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                List()
+              )
+            ),
+            If(
+              Or(NotEquals(Length($inner), 1), Not(Call($isCall, Member(Index($inner, 0), "value")))),
+              Return(Call(Member($api, "call"), "False")),
+              Undefined()
+            ),
+            Bind($fits,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Fits",
+                    Member(Index($inner, 0), "value"),
+                    Call(Member($bindings, "get"), "type")
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(
+              If(
+                And(Call($isCall, $fits), Equals(Member($fits, "head"), "True")),
+                $fits,
+                Call(Member($api, "call"), "False")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // Otherwise, what it is: a Concept its IsA chain reaches (a number is a Number), or, for a type
 // with more said of it (Foo(X())), what its own IsA says exactly.
 Concept(Fits(),

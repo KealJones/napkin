@@ -30,8 +30,12 @@ async (args, bindings, api) => {
     for (const a of e.args) if (a.name === undefined) await ask(a.value);
   };
   await ask(line);
+  // Pursue finds what a question asks for; a command ("make a function that ...") asks nothing,
+  // and a fact found for its words is no answer to it. What is written may still be what it wants.
+  const facets = isCall(api.context) && api.context.head === "Context" ? api.context.args.map((a) => a.value) : [api.context];
+  const asked = facets.some((f) => isCall(f) && f.head === "Interrogative");
   for (const goal of open.slice(0, 3)) {
-    for (const step of ["Pursue", "Written"]) {
+    for (const step of asked ? ["Pursue", "Written"] : ["Written"]) {
       const found = await api.evaluate(step === "Pursue" && asks ? api.call(step, goal, asks) : api.call(step, goal), api.context);
       if (isCall(found) && found.head === "Found") return api.call("Answer", found.args[0].value);
     }
