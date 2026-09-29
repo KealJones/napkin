@@ -21,7 +21,18 @@ async (args, bindings, api) => {
     return !!u && (u.realizations.length > 0 || u.relations.some((r) => (r.stamps || []).some((st) => st.pack !== undefined)));
   };
   const text = (h) => h.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-  const open = heads.filter((h) => !declared(h));
+  // What the dictionary gives first for a word: "bake" is a doing, "cake" a thing, "good" a
+  // quality. A quality says which one is wanted ("a good recipe"), not what to look for.
+  const firsts = new Map();
+  const first = async (h) => {
+    if (!firsts.has(h)) {
+      const can = await api.evaluate(api.call("PartsOfSpeech", text(h)));
+      firsts.set(h, isCall(can) && can.head === "List" && can.args.length && isCall(can.args[0].value) ? can.args[0].value.head : undefined);
+    }
+    return firsts.get(h);
+  };
+  const open = [];
+  for (const h of heads) if (!declared(h) && (await first(h)) !== "Adjective") open.push(h);
   if (!open.length) return api.call("Written", goal);
   const places = [];
   const namespaces = new Map();
@@ -61,16 +72,13 @@ async (args, bindings, api) => {
   const at = kind ? (api.store.get(kind)?.relations ?? []).map((r) => r.claim).find((c) => isCall(c) && c.head === "WrittenAt") : undefined;
   if (at && isCall(at.args[0].value)) {
     const site = (api.store.get(at.args[0].value.head)?.relations ?? []).map((r) => r.claim).find((c) => isCall(c) && c.head === "Site");
-    // A word is what the dictionary gives first for it: "bake" a doing, "cake" a thing. A doing
-    // a pack knows ("make") is one too; how it is asked ("do", "you", "how") is neither.
+    // A doing a pack knows ("make") is one too; how it is asked ("do", "you", "how") is neither.
     const doings = [];
     const things = [];
     for (const h of heads) {
       const kinds = api.typesOf(api.call(h));
       if (!open.includes(h) && ["Helper", "Deictic", "QuestionWord", "Marker", "MoodKind"].some((k) => kinds.includes(k))) continue;
-      const can = await api.evaluate(api.call("PartsOfSpeech", text(h)));
-      const first = isCall(can) && can.head === "List" && can.args.length && isCall(can.args[0].value) ? can.args[0].value.head : undefined;
-      if (first === "Verb") doings.push(text(h));
+      if ((await first(h)) === "Verb") doings.push(text(h));
       else if (open.includes(h)) things.push(text(h));
     }
     if (site && doings.length && things.length) {

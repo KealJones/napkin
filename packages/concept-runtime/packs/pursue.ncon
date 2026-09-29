@@ -9,6 +9,30 @@ Requires(Basic(), Code())
 // against it by shape. Every piece is its own Concept, so each can be called, traced and
 // replaced on its own.
 
+// What a thing is, or what its word is, rather than something held of it: never an answer to a
+// question about it. A WordFact is about the word (what else it is called, what it can be).
+Concept(Defining(), IsA(Category()))
+
+Concept(WordFact(), IsA(Defining()))
+
+Concept(SameAs(), IsA(Defining()))
+
+Concept(Means(), IsA(Defining()))
+
+Concept(IsA(), IsA(Defining()))
+
+Concept(SubclassOf(), IsA(Defining()))
+
+Concept(Named(), IsA(Defining()))
+
+Concept(DistinctFrom(), IsA(Defining()))
+
+Concept(Mentioned(), IsA(Defining()))
+
+Concept(Called(), IsA(WordFact()))
+
+Concept(CanBe(), IsA(WordFact()))
+
 // A relation found by what it mentions: the identity holding it, and the claim.
 Concept(Held(), IsA(Result()))
 
@@ -1795,6 +1819,12 @@ Concept(Pursue(),
                 )
               )
             ),
+            Comment("A relation that says what a thing is (IsA, SameAs) or what its word is (Called, CanBe: a"),
+            Comment("WordFact), as the graph declares it (IsA(Defining())): not something held of it that a"),
+            Comment("question asks."),
+            Bind($defining,
+              Lambda(List($rel), Includes(Call(Member($api, "typesOf"), Call(Member($api, "call"), $rel)), "Defining"))
+            ),
             Bind($grounded,
               Lambda(List($h),
                 Call(
@@ -1942,22 +1972,7 @@ Concept(Pursue(),
                   Sequence(
                     Bind($rel, And($t, Member($t, "predicate"))),
                     If(
-                      Or(
-                        NotEquals(TypeOf($rel), "string"),
-                        Includes(
-                          List(
-                            "SameAs",
-                            "Means",
-                            "IsA",
-                            "SubclassOf",
-                            "Named",
-                            "Called",
-                            "DistinctFrom",
-                            "Mentioned"
-                          ),
-                          $rel
-                        )
-                      ),
+                      Or(NotEquals(TypeOf($rel), "string"), Call($defining, $rel)),
                       Continue(),
                       Undefined()
                     ),
@@ -2096,7 +2111,8 @@ Concept(Pursue(),
                 )
               )
             ),
-            Comment("What else something is called is a name, never an answer: its words are not facts."),
+            Comment("What else something is called, or what its word can be, is about the word, never an"),
+            Comment("answer."),
             Bind($mentions,
               Lambda(List($h),
                 Filter(
@@ -2105,7 +2121,13 @@ Concept(Pursue(),
                     Not(
                       And(
                         Call($isCall, Member(Member($m, "relation"), "claim")),
-                        Equals(Member(Member(Member($m, "relation"), "claim"), "head"), "Called")
+                        Includes(
+                          Call(
+                            Member($api, "typesOf"),
+                            Call(Member($api, "call"), Member(Member(Member($m, "relation"), "claim"), "head"))
+                          ),
+                          "WordFact"
+                        )
                       )
                     )
                   )

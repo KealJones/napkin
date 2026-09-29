@@ -199,7 +199,54 @@ Concept(Written(),
                 )
               )
             ),
-            Bind($open, Filter($heads, Lambda(List($h), Not(Call($declared, $h))))),
+            Comment("What the dictionary gives first for a word: \"bake\" is a doing, \"cake\" a thing, \"good\" a"),
+            Comment("quality. A quality says which one is wanted (\"a good recipe\"), not what to look for."),
+            Bind($firsts, New($Map)),
+            Bind($first,
+              Async(
+                Lambda(List($h),
+                  Sequence(
+                    If(
+                      Not(Call(Member($firsts, "has"), $h)),
+                      Sequence(
+                        Bind($can,
+                          Await(
+                            Call(Member($api, "evaluate"), Call(Member($api, "call"), "PartsOfSpeech", Call($text, $h)))
+                          )
+                        ),
+                        Call(
+                          Member($firsts, "set"),
+                          $h,
+                          If(
+                            And(
+                              And(
+                                And(Call($isCall, $can), Equals(Member($can, "head"), "List")),
+                                Length(Member($can, "args"))
+                              ),
+                              Call($isCall, Member(Index(Member($can, "args"), 0), "value"))
+                            ),
+                            Member(Member(Index(Member($can, "args"), 0), "value"), "head"),
+                            Undefined()
+                          )
+                        )
+                      ),
+                      Undefined()
+                    ),
+                    Return(Call(Member($firsts, "get"), $h))
+                  )
+                )
+              )
+            ),
+            Bind($open, List()),
+            ForOf(
+              $h,
+              $heads,
+              If(
+                And(Not(Call($declared, $h)), NotEquals(Await(Call($first, $h)), "Adjective")),
+                Call(Member($open, "push"), $h),
+                Undefined()
+              )
+            ),
             If(
               Not(Length($open)),
               Return(Call(Member($api, "call"), "Written", $goal)),
@@ -436,8 +483,9 @@ Concept(Written(),
                     Lambda(List($c), And(Call($isCall, $c), Equals(Member($c, "head"), "Site")))
                   )
                 ),
-                Comment("A word is what the dictionary gives first for it: \"bake\" a doing, \"cake\" a thing. A doing"),
-                Comment("a pack knows (\"make\") is one too; how it is asked (\"do\", \"you\", \"how\") is neither."),
+                Comment(
+                  "A doing a pack knows (\"make\") is one too; how it is asked (\"do\", \"you\", \"how\") is neither."
+                ),
                 Bind($doings, List()),
                 Bind($things, List()),
                 ForOf(
@@ -465,26 +513,8 @@ Concept(Written(),
                       Continue(),
                       Undefined()
                     ),
-                    Bind($can,
-                      Await(
-                        Call(Member($api, "evaluate"), Call(Member($api, "call"), "PartsOfSpeech", Call($text, $h)))
-                      )
-                    ),
-                    Bind($first,
-                      If(
-                        And(
-                          And(
-                            And(Call($isCall, $can), Equals(Member($can, "head"), "List")),
-                            Length(Member($can, "args"))
-                          ),
-                          Call($isCall, Member(Index(Member($can, "args"), 0), "value"))
-                        ),
-                        Member(Member(Index(Member($can, "args"), 0), "value"), "head"),
-                        Undefined()
-                      )
-                    ),
                     If(
-                      Equals($first, "Verb"),
+                      Equals(Await(Call($first, $h)), "Verb"),
                       Call(Member($doings, "push"), Call($text, $h)),
                       If(
                         Includes($open, $h),
