@@ -3296,6 +3296,88 @@ Concept(Hear(),
                 )
               )
             ),
+            Comment("\"make a supplies list and put ...\": what a doing is done to, from its determiner or whose"),
+            Comment(
+              "it is (\"my\") on, ends in a thing. A word there the tagger took for a doing (\"list\", before \"and put\") is the"
+            ),
+            Comment("thing, when the dictionary says it can be one. A subject (\"the dog runs\") has no doing"),
+            Comment("before it, and is left alone."),
+            For(
+              Var($i, 2),
+              LessThan($i, Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind($w, Index($said, $i)),
+                If(
+                  Or(
+                    Or(Not(Includes(Member($w, "tags"), "Verb")), Includes(Member($w, "tags"), "Noun")),
+                    Member($w, "stutter")
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Var($j, Subtract($i, 1)),
+                While(
+                  And(
+                    And(
+                      And(
+                        And(AtLeast($j, 0), Equals(Member(Index($said, $j), "sentence"), Member($w, "sentence"))),
+                        Or(
+                          Includes(Member(Index($said, $j), "tags"), "Noun"),
+                          Includes(Member(Index($said, $j), "tags"), "Adjective")
+                        )
+                      ),
+                      Not(Includes(Member(Index($said, $j), "tags"), "Pronoun"))
+                    ),
+                    Not(Includes(Member(Index($said, $j), "tags"), "Possessive"))
+                  ),
+                  PostDecrement($j)
+                ),
+                Bind($phrase,
+                  And(
+                    And(
+                      And(LessThan($j, Subtract($i, 1)), AtLeast($j, 1)),
+                      Equals(Member(Index($said, $j), "sentence"), Member($w, "sentence"))
+                    ),
+                    Or(
+                      Includes(Member(Index($said, $j), "tags"), "Determiner"),
+                      Includes(Member(Index($said, $j), "tags"), "Possessive")
+                    )
+                  )
+                ),
+                Bind($doneTo,
+                  And(
+                    $phrase,
+                    Call(
+                      Member(Call(Member($said, "slice"), 0, $j), "some"),
+                      Lambda(List($x),
+                        And(
+                          And(
+                            Equals(Member($x, "sentence"), Member($w, "sentence")),
+                            Includes(Member($x, "tags"), "Verb")
+                          ),
+                          Not(Includes(Member($x, "tags"), "Noun"))
+                        )
+                      )
+                    )
+                  )
+                ),
+                If(
+                  And($doneTo, Await(Call($canBe, $w, "Noun"))),
+                  Assign(
+                    Member($w, "tags"),
+                    Concat(
+                      List("Noun", "Singular"),
+                      Filter(
+                        Member($w, "tags"),
+                        Lambda(List($t), Not(Includes(List("Verb", "PresentTense", "Infinitive", "Imperative"), $t)))
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
             Bind($words, List()),
             For(
               Var($i, 0),

@@ -3,7 +3,7 @@
 // heard Cheetos(To(My(List(Shopping())))), where it goes said inside what goes. $doing is Add
 // or Remove. Adding to a kind of collection nothing is made of yet makes one. Answered, so a
 // statement that does this is taken as done; supposed (Hypothetical), nothing changes. The call
-// itself when the words name no such thing.
+// itself when the words name no such thing and none is in play.
 async (args, bindings, api) => {
   const isCall = (e) => e !== null && typeof e === "object" && "head" in e;
   const doing = bindings.get("doing");
@@ -52,6 +52,18 @@ async (args, bindings, api) => {
   if (!target && place) {
     const made = await api.evaluate(api.call("Write", place), api.call("Execution"));
     target = isCall(made) && made.head === "Made" ? made.args[0].value : undefined;
+  }
+  // Naming nowhere ("add honey, cheese and bananas", after "make a list"): the holder newest in
+  // play in this conversation, when there is one. Numbers, and doings (Add(3, 4)), are not things
+  // put anywhere.
+  const conversation = api.ambient("conversation");
+  const group = (e) => isCall(e) && ["And", "List"].includes(e.head);
+  const things = (e) =>
+    group(e) ? e.args.every((a) => things(a.value)) : isCall(e) && e.head !== "Ref" && !(api.store.get(e.head)?.realizations ?? []).some((r) => !r.retired);
+  if (!target && conversation && things(rest)) {
+    const focus = await api.evaluate(api.call("ConversationFocus", conversation), api.call("Execution"));
+    const newest = isCall(focus) && focus.head === "List" ? focus.args.map((a) => a.value).find((t) => isCall(t) && api.typesOf(t).includes("Collection")) : undefined;
+    if (newest) target = newest;
   }
   if (!target) return none;
   const items = [];

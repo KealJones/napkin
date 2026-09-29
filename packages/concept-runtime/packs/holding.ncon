@@ -192,7 +192,7 @@ Concept(Add(),
 // heard Cheetos(To(My(List(Shopping())))), where it goes said inside what goes. $doing is Add
 // or Remove. Adding to a kind of collection nothing is made of yet makes one. Answered, so a
 // statement that does this is taken as done; supposed (Hypothetical), nothing changes. The call
-// itself when the words name no such thing.
+// itself when the words name no such thing and none is in play.
 Concept(Change(),
   Realization(Change($doing, $said),
     context = Execution(),
@@ -364,6 +364,69 @@ Concept(Change(),
                     Undefined()
                   )
                 )
+              ),
+              Undefined()
+            ),
+            Comment("Naming nowhere (\"add honey, cheese and bananas\", after \"make a list\"): the holder newest in"),
+            Comment("play in this conversation, when there is one. Numbers, and doings (Add(3, 4)), are not things"),
+            Comment("put anywhere."),
+            Bind($conversation, Call(Member($api, "ambient"), "conversation")),
+            Bind($group, Lambda(List($e), And(Call($isCall, $e), Includes(List("And", "List"), Member($e, "head"))))),
+            Bind($things,
+              Lambda(List($e),
+                If(
+                  Call($group, $e),
+                  Call(Member(Member($e, "args"), "every"), Lambda(List($a), Call($things, Member($a, "value")))),
+                  And(
+                    And(Call($isCall, $e), NotEquals(Member($e, "head"), "Ref")),
+                    Not(
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Member($e, "head")),
+                              "realizations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r), Not(Member($r, "retired")))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              And(And(Not($target), $conversation), Call($things, $rest)),
+              Sequence(
+                Bind($focus,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "ConversationFocus",
+                        $conversation
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                Bind($newest,
+                  If(
+                    And(Call($isCall, $focus), Equals(Member($focus, "head"), "List")),
+                    Call(
+                      Member(Map(Member($focus, "args"), Lambda(List($a), Member($a, "value"))), "find"),
+                      Lambda(List($t),
+                        And(Call($isCall, $t), Includes(Call(Member($api, "typesOf"), $t), "Collection"))
+                      )
+                    ),
+                    Undefined()
+                  )
+                ),
+                If($newest, Assign($target, $newest), Undefined())
               ),
               Undefined()
             ),

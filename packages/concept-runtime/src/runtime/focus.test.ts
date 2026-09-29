@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { c, call, format, parse } from "../concept/expression.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
+import { ConversationRepository } from "../memory/conversations.js";
 import { Runtime } from "./evaluator.js";
 
 /** A conversation about a director, then his two wives, with what is known of each. */
@@ -48,12 +49,17 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   const { turn } = await import("./turn.js");
   const store = new ConceptStore();
   seed(store);
-  let heard = 1000;
+  // Each message heard and recorded as the studio does, so what a message makes is known as its,
+  // and what the conversation has in play is what it said.
+  const conversations = new ConversationRepository(store);
+  const { id } = conversations.create();
   const say = async (m: string) => {
     const runtime = new Runtime(store);
-    // Each message stamped as the studio stamps it, so what a message makes is known as its.
-    runtime.trace.said(++heard);
-    return (await turn(runtime, m, c("Execution"), { learn: false, conversation: "Conversation_2" })).spoken;
+    const heard = conversations.receive();
+    runtime.trace.said(heard.seq);
+    const r = await turn(runtime, m, c("Execution"), { learn: false, conversation: id });
+    conversations.record(id, { message: m, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, heard });
+    return r.spoken;
   };
   assert.equal(await say("make a shopping list"), "Made a shopping list.");
   assert.equal(await say("add milk to my shopping list"), "Added milk to your shopping list.");
@@ -70,6 +76,12 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   assert.equal(await say("make a shopping list and add milk to it"), "Made a shopping list. Added milk to your shopping list.");
   assert.equal(await say("make a new shopping list and add cheese and eggs to it"), "Made a shopping list. Added cheese and eggs to your shopping list.");
   assert.equal(await say("what is on my shopping list?"), "Cheese and eggs.");
+  // "list" before "and put" is the thing made, not a doing; things added naming nowhere go in the
+  // list in play; numbers added are still added.
+  assert.equal(await say("Can you make a Supplies list and put stapler on it"), "Made a supplies list. Added stapler to your supplies list.");
+  assert.equal(await say("add tape and glue"), "Added tape and glue to your supplies list.");
+  assert.equal(await say("what is on my supplies list?"), "Stapler, tape and glue.");
+  assert.equal(await say("add 3, 4 and 5"), "12");
   // Nothing here is about lists: once a box is known to hold things, one made holds keys.
   store.addRelation("Box", parse("IsA(Collection())"));
   assert.equal(await say("make a box"), "Made a box.");
