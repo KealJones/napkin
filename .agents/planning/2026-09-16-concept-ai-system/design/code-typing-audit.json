@@ -1,0 +1,68 @@
+[
+ {
+  "pack": "packs/code.ncon",
+  "concept": "AddValues, SubtractValues, MultiplyValues, DivideValues, RemainderOf, NegateValue, RaiseToPower, Below, Above, NotAbove, NotBelow",
+  "line": 2879,
+  "pattern": "Realization(AddValues($a, $b), context = Execution(), body = Code(ir = ...)) \u2014 and the same shape repeated verbatim for SubtractValues (2911), MultiplyValues (2943), DivideValues (2975), RemainderOf (3007), NegateValue (3039), RaiseToPower (3191), Below (3514), Above (3545), NotAbove (3576), NotBelow (3607).",
+  "finagling": "Each body defines an identical inline `$scalar` helper: `toHost(x)`, then `If(And(NotEquals(h,null), Equals(TypeOf(h),\"object\")), Not(InstanceOf(h,$Date)))` throws `Error(\"Expected a number, text or an instant\")` before doing the real op. This is a per-argument kind check (is it a primitive or a Date) duplicated identically 11 times, done by throwing a raw JS error rather than by the graph's own type/residual mechanism.",
+  "proposal": "types = Types(a = OneOf(Number(), String(), Date()), b = OneOf(Number(), String(), Date())) on each of these Realizations, dropping the inline $scalar/TypeOf/Throw block. Arguments that don't fit fail to apply (Part 9.6 handover / residual) instead of throwing a host Error, and the shared check is written once by the type system instead of copy-pasted 11 times.",
+  "mechanism": "types",
+  "confidence": "medium",
+  "risk": "Each of these Concepts has only one Execution() realization, so there is nothing to hand over to: an unfit argument becomes a residual instead of a thrown Error, which is a real behavior change (silently returning the unevaluated call rather than crashing) and needs a caller-side check that this is actually wanted before removing the throw."
+ },
+ {
+  "pack": "packs/code.ncon",
+  "concept": "Lowercase, Uppercase, StartsWith, EndsWith, Split, PadStart (both realizations), CompareText, Replace",
+  "line": 3638,
+  "pattern": "Realization(Lowercase($t), ...) at 3638, and the identical `$text` helper (Bind($text, Lambda($x, If(NotEquals(TypeOf($x),\"string\"), Throw(...), Return($x))))) repeated in Uppercase (3668), StartsWith (3698), EndsWith (3728), Split (3758), PadStart's two realizations (3790, 3827), CompareText (3855), Replace (3932).",
+  "finagling": "Every one of these Concepts validates its first argument is a JS string by checking `TypeOf($x)` and throwing `Error(\"Expected text\")` if not, inline and duplicated across 9 realizations rather than declared once.",
+  "proposal": "types = Types(t = String()) beside each pattern (t/text argument named per Concept), deleting the duplicated `$text` guard from every body.",
+  "mechanism": "types",
+  "confidence": "medium",
+  "risk": "Same as the arithmetic group: these are each the Concept's only realization, so typing turns a thrown Error into a residual/no-match rather than a crash \u2014 a behavior change worth calling out, not just a mechanical rewrite."
+ },
+ {
+  "pack": "packs/code.ncon",
+  "concept": "Join, WithElement, Reverse, FirstSatisfying, IndexSatisfying, AnySatisfies, AllSatisfy, Sort (both realizations), Merge, CallOf, Substitute, NewSet, NewMap, LoopOver, CallWith, CollectStamps, Rank, ForgetTurns (also Largest, Smallest)",
+  "line": 4231,
+  "pattern": "Realization(Join($xs, $separator), ...) at 4231; the same `$items` helper (If(...Equals(Member($x,\"head\"),\"List\"), Map(...), else toHost + Array.isArray/InstanceOf($Set) check, else Throw(\"Expected a List\"))) is repeated in ~20 realizations across the pack (WithElement 4330, Reverse ~4377, FirstSatisfying, IndexSatisfying, AnySatisfies, AllSatisfy, Sort x2, Merge, CallOf, Substitute, NewSet, NewMap, LoopOver, CallWith, CollectStamps, Rank, ForgetTurns, Largest, Smallest).",
+  "finagling": "Each realization's first argument is checked to be either a `List(...)` call or a host Array/Set, with an identical inline TypeOf/head/InstanceOf chain and a hand-written `Error(\"Expected a List\")`, copy-pasted across roughly 20 Concepts instead of being declared once as the argument's type.",
+  "proposal": "types = Types(xs = ListOf($T)) (or List(Rest($T)) where the exact element type matters) on every one of these patterns, removing the duplicated `$items` guard block from each body \u2014 one derivation instead of ~20 near-identical ones, matching AGENTS.md's 'if you are about to write fifty similar lines, write the derivation.'",
+  "mechanism": "types",
+  "confidence": "high",
+  "risk": "As above, most of these are single-realization Concepts, so this turns a hard Error into a residual on a bad argument; confirm that's acceptable before changing behavior, and make sure ListOf's coercion of a host Array/Set via toHost still happens somewhere (the type check alone doesn't do the host<->graph conversion the body currently does)."
+ },
+ {
+  "pack": "packs/code.ncon",
+  "concept": "SetAdd, MapSet",
+  "line": 5559,
+  "pattern": "Realization(SetAdd($s, $x), ...) at 5559 and Realization(MapSet($m, $k, $x), ...) at 5649, both guarding their first argument with TypeOf/InstanceOf and throwing 'Expected a MutableSet or MutableMap'.",
+  "finagling": "Same inline kind-check-then-throw pattern as the List and text/number groups above, just for the MutableSet/MutableMap primitives.",
+  "proposal": "types = Types(s = MutableSet()) / types = Types(m = MutableMap()) beside the patterns, dropping the inline guard.",
+  "mechanism": "types",
+  "confidence": "medium",
+  "risk": "Same single-realization caveat: throw becomes residual."
+ },
+ {
+  "pack": "packs/code.ncon",
+  "concept": "Element",
+  "line": 4127,
+  "pattern": "Realization(Element($x, $key), context = Execution(), body = Code(ir = ...)) \u2014 one realization implementing \"x[key]\".",
+  "finagling": "The single body chains five internal branches on what $x is: `Equals(TypeOf($x),\"string\")` for string indexing, `Or(NotEquals(TypeOf($x),\"object\"), Equals($x,null))` to bail to Undefined(), `Equals(Member($x,\"head\"),\"List\")` for list indexing, then two more checks against `Member($x,\"head\") != \"Record\"` for a call's own head/args, finally falling through to record-field lookup. It is one realization doing five different things by inspecting the argument's shape/head, not five realizations chosen by pattern or type.",
+  "proposal": "Split into separate realizations chosen by pattern/type: types = Types(x = String()) for string indexing, a pattern Element(List(Rest($items)), $key) for list indexing, types = Types(x = Record()) (or a dedicated Record concept) for field access, and a fallback Element($x, $key) for a generic call's head/args \u2014 each realization handles one case instead of one body branching on TypeOf/head five times.",
+  "mechanism": "split-realizations",
+  "confidence": "medium",
+  "risk": "Element is on the hot path for every indexing/member operation the interpreter runs, so splitting it must preserve exact fallthrough order (string < object-null-guard < List < Record-exclusion twice < generic find) \u2014 getting the realization-selection order or types wrong changes what `x[key]` returns for edge cases like an empty List or a call literally named \"Record\"."
+ },
+ {
+  "pack": "packs/code.ncon",
+  "concept": "Largest, Smallest",
+  "line": 3223,
+  "pattern": "Realization(Largest($xs), ...) at 3223 (and Smallest($xs) at 3293) \u2014 single realization each.",
+  "finagling": "Before treating $xs as a list of numbers, the body checks whether the argument is instead a bare 0-arity Concept call (`TypeOf(...)===\"object\" && In(\"head\",...) && head!=\"List\" && !args.length`) meaning \"a kind\" (\"the largest planet\"), and if so routes to a completely different Concept, re-evaluating `Superlative(\"largest\"/\"smallest\", $xs)` and wrapping the result in `Answer(...)`. One realization is silently doing two unrelated jobs \u2014 list-max/min versus kind-superlative lookup \u2014 chosen by inspecting the argument's shape inside the body.",
+  "proposal": "Split by pattern/type: keep Largest(List(Rest($xs))) (or types = Types(xs = ListOf(Number()))) for the arithmetic case, and add a second, lower-priority realization Largest($kind) (untyped, or types = Types(kind = Concept())) that does only the Superlative/Answer dispatch. Let realization selection choose between them instead of the body's own head/arity check.",
+  "mechanism": "split-realizations",
+  "confidence": "medium",
+  "risk": "The two behaviors return different shapes (a number vs an Answer(...) wrapping a Superlative result), so whichever realization the code-writer or hearing picks first must still match today's precedence (list case checked first, kind case as fallback); also this same fork is duplicated in Smallest so both need the same fix or they'll drift apart again."
+ }
+]
