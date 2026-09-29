@@ -602,12 +602,17 @@ function flatten<T>(bucket: Map<string, T[]> | undefined): T[] {
 }
 
 /** The same pattern, context and language: which of two such realizations runs is shadowing. */
+// Two realizations are the same meaning when they match the same calls in the same situation:
+// pattern, context and types. Same pattern and context but different types are two meanings
+// (Add of numbers, Add of a date and a duration), and neither retires the other.
+const typesOf = (r: Realization) => (r.types === undefined ? "" : format(r.types));
+
 function sameKey(a: Realization, b: Realization): boolean {
   const ctx = (r: Realization) => (r.context === undefined ? "" : format(r.context));
-  return equal(a.pattern, b.pattern) && ctx(a) === ctx(b) && codeLanguage(a.body) === codeLanguage(b.body);
+  return equal(a.pattern, b.pattern) && ctx(a) === ctx(b) && typesOf(a) === typesOf(b) && codeLanguage(a.body) === codeLanguage(b.body);
 }
 
 function sameRealization(a: Realization, b: Realization): boolean {
   const ctx = (r: Realization) => (r.context === undefined ? "" : format(r.context));
-  return equal(a.pattern, b.pattern) && ctx(a) === ctx(b) && equal(a.body, b.body);
+  return equal(a.pattern, b.pattern) && ctx(a) === ctx(b) && typesOf(a) === typesOf(b) && equal(a.body, b.body);
 }

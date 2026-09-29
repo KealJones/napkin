@@ -6,5 +6,8 @@ async (args, bindings, api) => {
   const done = await api.evaluate(line, api.context);
   if (api.format(done) !== api.format(line) || !line || !line.head || line.args.length) return done;
   const filled = await api.evaluate(api.call("Fills", line), api.context);
-  return filled && filled.head === "Fills" ? done : filled;
+  if (filled && filled.head !== "Fills") return filled;
+  // Or talk ("k"): noted, with a reply, not looked up.
+  const said = await api.evaluate(api.call("Interjected", line));
+  return said && said.head === "Interjected" ? done : said;
 };

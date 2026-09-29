@@ -5,6 +5,232 @@
 // from sources/mood (edit those, not this).
 Requires(Core(), Basic())
 
+// A word said alone that the dictionary gives as an interjection ("k", "lol", "hmm"): talk, not
+// a thing to look up. What it is is kept, from Wiktionary, and it is noted as told, with a reply.
+// The call itself when it is not one.
+Concept(Interjected(),
+  Realization(Interjected($line),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($none, Call(Member($api, "call"), "Interjected", $line)),
+            If(
+              Or(Not(Call($isCall, $line)), Length(Member($line, "args"))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($kinds,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Closure",
+                    Member($line, "head"),
+                    "IsA"
+                  )
+                )
+              )
+            ),
+            Var(
+              $talk,
+              And(
+                And(Call($isCall, $kinds), Equals(Member($kinds, "head"), "List")),
+                Call(
+                  Member(Member($kinds, "args"), "some"),
+                  Lambda(List($a),
+                    And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), "Interjection"))
+                  )
+                )
+              )
+            ),
+            If(
+              Not($talk),
+              Sequence(
+                Comment("Said alone, as a reply, a word means what makes sense of that (\"k\" is okay, not potassium,"),
+                Comment("though it is both): asked of any word, unless it is something Napkin does."),
+                If(
+                  Call(
+                    Member(
+                      Otherwise(
+                        OptionalMember(
+                          Call(Member(Member($api, "store"), "get"), Member($line, "head")),
+                          "realizations"
+                        ),
+                        List()
+                      ),
+                      "some"
+                    ),
+                    Lambda(List($r), Not(Member($r, "retired")))
+                  ),
+                  Return($none),
+                  Undefined()
+                ),
+                Bind($word,
+                  Call(
+                    Member(
+                      Call(
+                        Member(Member($line, "head"), "replace"),
+                        Regex("([a-z0-9])([A-Z])", "g"),
+                        "$1 $2"
+                      ),
+                      "toLowerCase"
+                    )
+                  )
+                ),
+                Bind($senses,
+                  Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Senses", $word, "Interjection")))
+                ),
+                Bind($listed,
+                  If(
+                    And(
+                      Call($isCall, $senses),
+                      Call($isCall, OptionalMember(Index(Member($senses, "args"), 1), "value"))
+                    ),
+                    Member(Member(Index(Member($senses, "args"), 1), "value"), "args"),
+                    List()
+                  )
+                ),
+                If(Not(Length($listed)), Return($none), Undefined()),
+                Bind($from,
+                  Call(Member(Member($senses, "args"), "find"), Lambda(List($a), Equals(Member($a, "name"), "from")))
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Member($line, "head"),
+                  Call(
+                    Member($api, "call"),
+                    "IsA",
+                    Call(Member($api, "call"), "Interjection")
+                  ),
+                  Undefined(),
+                  Member(Member($api, "trace"), "cause")
+                ),
+                If(
+                  $from,
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    Member($line, "head"),
+                    Call(
+                      Member($api, "call"),
+                      "Means",
+                      Member(Index($listed, 0), "value"),
+                      Member($from, "value")
+                    ),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  ),
+                  Undefined()
+                ),
+                Assign($talk, true)
+              ),
+              Undefined()
+            ),
+            Comment("What it means, said instead, when that is something Napkin answers (\"k\" means \"OK\", and"),
+            Comment("\"OK\" is Got it); else noted as it was said."),
+            Bind($means,
+              Call(
+                Member(
+                  Map(
+                    Otherwise(
+                      OptionalMember(Call(Member(Member($api, "store"), "get"), Member($line, "head")), "relations"),
+                      List()
+                    ),
+                    Lambda(List($r), Member($r, "claim"))
+                  ),
+                  "find"
+                ),
+                Lambda(List($c),
+                  And(
+                    And(Call($isCall, $c), Equals(Member($c, "head"), "Means")),
+                    Equals(TypeOf(OptionalMember(Index(Member($c, "args"), 0), "value")), "string")
+                  )
+                )
+              )
+            ),
+            If(
+              $means,
+              Sequence(
+                Bind($heard,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Hear",
+                        Member(Index(Member($means, "args"), 0), "value")
+                      )
+                    )
+                  )
+                ),
+                Bind($lines,
+                  If(
+                    And(Call($isCall, $heard), Equals(Member($heard, "head"), "Phrases")),
+                    Filter(Member($heard, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                    List()
+                  )
+                ),
+                Bind($inner,
+                  If(
+                    And(Equals(Length($lines), 1), Call($isCall, Member(Index($lines, 0), "value"))),
+                    Member(Index($lines, 0), "value"),
+                    Undefined()
+                  )
+                ),
+                Bind($said,
+                  If(
+                    And(And($inner, Call($isCall, $inner)), Equals(Member($inner, "head"), "ContextScope")),
+                    OptionalMember(Index(Member($inner, "args"), 1), "value"),
+                    $inner
+                  )
+                ),
+                If(
+                  And(Call($isCall, $said), NotEquals(Member($said, "head"), Member($line, "head"))),
+                  Sequence(
+                    Bind($answered,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          $inner,
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    If(
+                      And(Call($isCall, $answered), Equals(Member($answered, "head"), "Answer")),
+                      Return($answered),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(Member($api, "call"), "Note", $line),
+                Call(
+                  Member($api, "call"),
+                  "Context",
+                  Call(Member($api, "call"), "Execution"),
+                  Call(Member($api, "call"), "Declarative")
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A line in any other mood (a command): read, and done. A word alone that does nothing as a
 // command ("milk", after making a shopping list) may be a thing for a holder just made.
 Concept(Line(),
@@ -56,11 +282,18 @@ Concept(Line(),
                 )
               )
             ),
+            If(
+              And($filled, NotEquals(Member($filled, "head"), "Fills")),
+              Return($filled),
+              Undefined()
+            ),
+            Comment("Or talk (\"k\"): noted, with a reply, not looked up."),
+            Bind($said, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Interjected", $line)))),
             Return(
               If(
-                And($filled, Equals(Member($filled, "head"), "Fills")),
+                And($said, Equals(Member($said, "head"), "Interjected")),
                 $done,
-                $filled
+                $said
               )
             )
           )
@@ -648,6 +881,13 @@ Concept(WordAlone(),
             If(
               Or($acts, $talk),
               Return(Call(Member($api, "call"), "WordAlone", $line)),
+              Undefined()
+            ),
+            Comment("Talk the dictionary knows (\"k\"): noted, not looked up."),
+            Bind($said, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Interjected", $line)))),
+            If(
+              And($said, NotEquals(Member($said, "head"), "Interjected")),
+              Return($said),
               Undefined()
             ),
             Bind($facets,

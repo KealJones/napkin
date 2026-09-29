@@ -36,7 +36,7 @@ export interface Forgotten {
 }
 
 const key = (r: Realization): string =>
-  `${format(r.pattern)}||${r.context === undefined ? "any" : format(r.context)}`;
+  `${format(r.pattern)}||${r.context === undefined ? "any" : format(r.context)}||${r.types === undefined ? "" : format(r.types)}`;
 
 export function forget(store: ConceptStore, options: ForgetOptions = {}): Forgotten[] {
   const unusedFor = options.unusedForMs ?? 30 * 24 * 60 * 60 * 1000;

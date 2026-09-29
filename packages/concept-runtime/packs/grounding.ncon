@@ -685,9 +685,10 @@ Concept(Senses(),
                     Map(Or(Member($e, "definitions"), List()), Lambda(List($x), Call($plain, Member($x, "definition"))))
                   )
                 ),
-                Lambda(List($d), GreaterThan(Length($d), 2))
+                Lambda(List($d), GreaterThan(Length($d), 0))
               )
             ),
+            Comment("\"OK\" is a whole definition"),
             Return(
               Object(
                 head = "Senses",

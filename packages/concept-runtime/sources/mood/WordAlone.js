@@ -9,6 +9,9 @@ async (args, bindings, api) => {
   const kinds = await api.evaluate(api.call("Closure", line.head, "IsA"));
   const talk = kinds && kinds.head === "List" && kinds.args.some((a) => a.value && a.value.head === "Interjection");
   if (acts || talk) return api.call("WordAlone", line);
+  // Talk the dictionary knows ("k"): noted, not looked up.
+  const said = await api.evaluate(api.call("Interjected", line));
+  if (said && said.head !== "Interjected") return said;
   const facets = api.context && api.context.head === "Context" ? api.context.args.map((a) => a.value) : [api.context];
   return api.evaluate(api.call("ContextScope", api.call("Interrogative"), api.call("What", api.call("Is", line))), api.call("Context", ...facets.filter((f) => !(f && f.head === "Declarative"))));
 };
