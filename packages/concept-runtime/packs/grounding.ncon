@@ -820,3 +820,146 @@ Concept(Traverse(),
     )
   )
 )
+
+// What a word can be (hearing asks it where a word's place calls for a class the tagger missed).
+Concept(CanBe(), IsA(Relation()))
+
+// What a word can be, as the dictionary (Wiktionary) gives it: every part of speech it has, each
+// a word class ("mean" is an Adjective, a Verb and a Noun), kept as CanBe(...) from Wiktionary,
+// so the word is asked about once. Hearing picks among them by where the word stands.
+Concept(PartsOfSpeech(),
+  Realization(PartsOfSpeech($word),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($word,
+              Call(
+                Member(
+                  Call(
+                    Member(Call($String, Call(Member($api, "toHost"), Call(Member($bindings, "get"), "word"))), "trim")
+                  ),
+                  "toLowerCase"
+                )
+              )
+            ),
+            Bind($name,
+              Call(
+                Member(
+                  Map(
+                    Filter(Call(Member($word, "split"), Regex("[^a-z0-9]+", "")), Lambda(List($p), $p)),
+                    Lambda(List($p), Add(Call(Member(Index($p, 0), "toUpperCase")), Call(Member($p, "slice"), 1)))
+                  ),
+                  "join"
+                ),
+                ""
+              )
+            ),
+            Bind($held,
+              Filter(
+                Map(
+                  Otherwise(OptionalMember(Call(Member(Member($api, "store"), "get"), $name), "relations"), List()),
+                  Lambda(List($r), Member($r, "claim"))
+                ),
+                Lambda(List($c),
+                  And(
+                    And(Call($isCall, $c), Equals(Member($c, "head"), "CanBe")),
+                    Call($isCall, OptionalMember(Index(Member($c, "args"), 0), "value"))
+                  )
+                )
+              )
+            ),
+            If(
+              Length($held),
+              Return(
+                Call(
+                  Member($api, "call"),
+                  "List",
+                  Spread(Map($held, Lambda(List($c), Member(Index(Member($c, "args"), 0), "value"))))
+                )
+              ),
+              Undefined()
+            ),
+            Bind($url,
+              Add(
+                "https://en.wiktionary.org/api/rest_v1/page/definition/",
+                Call($encodeURIComponent, Call(Member(Call(Member($word, "split"), " "), "join"), "_"))
+              )
+            ),
+            Bind($got,
+              Call(
+                Member($api, "toHost"),
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Fetch", $url)))
+              )
+            ),
+            Bind($kinds, List()),
+            ForOf(
+              $e,
+              If(
+                And($got, Call(Member($Array, "isArray"), Member($got, "en"))),
+                Member($got, "en"),
+                List()
+              ),
+              Sequence(
+                Bind($k,
+                  Call(
+                    Member(
+                      Map(
+                        Filter(
+                          Call(
+                            Member(Call($String, Or(Member($e, "partOfSpeech"), "")), "split"),
+                            Regex("[^A-Za-z]+", "")
+                          ),
+                          Lambda(List($p), $p)
+                        ),
+                        Lambda(List($p),
+                          Add(
+                            Call(Member(Index($p, 0), "toUpperCase")),
+                            Call(Member(Call(Member($p, "slice"), 1), "toLowerCase"))
+                          )
+                        )
+                      ),
+                      "join"
+                    ),
+                    ""
+                  )
+                ),
+                If(
+                  And($k, Not(Includes($kinds, $k))),
+                  Call(Member($kinds, "push"), $k),
+                  Undefined()
+                )
+              )
+            ),
+            ForOf(
+              $k,
+              $kinds,
+              Call(
+                Member(Member($api, "store"), "addRelation"),
+                $name,
+                Call(
+                  Member($api, "call"),
+                  "CanBe",
+                  Call(Member($api, "call"), $k),
+                  Call(Member($api, "call"), "Wiktionary", $url)
+                ),
+                Undefined(),
+                Member(Member($api, "trace"), "cause")
+              )
+            ),
+            Return(
+              Call(
+                Member($api, "call"),
+                "List",
+                Spread(Map($kinds, Lambda(List($k), Call(Member($api, "call"), $k))))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

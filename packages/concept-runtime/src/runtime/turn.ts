@@ -115,6 +115,9 @@ export function holdsResidual(runtime: Runtime, result: Expr | undefined): boole
     // A marker is meant to survive into the answer as said ("haha" set aside), not run, and
     // so is a word for someone in the conversation: "me" in a statement is the speaker.
     if (isCall(node) && (isMarker(runtime, node.head) || lineage(runtime.store, node.head).some((u) => u.identity === "Deictic"))) continue;
+    // A thing named, with nothing to do (Clock() in what clock means): being itself is all it
+    // does, so it is not work left undone. What is not known of it is a gap, reported apart.
+    if (isCall(node) && !node.args.length && !reachesBehaviour(runtime.store, node.head)) continue;
     if (unevaluated.some((r) => equal(r, node))) return true;
   }
   return false;

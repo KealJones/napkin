@@ -1595,6 +1595,26 @@ Concept(QuestionWord(),
 // "could you close the door", "is chess a sport": a helper first asks.
 Concept(Helper(), IsA(WordClass()))
 
+// A helper that takes its subject and then a doing, bare ("what does poop mean", "can dogs
+// swim"): what stands after the subject is the doing.
+Concept(TakesDoing(), IsA(Relation()))
+
+Concept(Do(), TakesDoing())
+
+Concept(Does(), TakesDoing())
+
+Concept(Did(), TakesDoing())
+
+Concept(Can(), TakesDoing())
+
+Concept(Could(), TakesDoing())
+
+Concept(Will(), TakesDoing())
+
+Concept(Would(), TakesDoing())
+
+Concept(Should(), TakesDoing())
+
 Concept(Helper(),
   Realization($word,
     context = Hearing(),
@@ -3067,6 +3087,112 @@ Concept(Hear(),
                 ),
                 Assign(Member(Index($said, $i), "stutter"), true),
                 Undefined()
+              )
+            ),
+            Comment("\"what does poop mean\": after a helper that takes a doing, the next word is its subject and"),
+            Comment("the one after it the doing, as the dictionary says each can be when the tagger guessed"),
+            Comment("otherwise (\"mean\" as unkind, \"poop\" as a doing). Asked only where the place calls for it."),
+            Bind($canBe,
+              Async(
+                Lambda(List($w, $k),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(
+                            Member($api, "call"),
+                            "PartsOfSpeech",
+                            Member($w, "text")
+                          )
+                        )
+                      )
+                    ),
+                    Return(
+                      And(
+                        Call($isCall, $r),
+                        Call(
+                          Member(Member($r, "args"), "some"),
+                          Lambda(List($a),
+                            And(Call($isCall, Member($a, "value")), Equals(Member(Member($a, "value"), "head"), $k))
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            For(
+              Var($i, 0),
+              LessThan(Add($i, 2), Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind($helper, Call(Member(Member($api, "store"), "get"), Call($name, Member(Index($said, $i), "text")))),
+                If(
+                  Or(
+                    Not($helper),
+                    Not(
+                      Call(
+                        Member(Member($helper, "relations"), "some"),
+                        Lambda(List($r),
+                          And(
+                            Call($isCall, Member($r, "claim")),
+                            Equals(Member(Member($r, "claim"), "head"), "TakesDoing")
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($subject, Index($said, Add($i, 1))),
+                Bind($doing, Index($said, Add($i, 2))),
+                If(
+                  Or(
+                    NotEquals(Member($subject, "sentence"), Member(Index($said, $i), "sentence")),
+                    NotEquals(Member($doing, "sentence"), Member(Index($said, $i), "sentence"))
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  Or(Includes(Member($subject, "tags"), "Pronoun"), Includes(Member($subject, "tags"), "Determiner")),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  And(Not(Includes(Member($doing, "tags"), "Verb")), Await(Call($canBe, $doing, "Verb"))),
+                  Assign(
+                    Member($doing, "tags"),
+                    Concat(
+                      List("Verb", "Infinitive"),
+                      Filter(
+                        Member($doing, "tags"),
+                        Lambda(List($t), And(NotEquals($t, "Adjective"), NotEquals($t, "Noun")))
+                      )
+                    )
+                  ),
+                  Undefined()
+                ),
+                If(
+                  And(
+                    And(Includes(Member($subject, "tags"), "Verb"), Not(Includes(Member($subject, "tags"), "Noun"))),
+                    Await(Call($canBe, $subject, "Noun"))
+                  ),
+                  Assign(
+                    Member($subject, "tags"),
+                    Concat(
+                      List("Noun", "Singular"),
+                      Filter(
+                        Member($subject, "tags"),
+                        Lambda(List($t), Not(Includes(List("Verb", "PresentTense", "Infinitive"), $t)))
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
               )
             ),
             Bind($words, List()),
