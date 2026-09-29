@@ -358,9 +358,111 @@ Concept(Note(),
 
 // A question left unanswered for want of a word ("pi" in "what is pi times 2"): what the word is,
 // asked the way "what is pi" asks it (a number, where the word is worked on), stands in for it,
-// and the question is worked out again. The call itself when nothing is recalled.
+// and the question is worked out again. The call itself when nothing is recalled. What stood in
+// for an unresolved word wrapped in Answer or Unknown is looked inside instead (RecallAnswer.js,
+// RecallUnknown.js); this is the fallback for whatever else $value is. The search itself is
+// shared with those two, in Recollect.js.
 Concept(Recall(),
   Realization(Recall($line, $value),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($value, Call(Member($bindings, "get"), "value")),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  "Recollect",
+                  $line,
+                  $value,
+                  $value
+                ),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A question left unanswered for want of a word ("pi" in "what is pi times 2"), where what
+// stood in its place was itself an answer: look inside it for the word to recall (Recollect.js).
+Concept(Recall(),
+  Realization(Recall($line, Answer($inner)),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($inner, Call(Member($bindings, "get"), "inner")),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  "Recollect",
+                  $line,
+                  Call(Member($api, "call"), "Answer", $inner),
+                  $inner
+                ),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// A question left unanswered for want of a word ("pi" in "what is pi times 2"), where what
+// stood in its place was itself unrecognized: look inside it for the word to recall (Recollect.js).
+Concept(Recall(),
+  Realization(Recall($line, Unknown($inner)),
+    context = Interrogative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($line, Call(Member($bindings, "get"), "line")),
+            Bind($inner, Call(Member($bindings, "get"), "inner")),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                Call(
+                  Member($api, "call"),
+                  "Recollect",
+                  $line,
+                  Call(Member($api, "call"), "Unknown", $inner),
+                  $inner
+                ),
+                Member($api, "context")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// The search shared by Recall, RecallAnswer and RecallUnknown: is a word left over in $inner
+// with no meaning of its own, that a plain "what is it" answers as a number or a fact; if so,
+// put that answer where the word stood in $line and work the question out again. $value is the
+// call as it stood ($line's own $value, or the Answer/Unknown that wrapped $inner), kept to hand
+// back unchanged when nothing is recalled.
+Concept(Recollect(),
+  Realization(Recollect($line, $value, $inner),
     context = Interrogative(),
     evaluateArguments = false,
     body = Code(
@@ -370,6 +472,7 @@ Concept(Recall(),
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
             Bind($line, Call(Member($bindings, "get"), "line")),
             Bind($value, Call(Member($bindings, "get"), "value")),
+            Bind($inner, Call(Member($bindings, "get"), "inner")),
             Bind($none, Call(Member($api, "call"), "Recall", $line, $value)),
             Bind($facets,
               If(
@@ -410,19 +513,6 @@ Concept(Recall(),
             Bind($said, New($Set)),
             Call($look, $line, $said),
             Bind($left, New($Set)),
-            Bind($inner,
-              If(
-                And(
-                  And(
-                    Call($isCall, $value),
-                    Or(Equals(Member($value, "head"), "Answer"), Equals(Member($value, "head"), "Unknown"))
-                  ),
-                  Length(Member($value, "args"))
-                ),
-                Member(Index(Member($value, "args"), 0), "value"),
-                $value
-              )
-            ),
             If(
               And(Call($isCall, $inner), Length(Member($inner, "args"))),
               ForOf(
