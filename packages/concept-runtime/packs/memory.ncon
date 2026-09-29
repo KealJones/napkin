@@ -23,23 +23,22 @@ Requires(Basic())
 //
 // `base` is either a bare string (the name, when one is already known) or a nullary
 // Concept (its kind, when it is not) -- the same choice memory-spec Part 3.2 leaves to
-// whoever mints.
+// whoever mints. The kind case is the plain default (a nullary Concept has no type this
+// graph can name generically); a bare string is the narrower case, so it alone is typed.
+// The two share the pattern Mint($x), so each keeps its own variable name ($name / $kind):
+// forget() (store/forget.ts) groups realizations by formatted pattern, not by `types`, and
+// would otherwise read two live, differently-typed realizations as one shadowing the other.
 Concept(Mint(),
-  Realization(Mint($base),
+  Realization(Mint($name),
     properties = List(Effectful(), Program()),
-    body = Bind($base2,
-      $base,
-      Bind($name,
-        If(
-          Identical(TypeOf($base2), "string"),
-          $base2,
-          Bind($t1,
-            Bind($t0, $base2, If(Truthy($t0), Head($base2), $t0)),
-            If(Truthy($t1), $t1, "Thing")
-          )
-        ),
-        MakeCall(MintIdentity($name), List())
-      )
+    types = Types(name = String()),
+    body = MakeCall(MintIdentity($name), List())
+  ),
+  Realization(Mint($kind),
+    properties = List(Effectful(), Program()),
+    body = Bind($t1,
+      Bind($t0, $kind, If(Truthy($t0), Head($kind), $t0)),
+      MakeCall(MintIdentity(If(Truthy($t1), $t1, "Thing")), List())
     )
   )
 )

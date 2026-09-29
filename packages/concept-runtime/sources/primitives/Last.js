@@ -1,9 +1,8 @@
-// @realization Last($xs), context = Execution()
-// The last item of a list, or the last letter of text.
+// @realization Last($text), context = Execution(), types = Types(text = String())
+// The last letter of text. A distinct variable name from the list realization's $xs, so
+// forget() (packs/store/forget.ts groups by formatted pattern) never treats these two
+// same-shaped, differently-typed realizations as a shadowing pair.
 async (args, bindings, api) => {
-  const xs = bindings.get("xs");
-  if (typeof xs === "string") return xs.length ? xs[xs.length - 1] : api.call("Nothing");
-  const isList = xs !== null && typeof xs === "object" && xs.head === "List";
-  if (!isList) return api.call("Last", xs);
-  return xs.args.length ? xs.args[xs.args.length - 1].value : api.call("Nothing");
+  const text = bindings.get("text");
+  return text.length ? text[text.length - 1] : api.call("Nothing");
 };

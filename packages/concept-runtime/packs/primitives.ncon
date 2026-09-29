@@ -11,29 +11,18 @@ Requires(Core(), Code())
 Concept(Append(),
   Realization(Append($xs, $x),
     context = Execution(),
+    types = Types(xs = ListOf($T)),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($xs, Call(Member($bindings, "get"), "xs")),
-            Bind($isList,
-              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
-            ),
             Return(
-              If(
-                $isList,
-                Call(
-                  Member($api, "call"),
-                  "List",
-                  Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value")))),
-                  Call(Member($bindings, "get"), "x")
-                ),
-                Call(
-                  Member($api, "call"),
-                  "Append",
-                  $xs,
-                  Call(Member($bindings, "get"), "x")
-                )
+              Call(
+                Member($api, "call"),
+                "List",
+                Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value")))),
+                Call(Member($bindings, "get"), "x")
               )
             )
           )
@@ -47,17 +36,15 @@ Concept(Append(),
 Concept(InsertAt(),
   Realization(InsertAt($xs, $i, $x),
     context = Execution(),
+    types = Types(xs = ListOf($T), i = Number()),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($xs, Call(Member($bindings, "get"), "xs")),
             Bind($i, Call(Member($bindings, "get"), "i")),
-            Bind($isList,
-              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
-            ),
             If(
-              Or(Not($isList), Not(Call(Member($Number, "isInteger"), $i))),
+              Not(Call(Member($Number, "isInteger"), $i)),
               Return(
                 Call(
                   Member($api, "call"),
@@ -84,34 +71,42 @@ Concept(InsertAt(),
   )
 )
 
-// The last item of a list, or the last letter of text.
+// The last letter of text. A distinct variable name from the list realization's $xs, so
+// forget() (packs/store/forget.ts groups by formatted pattern) never treats these two
+// same-shaped, differently-typed realizations as a shadowing pair.
+Concept(Last(),
+  Realization(Last($text),
+    context = Execution(),
+    types = Types(text = String()),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($text, Call(Member($bindings, "get"), "text")),
+            Return(
+              If(
+                Length($text),
+                Index($text, Subtract(Length($text), 1)),
+                Call(Member($api, "call"), "Nothing")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// The last item of a list.
 Concept(Last(),
   Realization(Last($xs),
     context = Execution(),
+    types = Types(xs = ListOf($T)),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($xs, Call(Member($bindings, "get"), "xs")),
-            If(
-              Equals(TypeOf($xs), "string"),
-              Return(
-                If(
-                  Length($xs),
-                  Index($xs, Subtract(Length($xs), 1)),
-                  Call(Member($api, "call"), "Nothing")
-                )
-              ),
-              Undefined()
-            ),
-            Bind($isList,
-              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
-            ),
-            If(
-              Not($isList),
-              Return(Call(Member($api, "call"), "Last", $xs)),
-              Undefined()
-            ),
             Return(
               If(
                 Length(Member($xs, "args")),
@@ -130,29 +125,18 @@ Concept(Last(),
 Concept(Prepend(),
   Realization(Prepend($xs, $x),
     context = Execution(),
+    types = Types(xs = ListOf($T)),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($xs, Call(Member($bindings, "get"), "xs")),
-            Bind($isList,
-              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
-            ),
             Return(
-              If(
-                $isList,
-                Call(
-                  Member($api, "call"),
-                  "List",
-                  Call(Member($bindings, "get"), "x"),
-                  Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value"))))
-                ),
-                Call(
-                  Member($api, "call"),
-                  "Prepend",
-                  $xs,
-                  Call(Member($bindings, "get"), "x")
-                )
+              Call(
+                Member($api, "call"),
+                "List",
+                Call(Member($bindings, "get"), "x"),
+                Spread(Map(Member($xs, "args"), Lambda(List($a), Member($a, "value"))))
               )
             )
           )
@@ -199,6 +183,7 @@ Concept(Range(),
 Concept(Repeat(),
   Realization(Repeat($t, $n),
     context = Execution(),
+    types = Types(t = String(), n = Number()),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
@@ -207,7 +192,7 @@ Concept(Repeat(),
             Bind($n, Call(Member($bindings, "get"), "n")),
             Return(
               If(
-                And(And(Equals(TypeOf($t), "string"), Call(Member($Number, "isInteger"), $n)), AtLeast($n, 0)),
+                And(Call(Member($Number, "isInteger"), $n), AtLeast($n, 0)),
                 Call(Member($t, "repeat"), $n),
                 Call(Member($api, "call"), "Repeat", $t, $n)
               )
@@ -223,6 +208,7 @@ Concept(Repeat(),
 Concept(RoundTo(),
   Realization(RoundTo($x, $places),
     context = Execution(),
+    types = Types(x = Number()),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
@@ -230,7 +216,7 @@ Concept(RoundTo(),
             Bind($x, Call(Member($bindings, "get"), "x")),
             Bind($p, Call(Member($bindings, "get"), "places")),
             If(
-              Or(NotEquals(TypeOf($x), "number"), Not(Call(Member($Number, "isInteger"), $p))),
+              Not(Call(Member($Number, "isInteger"), $p)),
               Return(Call(Member($api, "call"), "RoundTo", $x, $p)),
               Undefined()
             ),
@@ -247,20 +233,10 @@ Concept(RoundTo(),
 Concept(Trim(),
   Realization(Trim($t),
     context = Execution(),
+    types = Types(t = String()),
     body = Code(
       ir = Async(
-        Lambda(List($args, $bindings, $api),
-          Sequence(
-            Bind($t, Call(Member($bindings, "get"), "t")),
-            Return(
-              If(
-                Equals(TypeOf($t), "string"),
-                Call(Member($t, "trim")),
-                Call(Member($api, "call"), "Trim", $t)
-              )
-            )
-          )
-        )
+        Lambda(List($args, $bindings, $api), Return(Call(Member(Call(Member($bindings, "get"), "t"), "trim"))))
       )
     )
   )
@@ -270,20 +246,13 @@ Concept(Trim(),
 Concept(Without(),
   Realization(Without($xs, $x),
     context = Execution(),
+    types = Types(xs = ListOf($T)),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($xs, Call(Member($bindings, "get"), "xs")),
             Bind($x, Call(Member($bindings, "get"), "x")),
-            Bind($isList,
-              And(And(NotEquals($xs, null), Equals(TypeOf($xs), "object")), Equals(Member($xs, "head"), "List"))
-            ),
-            If(
-              Not($isList),
-              Return(Call(Member($api, "call"), "Without", $xs, $x)),
-              Undefined()
-            ),
             Return(
               Call(
                 Member($api, "call"),
@@ -307,22 +276,13 @@ Concept(Without(),
 Concept(Zip(),
   Realization(Zip($a, $b),
     context = Execution(),
+    types = Types(a = ListOf($T), b = ListOf($U)),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($a, Call(Member($bindings, "get"), "a")),
             Bind($b, Call(Member($bindings, "get"), "b")),
-            Bind($isList,
-              Lambda(List($x),
-                And(And(NotEquals($x, null), Equals(TypeOf($x), "object")), Equals(Member($x, "head"), "List"))
-              )
-            ),
-            If(
-              Or(Not(Call($isList, $a)), Not(Call($isList, $b))),
-              Return(Call(Member($api, "call"), "Zip", $a, $b)),
-              Undefined()
-            ),
             Bind($n,
               Call(
                 Member($Math, "min"),

@@ -322,6 +322,7 @@ Concept(CurrencyCode(),
 Concept(Exchange(),
   Realization(Exchange($amount, $from, $to),
     context = Execution(),
+    types = Types(amount = Number()),
     body = Code(
       ir = Async(
         Lambda(List($args, $bindings, $api),
@@ -333,10 +334,7 @@ Concept(Exchange(),
             Bind($a, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "CurrencyCode", $from)))),
             Bind($b, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "CurrencyCode", $to)))),
             If(
-              Or(
-                Or(NotEquals(TypeOf($amount), "number"), NotEquals(TypeOf($a), "string")),
-                NotEquals(TypeOf($b), "string")
-              ),
+              Or(NotEquals(TypeOf($a), "string"), NotEquals(TypeOf($b), "string")),
               Return(Call(Member($api, "call"), "Exchange", $amount, $from, $to)),
               Undefined()
             ),

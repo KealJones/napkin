@@ -1,6 +1,5 @@
-// @realization Trim($t), context = Execution()
+// @realization Trim($t), context = Execution(), types = Types(t = String())
 // Text without the spaces at either end.
 async (args, bindings, api) => {
-  const t = bindings.get("t");
-  return typeof t === "string" ? t.trim() : api.call("Trim", t);
+  return bindings.get("t").trim();
 };
