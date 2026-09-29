@@ -62,6 +62,9 @@ test("a thing made in conversation holds what is put in it and not taken out, an
   assert.equal(await say("what is on my shopping list?"), "Eggs.");
   // Things told of a holder just made go in it: in the same message, or said alone after.
   assert.equal(await say("make a grocery list. I need socks and a charger"), "Made a grocery list. Added socks and charger to your grocery list.");
+  // What a thing is made with goes in it; "make a list" then makes a list, not the grocery list.
+  assert.equal(await say("make a grocery list with milk, bread and jam"), "Made a grocery list. Added milk, bread and jam to your grocery list.");
+  assert.equal(await say("make a list"), "Made a list.");
   // Nothing here is about lists: once a box is known to hold things, one made holds keys.
   store.addRelation("Box", parse("IsA(Collection())"));
   assert.equal(await say("make a box"), "Made a box.");

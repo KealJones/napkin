@@ -53,6 +53,12 @@ test("a pronoun takes no determiner: the us is a name, us alone is we", async ()
   assert.equal(await hear("tell us a joke"), "Phrases(Tell(We(), Joke()))");
 });
 
+test("a comma before someone doing something starts a clause; nouns in a row with a plural are a list; a particle after its object is the verb's", async () => {
+  assert.match(await hear("make a shopping list, I need cheese and fish"), /^Phrases\(Make\(List\(Shopping\(\)\)\), Me\(Need\(/);
+  assert.equal(await hear("eggs aspirin and cheese"), "Phrases(And(And(Eggs(), Aspirin()), Cheese()))");
+  assert.equal(await hear("look it up"), await hear("look up it"));
+});
+
 test("a word nobody knows hears as what the tagger says it looks like", async () => {
   assert.equal(await hear("the americanpie"), "Phrases(Americanpie())");
 });

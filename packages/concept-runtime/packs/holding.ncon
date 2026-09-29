@@ -720,7 +720,8 @@ Concept(Held(),
 )
 
 // "make a shopping list": a thing of that kind, made here, when none is in play yet. Its kind
-// (ShoppingList) is a kind of what was said (List), so "my list" finds it too.
+// (ShoppingList) is a kind of what was said (List), so "my list" finds it too. What it is made
+// with ("with eggs, aspirin and cheese") is put in it.
 Concept(Write(),
   Realization(Write($said),
     context = Execution(),
@@ -731,20 +732,24 @@ Concept(Write(),
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
-            Bind($said, Call(Member($bindings, "get"), "said")),
-            Bind($found,
-              Await(
-                Call(
-                  Member($api, "evaluate"),
-                  Call(Member($api, "call"), "ReferentOf", $said),
-                  Call(Member($api, "call"), "Execution")
+            Bind($whole, Call(Member($bindings, "get"), "said")),
+            Comment("The things it is made with are what goes in it, not what kind of thing it is."),
+            Bind($withs,
+              Filter(
+                Member($whole, "args"),
+                Lambda(List($a),
+                  And(
+                    And(Equals(Member($a, "name"), Undefined()), Call($isCall, Member($a, "value"))),
+                    Equals(Member(Member($a, "value"), "head"), "With")
+                  )
                 )
               )
             ),
-            If(
-              And(Call($isCall, $found), NotEquals(Member($found, "head"), "ReferentOf")),
-              Return(Call(Member($api, "call"), "Made", $found)),
-              Undefined()
+            Bind($said,
+              Object(
+                head = Member($whole, "head"),
+                args = Filter(Member($whole, "args"), Lambda(List($a), Not(Includes($withs, $a))))
+              )
             ),
             Bind($kind,
               Await(
@@ -757,44 +762,152 @@ Concept(Write(),
             ),
             If(
               Or(Not(Call($isCall, $kind)), Equals(Member($kind, "head"), "KindNamed")),
-              Return(Call(Member($api, "call"), "Write", $said)),
+              Return(Call(Member($api, "call"), "Write", $whole)),
               Undefined()
             ),
-            If(
-              And(
-                NotEquals(Member($kind, "head"), Member($said, "head")),
-                Not(Includes(Call(Member($api, "typesOf"), $kind), Member($said, "head")))
-              ),
-              Call(
-                Member(Member($api, "store"), "addRelation"),
-                Member($kind, "head"),
-                Call(
-                  Member($api, "call"),
-                  "IsA",
-                  Call(Member($api, "call"), Member($said, "head"))
-                ),
-                Undefined(),
-                Member(Member($api, "trace"), "cause")
-              ),
-              Undefined()
-            ),
-            Bind($thing,
+            Comment("One of exactly that kind already in play is the one meant (\"make a shopping list\", said"),
+            Comment("again); \"make a list\" after a grocery list makes a list."),
+            Var(
+              $thing,
               Await(
                 Call(
                   Member($api, "evaluate"),
-                  Call(Member($api, "call"), "Mint", Member($kind, "head")),
+                  Call(Member($api, "call"), "ReferentOf", $said),
                   Call(Member($api, "call"), "Execution")
                 )
               )
             ),
-            Call(
-              Member(Member($api, "store"), "addRelation"),
-              Member($thing, "head"),
-              Call(Member($api, "call"), "IsA", $kind),
-              Undefined(),
-              Member(Member($api, "trace"), "cause")
+            Bind($exactly,
+              And(
+                And(Call($isCall, $thing), NotEquals(Member($thing, "head"), "ReferentOf")),
+                Equals(Index(Call(Member($api, "typesOf"), $thing), 1), Member($kind, "head"))
+              )
             ),
-            Return(Call(Member($api, "call"), "Made", $thing))
+            If(
+              Not($exactly),
+              Sequence(
+                If(
+                  And(
+                    NotEquals(Member($kind, "head"), Member($said, "head")),
+                    Not(Includes(Call(Member($api, "typesOf"), $kind), Member($said, "head")))
+                  ),
+                  Call(
+                    Member(Member($api, "store"), "addRelation"),
+                    Member($kind, "head"),
+                    Call(
+                      Member($api, "call"),
+                      "IsA",
+                      Call(Member($api, "call"), Member($said, "head"))
+                    ),
+                    Undefined(),
+                    Member(Member($api, "trace"), "cause")
+                  ),
+                  Undefined()
+                ),
+                Assign(
+                  $thing,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Mint", Member($kind, "head")),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                Call(
+                  Member(Member($api, "store"), "addRelation"),
+                  Member($thing, "head"),
+                  Call(Member($api, "call"), "IsA", $kind),
+                  Undefined(),
+                  Member(Member($api, "trace"), "cause")
+                )
+              ),
+              Undefined()
+            ),
+            Bind($made, Call(Member($api, "call"), "Made", $thing)),
+            If(Not(Length($withs)), Return($made), Undefined()),
+            Bind($items,
+              FlatMap(
+                $withs,
+                Lambda(List($w),
+                  Map(
+                    Filter(
+                      Member(Member($w, "value"), "args"),
+                      Lambda(List($a), Equals(Member($a, "name"), Undefined()))
+                    ),
+                    Lambda(List($a), Member($a, "value"))
+                  )
+                )
+              )
+            ),
+            Bind($added,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(
+                      Member($api, "call"),
+                      "And",
+                      Spread($items),
+                      Call(Member($api, "call"), "To", $thing)
+                    )
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($added, NotEquals(Member($added, "head"), "Change")),
+                Call(Member($api, "call"), "Sequence", $made, $added),
+                $made
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "make me a shopping list": who it is for is said, and the list is made as any is.
+Concept(Write(),
+  Realization(Write($for, $said),
+    context = Execution(),
+    evaluateArguments = false,
+    types = Types(said = Collection()),
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Write",
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Write")),
+                Call(
+                  Member($api, "call"),
+                  "Write",
+                  Call(Member($bindings, "get"), "for"),
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
           )
         )
       )

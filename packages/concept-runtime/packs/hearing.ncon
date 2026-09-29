@@ -2615,6 +2615,118 @@ Concept(Hear(),
             ),
             Comment("Only where it is a list: things a doing takes (\"I need milk, eggs\"), or three or more of"),
             Comment("them; \"red light, speed camera ahead\" is two phrases."),
+            Comment("\"eggs aspirin and cheese\": nouns in a row, one of them plural, before an \"and\", are a list,"),
+            Comment("as with commas: a plural does not describe the thing after it (\"egg carton\", not \"eggs\")."),
+            Bind($series,
+              Lambda(List($i),
+                And(
+                  And(
+                    And(
+                      And(Call($thing, Index($said, $i)), Call($thing, Index($said, Add($i, 1)))),
+                      Includes(Member(Index($said, $i), "tags"), "Plural")
+                    ),
+                    Not(Includes(Member(Index($said, $i), "after"), ","))
+                  ),
+                  Call(
+                    Member(Call(Member($said, "slice"), Add($i, 2)), "some"),
+                    Lambda(List($w),
+                      And(
+                        Equals(Member($w, "sentence"), Member(Index($said, $i), "sentence")),
+                        Includes(Member($w, "tags"), "Conjunction")
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            For(
+              Var($i, Subtract(Length($said), 2)),
+              AtLeast($i, 0),
+              PostDecrement($i),
+              If(
+                Call($series, $i),
+                Call(
+                  Member($said, "splice"),
+                  Add($i, 1),
+                  0,
+                  Object(
+                    text = "and",
+                    typed = "and",
+                    tags = List("Conjunction"),
+                    sentence = Member(Index($said, $i), "sentence"),
+                    after = "",
+                    could = List()
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            Comment("\"look it up\": a verb's particle said after its object is said with the verb, as the tagger"),
+            Comment("reads the two side by side (\"look up\" is a phrasal verb; \"like here\" is not)."),
+            For(
+              Var($i, 0),
+              LessThan(Add($i, 2), Length($said)),
+              PostIncrement($i),
+              Sequence(
+                Bind(List($verb, $object, $last),
+                  List(
+                    Index($said, $i),
+                    Index($said, Add($i, 1)),
+                    Index($said, Add($i, 2))
+                  )
+                ),
+                Bind($alone,
+                  Or(
+                    AtLeast(Add($i, 3), Length($said)),
+                    NotEquals(Member(Index($said, Add($i, 3)), "sentence"), Member($last, "sentence"))
+                  )
+                ),
+                If(
+                  Or(
+                    Or(
+                      Or(
+                        Not(Includes(Member($verb, "tags"), "Verb")),
+                        NotEquals(Member($object, "sentence"), Member($verb, "sentence"))
+                      ),
+                      NotEquals(Member($last, "sentence"), Member($verb, "sentence"))
+                    ),
+                    Not($alone)
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                If(
+                  And(
+                    Not(Includes(Member($object, "tags"), "Pronoun")),
+                    Not(And(Includes(Member($object, "tags"), "Noun"), Not(Includes(Member($object, "tags"), "Verb"))))
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($paired, Call(Member($api, "words"), Add(Add(Member($verb, "text"), " "), Member($last, "text")))),
+                If(
+                  And(Equals(Length($paired), 2), Includes(Member(Index($paired, 1), "tags"), "Particle")),
+                  Sequence(
+                    Call(Member($said, "splice"), Add($i, 2), 1),
+                    Call(
+                      Member($said, "splice"),
+                      Add($i, 1),
+                      0,
+                      Object(
+                        Spread($last),
+                        tags = Member(Index($paired, 1), "tags"),
+                        after = ""
+                      )
+                    ),
+                    Assign(
+                      Member($verb, "tags"),
+                      Concat(New($Set, Concat(Member($verb, "tags"), Member(Index($paired, 0), "tags"))))
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
             Bind($joins,
               Lambda(List($i),
                 And(
@@ -2891,7 +3003,8 @@ Concept(Hear(),
                 Undefined()
               )
             ),
-            Comment("A comma before a doing starts another clause: \"take 10, double it, then subtract 5\"."),
+            Comment("A comma before a doing starts another clause: \"take 10, double it, then subtract 5\"; so"),
+            Comment("does one before someone doing something (\"make a list, I need milk\")."),
             Var($clause, 0),
             Bind($sentences, Map($said, Lambda(List($w), Member($w, "sentence")))),
             For(
@@ -2903,16 +3016,31 @@ Concept(Hear(),
                   And(
                     GreaterThan($i, 0),
                     Or(
-                      NotEquals(Index($sentences, $i), Index($sentences, Subtract($i, 1))),
+                      Or(
+                        NotEquals(Index($sentences, $i), Index($sentences, Subtract($i, 1))),
+                        And(
+                          And(
+                            And(
+                              Includes(Member(Index($said, Subtract($i, 1)), "after"), ","),
+                              Includes(Member(Index($said, $i), "tags"), "Verb")
+                            ),
+                            Not(Includes(Member(Index($said, $i), "tags"), "Noun"))
+                          ),
+                          Not(Includes(Member(Index($said, $i), "tags"), "PastTense"))
+                        )
+                      ),
                       And(
                         And(
                           And(
-                            Includes(Member(Index($said, Subtract($i, 1)), "after"), ","),
-                            Includes(Member(Index($said, $i), "tags"), "Verb")
+                            And(
+                              Includes(Member(Index($said, Subtract($i, 1)), "after"), ","),
+                              Includes(Member(Index($said, $i), "tags"), "Pronoun")
+                            ),
+                            Not(Includes(Member(Index($said, $i), "tags"), "Possessive"))
                           ),
-                          Not(Includes(Member(Index($said, $i), "tags"), "Noun"))
+                          LessThan(Add($i, 1), Length($said))
                         ),
-                        Not(Includes(Member(Index($said, $i), "tags"), "PastTense"))
+                        Includes(Member(Index($said, Add($i, 1)), "tags"), "Verb")
                       )
                     )
                   )
