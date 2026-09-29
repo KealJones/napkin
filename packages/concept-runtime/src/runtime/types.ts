@@ -76,6 +76,13 @@ export async function typesHold(store: ConceptStore, types: Expr | undefined, bi
       if (!typesOf(store, t.value).includes(type.head)) return false;
       continue;
     }
+    // Either of plain types (OneOf(Number(), String())) is the same walk, for each.
+    const either = isCall(type) && type.head === "OneOf" ? positional(type) : [];
+    if (either.length && either.every((k) => isCall(k) && !k.args.length)) {
+      const is = typesOf(store, t.value);
+      if (!either.some((k) => isCall(k) && is.includes(k.head))) return false;
+      continue;
+    }
     if (!(await fits(t.value, type))) return false;
   }
   return true;
