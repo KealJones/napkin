@@ -1605,6 +1605,80 @@ Concept(Interrogative(),
               ),
               Undefined()
             ),
+            Comment("\"what day is 5 days from now\", \"what colour is the sky\": a kind asked of what something is"),
+            Comment("is that kind of it, Day(the date), when the kind says what it is of something."),
+            Bind($isOf,
+              Lambda(List($e),
+                If(
+                  And(And($e, Member($e, "head")), Includes(List("Is", "Was", "Will", "Would"), Member($e, "head"))),
+                  Map(
+                    Filter(
+                      Map(
+                        Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                        Lambda(List($a), Member($a, "value"))
+                      ),
+                      Lambda(List($v),
+                        Not(
+                          And(
+                            And($v, Or(Equals(Member($v, "head"), "It"), Equals(Member($v, "head"), "Be"))),
+                            Not(Length(Member($v, "args")))
+                          )
+                        )
+                      )
+                    ),
+                    Lambda(List($v),
+                      If(
+                        And(And($v, Equals(Member($v, "head"), "Be")), Equals(Length(Member($v, "args")), 1)),
+                        Member(Index(Member($v, "args"), 0), "value"),
+                        $v
+                      )
+                    )
+                  ),
+                  List()
+                )
+              )
+            ),
+            Bind($bare, And(And($subject, Member($subject, "head")), Not(Length(Member($subject, "args"))))),
+            Comment("\"what day will it be, 5 days in the future\": with \"it be\" said bare, what follows is it."),
+            Bind($of,
+              If(
+                And($bare, Equals(Length($args), 2)),
+                Call($isOf, Member(Index($args, 1), "value")),
+                If(
+                  And(
+                    And(
+                      And(
+                        And($bare, Equals(Length($args), 3)),
+                        Equals(Length(Call($isOf, Member(Index($args, 1), "value"))), 0)
+                      ),
+                      Member(Index($args, 1), "value")
+                    ),
+                    Member(Member(Index($args, 1), "value"), "head")
+                  ),
+                  List(Member(Index($args, 2), "value")),
+                  List()
+                )
+              )
+            ),
+            If(
+              And(Equals(Length($of), 1), Index($of, 0)),
+              Sequence(
+                Bind($kindOf,
+                  Call(
+                    Member($api, "call"),
+                    Member($subject, "head"),
+                    Index($of, 0)
+                  )
+                ),
+                Bind($answered, Await(Call(Member($api, "evaluate"), $kindOf))),
+                If(
+                  NotEquals(Call(Member($api, "format"), $answered), Call(Member($api, "format"), $kindOf)),
+                  Return(Call(Member($api, "call"), "Answer", $answered)),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             Bind($value, Await(Call(Member($api, "evaluate"), $subject))),
             Comment("\"who is that?\": a word that points is asked about the thing it points at, not answered with it."),
             If(
@@ -4620,6 +4694,99 @@ Concept(Minutes(), IsA(Duration()), IsA(Data()))
 
 Concept(Duration(), IsA(Category()))
 
+// A length of time said with where it is counted from is a moment: "5 days in the future" and
+// "5 days from now" are in 5 days, "5 days in the past" and "5 days before now" 5 days ago.
+// Inherited by every kind of duration (Days, Weeks, Hours, Minutes). The call itself otherwise.
+Concept(Duration(),
+  Realization($span,
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($span, Call(Member($bindings, "get"), "span")),
+            If(Not(Call($isCall, $span)), Return($span), Undefined()),
+            Bind($count,
+              Filter(
+                Member($span, "args"),
+                Lambda(List($a), And(Equals(Member($a, "name"), Undefined()), Not(Call($isCall, Member($a, "value")))))
+              )
+            ),
+            Bind($from,
+              Call(
+                Member(Member($span, "args"), "find"),
+                Lambda(List($a),
+                  And(
+                    And(
+                      And(Equals(Member($a, "name"), Undefined()), Call($isCall, Member($a, "value"))),
+                      Equals(Length(Member(Member($a, "value"), "args")), 1)
+                    ),
+                    Call($isCall, Member(Index(Member(Member($a, "value"), "args"), 0), "value"))
+                  )
+                )
+              )
+            ),
+            If(
+              Or(NotEquals(Length($count), 1), Not($from)),
+              Return($span),
+              Undefined()
+            ),
+            Bind($length,
+              Call(
+                Member($api, "call"),
+                Member($span, "head"),
+                Member(Index($count, 0), "value")
+              )
+            ),
+            Bind($where, Member($from, "value")),
+            Bind($toward, Member(Member(Index(Member($where, "args"), 0), "value"), "head")),
+            Bind($ahead,
+              Or(
+                And(Equals(Member($where, "head"), "In"), Equals($toward, "Future")),
+                And(
+                  Or(Equals(Member($where, "head"), "From"), Equals(Member($where, "head"), "After")),
+                  Equals($toward, "Now")
+                )
+              )
+            ),
+            Bind($behind,
+              Or(
+                And(Equals(Member($where, "head"), "In"), Equals($toward, "Past")),
+                And(Equals(Member($where, "head"), "Before"), Equals($toward, "Now"))
+              )
+            ),
+            If(
+              $ahead,
+              Return(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "In", $length),
+                  Member($api, "context")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              $behind,
+              Return(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(Member($api, "call"), "Ago", $length),
+                  Member($api, "context")
+                )
+              ),
+              Undefined()
+            ),
+            Return($span)
+          )
+        )
+      )
+    )
+  )
+)
+
 Concept(Ago(),
   IsA(Relation()),
   Realization(Ago($x),
@@ -5112,6 +5279,154 @@ Concept(SourceOf(),
           Identical(FieldOf(FieldOf($found, "stamp"), "source"), Undefined()),
           MakeCall("Unknown", List()),
           FieldOf(FieldOf($found, "stamp"), "source")
+        )
+      )
+    )
+  )
+)
+
+// "if it was 5 days in the future, what day would it be", "if x is 3, what is x times 2": what
+// the first says a thing is (a helper between the thing and what it is), put in the question,
+// which is asked with it supposed (a doing supposed is done Hypothetical, changing nothing). "It" supposed
+// is what the question is asked of; any other thing is replaced by what it is. Not known when
+// what is supposed says no thing is anything ("if it rains").
+Concept(Supposing(),
+  Realization(Supposing($supposed, $asked),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($supposed, Call(Member($bindings, "get"), "supposed")),
+            Bind($asked, Call(Member($bindings, "get"), "asked")),
+            Comment("Nothing it can suppose: not known, said so."),
+            Bind($none, Call(Member($api, "call"), "Unknown", $asked)),
+            Bind($helper,
+              Lambda(List($h), Includes(Call(Member($api, "typesOf"), Call(Member($api, "call"), $h)), "Helper"))
+            ),
+            Bind($positional,
+              Lambda(List($e),
+                If(
+                  Call($isCall, $e),
+                  Map(
+                    Filter(Member($e, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                    Lambda(List($a), Member($a, "value"))
+                  ),
+                  List()
+                )
+              )
+            ),
+            Var($thing, Undefined()),
+            Var($value, Undefined()),
+            If(
+              And(
+                And(Call($isCall, $supposed), Call($helper, Member($supposed, "head"))),
+                Equals(Length(Call($positional, $supposed)), 2)
+              ),
+              Assign(List($thing, $value), Call($positional, $supposed)),
+              Sequence(
+                Bind($inner, Index(Call($positional, $supposed), 0)),
+                If(
+                  And(
+                    And(
+                      And(
+                        And(Call($isCall, $supposed), Equals(Length(Call($positional, $supposed)), 1)),
+                        Call($isCall, $inner)
+                      ),
+                      Call($helper, Member($inner, "head"))
+                    ),
+                    Equals(Length(Call($positional, $inner)), 1)
+                  ),
+                  Sequence(
+                    Assign($thing, Call(Member($api, "call"), Member($supposed, "head"))),
+                    Assign($value, Index(Call($positional, $inner), 0))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              Or(Or(Not(Call($isCall, $thing)), Equals($value, Undefined())), Not(Call($isCall, $asked))),
+              Return($none),
+              Undefined()
+            ),
+            Bind($same,
+              Lambda(List($a, $b), Equals(Call(Member($api, "format"), $a), Call(Member($api, "format"), $b)))
+            ),
+            Bind($put,
+              Lambda(List($e),
+                If(
+                  Call($same, $e, $thing),
+                  $value,
+                  If(
+                    Call($isCall, $e),
+                    Object(
+                      head = Member($e, "head"),
+                      args = Map(
+                        Member($e, "args"),
+                        Lambda(List($a), Object(Spread($a), value = Call($put, Member($a, "value"))))
+                      )
+                    ),
+                    $e
+                  )
+                )
+              )
+            ),
+            Bind($it, And(Equals(Member($thing, "head"), "It"), Not(Length(Member($thing, "args"))))),
+            Bind($question,
+              If(
+                $it,
+                Object(
+                  head = Member($asked, "head"),
+                  args = Concat(Member($asked, "args"), List(Object(value = $value)))
+                ),
+                Call($put, $asked)
+              )
+            ),
+            Bind($facets,
+              If(
+                And(Member($api, "context"), Equals(Member(Member($api, "context"), "head"), "Context")),
+                Map(Member(Member($api, "context"), "args"), Lambda(List($a), Member($a, "value"))),
+                List(Member($api, "context"))
+              )
+            ),
+            Bind($asking,
+              Includes(
+                Call(Member($api, "typesOf"), Call(Member($api, "call"), Member($asked, "head"))),
+                "Interrogative"
+              )
+            ),
+            Bind($kept,
+              Filter(
+                $facets,
+                Lambda(List($f),
+                  Not(And(Call($isCall, $f), Includes(List("Declarative", "Imperative"), Member($f, "head"))))
+                )
+              )
+            ),
+            Comment("A question asked supposing acts on nothing, so it is asked as any question is (the clock"),
+            Comment("still reads); what is done supposing is done Hypothetical, changing nothing."),
+            Return(
+              Call(
+                Member($api, "evaluate"),
+                $question,
+                Call(
+                  Member($api, "call"),
+                  "Context",
+                  Spread($kept),
+                  Spread(
+                    If(
+                      $asking,
+                      List(Call(Member($api, "call"), "Interrogative")),
+                      List(Call(Member($api, "call"), "Hypothetical"))
+                    )
+                  )
+                )
+              )
+            )
+          )
         )
       )
     )

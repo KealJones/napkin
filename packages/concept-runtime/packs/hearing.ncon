@@ -1597,6 +1597,11 @@ Concept(Helper(), IsA(WordClass()))
 
 // A helper that takes its subject and then a doing, bare ("what does poop mean", "can dogs
 // swim"): what stands after the subject is the doing.
+// A word that supposes ("if"): what follows it is supposed, and the rest asked with it so.
+Concept(Supposes(), IsA(Relation()))
+
+Concept(If(), Supposes())
+
 Concept(TakesDoing(), IsA(Relation()))
 
 Concept(Do(), TakesDoing())
@@ -2615,6 +2620,41 @@ Concept(Hear(),
               )
             ),
             Bind($said, Call(Member($api, "words"), Member($kept, "text"))),
+            Comment("\"if it was 5 days in the future, what day would it be\": a message led by a word that"),
+            Comment("supposes (Supposes, packs/hearing.ncon) asks what follows with the first line supposed."),
+            Bind($supposing,
+              And(
+                And(
+                  GreaterThan(Length($said), 1),
+                  NotEquals(
+                    Call(Member(Call($String, Member(Index($said, 1), "text")), "toLowerCase")),
+                    Call(Member(Call($String, Member(Index($said, 0), "text")), "toLowerCase"))
+                  )
+                ),
+                Call(
+                  Member(
+                    Otherwise(
+                      OptionalMember(
+                        Call(
+                          Member(Member($api, "store"), "get"),
+                          Add(
+                            Call(Member(Call(Member(Member(Index($said, 0), "text"), "charAt"), 0), "toUpperCase")),
+                            Call(Member(Call(Member(Member(Index($said, 0), "text"), "slice"), 1), "toLowerCase"))
+                          )
+                        ),
+                        "relations"
+                      ),
+                      List()
+                    ),
+                    "some"
+                  ),
+                  Lambda(List($r),
+                    And(Call($isCall, Member($r, "claim")), Equals(Member(Member($r, "claim"), "head"), "Supposes"))
+                  )
+                )
+              )
+            ),
+            If($supposing, Call(Member($said, "shift")), Undefined()),
             ForOf(
               $w,
               $said,
@@ -4940,13 +4980,68 @@ Concept(Hear(),
                 PostDecrement($k)
               )
             ),
-            Return(
-              Call(
-                Member($api, "call"),
-                "Phrases",
-                Spread(Map($joined, $onLast))
-              )
-            )
+            Bind($lines, Map($joined, $onLast)),
+            If(
+              And($supposing, AtLeast(Length($lines), 2)),
+              Sequence(
+                Bind($mood,
+                  Lambda(List($e),
+                    If(
+                      And(
+                        And(Call($isCall, $e), Equals(Member($e, "head"), "ContextScope")),
+                        Equals(Length(Member($e, "args")), 2)
+                      ),
+                      Member(Index(Member($e, "args"), 0), "value"),
+                      Undefined()
+                    )
+                  )
+                ),
+                Bind($line,
+                  Lambda(List($e),
+                    If(
+                      And(
+                        And(Call($isCall, $e), Equals(Member($e, "head"), "ContextScope")),
+                        Equals(Length(Member($e, "args")), 2)
+                      ),
+                      Member(Index(Member($e, "args"), 1), "value"),
+                      $e
+                    )
+                  )
+                ),
+                Bind($asked, Index($lines, Subtract(Length($lines), 1))),
+                Bind($supposed, Map(Call(Member($lines, "slice"), 0, Negate(1)), $line)),
+                Bind($put,
+                  Call(
+                    Member($api, "call"),
+                    "Supposing",
+                    If(
+                      Equals(Length($supposed), 1),
+                      Index($supposed, 0),
+                      Call(Member($api, "call"), "And", Spread($supposed))
+                    ),
+                    Call($line, $asked)
+                  )
+                ),
+                Return(
+                  Call(
+                    Member($api, "call"),
+                    "Phrases",
+                    If(
+                      Call($mood, $asked),
+                      Call(
+                        Member($api, "call"),
+                        "ContextScope",
+                        Call($mood, $asked),
+                        $put
+                      ),
+                      $put
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($api, "call"), "Phrases", Spread($lines)))
           )
         )
       )

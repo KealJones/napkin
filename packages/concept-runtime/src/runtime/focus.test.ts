@@ -99,3 +99,14 @@ test("asked for a doing it has no way to do, Napkin says so; asked for one it ha
   assert.equal(await say("can you post to reddit?"), "I can't post to Reddit yet.");
   assert.equal(await say("can you add 2 and 3?"), "5");
 });
+
+test("supposed, then asked: what the supposing says a thing is, put in the question", async () => {
+  const { turn } = await import("./turn.js");
+  const store = new ConceptStore();
+  seed(store);
+  const say = async (m: string) => (await turn(new Runtime(store), m, c("Execution"), { learn: false })).rendered;
+  assert.equal(await say("if x is 3 what is x times 2"), "Answer(6)");
+  const inFive = await say("what day will it be in 5 days");
+  assert.equal(await say("if it was 5 days in the future what day would it be?"), inFive);
+  assert.equal(await say("what day is 5 days from now"), inFive);
+});
