@@ -80,3 +80,14 @@ what a particular question means, are answer paths even when they look general.
   retracting them. Retraction is for facts that genuinely changed.
 - The studio server holds the store while it runs; restart it to pick up changes.
 - Commit straight to `main` unless asked otherwise.
+
+## Versioning
+
+- **Every commit that changes the runtime bumps its version** in
+  `packages/concept-runtime/package.json`: its `src`, its `packs`, or its `sources`. A fix or a
+  small change bumps the patch (0.2.0 to 0.2.1); a new mechanism or a change to how something
+  is heard or said bumps the minor (0.2.1 to 0.3.0). Say the new version in the commit message.
+- The build writes the version and the commit into `src/version.ts` (`scripts/version.mjs`;
+  not committed). The studio's footer shows the runtime that is answering (`/api/version`),
+  and every exported graph says it in its header (`Journal(..., runtime="0.2.0+cdc98c3")`), so
+  an export can be traced to the code that made it.

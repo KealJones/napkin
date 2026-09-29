@@ -1,6 +1,6 @@
 {
   "name": "@napkin/concept-runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/prune-dist.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "node scripts/version.mjs && tsc -p tsconfig.json && node scripts/prune-dist.mjs",
+    "typecheck": "node scripts/version.mjs && tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test 'dist/**/*.test.js'"
   },
   "devDependencies": {
@@ -29,6 +29,10 @@
     "./expression": {
       "types": "./dist/concept/compat.d.ts",
       "import": "./dist/concept/compat.js"
+    },
+    "./version": {
+      "types": "./dist/version.d.ts",
+      "import": "./dist/version.js"
     },
     "./platform/browser": {
       "types": "./dist/platform/browser.d.ts",

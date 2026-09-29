@@ -8,6 +8,7 @@ import {
   type Expr,
 } from "@napkin/concept-runtime/expression";
 import type { TraceEvent } from "@napkin/concept-runtime";
+import { RUNTIME_BUILD } from "@napkin/concept-runtime/version";
 import "./styles.css";
 import { CodePlayground } from "./CodePlayground";
 import { Walkthrough } from "./Walkthrough";
@@ -337,6 +338,14 @@ function App() {
   const [newPersistent, setNewPersistent] = useState(true);
   const [persistentTurn, setPersistentTurn] = useState(true);
   const [title, setTitle] = useState("New conversation");
+  // The runtime answering: the server's, or the browser host's; the page's own until it says.
+  const [runtime, setRuntime] = useState(RUNTIME_BUILD);
+  useEffect(() => {
+    request("/api/version")
+      .then((r) => (r.ok ? r.json() : undefined))
+      .then((v: { runtime?: string } | undefined) => v?.runtime && setRuntime(v.runtime))
+      .catch(() => undefined);
+  }, []);
   const [concepts, setConcepts] = useState<ConceptUnit[]>([]);
   const [conceptCount, setConceptCount] = useState(0);
   const [traces, setTraces] = useState<TraceSummary[]>([]);
@@ -865,6 +874,14 @@ function App() {
           Local runtime
           <br />
           <span className="side-indent">Concept graph · hearing</span>
+          <br />
+          <span
+            className="side-indent runtime-version"
+            title={runtime === RUNTIME_BUILD ? `Napkin runtime ${runtime}` : `Napkin runtime ${runtime}; this page was built with ${RUNTIME_BUILD}`}
+          >
+            v{runtime}
+            {runtime !== RUNTIME_BUILD && " (page " + RUNTIME_BUILD + ")"}
+          </span>
         </div>
       </aside>
       <main className="main">

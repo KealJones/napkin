@@ -120,6 +120,10 @@ button.ghost {
   color: var(--muted);
   font-size: 12px;
 }
+.runtime-version {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
 .runtime-dot {
   display: inline-block;
   width: 8px;

@@ -23,6 +23,7 @@ import type { ConceptUnit, Realization, Relation, Stamp } from "../concept/unit.
 import { readRealization, realizationExpr } from "../code/ncon.js";
 import { load as loadJson } from "./persist.js";
 import { type Change, ConceptStore } from "./store.js";
+import { RUNTIME_BUILD } from "../version.js";
 
 const VERSION = 1;
 
@@ -253,7 +254,7 @@ export interface GraphReport {
 const HEADER = (sequence: number) =>
   "// Napkin's graph beyond its packs (concept-spec Part 13): one change per line, in the order made.\n" +
   "// Appended as the graph changes and read back over the packs on load. Not formatted.\n" +
-  `${format(call("Journal", [{ name: "version", value: VERSION }, { name: "sequence", value: sequence }]))}\n`;
+  `${format(call("Journal", [{ name: "version", value: VERSION }, { name: "sequence", value: sequence }, { name: "runtime", value: RUNTIME_BUILD }]))}\n`;
 
 /**
  * The fewest entries that rebuild what `store` holds beyond what the packs seed: each

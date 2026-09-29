@@ -43,3 +43,4 @@ export function createRuntime(): Runtime {
   return new Runtime(store);
 }
 export { formatNcon } from "./code/format.js";
+export * from "./version.js";

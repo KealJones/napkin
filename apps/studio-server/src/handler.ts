@@ -26,7 +26,7 @@ import {
   type TraceEvent,
   turn as runTurn,
 } from "@napkin/concept-runtime";
-import { concept, realization } from "@napkin/concept-runtime";
+import { concept, realization, RUNTIME_BUILD } from "@napkin/concept-runtime";
 import { codeLanguages, formatNcon, importSource, writeSource } from "@napkin/concept-runtime";
 
 export interface StudioOptions {
@@ -156,6 +156,11 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
       await clearGraph(store, graphPath);
       traces.length = 0;
       return json(200, { graph: store.size() });
+    }
+
+    // The runtime answering, which may not be the one the page was built with.
+    if (method === "GET" && path === "/api/version") {
+      return json(200, { runtime: RUNTIME_BUILD });
     }
 
     if (method === "GET" && path === "/api/graph/export") {
