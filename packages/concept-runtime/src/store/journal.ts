@@ -392,7 +392,9 @@ export function openGraph(store: ConceptStore, path: string, seedPacks: (store: 
 export async function clearGraph(store: ConceptStore, path: string): Promise<void> {
   closeGraph(store, path);
   for (const unit of [...store.all()]) store.forgetConcept(unit.identity);
-  write(path, "");
+  // Started, not missing: a graph with nothing in it but its header. An empty file is how a first
+  // visit looks, and a host seeds that (the studio on Pages writes what was learned before).
+  write(path, HEADER(0));
   await openNapkinGraph(store, path);
 }
 
