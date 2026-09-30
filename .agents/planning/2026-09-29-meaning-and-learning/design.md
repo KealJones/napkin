@@ -20,6 +20,12 @@ means reaching small pieces of code that do real things. It learns from sources 
 corrected, and everything it learns is kept as the same kind of structure it runs on, so it can
 read, extend and repair itself.
 
+The long-term aim is explicit: the assistant should eventually **write its own source code**, to
+fix its own issues and add features when it needs them, the same way it writes readings into its
+graph. Everything below is chosen so that is possible: the graph is in a form it reads and writes,
+the core is small enough to understand, and every change it makes is checked (section 23) and can
+be traced and undone.
+
 The direction, in Keal's words:
 
 > "the runtime should be so small ... the graph should be the thing crafting all this knowledge
@@ -70,14 +76,19 @@ project.
 8. **Answer by kind.** A question asks for a kind of answer; an answer of another kind is passed
    over.
 9. **Everything learned carries provenance and a trust level** (section 17), so it can be traced,
-   weighed and deleted.
+   weighed and deleted. Sources are themselves concepts, and the list of sources is open: the
+   user can add one, and the assistant can add one it found through its own research.
 10. **Corrections are the main teacher.**
-11. **The core knows no English and owns no meaning.** It is small in concepts: a handful of
-    algorithms (store, match, parse, score, rewrite, run, remember the conversation). It may be as
-    many lines as those algorithms need. Everything about language and meaning lives in the graph.
-12. **No grammar outside the words.** Structure comes only from what each word says it takes
-    ("put" takes a thing and a place). That is valence stored on words, not a grammar of rules.
-    Keal: "I don't want grammars"; the words are "acting on another word that it wraps".
+11. **The runtime executes concepts only as far as it has to.** The meat and potatoes come from
+    the graph (in `.ncon` files, or whatever store replaces them: a database or JSON is fine if it
+    serves better). The runtime knows no English and owns no meaning; it is a handful of
+    algorithms (store, match, parse, score, rewrite, run, remember the conversation), and nothing
+    in it is about any particular word.
+12. **No grammar in the runtime; every rule lives on its word.** A rule like "When before something
+    makes it a time" is not in the runtime. It is a reading, relation or realization on the concept
+    When, used at parse time. Structure comes only from what each word says about itself: what it
+    takes, what it attaches to, what it makes of its neighbours. Keal: "I don't want grammars"; the
+    words are "acting on another word that it wraps".
 13. **Same meaning, same reading.** Keal's phrasing, a plain paraphrase and a benchmark phrasing of
     one request are understood as the same expression (section 23 defines "same").
 
@@ -242,6 +253,11 @@ themselves.
 This is lexicalized, head-driven chart parsing: the only structure is what words say they take,
 which is what principle 12 means. It is a known, well-behaved family of algorithms (the cost is
 polynomial in message length times k), not a new invention.
+
+**Where the rules are.** Every step above reads facts and readings on words and kinds; none of
+it is written into the runtime. "When" says it opens a time; "near" says it takes a place; "the"
+says a thing follows; a five-digit shape says it can be a ZipCode. The runtime only builds the
+chart and asks each word what it does.
 
 **What else understanding does:**
 
@@ -521,6 +537,11 @@ anything that needs to know:  Know(Cake(), Recipe())   Know("bake", PartsOfSpeec
 
 - Nothing but Know asks the world; callers never fetch.
 - One implementation per question: a word's senses, a thing's claims, a dictionary page.
+- **Sources are concepts, and the list grows.** Each source is a concept with facts: what it
+  answers, how it is reached, its license, its trust level, whether its answers are kept. A user
+  can add a source ("use the MDN docs for JavaScript questions"), and the assistant can add one it
+  found while researching, at a low trust level until it has proven reliable. Every fact names the
+  source it came from.
 - What comes back is understood (definitions become readings, descriptions facts, aliases other
   names) or kept in the content store; unknown words in a definition go on the to-do list.
 - Saved once, one way: an import record for the source, then facts stamped from it.
@@ -607,6 +628,13 @@ The rate of "I don't know" on the real prompts is a tracked number, alongside ac
   confirmed.
 - Tools can be taught in NAPKIN.md. The config grants access.
 
+**Code is language too.** The assistant is an assistant, so it reads code, understands it,
+changes it and writes it back, as it does English: code is heard into concepts (what a function
+takes, gives and does), and changes are readings over those concepts, written back out in the
+language. There is no separate, hand-written "code version" of each instruction; code-specific
+readings exist only where they have to (a language's syntax is facts on that language's words),
+and descriptions or answers about code are derived from its concepts like any other.
+
 **Writing** is facts, an outline (genre shapes as loose defaults, never rigidly prescriptive; the
 user's constraints override them), wording (readings in the Speaking mode), and a check against
 every checkable constraint, then redo. Honest for letters, plans, summaries, explanations, lists,
@@ -691,8 +719,11 @@ This takes weeks, not months, and says whether building the rest is worth it.
 
 ## 27. Open questions
 
-Decided in the session (recorded so they are not reopened): facts and readings as the whole data
-model; modes as switches, everything else evidence; text understood into structure, content kept as
+Decided in the session (recorded so they are not reopened): "no grammars" means no rule in the
+runtime, with every rule on its word's concept (principle 12); the runtime executes only as far as
+it has to, the graph holds the substance; sources are concepts and the list is open; writing its
+own source code is an explicit goal; code is understood as language; facts and readings as the
+whole data model; modes as switches, everything else evidence; text understood into structure, content kept as
 content; offer for consequential implied actions, act for lookups; corrections and picks as the
 main teacher; the corpus kept in `~/.napkin`; writing from facts and loose templates; tools as
 learned readings, config for access; NAPKIN.md falling back to AGENTS.md, never CLAUDE.md;
@@ -710,8 +741,8 @@ Open:
 7. **The config file**: name, format, where it lives.
 8. **The transcript next to this file**: about 36 MB, includes summaries of work prompts, and the
    repo is public. Commit both, only the readable `.md`, or keep both local?
-9. **"No grammar outside the words"** (principle 12): is a chart over word valence (section 7)
-   what you meant by "no grammars", or is even that too much?
+9. **The store**: `.ncon` files, a database, JSON, or something else; whichever serves reading,
+   writing and loading tens of thousands of concepts best.
 10. **Trust levels** (section 17): may a project's own NAPKIN.md grant permissions, or only you?
 11. **The hand-checked sample**: will you check 100 items, and which domain for the smallest
     experiment (lists and reminders, or files and git)?
@@ -724,15 +755,16 @@ An independent reviewer critiqued the first version as hard as possible. What ch
 - **The score is defined** (section 8): log-linear features, learned weights, a capped perceptron
   update, calibrated asking. Before, it was "a handful of signals, tuned".
 - **Understanding has an algorithm** (section 7): a chart over word valence with per-span pruning.
-  "No grammars" is kept as Keal's intent and stated precisely as "no grammar outside the words"
-  (principle 12), rather than dropped; whether that matches his intent is open question 9.
+  "No grammars" is kept as Keal's intent: no rule in the runtime; every rule, including "When
+  before something makes it a time", lives on its word's concept (principle 12, confirmed by
+  Keal).
 - **Definitions have a base case**: a small hand-checked seed, bounded bottoming out, and a
   coverage measure (section 6).
 - **Evaluation is honest about circularity** (section 23): model-drafted expectations are a draft;
   a hand-checked sample, normalization to primitives, intent as derived only, a holdout, intervals.
 - **Feasibility numbers are relabeled** as an unvalidated upper bound (section 2).
-- **"The core is tiny" is made precise**: it knows no English and owns no meaning; it is small in
-  concepts, not necessarily in lines (principle 11, section 24).
+- **"The core is tiny" is made precise**: the runtime executes concepts only as far as it has to;
+  the substance is in the graph (principle 11, section 24, confirmed by Keal).
 - **Word lists** exist as lexical facts in the graph, from imports or corrections, counted (section
   16).
 - **Modes** are set only by the primitive being run (section 4).

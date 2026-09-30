@@ -1,5 +1,8 @@
 # Napkin: how to think about changes
 
+> Working on the next version (the new design in `.agents/planning/2026-09-29-meaning-and-learning/`)?
+> Read that folder's `AGENTS.md` first. It overrides this file for that work.
+
 Napkin is a concept graph that works answers out. The goal is never "make this prompt
 answer correctly". It is "give Napkin what it needs to find this kind of answer itself".
 
