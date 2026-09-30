@@ -334,6 +334,11 @@ the protected base (section 20): no learned reading may rewrite them.
   competing tokens, never silently:
   - **by spelling**: edit distance, swapped letters and neighbouring keys ("teh", "taht", "cna");
   - **by sound**: words that sound alike, from pronunciation facts ("fone", "tuff");
+  - **by stretching**: exaggerated words ("sooooooo", "looooollll", "llllooolllll") propose the forms
+    with each run of a repeated letter squeezed to one or two ("so", "lol", "lool"), and the stretch
+    itself is kept as tone (emphasis, intensity). Keal: "noodle also needs to be able to handle my
+    stupid bs like `sooooooo` and `looooollll`". Squeezing letter runs is character mechanics, the
+    same for any language, so it is runtime mechanism, not an English rule;
   - **from the surroundings**: names that exist right now (files in the folder, branches, things in
     play), so "agent.md" where `agents.md` exists is the obvious reading;
   - and **the chart decides**: "taht" proposes *that* and *Taht* (a family name in Wikidata); *that*
