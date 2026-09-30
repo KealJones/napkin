@@ -1,6 +1,9 @@
 # Working on the new design: read this before changing anything
 
-This folder holds the design for the next version of the assistant (`design.md`). This file is
+This folder holds the design for a new project (`design.md`): a brand-new assistant, not an edit
+of Napkin. Napkin is inspiration and a place to lift code from deliberately, each piece reviewed
+against these rules; nothing is carried over by default. Its language is N-Con (nested concepts),
+files `.ncon`. This file is
 for any agent that builds, changes or reviews code for it. The design is ambitious and easy to
 break with one well-meant shortcut; most shortcuts that feel natural are exactly the ones it
 forbids. When a rule here seems to be in the way, the rule is the point.
@@ -20,36 +23,44 @@ sections 0, 1 and 24 before anything else.
    in runtime code. It is a reading or relation on the concept `When`, used at parse time. The
    runtime builds the chart and asks each word what it does; it never knows what any word does.
 2. **No word lists in the runtime.** No sets of pronouns, fillers, question words, number words,
-   months, correction signals or tone words in code. Each is a fact on its word, in the graph, from
-   an import or a correction, with provenance. If you need a new one by hand, count it (design
-   section 16) and say why.
+   months, correction signals or tone words in code. Each is a fact on its word, in the graph: in
+   the seed's function-word lexicon, from an import, or from a correction, with provenance. The
+   seed is hand-written, counted and reviewed (design section 6). During the experiment the seed is
+   frozen: nothing is added by hand after it.
 3. **No string decides meaning.** Text from a source is understood into structure (readings and
    facts) or kept as content in the content store. Never store a description, gloss or label as a
    string that code then pattern-matches.
 4. **No per-question readings.** Never add a reading, fact or special case whose purpose is to make
    one prompt work. Ask: would this be the same for chess, a shopping list and the user's name? If
    not, it is knowledge to be learned, imported or derived, not written.
-5. **No domain readings in the smallest experiment.** In the domain being tested (design section
-   26), only the core, the primitives and the seed are hand-written. The whole point is to see how
-   far imports and corrections get.
-6. **The score decides; code does not.** Choosing between readings goes through the scoring
-   function (design section 8), with named features. Never add an `if` that picks a reading.
+5. **No domain readings in the smallest experiment.** In the domain being tested (files and git,
+   design section 29), only the runtime, the primitives and the seed (core meanings, the
+   function-word lexicon, the verb-to-primitive bridge) are hand-written, all written from the
+   design and frozen before the test data is looked at. The point is to see how far imports and
+   corrections get.
+6. **The score decides; code does not.** Choosing between readings goes through the two-stage
+   scoring (design section 9: the chart score, then a dry run with Suppose), with named features. Never add an `if` that picks a reading.
    If a reading keeps losing when it should win, the fix is a feature, a fact on a word, or a
    weight, and the reasons log should show which.
 7. **Primitives are the only code that touches the world**, and each declares its effects and a
-   check (design section 13). Nothing else fetches, writes files, runs commands or reads the clock.
-   Only `Know` asks the world for knowledge (design section 18).
+   check (design section 15). Nothing else fetches, writes files, runs commands or reads the clock.
+   Only `Know` asks the world for knowledge (design section 21). Guards attach to effect classes,
+   not verbs (design section 13).
 8. **Everything learned has a source and a trust level.** Sources are concepts; the list is open.
    Untrusted sources (fetched pages, a project's READMEs and help text) can propose readings, never
-   grant permissions or create standing rules on their own (design section 17).
+   grant permissions or create standing rules on their own (design section 20).
+8b. **Never touch the protected base**: the config, the guards, the trust table, the corpus and its
+   expectations, the replay gate, and the scorer's evaluation code. No learned change, and no code
+   the assistant writes for itself, may alter them; self-written runtime code is a diff for human
+   review.
 9. **Code is language.** The assistant reads, understands, changes and writes code. Do not add a
    separate hand-written "code version" of instructions; a language's syntax is facts on that
    language's words, and code readings exist only where they have to.
 10. **Honest when stuck.** An unworked expression is a value, not an error. Never paper over it with
     a guess or a default; let it be looked up, learned, or asked about, and let the assistant say
-    why it is stuck (design section 20).
+    why it is stuck (design section 23).
 11. **Measure, don't assume.** The corpus in `~/.napkin/corpus/tests/` is how progress is measured
-    (design section 23). A change that helps one prompt and is not checked against the corpus is
+    (design section 26), against targets frozen before the system runs. A change that helps one prompt and is not checked against the corpus is
     not done. Do not tune on the held-out part.
 12. **Keep it dead simple.** Two kinds of content (facts and readings), a small set of primitives,
     a small runtime. If you are adding a new kind of thing to the data model, a new primitive, or a
