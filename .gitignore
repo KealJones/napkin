@@ -11,3 +11,6 @@ apps/studio-client/dist-pages/
 packages/concept-runtime/[xyz].mjs
 packages/concept-runtime/z*.mjs
 packages/concept-runtime/src/version.ts
+
+# Source transcripts for the new design stay local (they include work-prompt summaries)
+.agents/planning/2026-09-29-meaning-and-learning/source/

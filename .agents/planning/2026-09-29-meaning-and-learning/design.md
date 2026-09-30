@@ -9,7 +9,7 @@ behind it, and what is still open.
 Source material, next to this file:
 
 - `source/conversation.md` and `source/conversation.jsonl`: the session this came from (local;
-  not committed while question 2 in section 30 is open).
+  kept local; not committed, because they include summaries of work prompts and the repo is public).
 - `~/.napkin/corpus/`: the analysed corpus (local only; it holds work messages). See section 26.
 
 ## 0. What we are building, and why
@@ -83,8 +83,9 @@ Section 29 is the experiment that tests this, with go and stop numbers.
   tangle of strands is what its graph looks like; and N-Con reads as "Noodle concepts" too. Home
   folder `~/.noodle/`, instruction file `NOODLE.md`. (Other candidates are in `names.md` and
   `names-n.md`.)
-- **The store** behind the graph (`.ncon` files, a database, JSON) is open (section 30); whatever
-  it is, the graph is readable and writable in N-Con.
+- **The store** is SQLite, indexed for tens of thousands of concepts (lookups by lemma, lazy
+  loading); `.ncon` files are its readable, diffable text form, used for the seed, packs, export and
+  import. The graph is always readable and writable in N-Con.
 
 ## 2. Principles
 
@@ -237,6 +238,29 @@ meaning.
   keeps two senses apart where they lead to different facts or acts. Since acts are what the assistant does, the test "does the act differ" is applied as acts
   are added: two senses merged at import are split the first time a correction shows they need
   different acts.
+- **Hearing stays close to the words; senses come later.** Keal: "the original intent was to make
+  the parser [turn] messy human english [into a] nearly super obvious or close to obvious
+  representation in ncon so that its easy to parse human english and get a close to correct parse
+  without needing to look everything up ... and then concepts that miss something can be identified
+  and filled". So the heard N-Con uses **word concepts**, as close to what was said as possible:
+  "add milk to my shopping list" is `Add(Milk(), To(My(List(Shopping()))))`. Senses never appear in
+  it. A sense is chosen during evaluation, only when a reading needs one: `Add($x, To($c))` wants a
+  holder, so `List` resolves to its holding sense; if nothing needs a sense, none is picked. A word
+  with no sense that fits is the gap: a residual, filled by looking it up, learning it, or asking.
+- **A concept per sense, named by what it is.** A word is a concept of its own (its forms and its
+  senses); each sense is its own concept, named `Word#WhatItIs` from the sense's own meaning (its
+  nearest broader kind or closest synonym), with part of speech as a fact, not part of the name:
+
+  ```
+  Word("list", forms: List(lists, listed, listing), senses: List(List#Series, List#Enumerate, List#Lean))
+  List#Series     IsA(Series), Holds(Item()), Category(Noun), from: WordNet("list.n.01")
+  List#Enumerate  IsA(Say), Takes(Thing(), Order()), Category(Verb)
+  Push#Publish    IsA(Send), To(Remote()), from: gitglossary / git-push(1)
+  Ears#HearingLayer  from: Keal
+  ```
+
+  If two senses would get the same name, the next broader kind breaks the tie. Sense names are
+  plumbing: they show in traces and the reasons log, not in what is heard.
 - **A sense can be the user's own** ("ears means the hearing layer"), mapped to the same concept
   anyone else would use for that meaning, so the user's words and a paraphraser's reach one
   concept.
@@ -324,13 +348,19 @@ without asking between them unless a guard or a failed check stops it; "verify b
 done" means Say of a completion requires the goal check (section 15) to have passed; "stop means no
 further steps" means a stop marks the plan interrupted at the current checkpoint.
 
-**Size estimate and cap, by part** (an estimate to be checked when the seed is drafted, and a cap
+**Size estimate, by part** (an estimate to be checked when the seed is drafted, and a cap
 that makes growth a decision): core meanings about 300; function-word lexicon about 400 entries;
 lexical rules about 30; bridge about 50; initial weights about 10; default policies about 20; genre
-shapes about 10; English realizations about 60. Cap: 1,000 entries in total. If drafting shows the function-word lexicon needs far
-more than 400 to cover messy prompts, that is a finding, reported, and the cap is raised on purpose.
+shapes about 10; English realizations about 60. About 1,000 entries in total. There is no hard cap: every entry is counted and reported,
+and if drafting shows a part needs far more than its estimate (the function-word lexicon for messy
+prompts, most likely), that is a finding, reported.
 Parse coverage is reported per construction type (questions, imperatives, passives, conditionals,
 constraints, fragments), not only overall.
+
+**Definitions are understood at import**, once, starting with the experiment's vocabulary and the
+most common words; the rest are queued and understood in the background, so nothing waits on it in
+a conversation. **Imported senses are candidates**: they compete on their sense-frequency prior,
+and use (picks, corrections, acts that worked) quickly outweighs it.
 
 **Domain vocabulary** beyond the top 5,000 words (rebase, stash, HEAD, remote, ref, index, working
 tree), whose tool senses no dictionary has, is **prefetched at import** from the tools' own
@@ -799,7 +829,7 @@ Every fact carries a **trust level** from its source:
 but in the sandbox they run unconfirmed, because nothing there is real and the point is to measure
 the system without human curation. Outside the sandbox the rules above apply unchanged.
 
-**The config** (name and format open) grants access: which commands may run, credentials, and
+**The config** (`~/.noodle/config.json`) grants access: which commands may run, credentials, and
 blanket permissions ("bypass permissions" for an effect class or all). How to use a tool is
 knowledge, in the graph.
 
@@ -1146,18 +1176,15 @@ never the test (principle 14); the existing corpus, split by conversation, is us
 contamination stated; the confirmatory set is fresh prompts after the seed freeze; a documented
 command's name gives its word a sense.
 
+Also decided (after the review loop): the store is SQLite with N-Con as its text form; a concept per
+sense, named `Word#WhatItIs`, with hearing kept close to the words and senses chosen only when a
+reading needs one; definitions understood at import, domain vocabulary first; imported senses are
+candidates on a frequency prior; the seed is counted, with no hard cap; the config is
+`~/.noodle/config.json`; the source transcripts stay local.
+
 Open:
 
-1. **The store**: `.ncon` files, a database, JSON, or something else.
-2. **The transcript next to this file**: about 36 MB, includes summaries of work prompts, and the
-   repo is public. Commit both, only the readable `.md`, or keep both local?
-3. **Word and sense**: one concept per word with sense-scoped facts, or a concept per sense?
-4. **When to understand definitions**: at import, or when a word is first used?
-5. **Imports versus use**: how much weight an imported sense gets before use confirms it.
-6. **A definition that cannot be understood yet**: kept pending (the current default), or dropped?
-7. **The config file**: name, format, where it lives.
-8. **Seed size**: the estimate and the 1,000-entry cap in section 6 are proposals; confirm or change
-   them.
+1. **A definition that cannot be understood yet**: kept pending (the current default), or dropped?
 
 ## Appendix A. What the critiques changed
 
