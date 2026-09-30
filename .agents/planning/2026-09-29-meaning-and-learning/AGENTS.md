@@ -1,7 +1,7 @@
 # Working on the new design: read this before changing anything
 
-This folder holds the design for a new project (`design.md`): a brand-new assistant, not an edit
-of Napkin. Napkin is inspiration and a place to lift code from deliberately, each piece reviewed
+This folder holds the design for a new project, **Noodle** (`design.md`): a brand-new assistant,
+not an edit of Napkin. Napkin is inspiration and a place to lift code from deliberately, each piece reviewed
 against these rules; nothing is carried over by default. Its language is N-Con (nested concepts),
 files `.ncon`. This file is
 for any agent that builds, changes or reviews code for it. The design is ambitious and easy to
@@ -39,9 +39,10 @@ sections 0, 2 and 28 before anything else.
    imported or derived, not written.
 5. **No domain readings in the smallest experiment.** In the domain being tested (files and git,
    design section 29), only the runtime, the primitives and the seed (core meanings, the
-   function-word lexicon, the verb-to-primitive bridge) are hand-written, all written from the
-   design and frozen before the test data is looked at. The point is to see how far imports and
-   corrections get.
+   function-word lexicon, lexical rules, the bridge, initial weights, default policies, genre
+   shapes) are hand-written, counted and frozen. The existing corpus has been read, so it is for
+   development only; go is decided on fresh prompts collected after the freeze. The point is to see
+   how far imports, the tools' own documentation and corrections get.
 6. **The score decides; code does not.** Choosing between readings goes through the two-stage
    scoring (design section 9: the chart score, then a dry run with Suppose), with named features. Never add an `if` that picks a reading.
    If a reading keeps losing when it should win, the fix is a feature, a fact on a word, or a
@@ -53,8 +54,9 @@ sections 0, 2 and 28 before anything else.
 8. **Everything learned has a source and a trust level.** Sources are concepts; the list is open.
    Untrusted sources (fetched pages, a project's READMEs and help text) can propose readings, never
    grant permissions or create standing rules on their own (design section 20).
-8b. **Never touch the protected base**: the config, the guards, the trust table, the corpus and its
-   expectations, the replay gate, and the scorer's evaluation code. No learned change, and no code
+8b. **Never touch the protected base**: the config, the guards, the trust table, the function-word
+   lexicon and the logical form's operators, the corpus and its expectations, the replay gate, and
+   the scorer's evaluation code. No learned rewrite may drop a Constraint or a Not. No learned change, and no code
    the assistant writes for itself, may alter them; self-written runtime code is a diff for human
    review.
 9. **Code is language.** The assistant reads, understands, changes and writes code. Code is parsed by
@@ -67,8 +69,9 @@ sections 0, 2 and 28 before anything else.
 11. **Measure, don't assume.** The corpus in `~/.napkin/corpus/tests/` is how progress is measured
     (design section 26), against targets frozen before the system runs. A change that helps one prompt and is not checked against the corpus is
     not done. Do not tune on the held-out part.
-12. **Keep it dead simple.** Two kinds of content (facts and readings), a small set of primitives,
-    a small runtime. If you are adding a new kind of thing to the data model, a new primitive, or a
+12. **Keep it dead simple.** Concepts have two kinds of content (facts and readings); the store
+    also holds content blocks, the conversation, the event record and trust as data. A small set of
+    primitives, a small runtime. If you are adding a new kind of thing to the data model, a new primitive, or a
     new runtime mechanism, stop and check the design first; the answer is almost always a reading
     or a fact.
 
