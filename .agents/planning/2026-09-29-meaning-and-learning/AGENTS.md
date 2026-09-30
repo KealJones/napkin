@@ -66,8 +66,9 @@ sections 0, 2 and 28 before anything else.
 10. **Honest when stuck.** An unworked expression is a value, not an error. Never paper over it with
     a guess or a default; let it be looked up, learned, or asked about, and let the assistant say
     why it is stuck (design section 23).
-11. **Measure, don't assume.** The corpus in `~/.napkin/corpus/tests/` is how progress is measured
-    (design section 26), against targets frozen before the system runs. A change that helps one prompt and is not checked against the corpus is
+11. **Measure, don't assume.** The corpus in `~/.napkin/corpus/tests/` is how progress is developed
+    and checked (design section 26), against targets frozen before the system runs; the go decision
+    is made on fresh prompts collected after the freeze. A change that helps one prompt and is not checked against the corpus is
     not done. Do not tune on the held-out part.
 12. **Keep it dead simple.** Concepts have two kinds of content (facts and readings); the store
     also holds content blocks, the conversation, the event record and trust as data. A small set of
