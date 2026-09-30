@@ -40,7 +40,7 @@ sections 0, 2 and 28 before anything else.
 5. **No domain readings in the smallest experiment.** In the domain being tested (files and git,
    design section 29), only the runtime, the primitives and the seed (core meanings, the
    function-word lexicon, lexical rules, the bridge, initial weights, default policies, genre
-   shapes) are hand-written, counted and frozen. The existing corpus has been read, so it is for
+   shapes, English realizations) are hand-written, counted and frozen. The existing corpus has been read, so it is for
    development only; go is decided on fresh prompts collected after the freeze. The point is to see
    how far imports, the tools' own documentation and corrections get.
 6. **The score decides; code does not.** Choosing between readings goes through the two-stage
@@ -56,7 +56,9 @@ sections 0, 2 and 28 before anything else.
    grant permissions or create standing rules on their own (design section 20).
 8b. **Never touch the protected base**: the config, the guards, the trust table, the function-word
    lexicon and the logical form's operators, the corpus and its expectations, the replay gate, and
-   the scorer's evaluation code. No learned rewrite may drop a Constraint or a Not. No learned change, and no code
+   the scorer's evaluation code. No learned rewrite may widen what is permitted to run: one that
+   drops a Constraint or a Not is allowed only if Suppose shows it runs nothing effectful on the
+   affected replays, or the user confirms it (design section 20). No learned change, and no code
    the assistant writes for itself, may alter them; self-written runtime code is a diff for human
    review.
 9. **Code is language.** The assistant reads, understands, changes and writes code. Code is parsed by

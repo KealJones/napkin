@@ -21,7 +21,9 @@ corrected, and everything it learns is kept as the same kind of structure it run
 read, extend and repair itself.
 
 The long-term aim is explicit: the assistant should eventually **write its own source code**, to
-fix its own issues and add features, the way it writes readings into its graph. That aim is not
+fix its own issues and add features, the way it writes readings into its graph. The first experiment tests only a narrow part
+of it (understanding requests for tool acts); what it proves and does not prove is stated in section
+29. Self-writing code is not
 part of the first experiment, and when it comes it works inside a protected base it can never
 change (section 20).
 
@@ -47,12 +49,16 @@ the seed is frozen**:
    meanings, the function-word lexicon, lexical rules, a bridge from meanings to primitives that
    names no command, and initial weights), whose content-word entries come automatically from
    VerbNet, WordNet and Wiktionary, and whose command readings come automatically from git's own
-   documentation, **reaches the correct executable act at least as accurately as a word classifier
-   trained on the same labels, and more accurately than retrieval over the same documentation, on
-   the requests that do not contain the command's name** ("send my stuff up", "save where I am"),
-   where understanding, not name matching, has to do the work. End state in a sandbox (the right
-   repository and remote state, which covers arguments, constraints and referents) is reported
-   beside it.
+   documentation, **reaches the correct end state** (the right command, files, branch, referents,
+   constraints and order, checked in a sandbox) **on real requests, single-act and multi-act, more
+   often than command-name matching with a slot filler, and at least as often as a word classifier
+   with the same slot filler.** In real use Keal nearly always names the command (only about 2 of
+   27 single-act git requests in a labelled sample did not), so the understanding that matters is
+   everything around the verb: which files, which branch, "everything except the plan", "don't push
+   yet", "it", commit before push.
+   A second result, reported but not deciding: on paraphrases that do not name the command ("send
+   my stuff up"), written blind by someone who has not seen the seed, the right act is reached more
+   often than retrieval over the same documentation.
 2. Nothing is written by hand for the domain along the way; corrections create only the learned
    structure listed in section 17, counted.
 
@@ -164,11 +170,16 @@ Percent of items with each feature (model-tagged):
   partly, 44 not at all). That is a **model-estimated upper bound, unvalidated**; several of these
   benchmarks were built to defeat knowledge-base methods, which have historically scored near
   chance on them.
-- **Lists and reminders are almost absent from real use**: 8 of Keal's 3,449 real prompts. Files
-  and git are common: 265 of 3,569 prompts mention a git word, 126 of them short. Many of those are
+- **Lists and reminders are almost absent from real use**: 8 of Keal's 3,449 prompts to coding
+  assistants. Files and git are common: 265 of those 3,449 mention a git word, 126 of them short. Many of those are
   compound or reach outside a small act set (merge, pull, checkout, pull requests), so the
   experiment's act set is widened to what the labelled data contains, and n is counted, not assumed
   (section 29).
+- **A labelled sample** of 300 git-ish prompts (read, not keyword-matched): 27 single-act git or
+  file requests, 25 multi-act (mostly "commit and push"), the rest reviews, discussion, questions or
+  pasted content; only 2 of the 27 single-act requests did not name the command. Projected: about 6
+  single-act and 5 multi-act requests a week, and about 0.4 a week that do not name the command. In
+  real use the command is named; what needs understanding is everything around it (section 29).
 - The real prompts were written to language models; prompts to an assistant without one may be
   shorter and more command-like. The distribution shift runs both ways and is noted, not corrected.
 
@@ -321,8 +332,18 @@ more than 400 to cover messy prompts, that is a finding, reported, and the cap i
 Parse coverage is reported per construction type (questions, imperatives, passives, conditionals,
 constraints, fragments), not only overall.
 
-**Domain vocabulary** beyond the top 5,000 words (rebase, stash, HEAD) is **prefetched at import**
-from the tools' documentation and from Wiktionary, so understanding never waits on the network. A
+**Domain vocabulary** beyond the top 5,000 words (rebase, stash, HEAD, remote, ref, index, working
+tree), whose tool senses no dictionary has, is **prefetched at import** from the tools' own
+glossaries first (for git: `gitglossary(7)` and `gitcli(7)`), then the tools' documentation, then
+Wiktionary. A glossary definition is understood like any definition: it reduces to core meanings
+and to other glossary terms, recursively, to a bounded depth; a cycle between glossary terms (a ref
+defined through an object, an object through a ref) is kept as mutually defined terms, grounded
+wherever one of them reduces to core meanings; a term that cannot be grounded that way stays
+pending, and its readings reach no primitive.
+
+**No core meaning is domain-specific.** Every core meaning passes a check reviewed before the
+freeze: would it be in the list for a cooking assistant or a calendar? `Remote` and `Commits` would
+not, so they can never be core meanings; they are learned from the glossary. so understanding never waits on the network. A
 word met for the first time mid-parse is skipped (at its cost) and goes on the to-do list; it is
 learned after the turn.
 
@@ -349,7 +370,9 @@ the protected base (section 20): no learned reading may rewrite them.
 - **Modes** are how something is being run: **Speaking** (saying a result), **Supposing** (working
   out what would happen, changing nothing), **Doing** (acting). A mode is set only by the
   primitive being run: Say runs Speaking, Suppose runs Supposing, and every other primitive runs
-  Doing. Nothing in understanding sets a mode.
+  Doing. Nothing in understanding sets a mode; a reading may *require* a mode (a Speaking realization), which is not setting one.
+  Quotation and mention are not modes: they are node types in the logical form (section 11), inside
+  which nothing is evaluated.
 - **Evidence** is everything a thing is next to: other words, their kinds, what the conversation is
   about, what the user has been doing, the message's tone. Evidence is scored, never a switch.
 
@@ -361,12 +384,14 @@ the protected base (section 20): no learned reading may rewrite them.
   markers, pasted content (into the content store).
 - **Segment** long messages into sentences and clauses, using facts on punctuation and on
   clause-opening words (section 6), so each chart is short (section 24). A segment boundary is a
-  scored choice, not a cut: alternatives are kept where a boundary is unclear, and references
+  scored choice, not a cut: alternatives are kept where a boundary is unclear (at most two
+  segmentations per message, chosen by the score of their best parses), and references
   across segments ("fix it. then commit it") are resolved by the conversation structure (section
   14), not inside one chart.
 - **Look up words** (lemma, forms, parts of speech, the user's own words) and propose corrections as
   competing tokens, never silently:
-  - **by spelling**: edit distance, swapped letters and neighbouring keys ("teh", "taht", "cna");
+  - **by spelling**: edit distance, swapped letters and neighbouring keys ("teh", "taht", "cna"); the
+    keyboard layout is data (a fact on the user's input), not code;
   - **by sound**: words that sound alike, from pronunciation facts ("fone", "tuff");
   - **by stretching**: exaggerated words ("sooooooo", "looooollll", "llllooolllll") propose the forms
     with each run of a repeated letter squeezed to one or two ("so", "lol", "lool"), and the stretch
@@ -469,6 +494,10 @@ right act gets reinforced. Mitigations: few feature templates in the experiment,
 one correction can move a weight, and learning curves reported rather than one number (section
 29).
 
+**Calibration data**: a slice of the exploratory labels is held apart from the perceptron's training
+and used only to calibrate; asking is evaluated there on a risk-coverage curve, at a pre-registered
+operating point.
+
 **Asking** is a decision with an explicit cost. The top reading's probability is calibrated against
 how often it was right; the assistant asks when the expected cost of acting on the top reading
 (the probability it is wrong, times the cost of that mistake) exceeds the cost of asking. The ratio
@@ -477,6 +506,23 @@ called out more than overreach) suggest asking is the more annoying error, so th
 leans against asking, and results are reported across a range of ratios. Consequential acts are
 held by guards (section 13) whatever the score. If the top readings lead to the same act, the
 assistant never asks.
+
+**Matching a request to a reading.** Most of the bet rests on this step: a request's reduction
+reaching a reading whose pattern is another text's reduction (a documentation description, a
+definition). Two reductions built separately from different texts rarely come out identical (the
+failure of Extended WordNet's logical forms and of conceptual-dependency paraphrase systems), so the
+match is **scored, not exact**:
+
+- **Unification with slack**: the request's reduction and the reading's pattern are aligned node by
+  node (a predicate with its roles); aligned nodes must agree on category; kinds may differ at a
+  cost that grows with their distance in the kind hierarchy.
+- **Features of a match**: the fraction of the pattern's core-meaning nodes the request covers;
+  the fraction of the request's nodes left unmatched; the kind distance of each aligned argument;
+  whether the request's arguments fill the reading's required roles (a Run template's arguments).
+- **Threshold**: a match below a threshold is not a candidate; above it, the match features enter
+  the stage-one score like any other.
+
+Week 1 tests exactly this, by hand, before a parser exists (section 29).
 
 Every decision can be explained by which features fired.
 
@@ -528,7 +574,9 @@ and Delete, where they are the same act); tense is a time index, not a separate 
 normal form" is then decidable.
 
 Scope is left open at parse time and settled by the score at evaluation, the way underspecified
-semantics (MRS, Hole Semantics) does it. Seed rewrites may go under any operator; learned rewrites
+semantics (MRS, Hole Semantics) does it: the logical form keeps scope constraints (which operator
+may scope over which); the scoped readings they allow are enumerated (few, since requests are
+short); and features choose among them (the operator's position, its word, past picks). Seed rewrites may go under any operator; learned rewrites
 are held to the constraint invariant (section 20); an act under a prohibition is never run.
 **Opaque contexts stop rewriting**: inside a quotation, a mention ("what does push mean", "don't say
 X"), or text to be written, words are content or the topic, not instructions, and nothing inside
@@ -538,7 +586,7 @@ Worked examples (the first ones to pass in the experiment):
 
 | Said | Normal form | Evaluation rule |
 |---|---|---|
-| "don't push yet" | `Constraint(Not(Push(_)), until: Told())` | Push is blocked until the user says so |
+| "don't push yet" | `Constraint(Not(Push(_)), until: Told())` | Push is blocked until the user lifts it in words the chart reads as permission for push ("ok push", "go ahead"); it lasts the session, and is echoed back if the user asks to push later |
 | "only suggest, don't delete" | `Constraint(Only(Suggest(_)))`, `Constraint(Not(Delete(Any())))` over the plan | every step must be a suggestion; no Delete runs |
 | "commit everything except the plan" | `Commit(Every(File, changed, except: Plan()))` | the set is the changed files minus the referent of "the plan" |
 | "if it's already set up, add it to the readme" | `If(SetUp(It()), then: Add(It(), To(Readme())))` | check the condition in Suppose; run the branch only if true |
@@ -591,7 +639,7 @@ unknown, and unknown is guarded.
   approach" can refer to it. In the experiment's fixtures, the turns of the assistant the prompts
   were originally written to (another model) are understood the same way, so references into its
   prose can be graded; referent accuracy is reported separately for referents that depend on those
-  foreign turns and ones that do not.
+  foreign turns and ones that do not, and the foreign-turn referents never feed the go decision.
 
 **Asides are not answers.** Keal:
 
@@ -634,8 +682,8 @@ output) through Read, as structure, not as language to understand; changes by ot
   means the one that failed) and recency are features in the score (section 9), like everything
   else.
 - **Fragments fill holes**: a fragment ("github link", "look again?") fills the open need or choice
-  point of the last reading whose kind it best matches; if none matches well enough, it is a new
-  message.
+  point of the last reading whose kind it best matches; if its best match scores below a threshold set on the
+  development set, it is a new message.
 
 ## 17. Corrections and learning from picks
 
@@ -722,8 +770,8 @@ Every fact carries a **trust level** from its source:
   confirmed. The cost: a user correction that moves a shared weight also moves proposed readings'
   ranks; the confirmation gate, not the weights, is what keeps untrusted readings from acting.
 - **What applies on its own and what waits.** So that Noodle can fix itself without Keal as a
-  bottleneck: weights, word-to-sense links and sense splits taught by the user apply on their own
-  (checked by the replay gate); rewrites taught by the user apply after the echo-and-confirm of
+  bottleneck: weights apply on their own (checked by the replay gate); word-to-sense links and sense splits taught
+  by the user apply once two cases agree (a single correction is held as pending); rewrites taught by the user apply after the echo-and-confirm of
   section 19; readings from documentation and the web wait for confirmation only if they would run
   something effectful. The share of learned structure that needed confirmation is reported.
 - **Weights are guarded too**: a learned weight change that would change the top reading of any
@@ -733,9 +781,10 @@ Every fact carries a **trust level** from its source:
   trust table, the function-word lexicon and the meaning of the logical form's operators, the
   corpus and its expectations (at `~/.napkin/corpus/`), the replay gate, and the scorer's evaluation
   code. One invariant is checked on every learned change: **no learned rewrite may widen what is
-  permitted to run.** Checked syntactically: if a learned rewrite's output lacks a Constraint or a
-  Not node its input had, the rewrite is allowed only when its result runs nothing effectful, or
-  after the user confirms it. That still lets Noodle learn "don't forget to push" (a push),
+  permitted to run.** How it is checked: if a learned rewrite's output lacks a Constraint or a Not
+  node its input had, the rewrite is run under Suppose on every replay item it applies to; it is
+  allowed on its own only if none of those runs would execute an effectful primitive, and otherwise
+  only after the user confirms it. That still lets Noodle learn "don't forget to push" (a push),
   "why not just rebase?" (a suggestion), "not bad" (good), "don't you think we should commit?" (a
   directive), while nothing learned can quietly turn a prohibition into an act. The seed lists these
   common constructions as function-word entries from the start. The graph plus Sequence is as expressive as code, so readings
@@ -745,6 +794,10 @@ Every fact carries a **trust level** from its source:
   when it comes, is proposed as a diff for human review, never applied on its own. Self-modifying
   systems game their own checks (Eurisko's heuristic that credited itself is the classic case); the
   protected base is the answer to that.
+
+**In the experiment**, the trust rules are relaxed on purpose: documentation readings are level 3,
+but in the sandbox they run unconfirmed, because nothing there is real and the point is to measure
+the system without human curation. Outside the sandbox the rules above apply unchanged.
 
 **The config** (name and format open) grants access: which commands may run, credentials, and
 blanket permissions ("bypass permissions" for an effect class or all). How to use a tool is
@@ -899,6 +952,9 @@ that it names every changed file's area and the request; it is not free prose. F
   - **A baseline first.** Before the new system is built, the simple baselines (keywords, the word
     classifier, recency) and the existing prototype are scored on the same sets, so every later
     number has something to be compared with.
+- **Blindness has limits**: Keal types the fresh prompts himself, so he is not blind to them as their
+  author, and knowing he is being tested can shift his phrasing. Both are stated; a second user's
+  prompts are welcome whenever available.
 - **The confirmatory set is the fresh one.** Go is decided on prompts collected after the seed is
   frozen and never read before scoring. The existing corpus, including its holdout, is exploratory:
   Keal has read the analysis of all of it.
@@ -930,9 +986,9 @@ Keal:
 1. **The N-Con spec**: concepts, facts, readings, the content store, provenance and trust, as data.
 2. **The N-Con text format**: its grammar (of the file format, which is fine: the rule is about
    language, not file syntax), a formatter, and round-trip tests.
-3. **The runtime rules**: what the runtime may and must not do (section 28), the four chart steps,
+3. **The runtime rules**: what the runtime may and must not do (section 28), the six chart steps,
    the score interface, the primitives with effects and checks, the modes.
-4. **Built-in concepts**: what is built in (the seed's three parts, the primitives, a handful of
+4. **Built-in concepts**: what is built in (the seed's eight parts, the primitives, a handful of
    structural concepts), how to add one, and the test for whether something belongs there
    (would it be the same for chess, a jam website and the user's name? if not, it is learned).
 5. **The test strategy**: the corpus, the hand-check, the holdout, the replay gate, runtime tests.
@@ -943,7 +999,7 @@ It does only this: store concepts, facts, readings, content blocks, the conversa
 the event record, with provenance and trust; match patterns over lemmas and roles, and shape
 patterns over characters (the one small pattern interpreter shapes need), plus the character
 mechanics of spelling candidates (edit distance, squeezing repeated letters); build and prune the chart
-with its four steps; score readings in two stages; rewrite and run primitives; learn weights from
+with its six steps; score readings in two stages; rewrite and run primitives; learn weights from
 corrections and picks. Concepts have two kinds of content (facts and readings); the store also holds
 content blocks, the conversation structure, the event record and trust, as data.
 
@@ -954,16 +1010,37 @@ beyond a handful of structural ones, or grammar rules. Each is a fact or a readi
 
 **Domain**: files and git. The act set is what the labelled data contains, starting from status,
 diff, commit, push, pull, branch, checkout, merge, revert, read or open a named file, find in files,
-and pull requests, trimmed to acts with enough items. Items are single-act, **including ones with
-constraints or conditions**, so the logical form (section 11) is exercised; multi-act items wait.
+and pull requests, trimmed to acts with enough items. Items are real requests, **single-act and multi-act** (a
+labelled sample found about 6 single-act and 5 multi-act git requests a week, mostly "commit and
+push" and "merge master"), **including ones with constraints or conditions**, so the logical form
+(section 11) and plans (section 12) are exercised.
 A constraint on its own ("don't push yet") is an act class of its own: the gold is "nothing runs
 now, the rule is stored".
+
+**The gold is an executable act**, not a logical form: the command and subcommand, its flags, its
+typed arguments (files, branches, refs), and any stored constraint. The logical form is internal to
+the system. That way the gold can be frozen before the concepts it would be expressed in are learned.
+
+**"Without the command's name"** is defined before any data is seen: the request contains no lemma
+from a frozen list of the domain's command and subcommand names and their documented aliases
+(commit, push, pull, branch, checkout, switch, merge, revert, reset, stash, diff, status, tag,
+fetch, clone, "pr", "pull request").
+
+**Pull requests** go through the GitHub API, which a local sandbox cannot check; they are scored on
+the act label only, not on end state, unless a mock of the API is built. For pull and merge, the
+fixture snapshots the remote's refs and objects at capture time into the sandbox's bare remote.
 
 **Week 1: representability, and capture.**
 
 - Keal writes by hand the target readings for 30 git documentation descriptions and 30 paraphrase
   requests (without the command's name), using only the drafted seed's vocabulary and bridge. **If
   under 70 percent can even be expressed, the seed design is fixed before any code.**
+- **Convergence, not only representability.** For the 30 paraphrase requests, Keal also writes the
+  reductions **blind to the documentation reductions**, then the match of section 9 is run on the
+  hand-written pairs. The kill test is top-1 match accuracy: **if under 60 percent of the requests
+  match the right documentation reading, stop**: careful hand reductions do not converge, so
+  automatic ones will not. Every change made to the seed during week 1 and stage 0 is logged and
+  counted.
 - In parallel, a **capture hook** is built: whenever Keal sends a prompt to a coding assistant, it
   snapshots the working tree, branches and remotes and the assistant turns before it, into a
   fixture. Until it exists, no confirmatory data is being collected. Historical fixtures are drafted
@@ -973,14 +1050,20 @@ now, the rule is stored".
   (by a loose keyword match); if about a third qualify, about 12 a week.
 
 **Stage 0: documentation to readings, automatically.** The same 30 descriptions, understood by the
-pipeline (definition understanding is in this round), graded against the week-1 targets. **If under
-about half match, stop**: learning tools from documentation cannot carry the domain yet.
+pipeline (definition understanding is in this round, with the glossary), graded against the week-1
+targets. **Stop** if fewer than 50 percent of the 30 automatic reductions equal their hand-written
+targets, or if the hand-graded precision of 50 bottomed-out senses (section 6) is under 70 percent,
+or if fewer than 60 percent of in-domain development prompts get a full or near-full parse (at least
+70 percent of their content words covered).
 
 **Stage 1: pilot.** About 50 labelled items: the ceiling, the share of requests without the
-command's name, and every baseline on each stratum. The margin and n are set here. With a 10-point
-margin, paired, the power calculation needs on the order of 170 items (at 5 points, about 680, a
-year of data); if the pilot's accrual cannot reach n within about four months, the domain widens to
-files in general before the freeze, not after.
+command's name, and every baseline on each stratum. The margin and n are set here, **for the
+deciding metric** (end state on real requests), with the calculation's assumptions
+stated (the expected rate of pairs where the two systems disagree). With a 10-point margin, paired,
+and about 20 percent disagreeing pairs, it needs on the order of 170 items. At about 11 qualifying
+requests a week, that is about four months; if the pilot shows a slower rate, the domain widens to
+files in general before the freeze, not after. Requests without the command's name are about 0.4 a
+week in real use, too few to decide anything, so they are tested on the written paraphrase set.
 
 **Baselines** (the arm and the baselines are told apart by stratum and by metric, and each baseline
 gets what it can use):
@@ -988,6 +1071,10 @@ gets what it can use):
 - **acts, zero effort**: command-name match, and BM25 from the request to the man pages;
 - **acts, trained**: a word classifier on the same labels; the same classifier plus features from
   the man page of each act (TF-IDF); nearest neighbours over the exploratory set;
+- **acts, with the same lexical resources**: BM25 and the word classifier with the request and the
+  man pages expanded by WordNet synonyms and hypernyms, so a win cannot come from the imports alone;
+- **arguments**: every act baseline gets a simple slot filler (recency plus shape match), so the end
+  state metric has a comparison;
 - **referents**: a learned salience ranker over the same features the system uses, and recency;
 - **reference only, not deciding**: a language model, reported as a ceiling, so the gap is known.
 
@@ -998,8 +1085,10 @@ gets what it can use):
   capture hook after the freeze, from sessions with other assistants, **labelled blind** to the
   system's output and before scoring, with label and score times logged, and nothing in the seed or
   the protected base changed between labelling and scoring.
-- **Frozen first, counted, published**: the seed (all eight parts), the N-Con normal form and its
-  canonicalization, and the mapping of expectations onto it.
+- **Frozen first, counted, published**: the seed (all eight parts), the gold format, and the mapping
+  of expectations onto it. **The scored system is frozen as one unit**: a runtime commit hash, the
+  pack versions and the trained weights. Every confirmatory item is scored against that single
+  frozen system; development continues on a separate version that is never the one scored.
 - **Arms**: **A** (import alone, seed weights); **A+ zero-shot** (plus the documentation readings,
   seed weights); **A+ trained** (the same, trained by the perceptron on the exploratory labels, the
   same labels the classifier gets). **All documentation readings run unconfirmed** in the sandbox;
@@ -1009,10 +1098,24 @@ gets what it can use):
   the gold end state. Asking or abstaining counts as wrong for both; a guarded act offered with the
   correct target counts as correct; a risk-coverage curve is reported beside. Asking is disabled
   in A and A+ zero-shot, which have no calibration.
-- **Go**, decided on (a) for **A+ trained**, on the confirmatory requests **without the command's
-  name**: not worse than the best trained classifier by more than the margin (TOST), and better than
-  both zero-effort baselines by at least the margin.
+- **A negative set**: fresh prompts that contain git words but are not git acts ("push back on the
+  reviewer", "commit to this approach"); the false-act rate is reported for every arm and baseline.
+- **The paraphrase set** (reported, not deciding): paraphrases of real requests that do not name
+  the command, written blind by someone who has not seen the seed (Keal later, or another person);
+  act accuracy against BM25 over the documentation.
+- **Go**, decided on (b), end state, for **A+ trained**, on the confirmatory set of real requests:
+  at least a pre-registered absolute floor of 60 percent (a level worth using); better than command-
+  name match with the slot filler by at least the margin; not worse than the best trained classifier
+  with the slot filler (including the WordNet-expanded one) by more than the margin (TOST); and with the wins
+  mostly coming from parses covering at least 70 percent of content words (accuracy is reported by
+  skip rate, so skipping plus the "reached an act" prior cannot pass for understanding). The
+  multiple tests are corrected (Holm).
 - **Stop**: otherwise. Go and stop are complements.
+
+**What go licenses.** Go shows that a no-model assistant can understand requests for a narrow set of
+tool acts, phrased in its user's own words, better than simple baselines, without hand-written
+domain knowledge. It does not show that it can edit code meaningfully, which is most of real use;
+that is the next experiment, and a go here is not read as more.
 
 **Stage 3: the oracle arm, reported, not deciding.** B: gold normal forms on the training
 conversations; referents and end states on the confirmatory set against the learned salience
@@ -1162,3 +1265,24 @@ precise rather than dropped.
 - Domain vocabulary is prefetched; definition understanding moves into the first round; tool output
   is read as structure; what learned structure applies on its own versus waits for confirmation is
   stated; an unreviewed project file starts at level 3.
+
+**Round 6**:
+
+- The deciding metric moved to end state on all real requests (single and multi-act), because a
+  labelled sample showed Keal nearly always names the command; requests without the name are tested
+  on a blind-written paraphrase set, reported beside (Keal chose both).
+- The match between a request's reduction and a reading is defined: scored unification with slack,
+  its features, a threshold (section 9); week 1 tests convergence of blind hand reductions, with a
+  kill threshold.
+- Domain vocabulary comes from the tools' own glossaries (gitglossary, gitcli), with how glossary
+  definitions reduce and how cycles are grounded; no core meaning may be domain-specific.
+- The scored system is frozen as one unit (runtime hash, packs, weights); the gold is an executable
+  act, frozen before the concepts are learned; "without the command's name" is defined before data.
+- Go has an absolute floor, baselines with WordNet expansion and slot fillers, a negative set, a
+  skip-rate split, Holm correction, and states what it licenses; stage 0 has exact stop thresholds
+  for reductions, precision and parse coverage; pull requests and remote state in the sandbox are
+  specified.
+- The constraint invariant has one statement and one check (Suppose on the affected replays); the
+  experiment's relaxation of trust is stated; quotation is a node type, not a mode; scope has
+  constraints and enumeration; "until told" has semantics; calibration has its own data; user-taught
+  links need two agreeing cases; blindness limits are stated.
