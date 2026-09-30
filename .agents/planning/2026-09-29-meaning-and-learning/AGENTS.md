@@ -15,7 +15,7 @@ concepts with facts and readings. The runtime executes concepts only as far as i
 and potatoes are in the graph. Every rule about language lives on the concept of the word it is
 about. What it learns is kept, with its source, in the same form it runs on, so that it can read,
 extend and repair its own graph, and eventually write its own source code. Read `design.md`
-sections 0, 1 and 24 before anything else.
+sections 0, 2 and 28 before anything else.
 
 ## The rules
 
@@ -29,10 +29,14 @@ sections 0, 1 and 24 before anything else.
    frozen: nothing is added by hand after it.
 3. **No string decides meaning.** Text from a source is understood into structure (readings and
    facts) or kept as content in the content store. Never store a description, gloss or label as a
-   string that code then pattern-matches.
-4. **No per-question readings.** Never add a reading, fact or special case whose purpose is to make
-   one prompt work. Ask: would this be the same for chess, a shopping list and the user's name? If
-   not, it is knowledge to be learned, imported or derived, not written.
+   string that code then pattern-matches. (Lemma keys for looking a word up, and text passed to Know
+   as a query, are indexes, not meaning; they are fine.)
+4. **Fix understanding, never the test** (design principle 14). Never add a reading, fact, rule or
+   branch whose purpose is to make one prompt or one test pass. Keal: "we need to give the
+   realization, relations, whatever to the concept, not to the runtime." Fix how words are
+   understood, how readings are chosen, what is learned, or which sources are used. Ask: would this
+   be the same for chess, a jam website and the user's name? If not, it is knowledge to be learned,
+   imported or derived, not written.
 5. **No domain readings in the smallest experiment.** In the domain being tested (files and git,
    design section 29), only the runtime, the primitives and the seed (core meanings, the
    function-word lexicon, the verb-to-primitive bridge) are hand-written, all written from the
@@ -53,9 +57,10 @@ sections 0, 1 and 24 before anything else.
    expectations, the replay gate, and the scorer's evaluation code. No learned change, and no code
    the assistant writes for itself, may alter them; self-written runtime code is a diff for human
    review.
-9. **Code is language.** The assistant reads, understands, changes and writes code. Do not add a
-   separate hand-written "code version" of instructions; a language's syntax is facts on that
-   language's words, and code readings exist only where they have to.
+9. **Code is language.** The assistant reads, understands, changes and writes code. Code is parsed by
+   real parsers (tree-sitter) behind Read into content plus structure, and the structure becomes
+   concepts. Do not add a separate hand-written "code version" of instructions; code-specific
+   readings exist only where they have to.
 10. **Honest when stuck.** An unworked expression is a value, not an error. Never paper over it with
     a guess or a default; let it be looked up, learned, or asked about, and let the assistant say
     why it is stuck (design section 23).
