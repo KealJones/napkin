@@ -222,6 +222,16 @@ Everything that turns into something else is a reading: a synonym, a multi-word 
 indirect request (`Can(You(), $x)` becomes `$x` when `$x` is doable), a definition, a behaviour
 (`Add($x, To($c))` with `$c` a Holder becomes the code that stores it).
 
+**Rewriting runs both ways.** Expanding turns a concept into what it means (a definition, an
+indirect request). **Collapsing** turns words into the one concept they name together: a multi-word
+name (`Work(In(Progress()))` to `WorkInProgress`), an idiom, a title or a nickname
+(`Man(Of(Steel()))` to Superman, or to the 2013 film). Collapse candidates come from names, aliases
+and titles in the sources (Wikidata lists "Man of Steel" as an alias of Superman and as the title of
+the film; Wiktionary lists idioms) and enter the chart as competing readings beside the literal one.
+Evidence picks: capitalization or quotes raise the name readings, "watch" or "the new" raise the
+film, and "he's a real man of steel" keeps the literal reading; close ones are asked about like any
+other.
+
 **The content store** keeps text that is content, not meaning (file contents, a draft, a quote, a
 URL, a source's original words) as blocks with ids that concepts refer to. Blocks never decide
 meaning.
