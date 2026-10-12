@@ -32,7 +32,7 @@ Found by running unseen prompts after round one (see the 0.14.0 commit message).
 - [x] 11. (0.15.0) Dates as values: "my birthday is june 3", "when is my birthday".
 - [x] 12. (0.15.0) "The X of Y is Z" statements: "the capital of france is paris" keeps France Capital(Paris).
 - [x] 13. (0.15.0) "equal to", "equals", "the same as" said for "is" in claims: "is 10 times 10 equal to 100".
-- [ ] 14. Statements with other verbs: "i live in phoenix", "i ate an apple", read back by "where do
+- [x] 14. (0.16.0) Statements with other verbs: "i live in phoenix", "i ate an apple", read back by "where do
   i live", "what did i eat"; the newest of the same relation wins.
 
 # Concept games and chess

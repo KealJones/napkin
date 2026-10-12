@@ -360,7 +360,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         words.forEach((w, k) => {
           if (k === thing.k || k === rel.k || optional(w)) return;
           // "my dog's": an owner word that says whose the thing named next is.
-          if (w.senses.some((s) => s.type === "owner") && k + 1 === thing.k && words[thing.k].senses.some((s) => s.type === "owner")) return void used.push(w.text);
+          if (w.senses.some((s) => s.type === "owner") && k + 1 === thing.k) return void used.push(w.text);
           const other = w.senses.find((s) => s.type === "entity" && answers.some((a) => isCall(a) && a.head === s.head));
           // Only read forwards: the thing named first holds the relation to the one named after.
           if (other && direction === "of" && thing.k < rel.k && k > rel.k) {
@@ -524,6 +524,67 @@ function describes(store: ConceptStore, words: readonly Word[], question: boolea
     notes: [`Everything known of ${thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2")}: ${known.length} fact${known.length === 1 ? "" : "s"}.`],
     run: async () => c("Describes", c(thing), facts),
   }];
+}
+
+/**
+ * "i live in phoenix", "i ate an apple", "my sister lives in denver": a thing (or whose thing), a
+ * doing (the tagger's verb, not one that says what something is), maybe the word that marks what it
+ * takes ("in"), and a thing or a value. Kept as a relation named by the doing's base form and that
+ * word (LiveIn, Eat), replacing what was said before of the same, so the newest wins. Who is spoken
+ * to and pointing words are not what a doing takes here ("i love you" is talk, not a fact).
+ */
+function doings(runtime: Runtime, words: readonly Word[], question: boolean, pointed: string | undefined, message: string, misses: Miss[] = []): Reading[] {
+  if (asking(words, question) || words.length < 3) return [];
+  const store = runtime.store;
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
+  const doing = (w: Word) =>
+    (tags.get(w.text.toLowerCase()) ?? []).includes("Verb") && !w.senses.some((s) => (s.type === "glue" && s.copula) || s.type === "takes" || s.type === "op" || s.type === "question");
+  const deictic = (w: Word) => typesOf(store, c(nameOf(w.text))).some((k) => k === "Deictic" || k === "Pronoun" || k === "Pointing");
+  const out: Reading[] = [];
+  words.forEach((w, v) => {
+    if (v === 0 || !doing(w)) return;
+    // Who does it: "i", a thing, or whose thing ("my sister", the thing).
+    const who = words.slice(0, v);
+    const self = who.length === 1 ? who[0].senses.find((s) => s.type === "entity") : undefined;
+    const owned = who.length === 2 && who[0].senses.some((s) => s.type === "owner") && thingWord(who[1]) ? named([who[1]]) : undefined;
+    const subject = self && self.type === "entity" ? self.head : owned ?? (who.length === 1 && thingWord(who[0]) && !deictic(who[0]) ? named(who) : undefined);
+    if (!subject) return;
+    // What it takes: past one word that marks it ("in"), and the words that only help say it ("an").
+    let at = v + 1;
+    // A word that marks what it takes may have other senses ("in" also counts time); it has to be able to help.
+    const mark = words[at] && words[at].senses.some((s) => s.type === "glue" && !s.copula && !/^(?:A|An|The|Month\d+)$/.test(s.head)) && !words[at].senses.some((s) => s.type === "value" || s.type === "entity") ? words[at] : undefined;
+    if (mark) at += 1;
+    while (at < words.length && only(words[at], "glue") && !words[at].senses.some((s) => s.type === "glue" && /^Month\d+$/.test(s.head))) at += 1;
+    const object = words.slice(at);
+    if (!object.length) return;
+    const value = values(object).get(`0,${object.length}`)?.find((x) => !isCall(x.expr) || x.expr.head === "Date");
+    const things = object.every((x) => thingWord(x) && !deictic(x));
+    if (!value && !things) {
+      misses.push({ reading: c("Statement", c(subject), c(nameOf(lemma(w.text.toLowerCase())))), left: object.map((x) => x.text), kind: "fit" });
+      return;
+    }
+    const relation = nameOf(`${lemma(w.text.toLowerCase())}${mark ? ` ${mark.text}` : ""}`);
+    if (!/^[A-Z]/.test(relation)) return;
+    const fact = c(relation, value ? value.expr : c(named(object)));
+    out.push({
+      writes: true,
+      key: format(c(subject, fact)),
+      features: ["read:doing"],
+      score: 3 + 0.5 * words.length,
+      display: c("ContextScope", c("Declarative"), c("Stated", c(subject), fact)),
+      chosen: [],
+      notes: [`"${w.text}" is a doing, kept as ${relation.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase()}; what was said of it before is replaced.`],
+      run: async () => {
+        for (const r of relationsOf(store, subject)) {
+          if (r.context !== undefined || !isCall(r.claim) || r.claim.head !== relation || equal(r.claim, fact) || store.retracted(subject, r.claim)) continue;
+          for (const st of r.stamps ?? []) store.addRelation(subject, c("Retracts", st.seq), undefined, runtime.trace.cause);
+        }
+        store.addRelation(subject, fact, undefined, runtime.trace.cause);
+        return c("Noted", fact);
+      },
+    });
+  });
+  return out;
 }
 
 /** The words as one name: "favorite color" is FavoriteColor. */
@@ -950,7 +1011,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question)];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...doings(runtime, words, question, pointed, message, near)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

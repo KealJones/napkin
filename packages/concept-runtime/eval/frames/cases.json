@@ -551,6 +551,69 @@
       "expect": [
         "5"
       ]
+    },
+    {
+      "group": "round two",
+      "say": [
+        "my sister's name is Lily",
+        "lily is a doctor",
+        "who is lily"
+      ],
+      "expect": [
+        "",
+        "",
+        "doctor"
+      ]
+    },
+    {
+      "group": "round two",
+      "say": [
+        "my birthday is june 3rd",
+        "when is my birthday"
+      ],
+      "expect": [
+        "",
+        "June 3"
+      ]
+    },
+    {
+      "group": "round two",
+      "say": [
+        "the capital of france is paris",
+        "what is the capital of france"
+      ],
+      "expect": [
+        "",
+        "Paris"
+      ]
+    },
+    {
+      "group": "round two",
+      "say": [
+        "is 10 times 10 equal to 100"
+      ],
+      "expect": [
+        "Yes"
+      ]
+    },
+    {
+      "group": "round two",
+      "say": [
+        "i live in phoenix",
+        "i ate an apple",
+        "where do i live",
+        "what did i eat",
+        "i live in tucson",
+        "where do i live"
+      ],
+      "expect": [
+        "",
+        "",
+        "Phoenix",
+        "Apple",
+        "",
+        "Tucson"
+      ]
     }
   ]
 }

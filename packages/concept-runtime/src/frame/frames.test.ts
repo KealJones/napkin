@@ -259,3 +259,13 @@ test("round two: who is, dates, the X of Y, and other ways to say is", async () 
     "Yes, that's 100.", "It's actually 4, not 5.", "Yes, that's 9.",
   ]);
 });
+
+test("a doing is kept as a relation named by it, the newest winning, and read back by a question", async () => {
+  const said = await talk(graph(false), [
+    "i live in phoenix", "i ate an apple", "my sister lives in denver",
+    "where do i live?", "what did i eat?", "where does my sister live?",
+    "i live in tucson", "where do i live",
+  ]);
+  assert.deepEqual(said.map((s) => s.spoken), ["Got it.", "Got it.", "Got it.", "Phoenix.", "Apple.", "Denver.", "Got it.", "Tucson."]);
+  assert.ok(said.every((s) => s.by === "frames"));
+});

@@ -50,6 +50,7 @@ said of before it and what is said after, every other word accounted for:
 | "tom is taller than ann" | `Tom TallerThan(Ann())`: the tagger's `Comparative`, then "than" | "who is taller than ann", "is tom taller than ann" |
 | "the capital of france is paris" | `France Capital(Paris())`: which, "of", whose | "what is the capital of france" |
 | "my birthday is june 3rd", "... the 12th of may" | `Me Birthday(Date(month=6, day=3))`: a month beside a day (and maybe a year) is a date | "when is my birthday" ("June 3") |
+| "i live in phoenix", "i ate an apple", "my sister lives in denver" | `Me LiveIn(Phoenix())`, `Me Eat(Apple())`, `Sister LiveIn(Denver())`: a thing (or whose), the tagger's verb, maybe the word that marks what it takes, a thing or value; named by the verb's base form and that word; the newest replaces the old | "where do i live", "what did i eat", "where does my sister live" |
 | "remember that ..." | the statement, by a word that `Takes(Statement())` | as above |
 
 "who is lily" describes what is known of a thing (`Describes`, worded by the graph: "Lily is a
@@ -144,8 +145,9 @@ studio shows it as "Where it got stuck".
 
 ## Not yet
 
-- Statements with other verbs ("i live in phoenix", "i ate an apple"), commands beyond arithmetic
-  and "remember", multi-sentence messages: all still `Hear()`.
+- A doing whose object is not one plain thing or value ("I bought a florp for my kid", "i went to a
+  wat in thailand"), talk to the one spoken to ("i love you"), commands beyond arithmetic and
+  "remember", multi-sentence messages: all still `Hear()`.
 - "No": "is ann taller than tom" stays unknown until a relation can say it runs one way.
 - The costs and bonuses inside each reading are still set by hand; feedback weighs on top of them.
 - Statements about something not yet known are not looked up here (only questions are).
