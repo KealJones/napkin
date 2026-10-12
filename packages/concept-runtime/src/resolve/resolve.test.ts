@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { c, format } from "../concept/expression.js";
+import { c, format, parse } from "../concept/expression.js";
 import { hear } from "../ears/ears.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { turn } from "../runtime/turn.js";
@@ -74,4 +74,37 @@ test("a hole nothing fills is asked for by name, and filled by what is said next
   const said = await talk(fresh(), ["what is 9 minus", "4"]);
   assert.equal(said[0], "9 minus what?");
   assert.equal(said[1], "5.");
+});
+
+/** What a Wikidata import of Steven Spielberg, Jaws and E.T. stores, and what each relation is called. */
+const withFilms = () => {
+  const store = fresh();
+  for (const [id, rel] of [
+    ["StevenSpielberg", "IsA(Human())"], ["StevenSpielberg", 'Named("Steven Spielberg")'],
+    ["StevenSpielberg", "PlaceOfBirth(Cincinnati())"], ["StevenSpielberg", "DateOfBirth(Date(year=1946, month=12, day=18))"],
+    ["Jaws", "IsA(Film())"], ["Jaws", "Director(StevenSpielberg())"], ["ET", "IsA(Film())"], ["ET", "Director(StevenSpielberg())"],
+    ["Cincinnati", "IsA(City())"], ["DateOfBirth", "Called(Born())"], ["PlaceOfBirth", "Called(Born(In()))"],
+    ["Film", "Called(Movie())"], ["Director", "Called(Directed(By()))"],
+  ] as const) store.addRelation(id, parse(rel));
+  return store;
+};
+
+test("the fact asked for is the one that fits every word asked: born in a year is the date, not the place", async () => {
+  const said = await talk(withFilms(), ["what year was steven spielberg born", "where was steven spielberg born", "when was steven spielberg born"]);
+  assert.deepEqual(said, ["1946.", "Cincinnati.", "Wednesday, December 18, 1946"]);
+});
+
+test("a relation is read both ways: what he directed is what holds him as director", async () => {
+  const said = await talk(withFilms(), ["what movies did steven spielberg direct"]);
+  assert.equal(said[0], "Jaws and ET.");
+});
+
+test("two questions joined by and are two lines, the second reading the first's answer", async () => {
+  const said = await talk(withFilms(), ["who directed jaws and what year was he born", "what is 2 plus 2 and what is 3 times 3"]);
+  assert.deepEqual(said, ["Steven Spielberg. 1946.", "4. 9."]);
+});
+
+test("an answer that leaves out the thing asked about is not given: noon is not the clock", { todo: "needs a way to tell an unused word from one a fold or the conversation already handled" }, async () => {
+  const said = await talk(fresh(), ["what time is noon"]);
+  assert.equal(said[0], "I don't know anything about noon yet.");
 });

@@ -46,7 +46,8 @@ const kinds = (store: ConceptStore, word: string): string[] => typesOf(store, c(
  */
 export function reread(store: ConceptStore, earlier: string, meantRaw: string, edits: readonly Edit[] = []): Reread | undefined {
   const meant = meantRaw.trim().replace(/^["'`]+|["'`.!?]+$/g, "").toLowerCase();
-  if (!meant || !/^[a-z][a-z ]*$/.test(meant)) return undefined;
+  // A word or two is a word corrected; more is the message said again, and is heard as it is.
+  if (!meant || !/^[a-z]+( [a-z]+)?$/.test(meant)) return undefined;
   const words = [...earlier.matchAll(/[A-Za-z]+/g)];
   const meantKinds = new Set(kinds(store, meant.split(" ")[0]));
   let best: { at: number; end: number; typed: string; score: number } | undefined;

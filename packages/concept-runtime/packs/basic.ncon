@@ -1975,7 +1975,11 @@ Concept(Amount(), IsA(Category()))
 
 Concept(Who(), IsA(Interrogative()), Asks(Someone()))
 
-Concept(When(), IsA(Interrogative()), Asks(Time()))
+Concept(When(),
+  IsA(Interrogative()),
+  Asks(Time()),
+  Asks(Date())
+)
 
 Concept(Where(), IsA(Interrogative()), Asks(Place()))
 

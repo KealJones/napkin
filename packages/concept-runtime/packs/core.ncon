@@ -776,6 +776,10 @@ Concept(Answer(), IsA(Result()))
 // only noted (Noted), left out of the reply when its words are not known yet.
 Concept(Noted(), IsA(Result()))
 
+// The turn names this too: two questions joined by "and" are two lines when the second starts
+// with a word that is an Interrogative (runtime/turn.ts, splitQuestions).
+Concept(Interrogative(), IsA(ContextFacet()))
+
 // The turn reads what a thing is tied to in Wikidata, in each sense of it.
 Concept(SameAs(), IsA(Relation()))
 

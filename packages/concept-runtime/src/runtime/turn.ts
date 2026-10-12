@@ -12,6 +12,7 @@ import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
 import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/holes.js";
 import { keepReading } from "../resolve/learned.js";
 import { reread } from "../resolve/reread.js";
+import { askGraph } from "../resolve/asked.js";
 import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
@@ -508,12 +509,44 @@ async function pickByKind(store: ConceptStore, asked: string, kind: string, said
   return fits.length === 1 ? { name: about.head, chosen: fits[0], said: was, sense: true } : undefined;
 }
 
+/**
+ * Two questions joined by "and" ("who directed jaws and what year was he born") are two lines,
+ * each its own scope: the first is answered, and the second is read after it, so a word in it
+ * can point at that answer. A clause starts a question when its first word is one the graph
+ * holds as a question word; no list of words is kept here.
+ */
+export function splitQuestions(store: ConceptStore, message: string): [string, string] | undefined {
+  for (const m of message.matchAll(/,?\s+and\s+([A-Za-z]+)/g)) {
+    const first = message.slice(0, m.index).trim();
+    const second = message.slice(m.index + m[0].length - m[1].length).trim();
+    if (first.split(/\s+/).length < 2 || second.split(/\s+/).length < 2) continue;
+    if (typesOf(store, c(m[1][0].toUpperCase() + m[1].slice(1).toLowerCase())).includes("Interrogative")) return [first, second];
+  }
+  return undefined;
+}
+
 export async function turn(
   runtime: Runtime,
   message: string,
   given: Expr,
   options: TurnOptions = {},
 ): Promise<TurnResult> {
+  const split = options.inputMode === "expression" ? undefined : splitQuestions(runtime.store, message);
+  if (split) {
+    const first = await turn(runtime, split[0], given, options);
+    const history = [...(options.history ?? []), { message: split[0], result: first.result === undefined ? first.rendered : format(first.result), spoken: first.spoken }];
+    const second = await turn(runtime, split[1], given, { ...options, history });
+    const result = first.result !== undefined && second.result !== undefined ? call("Sequence", [{ value: first.result }, { value: second.result }]) : (second.result ?? first.result);
+    return {
+      ...second,
+      result,
+      rendered: result === undefined ? second.rendered : format(result),
+      spoken: `${first.spoken} ${second.spoken}`.trim(),
+      gaps: [...first.gaps, ...second.gaps],
+      learned: [...first.learned, ...second.learned],
+      ambiguities: [...first.ambiguities, ...second.ambiguities],
+    };
+  }
   runtime.reset();
   // "the coworker one", answering "which Greg do you mean": the words asked about are read
   // again, with the name taken to mean the one picked.
@@ -771,6 +804,19 @@ export async function turn(
     const unknown = new Set(collectGaps(runtime, result).map((g) => g.identity));
     const kept = result.args.filter((a) => !(isCall(a.value) && a.value.head === "Noted" && [...walk(a.value)].some((n) => isCall(n) && unknown.has(n.head))));
     if (kept.length && kept.length < result.args.length) result = kept.length === 1 ? kept[0].value : call("Sequence", kept);
+  }
+  // Which fact was asked for is chosen by every word of the question together
+  // (resolve/asked.ts). It answers what nothing else did, and replaces an answer read from
+  // another fact of the same thing that fits fewer of the words asked ("what year was he born"
+  // is not where).
+  if (!which && !unfilled) {
+    const asked = askGraph(runtime.store, expression);
+    if (asked) {
+      const said = result !== undefined && isCall(result) && result.head === "Answer" ? result.args[0]?.value : undefined;
+      const fromAnother = said !== undefined && (runtime.store.get(asked.of)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head !== asked.relation && r.claim.args.some((a) => equal(a.value, said)));
+      const unanswered = result === undefined || holdsResidual(runtime, result) || unknownAnswer(result, runtime.store) || learnable(runtime, collectGaps(runtime, result)).length > 0;
+      if (unanswered || fromAnother) result = call("Answer", [{ value: asked.answer }]);
+    }
   }
   const rendered = result !== undefined ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
