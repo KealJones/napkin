@@ -51,6 +51,18 @@ is Bob" replaces Sam and Sam stays as history. A statement is never read from a 
 word asks for (`AnsweredBy`: someone or a place is a thing named, an amount a number, a time a
 date), so "who is my favorite number" is not answered 7.
 
+## Frames inside frames
+
+- A word that reports (`Takes(Statement())` and `Reports()`: tell, say, think) takes the statement
+  after it as its hole, past who it was said to and a "that"; every place the statement could start
+  is read, and the readings decide. The statement is read as its own frame, with pointing words
+  inside it meaning the one who said it ("he told me his name is Bob"). A claim in it is checked
+  ("I told them that 2 plus two was 5": "It's actually 4, not 5."); anything else is noted as
+  reported and kept as nothing true.
+- A message no reading accounts for whole is split at an "and" when each part reads whole on its
+  own, the second read after the first, so a pointing word in it is the first's answer ("who
+  directed jaws and what year was he born"). "add 3 and 4" reads whole, so is not split.
+
 ## Learning while reading
 
 With learning on, a question no reading accounts for looks up what it is missing, then is read
@@ -77,8 +89,7 @@ by") are kept as what its relation is `Called`, which is what gives "born" its s
 ## Not yet
 
 - Statements with other verbs ("i live in phoenix", "i ate an apple"), commands beyond arithmetic
-  and "remember", multi-sentence messages, reported speech ("I told them that ...") as a nested
-  frame: all still `Hear()`.
+  and "remember", multi-sentence messages: all still `Hear()`.
 - "No": "is ann taller than tom" stays unknown until a relation can say it runs one way.
 - Weights are set by hand; only `ReadBeside` and `WrittenAs` are learned.
 - Statements about something not yet known are not looked up here (only questions are).

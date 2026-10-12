@@ -542,7 +542,9 @@ export async function turn(
   given: Expr,
   options: TurnOptions = {},
 ): Promise<TurnResult> {
-  const split = options.inputMode === "expression" ? undefined : splitQuestions(runtime.store, message);
+  // With frames, "and" is split by the frames themselves, when each part reads whole; this is the
+  // rules hearing's split, by a question word after "and".
+  const split = options.inputMode === "expression" || options.hearing !== "rules" ? undefined : splitQuestions(runtime.store, message);
   if (split) {
     const first = await turn(runtime, split[0], given, options);
     const history = [...(options.history ?? []), { message: split[0], result: first.result === undefined ? first.rendered : format(first.result), spoken: first.spoken }];

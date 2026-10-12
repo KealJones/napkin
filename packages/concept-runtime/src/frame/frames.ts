@@ -335,6 +335,51 @@ function kindQuestions(store: ConceptStore, words: readonly Word[], pointed: str
   return [{ key: "True()", score: 6, display: c("ContextScope", c("Interrogative"), c("Asked", c("IsA", c(thing), c(kind)))), chosen: [], run: async () => c("Answer", c("True")) }];
 }
 
+/**
+ * "I told them that 2 plus 2 was 5": a word that reports takes the statement after it (past who
+ * it was said to, and a "that") as its hole, said by the thing before it. The statement is read
+ * as its own frame. A claim in it is checked and answered; anything else it says is noted as
+ * reported and kept as nothing, since the one speaking now did not assert it.
+ */
+function reports(runtime: Runtime, words: readonly Word[], pointed: string | undefined, message: string): Reading[] {
+  const t = words.findIndex((w) => w.senses.some((s) => s.type === "takes" && s.reports));
+  if (t < 0) return [];
+  const who = (w: Word) => thingWord(w) || w.senses.some((s) => s.type === "entity" || s.type === "pointer");
+  const before = words.slice(0, t);
+  if (!before.every(who)) return [];
+  const speakerSense = before[0]?.senses.find((s) => s.type === "entity" || s.type === "pointer");
+  const speaker = c(speakerSense?.type === "entity" ? speakerSense.head : speakerSense?.type === "pointer" && pointed ? pointed : before.length ? named(before) : "Someone");
+  const out: Reading[] = [];
+  // Who it was told to, then maybe a "that", then what was said: every place the statement could
+  // start is read, and the readings decide.
+  for (let start = t + 1; start <= words.length - 2; start++) {
+    const between = words.slice(t + 1, start);
+    const marker = between.length > 0 && between[between.length - 1].senses.some((s) => s.type === "glue" && !s.copula);
+    if (!(marker ? between.slice(0, -1) : between).every(who)) continue;
+    const clause = words.slice(start);
+    // Inside what was said, a pointing word is the one who said it: "he told me his name is Bob".
+    const inner = [...computations(runtime, clause, false), ...statements(runtime, clause, false, isCall(speaker) && speaker.head !== "Someone" ? speaker.head : pointed, message)];
+    out.push(...wrap(inner, start));
+  }
+  return out;
+
+  function wrap(inner: Reading[], start: number): Reading[] {
+    return inner
+    .filter((r) => format(r.display).includes("Claimed(") || r.writes)
+    .map((r) => {
+      const said = isCall(r.display) && r.display.head === "ContextScope" ? r.display.args[1].value : r.display;
+      return {
+        key: `Reported ${r.key}`,
+        score: r.score + 1 + 0.5 * start,
+        display: c("ContextScope", c("Declarative"), c("Reported", speaker, said)),
+        chosen: r.chosen,
+        // A claim is checked; a statement is only noted as said, never kept as true.
+        run: r.writes ? async () => c("Noted", c("Reported", speaker, said)) : r.run,
+      };
+    });
+  }
+}
+
 /** The words as one name: "favorite color" is FavoriteColor. */
 const named = (ws: readonly Word[]) => nameOf(ws.map((w) => w.text).join(" "));
 /** A word that names a thing: a thing the graph holds, a pointing word, or a word it has no sense for yet (a name it is told). */
@@ -352,7 +397,7 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
   const store = runtime.store;
   const out: Reading[] = [];
   // "remember that ...": a word whose hole is a statement takes the rest as one.
-  const taker = words[0]?.senses.find((s) => s.type === "takes");
+  const taker = words[0]?.senses.find((s) => s.type === "takes" && !s.reports);
   const start = taker ? (words[1]?.senses.some((s) => s.type === "glue") ? 2 : 1) : 0;
   const body = words.slice(start);
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
@@ -370,7 +415,8 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
     let subject: string | undefined;
     let claim: Expr | undefined;
     let replaces = false;
-    const owner = left[0].senses.find((s) => s.type === "owner");
+    // Whose: a possessive ("my", "tom's"), or a pointing word before what is owned ("his name": the one pointed at).
+    const owner = left[0].senses.find((s) => s.type === "owner") ?? (left.length >= 2 && pointed && left[0].senses.some((s) => s.type === "pointer") ? { type: "owner" as const, head: pointed } : undefined);
     if (owner && left.length >= 2 && left.slice(1).every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation"))) {
       // Whose, which: the value is a number said, or what the words after name.
       const value = right.length === 1 ? right[0].senses.find((s) => s.type === "value") : undefined;
@@ -475,6 +521,8 @@ export interface FrameOptions {
   readonly lookup?: (identity: string, said: string) => Promise<boolean>;
   /** Most lookups in one turn. */
   readonly lookups?: number;
+  /** Reading one part of a message joined by "and": not split again. */
+  readonly part?: boolean;
 }
 
 /** A thing looked up while reading, and what came of it. */
@@ -594,7 +642,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
       // Each kind of reading accounts for every word that says something, or is not made: a word
       // with no sense is used only where it names a part or a kind of a fact's answer.
-      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed)];
+      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       for (const reading of readings) {
@@ -640,6 +688,32 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       senses = new Map();
       ({ best, asTyped } = await choose());
       if (best || left <= 0) break;
+    }
+  }
+  // Two parts joined by "and", each read whole on its own, when the message as one is not: the
+  // first is read, then the second, after it, so a word in it can point at the first's answer
+  // ("who directed jaws and what year was he born"). "add 3 and 4" reads as one, so is not split.
+  if (!best && !options.part) {
+    for (let i = 2; i < typed.length - 1; i++) {
+      if (!(await sensesFor(typed[i])).some((x) => x.type === "glue" && x.head === "And")) continue;
+      const mark = question ? "?" : "";
+      const left = await frames(runtime, typed.slice(0, i).join(" ") + mark, history, { ...options, part: true });
+      if (!left.framed) continue;
+      const right = await frames(runtime, typed.slice(i + 1).join(" ") + mark, [...history, { result: format(left.framed.result) }], { ...options, part: true });
+      looked.push(...left.looked, ...right.looked);
+      if (!right.framed) continue;
+      const l = left.framed;
+      const r = right.framed;
+      return {
+        framed: {
+          display: c("Sequence", l.display, r.display),
+          result: c("Sequence", l.result, r.result),
+          text: `${l.text} and ${r.text}`,
+          edits: [...l.edits, ...r.edits],
+          chosen: [...l.chosen, ...r.chosen],
+        },
+        looked,
+      };
     }
   }
   if (!best) return { looked };

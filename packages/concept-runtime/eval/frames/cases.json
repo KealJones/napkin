@@ -419,6 +419,55 @@
         "",
         "Yes"
       ]
+    },
+    {
+      "group": "nested",
+      "say": [
+        "she said 2 plus 2 is 4"
+      ],
+      "expect": [
+        "Yes, that's 4"
+      ]
+    },
+    {
+      "group": "nested",
+      "say": [
+        "I think 7 times 6 is 42"
+      ],
+      "expect": [
+        "Yes, that's 42"
+      ]
+    },
+    {
+      "group": "nested",
+      "say": [
+        "who directed jaws",
+        "he told me his name is Bob",
+        "what is my name"
+      ],
+      "expect": [
+        "Steven Spielberg",
+        "",
+        "know"
+      ]
+    },
+    {
+      "group": "nested",
+      "say": [
+        "what is 2 plus 2 and what is 3 times 3"
+      ],
+      "expect": [
+        "4. 9"
+      ]
+    },
+    {
+      "group": "nested",
+      "say": [
+        "my name is Sam and what is 6 times 7"
+      ],
+      "expect": [
+        "42"
+      ]
     }
   ]
 }

@@ -29,14 +29,14 @@ export type Sense =
   /** A word that says whose: "my" is the user's, "tom's" Tom's. */
   | { readonly type: "owner"; readonly head: string }
   /** A word whose hole is a whole statement: "remember (that) ...". */
-  | { readonly type: "takes"; readonly head: string; readonly what: string }
+  | { readonly type: "takes"; readonly head: string; readonly what: string; readonly reports: boolean }
   | { readonly type: "glue"; readonly head: string; readonly marksFirst: boolean; readonly copula: boolean };
 
 /** Relations that say what a thing is or how it is said, not a fact asked for by name. */
 export const STRUCTURAL = new Set([
   "IsA", "SubclassOf", "SynonymOf", "HeardAs", "Named", "Called", "SameAs", "WrittenAs", "NotWrittenAs", "ReadBeside",
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
-  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy",
+  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports",
 ]);
 /** Kinds of word that only help say the others: they fill no hole and need none filled. */
 const GLUE = ["Helper", "Determiner", "Preposition", "Conjunction"];
@@ -176,7 +176,7 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
       else if (kinds.includes("Pronoun") || kinds.includes("Deictic")) out.push({ type: "entity", head: refers.head });
     }
     const takes = claimed(store, head, "Takes").find((x) => isCall(x));
-    if (takes !== undefined && isCall(takes)) out.push({ type: "takes", head, what: takes.head });
+    if (takes !== undefined && isCall(takes)) out.push({ type: "takes", head, what: takes.head, reports: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "Reports") });
     if (GLUE.some((g) => kinds.includes(g))) {
       out.push({ type: "glue", head, marksFirst: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "MarksFirst"), copula: kinds.includes("Helper") });
     }

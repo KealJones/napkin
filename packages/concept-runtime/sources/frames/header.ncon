@@ -29,3 +29,17 @@ Concept(Amount(), AnsweredBy(Number()))
 Concept(Time(), AnsweredBy(Date()))
 
 Concept(Date(), AnsweredBy(Date()))
+
+// Words that report what someone said or thinks: their hole is a statement, and what it says is
+// not asserted by the one speaking now. "I told them that 2 plus 2 was 5" checks the claim and
+// keeps nothing as true.
+Concept(Reports(), IsA(Relation()))
+
+Concept(Tell(), Takes(Statement()), Reports())
+
+Concept(Say(), Takes(Statement()), Reports())
+
+Concept(Think(), Takes(Statement()), Reports())
+
+// A statement someone reported, as they said it.
+Concept(Reported(), IsA(Result()))

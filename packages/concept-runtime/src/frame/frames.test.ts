@@ -164,3 +164,19 @@ test("what is said again of whose and which replaces what was said before, and t
   const names = (store.get("Me")?.relations ?? []).filter((r) => isCall(r.claim) && r.claim.head === "Name");
   assert.deepEqual(names.map((r) => [format(r.claim), store.retracted("Me", r.claim)]), [["Name(Sam())", true], ["Name(Bob())", false]]);
 });
+
+test("what someone is said to have said is read as its own frame: a claim is checked, nothing is kept as true", async () => {
+  const store = graph();
+  const said = await talk(store, ["I told them that 2 plus two was 5", "who directed jaws", "he told me his name is Bob", "what is my name"]);
+  assert.deepEqual(said.map((s) => s.spoken).slice(0, 3), ["It's actually 4, not 5.", "Steven Spielberg.", "Got it."]);
+  assert.equal(said[2].by, "frames");
+  assert.ok(!(store.get("StevenSpielberg")?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "Name"), "a reported statement is not kept as a fact");
+  assert.ok(!(store.get("Me")?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "Name"));
+});
+
+test("two parts joined by and are split by the frames when each reads whole, the second after the first", async () => {
+  const store = graph();
+  const said = await talk(store, ["who directed jaws and what year was he born", "add 3 and 4", "my name is Sam and what is 6 times 7", "what is my name"]);
+  // A reply of parts says the answer, and the statement beside it is kept without being said back.
+  assert.deepEqual(said.map((s) => s.spoken), ["Steven Spielberg. 1946.", "7", "42.", "Sam."]);
+});

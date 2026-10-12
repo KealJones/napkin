@@ -10,7 +10,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
 - [x] 1. Statements and commands as frames (0.8.0; "is"-statements and "remember that", not yet other verbs like "I live in Phoenix") ("my name is Sam", "remember that ...", "Tom is taller
   than Ann"): a relation word with holes for the thing and the value, stored as a fact. The step
   that starts retiring `Hear()`.
-- [ ] 2. Nested framing: "I told them that X" wraps X as reported; clauses joined by "and" split by
+- [x] 2. Nested framing (0.9.0): "I told them that X" wraps X as reported; clauses joined by "and" split by
   their holes, not by a question-word check.
 - [ ] 4. Inverse relation names as senses: import Wikidata's inverse labels so "directed" is
   Director by the graph, not by sharing five letters.
