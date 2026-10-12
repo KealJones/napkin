@@ -13,7 +13,7 @@ import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/h
 import { keepReading } from "../resolve/learned.js";
 import { reread } from "../resolve/reread.js";
 import { askGraph } from "../resolve/asked.js";
-import { feedback, frames, lastRead, pickOption, reaction, type FrameRead, type Framed } from "../frame/frames.js";
+import { feedback, frames, lastRead, pickOption, reaction, stuckResult, type FrameRead, type Framed, type Stuck } from "../frame/frames.js";
 import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
@@ -658,6 +658,8 @@ export async function turn(
     runtime.context.set("replace", "1");
   } else runtime.context.delete("replace");
   let lookedUp: LearnStep[] = [];
+  // Where the frames got stuck, said with a "don't know" if the rules hearing does not answer either.
+  let stuck: Stuck | undefined;
   // Read by the words' senses and holes first. Used only when the reading accounts for every
   // word that says something; anything else is heard by the rules, as before.
   if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
@@ -671,6 +673,7 @@ export async function turn(
       for (const other of picked.others) feedback(runtime.store, other, false, runtime.trace.cause);
     }
     const read: FrameRead = picked ? { looked: [] } : await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
+    stuck = read.stuck;
     lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "wikidata" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
     const framed: Framed | undefined = picked ? picked.framed : read.framed;
     if (framed) {
@@ -906,11 +909,18 @@ export async function turn(
     : undefined;
   // Who said it: the graph's own English, or the host's plain wordings.
   let spokenBy: TurnResult["spokenBy"] = graphSpoken !== undefined ? "graph" : "plain";
-  const spoken =
+  let spoken =
     options.speak === false || result === undefined
       ? rendered
       : graphSpoken ?? await say(message, forSaying(runtime.store, result), { ...options, unrealized, uncomputed, asked: expression});
   if (options.speak === false || result === undefined) spokenBy = "none";
+  // Not known: where reading it got stuck, so the person can see which words to put another way.
+  const unanswered = result === undefined || uncomputed || unrealized.length > 0 || unknownAnswer(result, runtime.store);
+  let stuckSaid: string | undefined;
+  if (unanswered && stuck && (stuck.near || stuck.unknown.length)) {
+    stuckSaid = await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined);
+    if (stuckSaid && options.speak !== false) spoken = `${spoken} ${stuckSaid}`;
+  }
 
   return {
     heard,
@@ -929,5 +939,6 @@ export async function turn(
     rereads,
     failed,
     hearingUsed: "rules",
+    ...(stuckSaid ? { why: [stuckSaid] } : {}),
   };
 }

@@ -1381,7 +1381,7 @@ function ActivityPanel({ activity }: { activity: Activity }) {
         </details>
         {activity.why?.length ? (
           <details className="activity-step" open>
-            <summary>Why this reading · {activity.hearing === "frames" ? "read by senses and holes" : "read by the rules"}</summary>
+            <summary>{activity.hearing === "frames" ? "Why this reading · read by senses and holes" : "Where it got stuck"}</summary>
             <div className="activity-step-body">
               <ul className="why-list">
                 {activity.why.map((line, i) => (

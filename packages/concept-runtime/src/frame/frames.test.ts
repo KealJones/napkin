@@ -151,7 +151,8 @@ test("a statement is kept as a fact of what it is about, and read back by a ques
     "tom is taller than ann", "who is taller than ann", "is tom taller than ann", "is ann taller than tom",
     "remember that my dog's name is Rex", "what is my dog's name",
   ]);
-  assert.deepEqual(said.map((s) => s.spoken), [
+  // What it does not know is said so first, then where reading it got stuck.
+  assert.deepEqual(said.map((s) => (s.spoken.startsWith("I don't know yet.") ? "I don't know yet." : s.spoken)), [
     "Got it.", "Sam.", "Got it.", "Bob.",
     "Got it.", "Tom.", "Yes.", "I don't know yet.",
     "Got it, I'll remember that.", "Rex.",
@@ -234,4 +235,13 @@ test("one hole, a list, or two joined by of: square root of 144, average of 3, 5
   assert.match(await got("what is 17 percent of 240"), /^Answer\(40\.8/);
   // A word whose realization takes what it is given unworked ("want") is not an operation on values.
   assert.equal(await got("waht is 6 tims 7"), "Answer(42)");
+});
+
+test("when it does not know, it says where reading got stuck: the nearest reading, what it could not fit, the words it has nothing for", async () => {
+  const said = await talk(graph(false), ["is 10 times 10 equal to 100", "what is 2 plus 2 equals", "who is the mayor of gotham"]);
+  assert.match(said[0].spoken, /Where I got stuck: I read 10 times 10, but couldn't fit "equal" and "100" into it\. I have nothing for "equal" yet\.$/);
+  assert.match(said[1].spoken, /Where I got stuck: I read 2 plus 2, but couldn't fit "equals" into it\.$/);
+  assert.match(said[2].spoken, /Where I got stuck: I have nothing for "mayor" and "gotham" yet\.$/);
+  // An answer it has is said alone.
+  assert.deepEqual((await talk(graph(false), ["what is 2 plus 2"])).map((s) => s.spoken), ["4."]);
 });

@@ -52,6 +52,11 @@ Concept(ChooseOne(), IsA(Result()))
 // choices the last one was read with (LastRead). Weights are their stamps (src/frame/frames.ts).
 Concept(Frames(), IsA(Category()))
 
+// Where reading a message got stuck, said after "I don't know": the reading that came nearest
+// (near="10 times 10"), the words it could not fit (left=List(...)), and the words it has nothing
+// for (unknown=List(...)).
+Concept(Stuck(), IsA(Result()))
+
 // "Do you mean Acme (ran company) or Boston (ran marathon)?": each reading by what it would answer,
 // and what it is about where it says.
 Concept(ChooseOne(),
@@ -155,5 +160,90 @@ Concept(Remembered(),
     context = Speaking(),
     evaluateArguments = false,
     body = Code(ir = Async(Lambda(List($args, $bindings, $api), Return("Got it, I'll remember that."))))
+  )
+)
+
+// Where reading a message got stuck: "I read 10 times 10, but couldn't fit "equal", "to" and "100"
+// into it. I have nothing for "equal" yet."
+Concept(Stuck(),
+  Realization(Stuck(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($words,
+              Lambda(List($list),
+                If(
+                  And($list, Member($list, "args")),
+                  Map(Member($list, "args"), Lambda(List($a), Call($String, Member($a, "value")))),
+                  List()
+                )
+              )
+            ),
+            Bind($quoted,
+              Lambda(List($ws),
+                Sequence(
+                  Bind($q, Map($ws, Lambda(List($w), Add(Add("\"", $w), "\"")))),
+                  Return(
+                    If(
+                      LessThan(Length($q), 2),
+                      Call(Member($q, "join"), ""),
+                      Add(
+                        Add(Call(Member(Call(Member($q, "slice"), 0, Negate(1)), "join"), ", "), " and "),
+                        Index($q, Subtract(Length($q), 1))
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($near, Call($named, "near")),
+            Bind($left, Call($words, Call($named, "left"))),
+            Bind($unknown, Call($words, Call($named, "unknown"))),
+            Bind($parts, List()),
+            If(
+              And(And(Equals(TypeOf($near), "string"), $near), Length($left)),
+              If(
+                Equals(Call($named, "as"), "thing"),
+                Call(
+                  Member($parts, "push"),
+                  Add(
+                    Add(Add(Add("I read it as saying ", $near), ", but couldn't tell what "), Call($quoted, $left)),
+                    " is as one thing."
+                  )
+                ),
+                Call(
+                  Member($parts, "push"),
+                  Add(Add(Add(Add("I read ", $near), ", but couldn't fit "), Call($quoted, $left)), " into it.")
+                )
+              ),
+              Undefined()
+            ),
+            If(
+              Length($unknown),
+              Call(Member($parts, "push"), Add(Add("I have nothing for ", Call($quoted, $unknown)), " yet.")),
+              Undefined()
+            ),
+            Return(
+              If(
+                Length($parts),
+                Add("Where I got stuck: ", Call(Member($parts, "join"), " ")),
+                ""
+              )
+            )
+          )
+        )
+      )
+    )
   )
 )

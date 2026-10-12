@@ -120,6 +120,15 @@ turn, shown by `napkin` and in the studio as "Why this reading" beside the input
 conversation reloaded right after a turn keeps the live panel (its trace and why), which the stored
 turn does not carry.
 
+## Where it got stuck
+
+When no reading accounts for every word and the answer is a "don't know" (from the rules hearing
+too), the reply says where reading got stuck (`Stuck`, worded in packs/frames.ncon): the reading of
+the whole message (its slips read) that came nearest, and what it could not fit ("I read 10 times
+10, but couldn't fit "equal" and "100" into it"), or could not take as one thing in a statement
+("couldn't tell what "the capital of france" is as one thing"), and the words it has nothing for. The
+studio shows it as "Where it got stuck".
+
 ## What it learns
 
 - The sense taken for a word with more than one is kept on the relation with the words beside it:

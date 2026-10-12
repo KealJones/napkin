@@ -51,3 +51,8 @@ Concept(ChooseOne(), IsA(Result()))
 // Feedback on how messages were read, on Frames: Confirmed(feature), Corrected(feature), and the
 // choices the last one was read with (LastRead). Weights are their stamps (src/frame/frames.ts).
 Concept(Frames(), IsA(Category()))
+
+// Where reading a message got stuck, said after "I don't know": the reading that came nearest
+// (near="10 times 10"), the words it could not fit (left=List(...)), and the words it has nothing
+// for (unknown=List(...)).
+Concept(Stuck(), IsA(Result()))

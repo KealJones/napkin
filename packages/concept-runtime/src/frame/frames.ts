@@ -164,6 +164,14 @@ function values(words: readonly Word[]): Map<string, Item[]> {
   return at;
 }
 
+/** A reading that came close: what it read, and the words it could not fit. */
+interface Miss {
+  readonly reading: Expr;
+  readonly left: readonly string[];
+  /** "fit": words it could not fit into the reading; "thing": words it could not take as one thing. */
+  readonly kind?: "fit" | "thing";
+}
+
 interface Reading {
   /** It changes the graph (a statement kept): read only from words as typed, or from slips of non-words. */
   readonly writes?: boolean;
@@ -192,12 +200,16 @@ const asking = (words: readonly Word[], question: boolean) =>
 const outsideOptional = (words: readonly Word[], i: number, j: number) => words.every((w, k) => (k >= i && k < j) || optional(w));
 
 /** Readings that work something out: a value asked for, a claim about one, an operation missing a value. */
-function computations(runtime: Runtime, words: readonly Word[], question: boolean, message = ""): Reading[] {
+function computations(runtime: Runtime, words: readonly Word[], question: boolean, message = "", misses: Miss[] = []): Reading[] {
   const items = values(words);
   const out: Reading[] = [];
   const mood = c(asking(words, question) ? "Interrogative" : "Declarative");
   for (const list of items.values()) {
     for (const item of list) {
+      // Worked out, but with words beside it that say something it could not take.
+      if (isCall(item.expr) && !outsideOptional(words, item.i, item.j)) {
+        misses.push({ reading: item.said, left: words.filter((w, k) => (k < item.i || k >= item.j) && !optional(w)).map((w) => w.text) });
+      }
       // A value asked for: the item covers every word but those that only help say it.
       if (item.binds !== Infinity || isCall(item.expr)) {
         if (outsideOptional(words, item.i, item.j) && (isCall(item.expr) || asking(words, question))) {
@@ -282,7 +294,7 @@ function besides(store: ConceptStore, relation: string, word: string, neighbours
 }
 
 /** Readings that ask the graph for a fact: a thing, a relation of it, and what the other words say of the answer. */
-function facts(store: ConceptStore, words: readonly Word[], question: boolean, pointed: string | undefined): Reading[] {
+function facts(store: ConceptStore, words: readonly Word[], question: boolean, pointed: string | undefined, misses: Miss[] = []): Reading[] {
   if (!asking(words, question)) return [];
   const out: Reading[] = [];
   const asks = words.flatMap((w) => w.senses.flatMap((s) => (s.type === "question" ? s.asks : [])));
@@ -308,6 +320,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         let part: string | undefined;
         let score = 4;
         let unused = 0;
+        const unusedWords: string[] = [];
         // "is tom taller than ann": the other thing named, said after the relation, is among the answers: yes.
         let yes = false;
         const used: string[] = [];
@@ -346,8 +359,12 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
             return void used.push(w.text);
           }
           unused += 1;
+          unusedWords.push(w.text);
         });
-        if (unused) continue;
+        if (unused) {
+          misses.push({ reading: c("Asked", c(rel.head), c(thing.head)), left: unusedWords });
+          continue;
+        }
         // Of the shape the question asks for: someone is a thing named, an amount a number (AnsweredBy).
         const shapes = words.flatMap((w) => w.senses.flatMap((s) => (s.type === "question" ? s.kinds : []))).flatMap((k) =>
           relationsOf(store, k).flatMap((r) => (isCall(r.claim) && r.claim.head === "AnsweredBy" && isCall(r.claim.args[0]?.value) ? [(r.claim.args[0].value as { head: string }).head] : [])),
@@ -459,7 +476,7 @@ const thingWord = (w: Word) => w.senses.length === 0 ? /^[a-z]+(?: [a-z]+)*$/i.t
  * is what it is; a thing, a comparing word and "than" ("tom is taller than ann") is a relation
  * between the two, named by those words. What does not fall into one of these is not read here.
  */
-function statements(runtime: Runtime, words: readonly Word[], question: boolean, pointed: string | undefined, message: string): Reading[] {
+function statements(runtime: Runtime, words: readonly Word[], question: boolean, pointed: string | undefined, message: string, misses: Miss[] = []): Reading[] {
   if (asking(words, question)) return [];
   const store = runtime.store;
   const out: Reading[] = [];
@@ -502,7 +519,13 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
         claim = c("IsA", c(named(right)));
       }
     }
-    if (!subject || claim === undefined) return;
+    if (!subject || claim === undefined) {
+      // A statement it could not hold: what it is about, or what is said of it, is not one thing.
+      const whole = body.slice(0, k).filter((x) => !glue(x) || x.senses.some((s) => s.type === "glue" && s.head === "Of"));
+      const unread = subject ? rightAll : body.slice(0, k);
+      misses.push({ reading: c("Statement", c(named(whole)), c(named(right))), left: [unread.map((x) => x.text).join(" ")], kind: "thing" });
+      return;
+    }
     const fact = claim;
     const holder = subject;
     out.push({
@@ -679,6 +702,24 @@ export interface FrameOptions {
   readonly part?: boolean;
 }
 
+/** Where reading a message got stuck: the words it has nothing for, and the nearest reading with what it left over. */
+export interface Stuck {
+  readonly unknown: string[];
+  readonly near?: { readonly said: string; readonly left: string[]; readonly kind: "fit" | "thing" };
+}
+
+/** The Concept expression a reading was, back in words: Times(10, 10) is "10 times 10", Asked(DateOfBirth(), Tom()) "the date of birth of Tom". */
+function inWords(e: Expr): string {
+  if (!isCall(e)) return String(e);
+  const [a, b] = e.args.map((x) => x.value);
+  if (e.head === "Asked" && a !== undefined && b !== undefined && isCall(a)) return `the ${readableName(a.head)} of ${inWords(b)}`;
+  if (e.head === "Statement" && a !== undefined && b !== undefined) return `that ${inWords(a).toLowerCase()} is ${inWords(b).toLowerCase()}`;
+  if (!e.args.length) return e.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  if (e.args.length === 2 && a !== undefined && b !== undefined) return `${inWords(a)} ${readableName(e.head)} ${inWords(b)}`;
+  if (e.args.length === 1 && a !== undefined) return `the ${readableName(e.head)} of ${inWords(a)}`;
+  return format(e);
+}
+
 /** A thing looked up while reading, and what came of it. */
 export interface Looked {
   readonly identity: string;
@@ -716,6 +757,8 @@ function residual(result: Expr, ops: readonly string[]): boolean {
 export interface FrameRead {
   readonly framed?: Framed;
   readonly looked: Looked[];
+  /** When no reading accounted for every word: the words it has nothing for, and how near it came. */
+  readonly stuck?: Stuck;
 }
 
 export async function frames(runtime: Runtime, message: string, history: readonly { result: string }[] = [], options: FrameOptions = {}): Promise<FrameRead> {
@@ -799,6 +842,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     // The best reading of each meaning, so two that mean the same thing are not rivals.
     const byMeaning = new Map<string, Ranked>();
     let asTyped: Word[] = [];
+    // Per reading of the row: the words it has nothing for, and how near it came.
+    let stuckRow: { unknown: string[]; misses: Miss[]; cost: number } | undefined;
     for (const row of rows) {
       const folded = fold(store, row.words);
       const words: Word[] = [];
@@ -810,9 +855,16 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
       // Each kind of reading accounts for every word that says something, or is not made: a word
       // with no sense is used only where it names a part or a kind of a fact's answer.
-      const readings = [...computations(runtime, words, question, message), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
+      // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
+      const near: Miss[] = [];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
+      const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);
+      const leastLeft = (ms: Miss[]) => Math.min(Infinity, ...ms.filter((m) => m.left.length).map((m) => m.left.length));
+      if (!stuckRow || unknownHere.length < stuckRow.unknown.length || (unknownHere.length === stuckRow.unknown.length && (leastLeft(near) < leastLeft(stuckRow.misses) || (leastLeft(near) === leastLeft(stuckRow.misses) && row.cost < stuckRow.cost)))) {
+        stuckRow = { unknown: unknownHere, misses: near, cost: row.cost };
+      }
       for (const reading of readings) {
         if (reading.writes && respelled) continue;
         // What the reading's choices have earned from feedback counts for or against it.
@@ -829,10 +881,11 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     const clear = top !== undefined && (next === undefined || top.score - next.score >= MARGIN);
     // Close, both only answering (neither tells the graph anything): asked about.
     const close = !clear && top && next && !top.reading.writes && !next.reading.writes ? ranked.filter((r) => top.score - r.score < MARGIN).slice(0, 3) : undefined;
-    return { best: clear ? top : undefined, next: clear ? next : undefined, close, asTyped };
+    const nearest = (stuckRow?.misses ?? []).filter((m) => m.left.length).sort((a, b) => a.left.length - b.left.length)[0];
+    return { best: clear ? top : undefined, next: clear ? next : undefined, close, asTyped, nearest, unknown: stuckRow?.unknown ?? [] };
   };
 
-  let { best, next, close, asTyped } = await choose();
+  let { best, next, close, asTyped, nearest, unknown } = await choose();
   const looked: Looked[] = [];
   // Learn while reading. A question that no reading accounts for looks up, in turn: the things it
   // names that the graph knows only by name (no facts of their own), then the words it holds
@@ -858,7 +911,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       }
       if (!found) continue;
       senses = new Map();
-      ({ best, next, close, asTyped } = await choose());
+      ({ best, next, close, asTyped, nearest, unknown } = await choose());
       if (best || left <= 0) break;
     }
   }
@@ -905,7 +958,10 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       return { framed: { why, display: c("ContextScope", c("Interrogative"), c("Choose", ...close.map((r) => (isCall(r.reading.display) && r.reading.display.head === "ContextScope" ? r.reading.display.args[1].value : r.reading.display)))), result, text: close[0].text, edits: [], chosen: [] }, looked };
     }
   }
-  if (!best) return { looked };
+  if (!best) {
+    // Where it got stuck: the words it has nothing for, and the reading that came nearest.
+    return { looked, stuck: { unknown, ...(nearest ? { near: { said: inWords(nearest.reading), left: [...nearest.left], kind: nearest.kind ?? "fit" } } : {}) } };
+  }
   if (process.env.NAPKIN_FRAMES_DEBUG) console.error("best", best.score, format(best.reading.display));
   const result = await best.reading.run();
   if (result === undefined) return { looked };
@@ -959,4 +1015,13 @@ export function reaction(store: ConceptStore, message: string): "agree" | "refus
   if (!first) return undefined;
   const kinds = typesOf(store, c(nameOf(first)));
   return kinds.includes("Agreement") || kinds.includes("Thanking") ? "agree" : kinds.includes("Refusal") ? "refuse" : undefined;
+}
+
+/** Where reading got stuck, as the Concept that says it (packs/frames.ncon, Speaking). */
+export function stuckResult(stuck: Stuck): Expr {
+  const list = (ws: readonly string[]) => call("List", ws.map((value) => ({ value })));
+  return call("Stuck", [
+    ...(stuck.near ? [{ name: "near", value: stuck.near.said }, { name: "left", value: list(stuck.near.left) }, { name: "as", value: stuck.near.kind }] : []),
+    { name: "unknown", value: list(stuck.unknown) },
+  ]);
 }
