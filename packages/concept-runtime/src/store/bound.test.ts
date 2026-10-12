@@ -26,14 +26,14 @@ test("a message names files under the workspace, not elsewhere under home", () =
   writeFileSync(join(home, "secret.txt"), "not for messages");
   const was = { home: process.env.HOME, read: process.env.NAPKIN_READ_HOME };
   process.env.HOME = home;
-  delete process.env.NAPKIN_READ_HOME;
+  Reflect.deleteProperty(process.env, "NAPKIN_READ_HOME");
   try {
     assert.equal(readFile("~/secret.txt"), undefined);
     process.env.NAPKIN_READ_HOME = "1";
     assert.equal(readFile("~/secret.txt")?.text, "not for messages", "allowed when the person running it says so");
   } finally {
     process.env.HOME = was.home;
-    if (was.read === undefined) delete process.env.NAPKIN_READ_HOME;
+    if (was.read === undefined) Reflect.deleteProperty(process.env, "NAPKIN_READ_HOME");
     else process.env.NAPKIN_READ_HOME = was.read;
   }
 });
