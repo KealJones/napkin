@@ -50,10 +50,30 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
+/** Whether a request comes from this studio: its Host is this server, and its Origin, when it has one, too. */
+function sameStudio(request: IncomingMessage): boolean {
+  const own = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
+  if (!own.has(request.headers.host ?? "")) return false;
+  const origin = request.headers.origin;
+  if (origin === undefined) return true;
+  try {
+    return own.has(new URL(origin).host);
+  } catch {
+    return false;
+  }
+}
+
 async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
   if (url.pathname.startsWith("/api/")) {
     const method = request.method ?? "GET";
+    // Only this studio's own page may call it. A page from anywhere else, open in the same browser,
+    // could otherwise post a chat turn, write a file or clear the graph (a request it sends carries
+    // its own Origin), and a name that only points here (DNS rebinding) carries its own Host.
+    if (!sameStudio(request)) {
+      response.writeHead(403, { "content-type": "text/plain; charset=utf-8" }).end("Only the studio's own page may call its API.");
+      return;
+    }
     const body = method === "GET" || method === "HEAD" ? undefined : await readBody(request);
     const headers = Object.entries(request.headers).flatMap(([k, v]) => (v === undefined ? [] : [[k, String(v)] as [string, string]]));
     const answer = await studio.handle(new Request(url, { method, headers, ...(body === undefined ? {} : { body }) }));

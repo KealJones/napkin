@@ -19,6 +19,8 @@ export { basename, dirname, join, resolve } from "node:path";
 export const home = (): string => process.env.HOME ?? homedir();
 /** Where the host was started: the files a message names are found from here. */
 export const workingDir = (): string => process.env.NAPKIN_WORKSPACE ?? process.cwd();
+/** Whether a message may name files anywhere under home, not only the workspace (NAPKIN_READ_HOME=1). */
+export const readHome = (): boolean => process.env.NAPKIN_READ_HOME === "1";
 /** The runtime package: `packs/`, `data/`, `eval/`. */
 export const runtimeRoot = fileURLToPath(new URL("../..", import.meta.url)).replace(/\/$/, "");
 /** A file inside an installed package, `an-array-of-english-words/index.json`. */

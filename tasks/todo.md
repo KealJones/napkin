@@ -21,7 +21,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
 - [x] 7. More computation senses (0.12.0): one-hole and list holes ("square root of", "average of",
   "percent of").
 - [x] 8. Answers you can trace (0.13.0): show which word filled which hole, and why, in the studio.
-- [ ] 9. Hygiene: bound `trace.jsonl` (about 300 KB a turn); file reads only under the workspace.
+- [x] 9. Hygiene (0.13.1; also: the studio API answers only its own page): bound `trace.jsonl` (about 300 KB a turn); file reads only under the workspace.
 
 # Concept games and chess
 

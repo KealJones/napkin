@@ -16,6 +16,8 @@
 
 export const home = (): string => "/home";
 export const workingDir = (): string => "/work";
+/** In the browser there is no home beyond the workspace to read. */
+export const readHome = (): boolean => false;
 export const runtimeRoot = "/runtime";
 export const moduleFile = (spec: string): string => `/modules/${spec}`;
 

@@ -12,7 +12,7 @@
  * Any other Concept is itself: an expression passes through as the object it is.
  */
 import nlp from "compromise";
-import { exists, home, moduleFile, mtime, read, resolve, runIsolated, runtimeRoot, workingDir, write } from "#platform";
+import { readHome, exists, home, moduleFile, mtime, read, resolve, runIsolated, runtimeRoot, workingDir, write } from "#platform";
 
 export { runIsolated };
 import { type Call, type Expr, call, isCall } from "../concept/expression.js";
@@ -59,13 +59,17 @@ function workspaces(): string[] {
 }
 /** A path a message names, "~/" from home, else from each workspace in turn. */
 const candidates = (path: string): string[] => (path.startsWith("~/") ? [resolve(home(), path.slice(2))] : workspaces().map((root) => resolve(root, path)));
-/** Files a message may name: under a workspace, or home. */
+/** Files a message may name: under a workspace. */
 const within = (full: string, roots: readonly string[]): boolean => roots.some((root) => full === root || full.startsWith(root + "/"));
 const MAX_FILE = 1_000_000;
 
-/** A text file a message names (CodeApi.readFile), under a workspace or home. */
+/**
+ * A text file a message names (CodeApi.readFile), under a workspace: where the host was started, or
+ * the repository around it. Anywhere else under home only when the person running it says so
+ * (NAPKIN_READ_HOME=1): a message is not a way to read ~/.ssh.
+ */
 export function readFile(path: string): { path: string; text: string } | undefined {
-  const full = candidates(path).find((p) => within(p, [...workspaces(), home()]) && exists(p));
+  const full = candidates(path).find((p) => within(p, [...workspaces(), ...(readHome() ? [home()] : [])]) && exists(p));
   if (full === undefined) return undefined;
   const text = read(full);
   return text === undefined || text.length > MAX_FILE ? undefined : { path: full, text };
