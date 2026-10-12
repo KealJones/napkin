@@ -18,7 +18,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
   filled, which spelling held. Weights stop being hand-set.
 - [x] 6. Ask when two readings are close (0.11.0) ("born when, or where?"), and keep the answer as a
   `ReadBeside` sense choice, instead of falling back to `Hear()`.
-- [ ] 7. More computation senses: one-hole and list holes ("square root of", "average of",
+- [x] 7. More computation senses (0.12.0): one-hole and list holes ("square root of", "average of",
   "percent of").
 - [ ] 8. Answers you can trace: show which word filled which hole, and why, in the studio.
 - [ ] 9. Hygiene: bound `trace.jsonl` (about 300 KB a turn); file reads only under the workspace.

@@ -497,6 +497,60 @@
         "Acme",
         "Acme"
       ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "what is the square root of 144"
+      ],
+      "expect": [
+        "12"
+      ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "average of 3, 5 and 10"
+      ],
+      "expect": [
+        "6"
+      ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "what is the largest of 4, 17, 2"
+      ],
+      "expect": [
+        "17"
+      ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "what is 17 percent of 240"
+      ],
+      "expect": [
+        "40.8"
+      ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "what is the sum of 1, 2 and 3"
+      ],
+      "expect": [
+        "6"
+      ]
+    },
+    {
+      "group": "one-hole",
+      "say": [
+        "half of 10"
+      ],
+      "expect": [
+        "5"
+      ]
     }
   ]
 }

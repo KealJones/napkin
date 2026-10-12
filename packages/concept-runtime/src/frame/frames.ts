@@ -24,7 +24,7 @@ import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { typesOf } from "../runtime/types.js";
-import { UNIVERSAL } from "../runtime/select.js";
+import { runs, UNIVERSAL } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
 import type { Edit } from "../resolve/readings.js";
@@ -88,6 +88,24 @@ function values(words: readonly Word[]): Map<string, Item[]> {
   words.forEach((w, i) => {
     for (const s of w.senses) if (s.type === "value") put({ i, j: i + 1, expr: s.value, said: s.value, score: 0, binds: Infinity });
   });
+  // A list: values one after another, parted by commas or "and" ("3, 5 and 10").
+  const valueAt = (k: number) => words[k]?.senses.find((s) => s.type === "value");
+  const parts = (k: number) => words[k] !== undefined && (words[k].text === "," || words[k].senses.some((s) => s.type === "glue" && s.head === "And"));
+  for (let i = 0; i < words.length; i++) {
+    if (!valueAt(i) || (i >= 2 && parts(i - 1) && valueAt(i - 2))) continue;
+    const items: Expr[] = [];
+    let j = i;
+    while (valueAt(j)) {
+      items.push((valueAt(j) as { value: Expr }).value);
+      if (parts(j + 1) && parts(j + 2) && valueAt(j + 3)) j += 3;
+      else if (parts(j + 1) && valueAt(j + 2)) j += 2;
+      else break;
+    }
+    if (items.length >= 2) {
+      const list = call("List", items.map((value) => ({ value })));
+      put({ i, j: j + 1, expr: list, said: list, score: 0.25 * items.length, binds: Infinity });
+    }
+  }
   const n = words.length;
   for (let len = 2; len <= n; len++) {
     for (let i = 0; i + len <= n; i++) {
@@ -97,7 +115,7 @@ function values(words: readonly Word[]): Map<string, Item[]> {
       // Infix: a value, the operation, maybe a word that helps say it ("divided by"), a value.
       for (let k = i + 1; k < j - 1; k++) {
         for (const op of words[k].senses) {
-          if (op.type !== "op") continue;
+          if (op.type !== "op" || op.holes.length !== 2) continue;
           for (const skip of [0, 1]) {
             const r0 = k + 1 + skip;
             if (r0 >= j || (skip && !only(words[k + 1], "glue"))) continue;
@@ -113,9 +131,21 @@ function values(words: readonly Word[]): Map<string, Item[]> {
           }
         }
       }
+      // One hole: the operation, maybe a word that marks what it takes ("of"), a value or a list
+      // ("square root of 144", "average of 3, 5 and 10", "half 10").
+      for (const op of words[i].senses) {
+        if (op.type !== "op" || op.holes.length !== 1) continue;
+        for (const skip of [0, 1]) {
+          // Only a word that marks what it takes ("of"), not one that says what something is.
+          if (skip && !(only(words[i + 1], "glue") && !words[i + 1].senses.some((x) => x.type === "glue" && x.copula))) continue;
+          for (const X of get(i + 1 + skip, j)) {
+            put({ i, j, ops: [...(X.ops ?? []), `op:${op.word}=${op.target}`], expr: c(op.target, X.expr), said: c(op.word, X.said), score: X.score + 1.5 + typedFit(op) - 0.1 * skip, binds: Infinity });
+          }
+        }
+      }
       // Prefix: the operation, a value, a joining word ("and", or "from", which puts what follows it first), a value.
       for (const op of words[i].senses) {
-        if (op.type !== "op") continue;
+        if (op.type !== "op" || op.holes.length !== 2) continue;
         for (let m = i + 2; m < j; m++) {
           const glue = words[m].senses.find((s) => s.type === "glue");
           for (const X of get(i + 1, m)) {
@@ -158,7 +188,7 @@ const asking = (words: readonly Word[], question: boolean) =>
 const outsideOptional = (words: readonly Word[], i: number, j: number) => words.every((w, k) => (k >= i && k < j) || optional(w));
 
 /** Readings that work something out: a value asked for, a claim about one, an operation missing a value. */
-function computations(runtime: Runtime, words: readonly Word[], question: boolean): Reading[] {
+function computations(runtime: Runtime, words: readonly Word[], question: boolean, message = ""): Reading[] {
   const items = values(words);
   const out: Reading[] = [];
   const mood = c(asking(words, question) ? "Interrogative" : "Declarative");
@@ -174,9 +204,14 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
             display: c("ContextScope", mood, c("Value", item.said)),
             chosen: [],
             // A question is answered; a doing asked for ("subtract 3 from 10") gives what it comes to.
+            // What still holds an operation it took is not worked out: not a reading at all (a residual).
+            // A doing asked for ("subtract 3 from 10", the word a verb said first) gives what it comes
+            // to; a thing named that works out to a value ("average of 3, 5, 10") is answered, as a question is.
             run: async () => {
               const v = await runtime.evaluate(item.expr, c("Execution"));
-              return !asking(words, question) || (isCall(v) && v.head === "Answer") ? v : c("Answer", v);
+              if (residual(v, item.ops ?? [])) return undefined;
+              const doing = !asking(words, question) && item.i === 0 && (hostWords(message)[0]?.tags ?? []).includes("Verb");
+              return doing || (isCall(v) && v.head === "Answer") ? v : c("Answer", v);
             },
           });
         }
@@ -210,7 +245,7 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
   // An operation with its first value and nothing after: the hole is asked for, not guessed.
   words.forEach((w, k) => {
     for (const op of w.senses) {
-      if (op.type !== "op") continue;
+      if (op.type !== "op" || op.holes.length !== 2) continue;
       for (let i = 0; i < k; i++) {
         for (const L of items.get(`${i},${k}`) ?? []) {
           if (!outsideOptional(words, i, k + 1) || words.slice(k + 1).some((x) => !optional(x))) continue;
@@ -509,7 +544,7 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
     // "what's", "he's": the word and "is", where the word asks or points (the graph says which).
     .replace(/\b([A-Za-z]+)'s\b/g, (all, w: string) => (typesOf(store, c(nameOf(w))).some((k) => k === "Interrogative" || k === "Pointing") ? `${w} is` : all));
-  return { tokens: text.match(/\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷()-]/g) ?? [], question };
+  return { tokens: text.match(/\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/g) ?? [], question };
 }
 
 /** Two or three words that are one name the graph holds ("steven spielberg" is StevenSpielberg). */
@@ -521,7 +556,11 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
       const part = words.slice(i, i + n);
       const whole = nameOf(part.join(" "));
       // Only into a thing the graph holds facts of: "is a" is not the relation IsA.
-      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && holdsFacts(store, whole)) {
+      // Into a thing the graph holds facts of, or a Concept that works something out ("square root"):
+      // "is a" is not the relation IsA.
+      // A code primitive (SquareRootOf) is the host's machinery, not what words name.
+      const computes = (store.get(whole)?.realizations ?? []).some((r) => !r.retired && runs(r)) && !typesOf(store, c(whole)).includes("CodePrimitive");
+      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes)) {
         taken = n;
         break;
       }
@@ -608,6 +647,13 @@ function unknownRuns(store: ConceptStore, words: readonly Word[], message: strin
   return runs;
 }
 
+/** A result still holding one of the operations it was built from: the computation did not run. */
+function residual(result: Expr, ops: readonly string[]): boolean {
+  // The operations it was built with (op:word=Target), not the lists that hold its values.
+  const targets = new Set(ops.map((o) => o.slice(o.indexOf("=") + 1)));
+  return [...walk(result)].some((n) => isCall(n) && targets.has(n.head));
+}
+
 /** What reading a message came to: the reading, when one accounts for every word, and what was looked up on the way. */
 export interface FrameRead {
   readonly framed?: Framed;
@@ -632,10 +678,16 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     if (!senses.has(key)) {
       const name = nameOf(w);
       const owned = /^([A-Za-z]+)'s$/i.exec(w);
+      // A comma parts what is said, as "and" does; it takes nothing and says nothing.
+      if (w === ",") {
+        senses.set(key, [{ type: "glue", head: "Comma", marksFirst: false, copula: false }]);
+        return senses.get(key)!;
+      }
       senses.set(
         key,
         // "tom's": whose, the name before the 's.
-        owned ? [{ type: "owner", head: nameOf(owned[1]) }] : store.has(name) && w.includes(" ") ? (holdsFacts(store, name) ? [{ type: "entity", head: name }] : []) : await sensesOf(store, w, number),
+        // A name of several words is the thing it names, or what it computes ("square root of").
+        owned ? [{ type: "owner", head: nameOf(owned[1]) }] : store.has(name) && w.includes(" ") && holdsFacts(store, name) ? [{ type: "entity", head: name }] : await sensesOf(store, w, number),
       );
     }
     return senses.get(key)!;
@@ -700,7 +752,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
       // Each kind of reading accounts for every word that says something, or is not made: a word
       // with no sense is used only where it names a part or a kind of a fact's answer.
-      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
+      const readings = [...computations(runtime, words, question, message), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       for (const reading of readings) {

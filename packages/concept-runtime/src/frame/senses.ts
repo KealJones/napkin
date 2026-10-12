@@ -87,25 +87,33 @@ const typeOf = (r: Realization, variable: string): string | undefined => {
   return t !== undefined && isCall(t) && !t.args.length ? t.head : undefined;
 };
 
-/** A computation the word stands for: a realization that runs, with every hole typed by a plain kind. */
-function operation(store: ConceptStore, word: string): Sense | undefined {
+/**
+ * The computations a word stands for: realizations that run, of one or two plain-variable holes,
+ * each typed by a plain kind, or untyped when the realization works something out (declared a
+ * Program, or a body composed of other Concepts, not just handing back what it holds). One sense
+ * per number of holes: "percent" takes one ("17 percent") and two ("17 percent of 240").
+ */
+function operations(store: ConceptStore, word: string): Sense[] {
   const heads = chain(store, word);
+  const out: Sense[] = [];
+  // How tightly it binds what is beside it, where the graph says (Binds(120) on Times).
+  const binds = heads.flatMap((h) => claimed(store, h, "Binds")).find((x) => typeof x === "number");
+  const right = heads.some((h) => relationsOf(store, h).some((rel) => isCall(rel.claim) && rel.claim.head === "Binds" && rel.claim.args.some((a) => isCall(a.value) && a.value.head === "Right")));
   for (const target of heads) {
     for (const r of store.get(target)?.realizations ?? []) {
       if (r.retired || !runs(r) || !isCall(r.pattern) || r.pattern.head !== target) continue;
+      // A computation over values: it takes them worked out, hands back more than it was given, and does nothing to the world.
+      if (r.properties.some((p) => isCall(p) && (p.head === "Lossy" || p.head === "Effectful")) || r.evaluateArguments === false) continue;
       const holes = holesOf(r);
-      // Holes typed by a plain kind; a computation declared a Program may leave them untyped,
-      // and then takes any value (Add checks its own).
+      if (!holes || holes.length < 1 || holes.length > 2 || out.some((o) => o.type === "op" && o.holes.length === holes.length)) continue;
       const program = r.properties.some((p) => isCall(p) && p.head === "Program");
-      const kinds = holes?.map((h) => typeOf(r, h) ?? (program ? "Concept" : undefined));
-      if (!holes || holes.length !== 2 || !kinds?.every((k): k is string => k !== undefined)) continue;
-      // How tightly it binds what is beside it, where the graph says (Binds(120) on Times).
-      const binds = heads.flatMap((h) => claimed(store, h, "Binds")).find((x) => typeof x === "number");
-      const right = heads.some((h) => relationsOf(store, h).some((rel) => isCall(rel.claim) && rel.claim.head === "Binds" && rel.claim.args.some((a) => isCall(a.value) && a.value.head === "Right")));
-      return { type: "op", word, target, holes: kinds, binds: typeof binds === "number" ? binds : 100, right };
+      const composed = isCall(r.body) && r.body.head !== target && r.body.head !== "Code";
+      const kinds = holes.map((h) => typeOf(r, h) ?? (program || composed || r.types !== undefined ? "Concept" : undefined));
+      if (!kinds.every((k): k is string => k !== undefined)) continue;
+      out.push({ type: "op", word, target, holes: kinds, binds: typeof binds === "number" ? binds : 100, right });
     }
   }
-  return undefined;
+  return out;
 }
 
 interface Index {
@@ -161,8 +169,7 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
   if (!/[a-z0-9]/i.test(word)) {
     for (const m of store.mentioning(word)) {
       if (isCall(m.relation.claim) && m.relation.claim.head === "Spelled") {
-        const op = operation(store, m.identity);
-        if (op) out.push(op);
+        out.push(...operations(store, m.identity).filter((o) => o.type === "op" && o.holes.length === 2));
       }
     }
     return out;
@@ -192,8 +199,10 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     if (GLUE.some((g) => kinds.includes(g))) {
       out.push({ type: "glue", head, marksFirst: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "MarksFirst"), copula: kinds.includes("Helper") });
     }
-    const op = operation(store, head);
-    if (op) out.push(op);
+    // A word that helps say the others ("is", "of") stands for a computation only when it says what
+    // it takes (typed holes): "over" divides; "is" does not compute what it joins.
+    const helps = GLUE.some((g) => kinds.includes(g));
+    out.push(...operations(store, head).filter((o) => !helps || (o.type === "op" && o.holes.every((h) => h !== "Concept"))));
     if (holdsFacts(store, head)) out.push({ type: "entity", head });
   }
   const at = index(store);

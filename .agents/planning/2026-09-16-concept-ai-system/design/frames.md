@@ -12,7 +12,7 @@ The ears do not compose. A message is a row of words, and each word brings its s
 | Sense | Read from the graph | Holes |
 |---|---|---|
 | value | a number, or a number word through `Number` | none |
-| op | a realization that runs, two plain-variable holes, typed or a `Program` | its typed holes; `Binds` says how tightly |
+| op | a realization that runs on values (not `Lossy`, not `Effectful`, arguments evaluated), one or two plain-variable holes, typed, or untyped when it works something out (a `Program`, or a body composed of other Concepts); a helper word only with typed holes | its holes; `Binds` says how tightly |
 | entity | the store holds facts of it, either way round | none |
 | relation | used as a fact's predicate (not only in a context); found by its name or what it is `Called`, each word and its base forms; read backwards by what it is `InverseCalled` | the thing it is a fact of, and the value |
 | kind | things are `IsA` it; found the same ways | keeps answers of that kind |
@@ -25,6 +25,11 @@ one, one typed as two, a reading the user taught), each at a cost.
 
 ## How a reading is chosen
 
+- Values are a number, a number word, or a list of them parted by commas or "and" ("3, 5 and 10").
+  A one-hole operation takes the value after it, past an "of" ("square root of 144", "average of
+  3, 5 and 10"); a result still holding an operation it was built from did not run, and is no reading.
+  A doing asked for ("sort 3, 1, 2", the word a verb said first) gives what it comes to; a thing named
+  that works out to a value ("average of ...") is answered.
 - Values are taken by the operations beside them, in any span (a chart). Which operation takes its
   neighbour first is the graph's `Binds`, not a grammar. Brackets close a group.
 - A fact question pairs a thing with one of the relation senses of a word near it, in either

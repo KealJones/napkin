@@ -222,3 +222,16 @@ test("yes after a reading confirms its choices, no corrects them", async () => {
   await talk(store, ["what year was steven spielberg born", "no"]);
   assert.ok(weight(store, "sense:born=DateOfBirth") < 0);
 });
+
+test("one hole, a list, or two joined by of: square root of 144, average of 3, 5 and 10, 17 percent of 240", async () => {
+  const store = graph(false);
+  const got = async (m: string) => format((await read(store, m))!.result);
+  assert.equal(await got("what is the square root of 144"), "Answer(12)");
+  assert.equal(await got("average of 3, 5 and 10"), "Answer(6)");
+  assert.equal(await got("sort 3, 1, 2"), "List(1, 2, 3)", "a doing asked for gives what it comes to");
+  assert.equal(await got("what is the largest of 4, 17, 2"), "Answer(17)");
+  assert.equal(await got("what is the sum of 1, 2 and 3"), "Answer(6)");
+  assert.match(await got("what is 17 percent of 240"), /^Answer\(40\.8/);
+  // A word whose realization takes what it is given unworked ("want") is not an operation on values.
+  assert.equal(await got("waht is 6 tims 7"), "Answer(42)");
+});
