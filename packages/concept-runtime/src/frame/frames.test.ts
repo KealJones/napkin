@@ -16,7 +16,7 @@ const graph = (facts = true) => {
   if (facts) for (const [id, rel] of fixture) store.addRelation(id, parse(rel));
   return store;
 };
-const read = async (store: ConceptStore, message: string, history: { result: string }[] = []) => frames(new Runtime(store, {}), message, history);
+const read = async (store: ConceptStore, message: string, history: { result: string }[] = []) => (await frames(new Runtime(store, {}), message, history)).framed;
 async function talk(store: ConceptStore, messages: string[]) {
   const runtime = new Runtime(store, {});
   const history: { message: string; result: string; spoken?: string }[] = [];
@@ -86,4 +86,61 @@ test("a hole is asked for in the words said, and filled by the next message", as
 test("a pointing word is the last answer: he is the director just named", async () => {
   const said = await talk(graph(), ["who directed jaws", "what year was he born"]);
   assert.deepEqual(said.map((s) => s.spoken), ["Steven Spielberg.", "1946."]);
+});
+
+/** Wikidata as it answers, for Jaws and Steven Spielberg, and the properties and items they name. */
+const item = (id: string) => ({ rank: "normal", mainsnak: { snaktype: "value", datatype: "wikibase-item", datavalue: { value: { id } } } });
+const WIKIDATA: Record<string, Record<string, unknown>> = {
+  Q8877: {
+    id: "Q8877", labels: { en: { value: "Steven Spielberg" } }, descriptions: { en: { value: "American filmmaker" } }, sitelinks: { a: 1 },
+    aliases: { en: [{ value: "Spielberg" }] },
+    claims: {
+      P31: [item("Q5")], P19: [item("Q43196")],
+      P569: [{ rank: "normal", mainsnak: { snaktype: "value", datatype: "time", datavalue: { value: { time: "+1946-12-18T00:00:00Z", precision: 11 } } } }],
+    },
+  },
+  Q189540: { id: "Q189540", labels: { en: { value: "Jaws" } }, descriptions: { en: { value: "1975 film by Steven Spielberg" } }, sitelinks: { a: 1 }, claims: { P31: [item("Q11424")], P57: [item("Q8877")] } },
+  P569: { id: "P569", labels: { en: { value: "date of birth" } }, aliases: { en: [{ value: "born" }, { value: "birth date" }] } },
+  P19: { id: "P19", labels: { en: { value: "place of birth" } }, aliases: { en: [{ value: "born in" }, { value: "birthplace" }] } },
+  P57: { id: "P57", labels: { en: { value: "director" } }, aliases: { en: [{ value: "directed by" }] } },
+  Q5: { id: "Q5", labels: { en: { value: "human" } } },
+  Q11424: { id: "Q11424", labels: { en: { value: "film" } } },
+  Q43196: { id: "Q43196", labels: { en: { value: "Cincinnati" } } },
+};
+const asked: string[] = [];
+const wikidata = async (url: string): Promise<unknown> => {
+  const u = new URL(url);
+  const q = u.searchParams;
+  if (u.hostname.endsWith("wikipedia.org")) return { query: { pages: {} } };
+  if (q.get("action") === "wbsearchentities") {
+    const want = (q.get("search") ?? "").toLowerCase();
+    asked.push(want);
+    return { search: Object.values(WIKIDATA).filter((e) => (e.labels as { en: { value: string } }).en.value.toLowerCase() === want).map((e) => ({ id: e.id, label: (e.labels as { en: { value: string } }).en.value })) };
+  }
+  const ids = (q.get("ids") ?? "").split("|").filter((id) => WIKIDATA[id]);
+  const props = q.get("props") ?? "";
+  return { entities: Object.fromEntries(ids.map((id) => [id, props.includes("claims") ? WIKIDATA[id] : { id, labels: WIKIDATA[id].labels, aliases: WIKIDATA[id].aliases }])) };
+};
+
+test("learned while reading: a thing the graph has never heard of is looked up, kept, and the question read again", async () => {
+  const store = graph(false);
+  asked.length = 0;
+  const runtime = new Runtime(store, {});
+  const history: { message: string; result: string; spoken?: string }[] = [];
+  const said: string[] = [];
+  const by: (string | undefined)[] = [];
+  for (const message of ["who directed jaws", "what year was he born"]) {
+    const t = await turn(runtime, message, c("Execution"), { history, fetch: wikidata });
+    history.push({ message, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
+    said.push(t.spoken);
+    by.push(t.hearingUsed);
+  }
+  assert.deepEqual(said, ["Steven Spielberg.", "1946."]);
+  assert.deepEqual(by, ["frames", "frames"]);
+  // Jaws was searched for by its name; Spielberg was already tied to his item by Jaws's import, so not searched.
+  assert.deepEqual(asked, ["jaws"]);
+  // Kept, sourced, and answered from the graph the next time, with nothing looked up.
+  const again = await turn(new Runtime(store, {}), "where was steven spielberg born", c("Execution"), { fetch: wikidata });
+  assert.equal(again.spoken, "Cincinnati.");
+  assert.deepEqual(asked, ["jaws"]);
 });

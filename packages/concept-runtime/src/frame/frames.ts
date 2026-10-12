@@ -20,13 +20,14 @@
  */
 import { type Expr, c, call, format, isCall, parse, walk } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
+import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, settled, unbare, useGraphNames } from "../ears/parser/words.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { typesOf } from "../runtime/types.js";
 import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
 import type { Edit } from "../resolve/readings.js";
-import { akin, called, holdsFacts, sensesOf, wordsOf, type Sense } from "./senses.js";
+import { akin, called, holdsFacts, sensesOf, STRUCTURAL, wordsOf, type Sense } from "./senses.js";
 
 export interface Framed {
   /** What was read, as Concepts: for showing, not for running. */
@@ -230,8 +231,10 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
   for (const thing of things) {
     for (const rel of relations) {
       if (rel.k === thing.k) continue;
-      const forward = relationsOf(store, thing.head).flatMap((r) => (isCall(r.claim) && r.claim.head === rel.head && r.claim.args[0] ? [r.claim.args[0].value] : []));
-      const inverse = store.asObject(thing.head).filter((t) => t.predicate === rel.head).map((t) => c(t.subject));
+      // Facts that hold whatever sense is meant: a word with several senses keeps each sense's
+      // facts in its own context, and those are not mixed here.
+      const forward = relationsOf(store, thing.head).flatMap((r) => (r.context === undefined && isCall(r.claim) && r.claim.head === rel.head && r.claim.args[0] ? [r.claim.args[0].value] : []));
+      const inverse = store.asObject(thing.head).filter((t) => t.predicate === rel.head && t.context === undefined).map((t) => c(t.subject));
       for (const [direction, found] of [["of", forward], ["holding", inverse]] as const) {
         if (!found.length) continue;
         let answers: Expr[] = found;
@@ -337,15 +340,52 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
 
 let namesAt = -1;
 
-export async function frames(runtime: Runtime, message: string, history: readonly { result: string }[] = []): Promise<Framed | undefined> {
-  const store = runtime.store;
-  // The graph's own names are words the speller knows, as hearing has them.
-  if (store.size() !== namesAt) {
-    useGraphNames(store.all().map((u) => u.identity));
-    namesAt = store.size();
+export interface FrameOptions {
+  /**
+   * Look a thing up in the world and keep what is found (Wikidata, by `groundInWikidata`).
+   * Answers whether anything was learned. Absent, nothing is looked up.
+   */
+  readonly lookup?: (identity: string, said: string) => Promise<boolean>;
+  /** Most lookups in one turn. */
+  readonly lookups?: number;
+}
+
+/** A thing looked up while reading, and what came of it. */
+export interface Looked {
+  readonly identity: string;
+  readonly learned: boolean;
+}
+
+/**
+ * Words of a question the graph holds nothing of, in runs: "steven spielberg" is one run, looked
+ * up as one name before each word alone. A word the graph has any Concept for is not a run: it is
+ * known, whatever the frames could make of it.
+ */
+function unknownRuns(store: ConceptStore, words: readonly Word[], message: string): string[][] {
+  // Only a thing is looked up, not a doing or a describing word: the tagger says which (as it does for hearing).
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
+  const thing = (w: string) => w.toLowerCase().split(" ").every((x) => (tags.get(x) ?? ["Noun"]).some((t) => t === "Noun" || t === "ProperNoun") && !(tags.get(x) ?? []).includes("Verb"));
+  const runs: string[][] = [];
+  let run: string[] = [];
+  for (const w of words) {
+    const unknown = !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase()))) && thing(w.text);
+    if (unknown) run.push(w.text);
+    else if (run.length) runs.push(run.splice(0));
   }
+  if (run.length) runs.push(run);
+  return runs;
+}
+
+/** What reading a message came to: the reading, when one accounts for every word, and what was looked up on the way. */
+export interface FrameRead {
+  readonly framed?: Framed;
+  readonly looked: Looked[];
+}
+
+export async function frames(runtime: Runtime, message: string, history: readonly { result: string }[] = [], options: FrameOptions = {}): Promise<FrameRead> {
+  const store = runtime.store;
   const { tokens: typed, question } = tokens(store, message);
-  if (!typed.length || typed.length > 24) return undefined;
+  if (!typed.length || typed.length > 24) return { looked: [] };
   const numbers = new Map<string, number | undefined>();
   const number = async (w: string) => {
     if (!numbers.has(w)) {
@@ -354,7 +394,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     }
     return numbers.get(w);
   };
-  const senses = new Map<string, Sense[]>();
+  let senses = new Map<string, Sense[]>();
   const sensesFor = async (w: string) => {
     const key = w.toLowerCase();
     if (!senses.has(key)) {
@@ -363,68 +403,111 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     }
     return senses.get(key)!;
   };
-  // What each typed token could have been: itself, what the user taught, and for a word that
-  // has no sense at all, the words a slip away (frame readings weigh them all).
-  const options: Option[][] = [];
-  for (let i = 0; i < typed.length; i++) {
-    const raw = typed[i];
-    const lower = raw.toLowerCase();
-    const list: Option[] = [{ words: [raw], span: 1, cost: 0 }];
-    for (const l of learnedReadings(store, lower)) {
-      if (l.meant === lower) list[0] = { ...list[0], cost: -l.weight };
-      else list.push({ words: l.meant.split(" "), span: 1, cost: -l.weight, edit: { typed: lower, meant: l.meant, kind: "learned" } });
+  const pointed = pointedAt(store, history);
+
+  /** Every reading of the message, as the graph stands now: the best, the best that means something else, and the words as typed. */
+  const choose = async () => {
+    // The graph's own names are words the speller knows, as hearing has them.
+    if (store.size() !== namesAt) {
+      useGraphNames(store.all().map((u) => u.identity));
+      namesAt = store.size();
     }
-    if (/^[a-z]+$/i.test(raw) && !settled(raw) && !(await sensesFor(raw)).length) {
-      for (const a of alternatives(raw, typed[i - 1] ?? "", typed[i + 1] ?? "").slice(0, 6)) {
-        if (a.replaces === 2 && i + 1 >= typed.length) continue;
-        // Less, the more often the word meant is written beside these neighbours than the one typed ("what is", not "was is").
-        const prev = typed[i - 1] ?? "";
-        const next = typed[i + 1] ?? "";
-        const near = a.kind === "spelling" ? BESIDE * (beside(prev, a.text, next) - beside(prev, lower, next)) : 0;
-        const cost = a.kind === "spelling" ? Math.max(0.1, (COST * a.distance) / lower.length - a.common + commonness(lower) - near) : SPACE;
-        const meant = unbare(a.text);
-        list.push({ words: meant.split(" "), span: a.replaces, cost, edit: { typed: a.replaces === 2 ? `${lower} ${typed[i + 1].toLowerCase()}` : lower, meant, kind: a.kind } });
+    // What each typed token could have been: itself, what the user taught, and for a word that
+    // has no sense at all, the words a slip away (frame readings weigh them all).
+    const choices: Option[][] = [];
+    for (let i = 0; i < typed.length; i++) {
+      const raw = typed[i];
+      const lower = raw.toLowerCase();
+      const list: Option[] = [{ words: [raw], span: 1, cost: 0 }];
+      for (const l of learnedReadings(store, lower)) {
+        if (l.meant === lower) list[0] = { ...list[0], cost: -l.weight };
+        else list.push({ words: l.meant.split(" "), span: 1, cost: -l.weight, edit: { typed: lower, meant: l.meant, kind: "learned" } });
+      }
+      if (/^[a-z]+$/i.test(raw) && !settled(raw) && !(await sensesFor(raw)).length) {
+        for (const a of alternatives(raw, typed[i - 1] ?? "", typed[i + 1] ?? "").slice(0, 6)) {
+          if (a.replaces === 2 && i + 1 >= typed.length) continue;
+          // Less, the more often the word meant is written beside these neighbours than the one typed ("what is", not "was is").
+          const prev = typed[i - 1] ?? "";
+          const next = typed[i + 1] ?? "";
+          const near = a.kind === "spelling" ? BESIDE * (beside(prev, a.text, next) - beside(prev, lower, next)) : 0;
+          const cost = a.kind === "spelling" ? Math.max(0.1, (COST * a.distance) / lower.length - a.common + commonness(lower) - near) : SPACE;
+          const meant = unbare(a.text);
+          list.push({ words: meant.split(" "), span: a.replaces, cost, edit: { typed: a.replaces === 2 ? `${lower} ${typed[i + 1].toLowerCase()}` : lower, meant, kind: a.kind } });
+        }
+      }
+      choices.push(list);
+    }
+    // Every reading of the row, as far as MOST; the first is the words as typed.
+    const rows: { words: string[]; cost: number; edits: Edit[] }[] = [];
+    const walkRows = (i: number, words: string[], cost: number, edits: Edit[]) => {
+      if (rows.length >= MOST) return;
+      if (i >= typed.length) return void rows.push({ words, cost, edits });
+      for (const o of choices[i]) walkRows(i + o.span, [...words, ...o.words], cost + o.cost, o.edit ? [...edits, o.edit] : edits);
+    };
+    walkRows(0, [], 0, []);
+    let best: { reading: Reading; row: (typeof rows)[number]; score: number; text: string } | undefined;
+    let rival = -Infinity;
+    let asTyped: Word[] = [];
+    for (const row of rows) {
+      const folded = fold(store, row.words);
+      const words: Word[] = [];
+      for (const text of folded) words.push({ text, senses: await sensesFor(text) });
+      if (row === rows[0]) asTyped = words;
+      // Every word must say something the graph has a sense of.
+      if (words.some((w) => !w.senses.length && !/^[a-z]+$/i.test(w.text) && !/^[()]$/.test(w.text))) continue;
+      // Brackets that do not pair are not read here.
+      if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
+      // Each kind of reading accounts for every word that says something, or is not made: a word
+      // with no sense is used only where it names a part or a kind of a fact's answer.
+      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed)];
+      for (const reading of readings) {
+        const score = reading.score - row.cost;
+        if (process.env.NAPKIN_FRAMES_DEBUG) console.error(" ", score.toFixed(2), folded.join(" "), format(reading.display));
+        if (!best || score > best.score) {
+          if (best && best.reading.key !== reading.key) rival = Math.max(rival, best.score);
+          best = { reading, row, score, text: folded.join(" ") };
+        } else if (best.reading.key !== reading.key) rival = Math.max(rival, score);
       }
     }
-    options.push(list);
-  }
-  // Every reading of the row, as far as MOST.
-  const rows: { words: string[]; cost: number; edits: Edit[] }[] = [];
-  const walkRows = (i: number, words: string[], cost: number, edits: Edit[]) => {
-    if (rows.length >= MOST) return;
-    if (i >= typed.length) return void rows.push({ words, cost, edits });
-    for (const o of options[i]) walkRows(i + o.span, [...words, ...o.words], cost + o.cost, o.edit ? [...edits, o.edit] : edits);
+    // Two readings that fit as well and say different things: not chosen between by a guess.
+    const clear = best !== undefined && (rival === -Infinity || best.score - rival >= 0.5);
+    return { best: clear ? best : undefined, asTyped };
   };
-  walkRows(0, [], 0, []);
-  const pointed = pointedAt(store, history);
-  let best: { reading: Reading; row: (typeof rows)[number]; score: number; text: string } | undefined;
-  let rival = -Infinity;
-  for (const row of rows) {
-    const folded = fold(store, row.words);
-    const words: Word[] = [];
-    for (const text of folded) words.push({ text, senses: await sensesFor(text) });
-    // Every word must say something the graph has a sense of.
-    if (words.some((w) => !w.senses.length && !/^[a-z]+$/i.test(w.text) && !/^[()]$/.test(w.text))) continue;
-    // Brackets that do not pair are not read here.
-    if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
-    // Each kind of reading accounts for every word that says something, or is not made: a word
-    // with no sense is used only where it names a part or a kind of a fact's answer.
-    const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed)];
-    for (const reading of readings) {
-      const score = reading.score - row.cost;
-      if (process.env.NAPKIN_FRAMES_DEBUG) console.error(" ", score.toFixed(2), folded.join(" "), format(reading.display));
-      if (!best || score > best.score) {
-        if (best && best.reading.key !== reading.key) rival = Math.max(rival, best.score);
-        best = { reading, row, score, text: folded.join(" ") };
-      } else if (best.reading.key !== reading.key) rival = Math.max(rival, score);
+
+  let { best, asTyped } = await choose();
+  const looked: Looked[] = [];
+  // Learn while reading. A question that no reading accounts for looks up, in turn: the things it
+  // names that the graph knows only by name (no facts of their own), then the words it holds
+  // nothing of (a run of them as one name before each word alone). After each find, the message is
+  // read again, and the looking stops as soon as a reading accounts for every word.
+  if (!best && options.lookup && asking(asTyped, question)) {
+    const own = (id: string) => relationsOf(store, id).some((r) => r.context === undefined && isCall(r.claim) && !STRUCTURAL.has(r.claim.head) && r.claim.args.length > 0);
+    const named = asTyped.flatMap((w) => w.senses.flatMap((x) => (x.type === "entity" ? [x.head] : x.type === "pointer" && pointed ? [pointed] : [])));
+    const runs = unknownRuns(store, asTyped, message);
+    const tries: string[][] = [
+      ...[...new Set(named)].filter((id) => !own(id)).map((id) => [id]),
+      ...(runs.length <= 2 && runs.every((r) => r.length <= 3) ? runs.flatMap((r) => (r.length > 1 ? [[nameOf(r.join(" "))], r.map((w) => nameOf(w))] : [[nameOf(r[0])]])) : []),
+    ];
+    let left = options.lookups ?? 3;
+    for (const group of tries) {
+      let found = false;
+      for (const identity of group) {
+        if (left <= 0 || looked.some((l) => l.identity === identity)) continue;
+        left -= 1;
+        const learned = await options.lookup(identity, message).catch(() => false);
+        looked.push({ identity, learned });
+        found ||= learned;
+      }
+      if (!found) continue;
+      senses = new Map();
+      ({ best, asTyped } = await choose());
+      if (best || left <= 0) break;
     }
   }
-  if (!best) return undefined;
-  // Two readings that fit as well and say different things: not chosen between by a guess.
-  if (process.env.NAPKIN_FRAMES_DEBUG) console.error("best", best.score, format(best.reading.display), "rival", rival);
-  if (best.score - rival < 0.5 && rival > -Infinity) return undefined;
+  if (!best) return { looked };
+  if (process.env.NAPKIN_FRAMES_DEBUG) console.error("best", best.score, format(best.reading.display));
   const result = await best.reading.run();
-  if (result === undefined) return undefined;
+  if (result === undefined) return { looked };
   best.reading.learn?.();
-  return { display: best.reading.display, result, text: best.text, edits: best.row.edits, chosen: best.reading.chosen };
+  return { framed: { display: best.reading.display, result, text: best.text, edits: best.row.edits, chosen: best.reading.chosen }, looked };
 }

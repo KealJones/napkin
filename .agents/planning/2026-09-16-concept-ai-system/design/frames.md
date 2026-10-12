@@ -33,6 +33,22 @@ one, one typed as two, a reading the user taught), each at a cost.
 - Every reading of the whole row is scored together; one that accounts for every word that says
   something is used only when no reading meaning something else fits nearly as well.
 
+## Learning while reading
+
+With learning on, a question no reading accounts for looks up what it is missing, then is read
+again, all in the same turn (`frames(..., { lookup })`, Wikidata through `groundInWikidata`):
+
+1. Things it names that the graph knows only by name (tied to an item, or the object of a fact,
+   with no facts of their own): "he", after Jaws was learned, is Steven Spielberg, tied to his item
+   by Jaws's import, so his own facts are fetched without a search.
+2. Words the graph holds nothing of, nouns only (the tagger says which): a run of them as one name
+   first ("steven spielberg"), then each word.
+
+It stops as soon as a reading accounts for every word, and after three lookups. What is found is
+kept and sourced like anything else learned (the import's `Imported` stamp), so the next question
+about it is answered from the graph with nothing looked up. A property's aliases ("born", "directed
+by") are kept as what its relation is `Called`, which is what gives "born" its senses.
+
 ## What it learns
 
 - The sense taken for a word with more than one is kept on the relation with the words beside it:
@@ -45,5 +61,4 @@ one, one typed as two, a reading the user taught), each at a cost.
 - Statements, commands beyond arithmetic, multi-sentence messages, reported speech ("I told them
   that ...") as a nested frame: all still `Hear()`.
 - Weights are set by hand; only `ReadBeside` and `WrittenAs` are learned.
-- A fact frame needs the facts in the graph; a question about something not yet learned goes to
-  `Hear()`, which learns it, and the fact chooser (`resolve/asked.ts`) answers after.
+- Statements about something not yet known are not looked up here (only questions are).

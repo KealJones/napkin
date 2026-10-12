@@ -13,7 +13,7 @@ import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/h
 import { keepReading } from "../resolve/learned.js";
 import { reread } from "../resolve/reread.js";
 import { askGraph } from "../resolve/asked.js";
-import { frames } from "../frame/frames.js";
+import { frames, type FrameRead } from "../frame/frames.js";
 import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
@@ -308,6 +308,8 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
+  /** How the world is reached when learning (Wikidata); tests pass a fake. */
+  fetch?: (url: string) => Promise<unknown>;
   /**
    * How a message is heard: "frames" reads it by its words' senses and holes first
    * (frame/frames.ts) and falls back to the rules hearing when that does not account for every
@@ -644,10 +646,16 @@ export async function turn(
     message = changed;
     runtime.context.set("replace", "1");
   } else runtime.context.delete("replace");
+  let lookedUp: LearnStep[] = [];
   // Read by the words' senses and holes first. Used only when the reading accounts for every
   // word that says something; anything else is heard by the rules, as before.
   if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
-    const framed = await frames(runtime, message, options.history ?? []).catch(() => undefined);
+    // Learning on, a question with words the graph holds nothing of looks them up while it is
+    // read (frame/frames.ts), and what is found is kept like anything else learned.
+    const lookup = options.learn === false ? undefined : async (identity: string, said: string) => (await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, ...(options.fetch ? { fetch: options.fetch } : {}) })) !== undefined;
+    const read: FrameRead = await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
+    lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "wikidata" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
+    const framed = read.framed;
     if (framed) {
       const result = framed.result;
       if (options.keepReadings ?? options.learn !== false) for (const e of framed.edits) keepReading(runtime.store, e.typed, e.meant);
@@ -667,7 +675,7 @@ export async function turn(
         spokenBy: options.speak === false ? "none" : graphSpoken !== undefined ? "graph" : "plain",
         gaps: [],
         ambiguities: [],
-        learned: [],
+        learned: lookedUp,
         rereads: 0,
         failed: undefined,
         hearingUsed: "frames",
@@ -738,7 +746,7 @@ export async function turn(
 
   let result: Expr | undefined;
   let failed: string | undefined;
-  let learned: LearnStep[] = [];
+  let learned: LearnStep[] = [...lookedUp];
   let rereads = 0;
 
   // A name that could be either of two people is asked about, never guessed.
