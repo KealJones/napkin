@@ -27,6 +27,7 @@ import { typesOf } from "../runtime/types.js";
 import { runs, UNIVERSAL } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
+import { MONTHS } from "../ears/lift.js";
 import type { Edit } from "../resolve/readings.js";
 import { akin, called, holdsFacts, sensesOf, STRUCTURAL, wordsOf, type Sense } from "./senses.js";
 
@@ -90,6 +91,33 @@ function values(words: readonly Word[]): Map<string, Item[]> {
   words.forEach((w, i) => {
     for (const s of w.senses) if (s.type === "value") put({ i, j: i + 1, expr: s.value, said: s.value, score: 0, binds: Infinity });
   });
+  // A date: a month and a day beside it, either way round, and maybe a year ("june 3", "3rd of june",
+  // "june 3, 1990"). The month is told by the month's number its word carries.
+  const monthAt = (k: number): number | undefined => {
+    const g = words[k]?.senses.find((s) => s.type === "glue" && /^Month\d+$/.test(s.head));
+    return g && g.type === "glue" ? Number(g.head.slice(5)) : undefined;
+  };
+  const numberAt = (k: number): number | undefined => {
+    const v = words[k]?.senses.find((s) => s.type === "value");
+    return v && v.type === "value" && typeof v.value === "number" && Number.isInteger(v.value) ? v.value : undefined;
+  };
+  for (let i = 0; i < words.length; i++) {
+    const found: { month: number; day: number; end: number }[] = [];
+    const m = monthAt(i);
+    const d = numberAt(i + 1);
+    if (m !== undefined && d !== undefined && d >= 1 && d <= 31) found.push({ month: m, day: d, end: i + 2 });
+    const day = numberAt(i);
+    const of = words[i + 1]?.senses.some((s) => s.type === "glue" && s.head === "Of") ? 1 : 0;
+    const m2 = monthAt(i + 1 + of);
+    if (day !== undefined && day >= 1 && day <= 31 && m2 !== undefined) found.push({ month: m2, day, end: i + 2 + of });
+    for (const f of found) {
+      const comma = words[f.end]?.text === "," ? 1 : 0;
+      const y = numberAt(f.end + comma);
+      const year = y !== undefined && y >= 1000 && y <= 2999 ? y : undefined;
+      const date = call("Date", [...(year === undefined ? [] : [{ name: "year", value: year }]), { name: "month", value: f.month }, { name: "day", value: f.day }]);
+      put({ i, j: year === undefined ? f.end : f.end + comma + 1, expr: date, said: date, score: 0.5, binds: Infinity });
+    }
+  }
   // A list: values one after another, parted by commas or "and" ("3, 5 and 10").
   const valueAt = (k: number) => words[k]?.senses.find((s) => s.type === "value");
   const parts = (k: number) => words[k] !== undefined && (words[k].text === "," || words[k].senses.some((s) => s.type === "glue" && s.head === "And"));
@@ -237,10 +265,14 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
   // A claim: a value, a word that says what it is ("is", "was"), another value.
   words.forEach((w, k) => {
     if (!w.senses.some((s) => s.type === "glue" && s.copula)) return;
-    for (let i = 0; i < k; i++) {
-      for (const A of items.get(`${i},${k}`) ?? []) {
-        for (let j = k + 2; j <= words.length; j++) {
-          for (const B of items.get(`${k + 1},${j}`) ?? []) {
+    // A word that only helps may stand on either side: "equal to", "the same as".
+    const helper = (x: Word | undefined) => x !== undefined && only(x, "glue") && !x.senses.some((s) => s.type === "glue" && s.copula);
+    const before = helper(words[k - 1]) ? k - 1 : k;
+    const after = helper(words[k + 1]) ? k + 2 : k + 1;
+    for (let i = 0; i < before; i++) {
+      for (const A of items.get(`${i},${before}`) ?? []) {
+        for (let j = after + 1; j <= words.length; j++) {
+          for (const B of items.get(`${after},${j}`) ?? []) {
             if (!outsideOptional(words, i, j) || (!isCall(A.expr) && !isCall(B.expr))) continue;
             out.push({
               key: format(c("Claimed", A.expr, B.expr)),
@@ -464,6 +496,36 @@ function reports(runtime: Runtime, words: readonly Word[], pointed: string | und
   }
 }
 
+/**
+ * "who is lily", "what is jaws": a question word, a word that says what something is, and one thing
+ * the graph holds facts of, nothing else. Answered with what is known of it (Describes, worded by the
+ * graph: "Lily is a doctor, older than you"). Who is speaking and who is spoken to ("who are you")
+ * are left to what describes them.
+ */
+function describes(store: ConceptStore, words: readonly Word[], question: boolean): Reading[] {
+  if (!asking(words, question)) return [];
+  const content = words.filter((w) => !optional(w));
+  if (content.length !== 1 || !words.some((w) => w.senses.some((s) => s.type === "glue" && s.copula))) return [];
+  const sense = content[0].senses.find((s) => s.type === "entity");
+  if (!sense || sense.type !== "entity" || typesOf(store, c(nameOf(content[0].text))).some((k) => k === "Deictic" || k === "Pronoun")) return [];
+  const thing = sense.head;
+  // What it is (IsA), then every fact it holds, as said: none taken back, none held only in a context.
+  const known = relationsOf(store, thing).flatMap((r) =>
+    r.context === undefined && isCall(r.claim) && r.claim.args.length && (r.claim.head === "IsA" || !STRUCTURAL.has(r.claim.head)) && !store.retracted(thing, r.claim) ? [r.claim] : [],
+  );
+  if (!known.length) return [];
+  const facts = call("List", known.map((value) => ({ value })));
+  return [{
+    key: `Describes ${thing}`,
+    features: ["read:describe"],
+    score: 5,
+    display: c("ContextScope", c("Interrogative"), c("Describe", c(thing))),
+    chosen: [],
+    notes: [`Everything known of ${thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2")}: ${known.length} fact${known.length === 1 ? "" : "s"}.`],
+    run: async () => c("Describes", c(thing), facts),
+  }];
+}
+
 /** The words as one name: "favorite color" is FavoriteColor. */
 const named = (ws: readonly Word[]) => nameOf(ws.map((w) => w.text).join(" "));
 /** A word that names a thing: a thing the graph holds, a pointing word, or a word it has no sense for yet (a name it is told). */
@@ -500,13 +562,31 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
     let claim: Expr | undefined;
     let replaces = false;
     // Whose: a possessive ("my", "tom's"), or a pointing word before what is owned ("his name": the one pointed at).
-    const owner = left[0].senses.find((s) => s.type === "owner") ?? (left.length >= 2 && pointed && left[0].senses.some((s) => s.type === "pointer") ? { type: "owner" as const, head: pointed } : undefined);
-    if (owner && left.length >= 2 && left.slice(1).every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation"))) {
-      // Whose, which: the value is a number said, or what the words after name.
-      const value = right.length === 1 ? right[0].senses.find((s) => s.type === "value") : undefined;
-      if (!value && !right.every(thingWord)) return;
+    // "the capital of france": which, "of", whose. What is before "of" names the relation, what is after it the owner.
+    const said = body.slice(0, k);
+    const ofAt = said.findIndex((x) => x.senses.some((s) => s.type === "glue" && s.head === "Of"));
+    const which = ofAt > 0 ? said.slice(0, ofAt).filter((x) => !glue(x)) : [];
+    const whose = ofAt > 0 ? said.slice(ofAt + 1).filter((x) => !glue(x)) : [];
+    const ofOwner = which.length && whose.length && which.every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation")) && whose.every(thingWord)
+      ? (() => {
+          const named1 = whose.length === 1 ? whose[0].senses.find((s) => s.type === "entity" || s.type === "owner") : undefined;
+          return { type: "owner" as const, head: named1 && (named1.type === "entity" || named1.type === "owner") ? named1.head : named(whose) };
+        })()
+      : undefined;
+    const owner = left[0].senses.find((s) => s.type === "owner") ?? (left.length >= 2 && pointed && left[0].senses.some((s) => s.type === "pointer") ? { type: "owner" as const, head: pointed } : undefined) ?? ofOwner;
+    const relationWords = owner === ofOwner && ofOwner ? which : left.slice(1);
+    if (owner && relationWords.length >= 1 && (owner === ofOwner || left.length >= 2) && relationWords.every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation"))) {
+      // Whose, which: the value is a number or a date said, or what the words after name.
+      // Past the words at its edges that only help say it ("the 12th of may").
+      let a = 0;
+      let b = rightAll.length;
+      const edge = (w: Word) => glue(w) && !w.senses.some((x) => x.type === "glue" && /^Month\d+$/.test(x.head));
+      while (a < b && edge(rightAll[a])) a++;
+      while (b > a && edge(rightAll[b - 1])) b--;
+      const spanning = values(rightAll.slice(a, b)).get(`0,${b - a}`)?.find((v) => !isCall(v.expr) || v.expr.head === "Date");
+      if (!spanning && !right.every(thingWord)) return;
       subject = owner.head;
-      claim = c(named(left.slice(1)), value && value.type === "value" ? value.value : c(named(right)));
+      claim = c(named(relationWords), spanning ? spanning.expr : c(named(right)));
       replaces = true;
     } else if (left.length === 1 && thingWord(left[0])) {
       const said = left[0].senses.find((s) => s.type === "entity" || s.type === "pointer");
@@ -579,7 +659,7 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
     // "what's", "he's": the word and "is", where the word asks or points (the graph says which).
     .replace(/\b([A-Za-z]+)'s\b/g, (all, w: string) => (typesOf(store, c(nameOf(w))).some((k) => k === "Interrogative" || k === "Pointing") ? `${w} is` : all));
-  return { tokens: text.match(/\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/g) ?? [], question };
+  return { tokens: text.match(/\d+(?:st|nd|rd|th)\b|\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/gi) ?? [], question };
 }
 
 /** Two or three words that are one name the graph holds ("steven spielberg" is StevenSpielberg). */
@@ -715,6 +795,7 @@ function inWords(e: Expr): string {
   if (e.head === "Asked" && a !== undefined && b !== undefined && isCall(a)) return `the ${readableName(a.head)} of ${inWords(b)}`;
   if (e.head === "Statement" && a !== undefined && b !== undefined) return `that ${inWords(a).toLowerCase()} is ${inWords(b).toLowerCase()}`;
   if (!e.args.length) return e.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  if (e.head === "Date") return e.args.map((x) => `${x.name ?? ""} ${format(x.value)}`.trim()).join(", ");
   if (e.args.length === 2 && a !== undefined && b !== undefined) return `${inWords(a)} ${readableName(e.head)} ${inWords(b)}`;
   if (e.args.length === 1 && a !== undefined) return `the ${readableName(e.head)} of ${inWords(a)}`;
   return format(e);
@@ -779,6 +860,18 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     if (!senses.has(key)) {
       const name = nameOf(w);
       const owned = /^([A-Za-z]+)'s$/i.exec(w);
+      // "3rd": the number. "june": a month, which a day beside it makes a date (values).
+      const ordinal = /^(\d+)(?:st|nd|rd|th)$/i.exec(w);
+      if (ordinal) {
+        senses.set(key, [{ type: "value", value: Number(ordinal[1]) }]);
+        return senses.get(key)!;
+      }
+      // A month's name keeps its other senses too: "may" also asks leave.
+      const month = MONTHS[nameOf(w)];
+      if (month !== undefined) {
+        senses.set(key, [...(await sensesOf(store, w, number)), { type: "glue", head: `Month${month}`, marksFirst: false, copula: false }]);
+        return senses.get(key)!;
+      }
       // A comma parts what is said, as "and" does; it takes nothing and says nothing.
       if (w === ",") {
         senses.set(key, [{ type: "glue", head: "Comma", marksFirst: false, copula: false }]);
@@ -857,7 +950,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message)];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

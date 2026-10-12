@@ -23,6 +23,18 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
 - [x] 8. Answers you can trace (0.13.0): show which word filled which hole, and why, in the studio.
 - [x] 9. Hygiene (0.13.1; also: the studio API answers only its own page): bound `trace.jsonl` (about 300 KB a turn); file reads only under the workspace.
 
+# Frames, round two
+
+Found by running unseen prompts after round one (see the 0.14.0 commit message).
+
+- [x] 10. (0.15.0) "who is lily" answered "Stated.": frames describe a thing from its facts ("Lily is a doctor,
+  older than you") instead of the rules recall reading a frame's display as an answer.
+- [x] 11. (0.15.0) Dates as values: "my birthday is june 3", "when is my birthday".
+- [x] 12. (0.15.0) "The X of Y is Z" statements: "the capital of france is paris" keeps France Capital(Paris).
+- [x] 13. (0.15.0) "equal to", "equals", "the same as" said for "is" in claims: "is 10 times 10 equal to 100".
+- [ ] 14. Statements with other verbs: "i live in phoenix", "i ate an apple", read back by "where do
+  i live", "what did i eat"; the newest of the same relation wins.
+
 # Concept games and chess
 
 - [ ] Add reusable collection, record, geometry, and persistent-state Concepts.

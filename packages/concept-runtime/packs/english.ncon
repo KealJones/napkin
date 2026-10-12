@@ -2652,11 +2652,28 @@ Concept(Date(),
             Bind($day, Call($field, "day")),
             If(
               NotEquals(TypeOf($year), "number"),
-              Return(
-                Call(
-                  Member($api, "call"),
-                  "Date",
-                  Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+              Sequence(
+                Comment("A day of the year, said without one: \"June 3\"."),
+                If(
+                  And(Equals(TypeOf($month), "number"), Equals(TypeOf($day), "number")),
+                  Return(
+                    Call(
+                      Member(
+                        New($Date, Call(Member($Date, "UTC"), 2000, Subtract($month, 1), $day)),
+                        "toLocaleDateString"
+                      ),
+                      "en-US",
+                      Object(month = "long", day = "numeric", timeZone = "UTC")
+                    )
+                  ),
+                  Undefined()
+                ),
+                Return(
+                  Call(
+                    Member($api, "call"),
+                    "Date",
+                    Spread(Map($args, Lambda(List($a), Member($a, "value"))))
+                  )
                 )
               ),
               Undefined()

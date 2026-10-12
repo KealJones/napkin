@@ -238,10 +238,24 @@ test("one hole, a list, or two joined by of: square root of 144, average of 3, 5
 });
 
 test("when it does not know, it says where reading got stuck: the nearest reading, what it could not fit, the words it has nothing for", async () => {
-  const said = await talk(graph(false), ["is 10 times 10 equal to 100", "what is 2 plus 2 equals", "who is the mayor of gotham"]);
-  assert.match(said[0].spoken, /Where I got stuck: I read 10 times 10, but couldn't fit "equal" and "100" into it\. I have nothing for "equal" yet\.$/);
-  assert.match(said[1].spoken, /Where I got stuck: I read 2 plus 2, but couldn't fit "equals" into it\.$/);
-  assert.match(said[2].spoken, /Where I got stuck: I have nothing for "mayor" and "gotham" yet\.$/);
+  const said = await talk(graph(false), ["what is 10 times 10 in roman numerals", "who is the mayor of gotham"]);
+  assert.match(said[0].spoken, /Where I got stuck: I read 10 times 10, but couldn't fit "in", "roman" and "numerals" into it\. I have nothing for "roman" yet\.$/);
+  assert.match(said[1].spoken, /Where I got stuck: I have nothing for "mayor" and "gotham" yet\.$/);
   // An answer it has is said alone.
   assert.deepEqual((await talk(graph(false), ["what is 2 plus 2"])).map((s) => s.spoken), ["4."]);
+});
+
+test("round two: who is, dates, the X of Y, and other ways to say is", async () => {
+  const said = await talk(graph(false), [
+    "my sister's name is Lily", "lily is a doctor", "who is lily",
+    "my birthday is june 3rd", "when is my birthday", "remember that my anniversary is the 12th of may", "when is my anniversary",
+    "the capital of france is paris", "what is the capital of france",
+    "is 10 times 10 equal to 100", "2 plus 2 equals 5", "is 3 times 3 the same as 9",
+  ]);
+  assert.deepEqual(said.map((s) => s.spoken), [
+    "Got it.", "Got it.", "Lily is a doctor.",
+    "Got it.", "June 3", "Got it, I'll remember that.", "May 12",
+    "Got it.", "Paris.",
+    "Yes, that's 100.", "It's actually 4, not 5.", "Yes, that's 9.",
+  ]);
 });

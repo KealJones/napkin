@@ -48,7 +48,13 @@ said of before it and what is said after, every other word accounted for:
 | "my name is Sam", "tom's age is 30" | `Me Name(Sam())`, `Tom Age(30)`: whose (`Possessive` that `Refers`, or a name's 's) and which | "what is my name", "what is tom's age" |
 | "jaws is a film" | `Jaws IsA(Film())` | "is jaws a film" |
 | "tom is taller than ann" | `Tom TallerThan(Ann())`: the tagger's `Comparative`, then "than" | "who is taller than ann", "is tom taller than ann" |
+| "the capital of france is paris" | `France Capital(Paris())`: which, "of", whose | "what is the capital of france" |
+| "my birthday is june 3rd", "... the 12th of may" | `Me Birthday(Date(month=6, day=3))`: a month beside a day (and maybe a year) is a date | "when is my birthday" ("June 3") |
 | "remember that ..." | the statement, by a word that `Takes(Statement())` | as above |
+
+"who is lily" describes what is known of a thing (`Describes`, worded by the graph: "Lily is a
+doctor, older than you"). A word that `SaysSame` ("equal", "equals", "same") reads as "is" in a
+claim, with a helper word beside it ("equal to", "the same as").
 
 What is said again of whose and which retracts what was said of it before (`Retracts`), so "my name
 is Bob" replaces Sam and Sam stays as history. A statement is never read from a respelled real word

@@ -57,6 +57,16 @@ Concept(Frames(), IsA(Category()))
 // for (unknown=List(...)).
 Concept(Stuck(), IsA(Result()))
 
+// Words that say two things are the same, as "is" does in a claim: "is 10 times 10 equal to 100",
+// "2 plus 2 equals 4", "is 3 times 3 the same as 9".
+Concept(SaysSame(), IsA(Relation()))
+
+Concept(Equal(), SaysSame())
+
+Concept(Equals(), SaysSame())
+
+Concept(Same(), SaysSame())
+
 // "Do you mean Acme (ran company) or Boston (ran marathon)?": each reading by what it would answer,
 // and what it is about where it says.
 Concept(ChooseOne(),

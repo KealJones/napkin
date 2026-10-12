@@ -38,7 +38,7 @@ export type Sense =
 export const STRUCTURAL = new Set([
   "IsA", "SubclassOf", "SynonymOf", "HeardAs", "Named", "Called", "SameAs", "WrittenAs", "NotWrittenAs", "ReadBeside",
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
-  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled",
+  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled", "SaysSame",
 ]);
 /** Kinds of word that only help say the others: they fill no hole and need none filled. */
 const GLUE = ["Helper", "Determiner", "Preposition", "Conjunction"];
@@ -194,6 +194,10 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
       if (kinds.includes("Possessive")) out.push({ type: "owner", head: refers.head });
       else if (kinds.includes("Pronoun") || kinds.includes("Deictic")) out.push({ type: "entity", head: refers.head });
     }
+    // A word that says two things are the same ("equal", "equals") reads as "is" does.
+    if (relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "SaysSame") && !out.some((x) => x.type === "glue" && x.copula)) {
+      out.push({ type: "glue", head, marksFirst: false, copula: true });
+    }
     const takes = claimed(store, head, "Takes").find((x) => isCall(x));
     if (takes !== undefined && isCall(takes)) out.push({ type: "takes", head, what: takes.head, reports: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "Reports") });
     if (GLUE.some((g) => kinds.includes(g))) {
@@ -203,7 +207,8 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     // it takes (typed holes): "over" divides; "is" does not compute what it joins.
     const helps = GLUE.some((g) => kinds.includes(g));
     out.push(...operations(store, head).filter((o) => !helps || (o.type === "op" && o.holes.every((h) => h !== "Concept"))));
-    if (holdsFacts(store, head)) out.push({ type: "entity", head });
+    // A word that only helps say the others ("as", "of") is not a thing, whatever facts its Concept holds.
+    if (holdsFacts(store, head) && !GLUE.some((g) => kinds.includes(g))) out.push({ type: "entity", head });
   }
   const at = index(store);
   // A word that only helps say the others ("did") names no relation or kind, whatever its base form shares.

@@ -56,3 +56,13 @@ Concept(Frames(), IsA(Category()))
 // (near="10 times 10"), the words it could not fit (left=List(...)), and the words it has nothing
 // for (unknown=List(...)).
 Concept(Stuck(), IsA(Result()))
+
+// Words that say two things are the same, as "is" does in a claim: "is 10 times 10 equal to 100",
+// "2 plus 2 equals 4", "is 3 times 3 the same as 9".
+Concept(SaysSame(), IsA(Relation()))
+
+Concept(Equal(), SaysSame())
+
+Concept(Equals(), SaysSame())
+
+Concept(Same(), SaysSame())
