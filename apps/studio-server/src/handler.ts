@@ -334,6 +334,9 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
           gaps: result.gaps,
           learned: result.learned,
           ambiguities: result.ambiguities,
+          // Why the frames read it as they did, when they did (word senses, holes, what else was weighed).
+          why: result.why ?? [],
+          hearing: result.hearingUsed ?? "rules",
           // The outside sources the answer rests on, as links (Wikidata, Wiktionary ...).
           sources: sourcesOf(store, result.result, result.expression),
           events,

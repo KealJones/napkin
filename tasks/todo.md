@@ -20,7 +20,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
   `ReadBeside` sense choice, instead of falling back to `Hear()`.
 - [x] 7. More computation senses (0.12.0): one-hole and list holes ("square root of", "average of",
   "percent of").
-- [ ] 8. Answers you can trace: show which word filled which hole, and why, in the studio.
+- [x] 8. Answers you can trace (0.13.0): show which word filled which hole, and why, in the studio.
 - [ ] 9. Hygiene: bound `trace.jsonl` (about 300 KB a turn); file reads only under the workspace.
 
 # Concept games and chess

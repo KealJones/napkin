@@ -110,6 +110,16 @@ sense each word took (`sense:born=DateOfBirth`), which operation a word stood fo
   an `Agreement` or `Thanking` ("yes", "ok", "thanks") confirms them; a `Refusal` ("no", "nope")
   corrects them.
 
+## Why, shown
+
+Every frames reading says why, in plain words (`explain`): each word read as another, the sense a
+word took and what else it could have been, how the other words were used ("year" named a part
+only date of birth has; "movies" kept only films), what each operation or relation took into its
+holes, what feedback weighed for it, and the next best reading with both scores. It is `why` on the
+turn, shown by `napkin` and in the studio as "Why this reading" beside the input expression. A
+conversation reloaded right after a turn keeps the live panel (its trace and why), which the stored
+turn does not carry.
+
 ## What it learns
 
 - The sense taken for a word with more than one is kept on the relation with the words beside it:

@@ -39,6 +39,8 @@ export interface Framed {
   readonly edits: Edit[];
   /** Each word that had more than one sense, and the one taken. */
   readonly chosen: { word: string; sense: string }[];
+  /** Why this reading, in plain words: what each word was taken as, what filled each hole, what else was weighed. */
+  readonly why?: string[];
 }
 
 interface Word {
@@ -176,6 +178,8 @@ interface Reading {
   readonly features: readonly string[];
   /** What it is about, said when asking which reading was meant: the relation asked. */
   readonly says?: Expr;
+  /** How it used the words beside its own, in plain words, for `explain`. */
+  readonly notes?: readonly string[];
   readonly display: Expr;
   readonly run: () => Promise<Expr | undefined>;
   readonly chosen: { word: string; sense: string }[];
@@ -307,6 +311,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         // "is tom taller than ann": the other thing named, said after the relation, is among the answers: yes.
         let yes = false;
         const used: string[] = [];
+        const notes: string[] = [];
         words.forEach((w, k) => {
           if (k === thing.k || k === rel.k || optional(w)) return;
           // "my dog's": an owner word that says whose the thing named next is.
@@ -316,6 +321,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           if (other && direction === "of" && thing.k < rel.k && k > rel.k) {
             yes = true;
             score += 2;
+            notes.push(`"${w.text}" is among the answers: yes.`);
             return void used.push(w.text);
           }
           // Another word for the same relation ("directed ... direct") says nothing more.
@@ -327,6 +333,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           if (ofKind.length) {
             answers = ofKind;
             score += 2;
+            notes.push(`"${w.text}" kept only answers of that kind.`);
             return void used.push(w.text);
           }
           // A word naming a part of the value: that part is the answer ("year" of a date).
@@ -335,6 +342,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           if (parted && answers.length) {
             part = answers[0] && isCall(answers[0]) ? answers[0].args.find((x) => x.name !== undefined && akin(x.name, lower))?.name : undefined;
             score += 2;
+            notes.push(`"${w.text}" named a part of the answer, which only ${readableName(rel.head)} has.`);
             return void used.push(w.text);
           }
           unused += 1;
@@ -360,6 +368,10 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           key: format(answer),
           features: ["read:fact", `sense:${relWord}=${rel.head}${rel.inverse ? "~" : ""}`],
           says: c(rel.head),
+          notes: [
+            ...notes,
+            ...(senses > 1 ? [`"${relWord}" could also have been ${words[rel.k].senses.flatMap((x) => (x.type === "relation" && x.head !== rel.head ? [readableName(x.head)] : [])).join(" or ")}.`] : []),
+          ],
           score,
           display: c("ContextScope", c("Interrogative"), part ? call("Asked", [{ value: asked }, { name: "part", value: part }]) : c("Asked", asked)),
           chosen: senses > 1 ? [{ word: relWord, sense: rel.head }] : [],
@@ -607,6 +619,52 @@ export function lastRead(store: ConceptStore, message: string): string[] {
 
 const features = (reading: Reading, edits: readonly Edit[]) => [...reading.features, ...edits.map((e) => `spell:${e.typed}=${e.meant}`)];
 
+const readableName = (head: string) => head.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+
+/**
+ * Why a reading was taken, in plain words: each word read as another, the sense each word took,
+ * what each operation or relation took into its holes, what feedback weighed for it, and the next
+ * best reading with its score. What the studio shows beside the answer (design/frames.md).
+ */
+function explain(store: ConceptStore, reading: Reading, edits: readonly Edit[], score: number, next?: { reading: Reading; score: number }): string[] {
+  const out: string[] = [];
+  for (const e of edits) out.push(`"${e.typed}" read as "${e.meant}" (${e.kind === "learned" ? "as taught before" : e.kind === "join" ? "two words typed as one" : e.kind === "split" ? "one word typed as two" : "a slip"}).`);
+  for (const f of reading.features) {
+    const sense = /^sense:(.+)=(\w+)(~?)$/.exec(f);
+    if (sense) out.push(`"${sense[1]}" taken as ${readableName(sense[2])}${sense[3] ? ", read from its other end" : ""}.`);
+  }
+  out.push(...(reading.notes ?? []));
+  const body = isCall(reading.display) && reading.display.head === "ContextScope" ? reading.display.args[1].value : reading.display;
+  // A thing by its name as words ("Steven Spielberg"); anything else as Concepts.
+  const say = (e: Expr | undefined): string => (e !== undefined && isCall(e) && !e.args.length ? e.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2") : format(e ?? null));
+  const holes = (e: Expr) => {
+    for (const n of walk(e)) if (isCall(n) && n.args.length && !["Value", "Asked", "Stated", "Claimed", "Reported", "List", "Choose", "Picked", "Unfilled"].includes(n.head)) out.push(`${readableName(n.head)} took ${n.args.map((a) => say(a.value)).join(" and ")}.`);
+  };
+  if (isCall(body)) {
+    const arg = (i: number) => body.args[i]?.value;
+    if (body.head === "Value") holes(arg(0) ?? null);
+    else if (body.head === "Claimed") {
+      holes(body);
+      out.push(`A claim that ${say(arg(0))} is ${say(arg(1))}: worked out and compared.`);
+    } else if (body.head === "Asked") {
+      const asked = arg(0);
+      const part = body.args.find((a) => a.name === "part")?.value;
+      if (isCall(asked ?? null) && asked !== undefined && isCall(asked)) {
+        const [a, b] = asked.args.map((x) => x.value);
+        const thing = isCall(a) && a.head !== "What" ? a : b;
+        out.push(`Asked the ${readableName(asked.head)} of ${say(thing)}${isCall(a) && a.head === "What" ? ", read backwards: what holds it" : ""}${typeof part === "string" ? `, and its ${part}` : ""}.`);
+      }
+    } else if (body.head === "Stated") out.push(`Kept as a fact of ${say(arg(0))}: ${format(arg(1) ?? null)}.`);
+    else if (body.head === "Reported") out.push(`Said by ${say(arg(0))}, read as its own statement, and kept as nothing true.`);
+    else if (body.head === "Unfilled") out.push(`${format(arg(0) ?? null)} has a hole nothing filled: asked for.`);
+  }
+  const learned = features(reading, edits).reduce((sum, f) => sum + weight(store, f), 0);
+  if (learned) out.push(`What earlier answers taught weighs ${learned > 0 ? "+" : ""}${learned.toFixed(2)} for it.`);
+  if (next) out.push(`Next best: ${format(isCall(next.reading.display) && next.reading.display.head === "ContextScope" ? next.reading.display.args[1].value : next.reading.display)} (${next.score.toFixed(2)} against ${score.toFixed(2)}).`);
+  else out.push("Nothing else read the words whole.");
+  return out;
+}
+
 let namesAt = -1;
 
 export interface FrameOptions {
@@ -771,10 +829,10 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     const clear = top !== undefined && (next === undefined || top.score - next.score >= MARGIN);
     // Close, both only answering (neither tells the graph anything): asked about.
     const close = !clear && top && next && !top.reading.writes && !next.reading.writes ? ranked.filter((r) => top.score - r.score < MARGIN).slice(0, 3) : undefined;
-    return { best: clear ? top : undefined, close, asTyped };
+    return { best: clear ? top : undefined, next: clear ? next : undefined, close, asTyped };
   };
 
-  let { best, close, asTyped } = await choose();
+  let { best, next, close, asTyped } = await choose();
   const looked: Looked[] = [];
   // Learn while reading. A question that no reading accounts for looks up, in turn: the things it
   // names that the graph knows only by name (no facts of their own), then the words it holds
@@ -800,7 +858,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       }
       if (!found) continue;
       senses = new Map();
-      ({ best, close, asTyped } = await choose());
+      ({ best, next, close, asTyped } = await choose());
       if (best || left <= 0) break;
     }
   }
@@ -825,6 +883,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
           text: `${l.text} and ${r.text}`,
           edits: [...l.edits, ...r.edits],
           chosen: [...l.chosen, ...r.chosen],
+          why: [`Split at "and": each part read whole on its own.`, ...(l.why ?? []), ...(r.why ?? [])],
         },
         looked,
       };
@@ -842,7 +901,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     }
     if (offered.length > 1 && new Set(offered.map(format)).size === offered.length) {
       const result = call("ChooseOne", offered.map((value) => ({ value })));
-      return { framed: { display: c("ContextScope", c("Interrogative"), c("Choose", ...close.map((r) => (isCall(r.reading.display) && r.reading.display.head === "ContextScope" ? r.reading.display.args[1].value : r.reading.display)))), result, text: close[0].text, edits: [], chosen: [] }, looked };
+      const why = [`${close.length} readings fit nearly as well (${close.map((r) => r.score.toFixed(2)).join(", ")}), so which was meant is asked, not guessed.`, ...close.flatMap((r) => r.reading.notes ?? [])];
+      return { framed: { why, display: c("ContextScope", c("Interrogative"), c("Choose", ...close.map((r) => (isCall(r.reading.display) && r.reading.display.head === "ContextScope" ? r.reading.display.args[1].value : r.reading.display)))), result, text: close[0].text, edits: [], chosen: [] }, looked };
     }
   }
   if (!best) return { looked };
@@ -852,7 +912,11 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   best.reading.learn?.();
   // How it was read, so "yes" or "no, ..." after it can confirm or correct those choices.
   if (!options.part) store.addRelation(FRAMES, c("LastRead", message, call("List", features(best.reading, best.row.edits).map((f) => ({ value: f })))), undefined, runtime.trace.cause);
-  return { framed: { display: best.reading.display, result, text: best.text, edits: best.row.edits, chosen: best.reading.chosen }, looked };
+  const why = [
+    ...looked.map((l) => `${l.identity} ${l.learned ? "was looked up and kept" : "was looked up and not found"}.`),
+    ...explain(store, best.reading, best.row.edits, best.score, next),
+  ];
+  return { framed: { display: best.reading.display, result, text: best.text, edits: best.row.edits, chosen: best.reading.chosen, why }, looked };
 }
 
 /**

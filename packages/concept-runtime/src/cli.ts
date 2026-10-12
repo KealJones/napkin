@@ -316,6 +316,7 @@ if (expr) {
   if (t.gaps.length)
     show("gaps — the learning queue", t.gaps.map((g) => `${g.kind}: ${g.expression}`).join("\n"));
   if (t.ambiguities.length) show("ambiguities", t.ambiguities.join("\n"));
+  if (t.why?.length) show("why", t.why.join("\n"));
   conversations.record(conversationId, {
     message,
     ...(t.expression === undefined ? {} : { parsed: t.expression }),

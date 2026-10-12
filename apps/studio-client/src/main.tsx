@@ -62,6 +62,10 @@ type Activity = {
   problems: string[];
   rejected: { line: string; reason: string }[];
   events: TraceEvent[];
+  /** Why the frames read the message as they did; empty when the rules hearing read it. */
+  why?: string[] | undefined;
+  /** Which hearing read it: "frames" or "rules". */
+  hearing?: string | undefined;
 };
 type Source = { label: string; url: string };
 type ChatMessage = {
@@ -231,6 +235,20 @@ async function clearGraph(): Promise<void> {
 
 function conversationTitle(summary: ConversationSummary): string {
   return summary.lastMessage?.trim() || "New conversation";
+}
+
+/**
+ * The turns as stored, with each user message's live activity kept where the same message, in the
+ * same place, is already shown: the stored turn has no trace and no "why".
+ */
+function keepLive(current: ChatMessage[], stored: ChatMessage[]): ChatMessage[] {
+  const live = current.filter((m) => m.role === "User");
+  let at = 0;
+  return stored.map((m) => {
+    if (m.role !== "User") return m;
+    const seen = live[at++];
+    return seen && seen.content === m.content && seen.activity ? { ...m, activity: { ...seen.activity, expanded: m.activity?.expanded ?? false } } : m;
+  });
 }
 
 function activityFromConversation(unit: ConversationUnit): ChatMessage[] {
@@ -472,7 +490,9 @@ function App() {
         summary: ConversationSummary;
       }>(`/api/conversations/${encodeURIComponent(id)}`);
       setConversationId(id);
-      setMessages(activityFromConversation(data.unit));
+      // What was watched live (the trace, why it was read so) is not stored with a turn: a turn
+      // reloaded right after it was watched keeps what was seen.
+      setMessages((current) => keepLive(current, activityFromConversation(data.unit)));
       setTitle(
         data.summary ? conversationTitle(data.summary) : data.unit.identity,
       );
@@ -690,6 +710,8 @@ function App() {
             events: Array.isArray(event.events)
               ? (event.events as TraceEvent[])
               : item.events,
+            why: Array.isArray(event.why) ? (event.why as string[]) : item.why,
+            hearing: typeof event.hearing === "string" ? event.hearing : item.hearing,
           }));
           setMessages((previous) => [
             ...previous,
@@ -1357,6 +1379,18 @@ function ActivityPanel({ activity }: { activity: Activity }) {
             )}
           </div>
         </details>
+        {activity.why?.length ? (
+          <details className="activity-step" open>
+            <summary>Why this reading · {activity.hearing === "frames" ? "read by senses and holes" : "read by the rules"}</summary>
+            <div className="activity-step-body">
+              <ul className="why-list">
+                {activity.why.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        ) : null}
         <details className="activity-step">
           <summary>Answer Concept expression</summary>
           <div className="activity-step-body">

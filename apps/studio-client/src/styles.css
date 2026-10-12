@@ -1721,3 +1721,13 @@ details > summary { cursor: pointer; }
   color: var(--red);
   border-color: var(--red);
 }
+
+/* Why the frames read a message as they did: one plain sentence a line. */
+.why-list {
+  margin: 0;
+  padding-left: 1.1em;
+  line-height: 1.5;
+}
+.why-list li + li {
+  margin-top: 0.25em;
+}

@@ -48,6 +48,8 @@ export interface Gap {
 export interface TurnResult {
   /** Which hearing read the message. */
   hearingUsed?: "frames" | "rules";
+  /** Why the frames read it as they did, in plain words (frame/frames.ts explain). */
+  why?: string[];
   readonly heard: EarsResult;
   /** The reading, as an expression, which is what memory records (memory-spec Part 5.2). */
   readonly expression: Expr | undefined;
@@ -694,6 +696,7 @@ export async function turn(
         rereads: 0,
         failed: undefined,
         hearingUsed: "frames",
+        why: framed.why ?? [],
       };
     }
   }
