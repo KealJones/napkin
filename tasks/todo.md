@@ -35,6 +35,20 @@ Found by running unseen prompts after round one (see the 0.14.0 commit message).
 - [x] 14. (0.16.0) Statements with other verbs: "i live in phoenix", "i ate an apple", read back by "where do
   i live", "what did i eat"; the newest of the same relation wins.
 
+# Frames, round three
+
+Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses, 1 wrong).
+
+- [ ] 15. "what did i say my name was" answered "Dog." (the rules recall): a question about what was
+  said should read the conversation's kept facts, and never answer with an unrelated thing.
+- [ ] 16. Postfix operations: "3 squared", "5 cubed".
+- [ ] 17. A number said of a person ("tom is 30") kept as what it most likely is, asked when unclear
+  ("is 30 tom's age?"), read back by "how old is tom".
+- [ ] 18. "was born in 1990" and other passives: "born" to the relation it is Called by, the year as
+  a date; "when was i born".
+- [ ] 19. Reminders and tasks ("remember to buy milk", "what do i need to buy"): a doing to do, kept
+  as a task, not a fact.
+
 # Concept games and chess
 
 - [ ] Add reusable collection, record, geometry, and persistent-state Concepts.
