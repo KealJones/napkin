@@ -44,6 +44,111 @@ Concept(Think(), Takes(Statement()), Reports())
 // A statement someone reported, as they said it.
 Concept(Reported(), IsA(Result()))
 
+// "Do you mean A or B?": readings too close to choose between, each by what it would answer
+// (Option(value, says=, features=)). The reply picks one, and its choices are confirmed.
+Concept(ChooseOne(), IsA(Result()))
+
+// Feedback on how messages were read, on Frames: Confirmed(feature), Corrected(feature), and the
+// choices the last one was read with (LastRead). Weights are their stamps (src/frame/frames.ts).
+Concept(Frames(), IsA(Category()))
+
+// "Do you mean Acme (ran company) or Boston (ran marathon)?": each reading by what it would answer,
+// and what it is about where it says.
+Concept(ChooseOne(),
+  Realization(ChooseOne(Rest($options)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($sayOf,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Say", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        Equals(TypeOf($r), "string"),
+                        Call(Member($r, "replace"), Regex("[.!?]+$", ""), ""),
+                        Call($String, $e)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($readable,
+              Lambda(List($head),
+                Call(
+                  Member(
+                    Call(
+                      Member($head, "replace"),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                )
+              )
+            ),
+            Bind($parts, List()),
+            ForOf(
+              $a,
+              $args,
+              Sequence(
+                Bind($o, Member($a, "value")),
+                If(
+                  Or(Or(Not($o), Not(Member($o, "args"))), Not(Length(Member($o, "args")))),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($says,
+                  Call(Member(Member($o, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), "says")))
+                ),
+                Bind($what, Await(Call($sayOf, Member(Index(Member($o, "args"), 0), "value")))),
+                Call(
+                  Member($parts, "push"),
+                  If(
+                    And(And($says, Member($says, "value")), Member(Member($says, "value"), "head")),
+                    Add(Add(Add($what, " ("), Call($readable, Member(Member($says, "value"), "head"))), ")"),
+                    $what
+                  )
+                )
+              )
+            ),
+            If(
+              LessThan(Length($parts), 2),
+              Return("Which do you mean?"),
+              Undefined()
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add("Do you mean ", Call(Member(Call(Member($parts, "slice"), 0, Negate(1)), "join"), ", ")),
+                    " or "
+                  ),
+                  Index($parts, Subtract(Length($parts), 1))
+                ),
+                "?"
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // "Got it, I'll remember that."
 Concept(Remembered(),
   Realization(Remembered(Rest($x)),

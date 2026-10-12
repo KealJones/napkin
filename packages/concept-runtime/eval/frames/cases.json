@@ -51,6 +51,22 @@
     [
       "Director",
       "Called(Directed(By()))"
+    ],
+    [
+      "Ada",
+      "RanCompany(Acme())"
+    ],
+    [
+      "Ada",
+      "RanMarathon(Boston())"
+    ],
+    [
+      "RanCompany",
+      "Called(Ran())"
+    ],
+    [
+      "RanMarathon",
+      "Called(Ran())"
     ]
   ],
   "cases": [
@@ -467,6 +483,19 @@
       ],
       "expect": [
         "42"
+      ]
+    },
+    {
+      "group": "asking",
+      "say": [
+        "what did ada run",
+        "the company",
+        "what did ada run"
+      ],
+      "expect": [
+        "Do you mean",
+        "Acme",
+        "Acme"
       ]
     }
   ]

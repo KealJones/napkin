@@ -89,6 +89,22 @@ and a word for them reads the relation from its other end: "who is boris's child
 Father(Boris). A word that only helps say the others ("did") takes no relation sense by its base
 form. An alias hearing cannot take as one thing ("directed by") is kept as the name its words make.
 
+## Asking, and learning from the answer
+
+Every reading carries its choices as named features: what kind of reading it is (`read:fact`), which
+sense each word took (`sense:born=DateOfBirth`), which operation a word stood for
+(`op:times=Multiply`), which slip was read as which word (`spell:pluss=plus`). Feedback is kept on
+`Frames` as stamps, `Confirmed(feature)` and `Corrected(feature)`, and a feature's weight is
+0.5 × (ln(1 + confirmed) − ln(1 + corrected)), added to every reading made with it.
+
+- Readings that mean different things and score within 0.5 of each other, none of them telling the
+  graph anything, are asked about: "Do you mean Acme (ran company) or Boston (ran marathon)?". The
+  reply's words pick one ("the company"); its features are confirmed and the others' corrected, so
+  the same question is answered without asking the next time.
+- After a message the frames read (its choices are kept as `LastRead`), a reply whose first word is
+  an `Agreement` or `Thanking` ("yes", "ok", "thanks") confirms them; a `Refusal` ("no", "nope")
+  corrects them.
+
 ## What it learns
 
 - The sense taken for a word with more than one is kept on the relation with the words beside it:
@@ -101,5 +117,5 @@ form. An alias hearing cannot take as one thing ("directed by") is kept as the n
 - Statements with other verbs ("i live in phoenix", "i ate an apple"), commands beyond arithmetic
   and "remember", multi-sentence messages: all still `Hear()`.
 - "No": "is ann taller than tom" stays unknown until a relation can say it runs one way.
-- Weights are set by hand; only `ReadBeside` and `WrittenAs` are learned.
+- The costs and bonuses inside each reading are still set by hand; feedback weighs on top of them.
 - Statements about something not yet known are not looked up here (only questions are).

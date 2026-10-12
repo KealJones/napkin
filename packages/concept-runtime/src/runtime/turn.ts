@@ -13,7 +13,7 @@ import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/h
 import { keepReading } from "../resolve/learned.js";
 import { reread } from "../resolve/reread.js";
 import { askGraph } from "../resolve/asked.js";
-import { frames, type FrameRead } from "../frame/frames.js";
+import { feedback, frames, lastRead, pickOption, reaction, type FrameRead, type Framed } from "../frame/frames.js";
 import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
@@ -574,6 +574,13 @@ export async function turn(
   // was not the one meant. The word's senses are looked up again for the one those words fit,
   // and what was asked before is asked again.
   const last = options.history?.[options.history.length - 1];
+  // "yes", "thanks" after a message read by the frames confirm the choices it was read with; "no",
+  // "nope" correct them, so they weigh for or against the same choices next time.
+  const reacted = last && options.hearing !== "rules" ? reaction(runtime.store, message) : undefined;
+  if (reacted && last) {
+    const read = lastRead(runtime.store, last.message);
+    if (read.length) feedback(runtime.store, read, reacted === "agree", runtime.trace.cause);
+  }
   const meant = /^\s*(?:no+|nope|not (?:that|it))?[\s,.!]*(?:i|we)\s+(?:mean|meant)\s+(?:the\s+|a\s+|an\s+)?(.+?)[.!?]*$/i.exec(message);
   let correcting: string | undefined;
   if (meant && last?.result?.startsWith("Describes(")) {
@@ -655,9 +662,15 @@ export async function turn(
     // Learning on, a question with words the graph holds nothing of looks them up while it is
     // read (frame/frames.ts), and what is found is kept like anything else learned.
     const lookup = options.learn === false ? undefined : async (identity: string, said: string) => (await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, ...(options.fetch ? { fetch: options.fetch } : {}) })) !== undefined;
-    const read: FrameRead = await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
+    // The reply to "do you mean A or B?" picks one: its choices are confirmed, the others' corrected.
+    const picked = last?.result?.startsWith("ChooseOne(") ? pickOption(runtime.store, last.result, message) : undefined;
+    if (picked) {
+      feedback(runtime.store, picked.features, true, runtime.trace.cause);
+      for (const other of picked.others) feedback(runtime.store, other, false, runtime.trace.cause);
+    }
+    const read: FrameRead = picked ? { looked: [] } : await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
     lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "wikidata" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
-    const framed = read.framed;
+    const framed: Framed | undefined = picked ? picked.framed : read.framed;
     if (framed) {
       const result = framed.result;
       if (options.keepReadings ?? options.learn !== false) for (const e of framed.edits) keepReading(runtime.store, e.typed, e.meant);

@@ -43,3 +43,11 @@ Concept(Think(), Takes(Statement()), Reports())
 
 // A statement someone reported, as they said it.
 Concept(Reported(), IsA(Result()))
+
+// "Do you mean A or B?": readings too close to choose between, each by what it would answer
+// (Option(value, says=, features=)). The reply picks one, and its choices are confirmed.
+Concept(ChooseOne(), IsA(Result()))
+
+// Feedback on how messages were read, on Frames: Confirmed(feature), Corrected(feature), and the
+// choices the last one was read with (LastRead). Weights are their stamps (src/frame/frames.ts).
+Concept(Frames(), IsA(Category()))

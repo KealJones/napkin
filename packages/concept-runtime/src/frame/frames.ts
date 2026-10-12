@@ -51,6 +51,8 @@ interface Item {
   readonly j: number;
   /** What runs: the Concepts the words stand for. */
   readonly expr: Expr;
+  /** The operations it was built with, each as which word took which Concept: features to learn by. */
+  readonly ops?: readonly string[];
   /** The words as said: the Concepts the words are. */
   readonly said: Expr;
   readonly score: number;
@@ -61,6 +63,8 @@ interface Item {
 /** What it costs to read a word as another: by the share of it changed, less how much more common the other is. */
 const COST = 3;
 const SPACE = 0.5;
+/** What the best reading must beat the next by, to be taken without asking. */
+const MARGIN = 0.5;
 const BESIDE = 0.4;
 const REAL = 1;
 /** Most readings of the row tried. */
@@ -103,7 +107,7 @@ function values(words: readonly Word[]): Map<string, Item[]> {
                 let penalty = 0;
                 if (L.binds < op.binds || (L.binds === op.binds && op.right)) penalty += 1;
                 if (R.binds < op.binds || (R.binds === op.binds && !op.right)) penalty += 1;
-                put({ i, j, expr: c(op.target, L.expr, R.expr), said: c(op.word, L.said, R.said), score: L.score + R.score + 2 + typedFit(op) - penalty - 0.1 * skip, binds: op.binds });
+                put({ i, j, ops: [...(L.ops ?? []), ...(R.ops ?? []), `op:${op.word}=${op.target}`], expr: c(op.target, L.expr, R.expr), said: c(op.word, L.said, R.said), score: L.score + R.score + 2 + typedFit(op) - penalty - 0.1 * skip, binds: op.binds });
               }
             }
           }
@@ -118,7 +122,7 @@ function values(words: readonly Word[]): Map<string, Item[]> {
             for (const Y of get(glue ? m + 1 : m, j)) {
               const first = glue?.type === "glue" && glue.marksFirst;
               const [a, b] = first ? [Y, X] : [X, Y];
-              put({ i, j, expr: c(op.target, a.expr, b.expr), said: c(op.word, a.said, b.said), score: X.score + Y.score + 2 + typedFit(op) - (glue ? 0.1 : 0), binds: Infinity });
+              put({ i, j, ops: [...(a.ops ?? []), ...(b.ops ?? []), `op:${op.word}=${op.target}`], expr: c(op.target, a.expr, b.expr), said: c(op.word, a.said, b.said), score: X.score + Y.score + 2 + typedFit(op) - (glue ? 0.1 : 0), binds: Infinity });
             }
           }
         }
@@ -134,6 +138,14 @@ interface Reading {
   readonly score: number;
   /** What it means, for telling two readings apart: what runs, or what is asked of the graph. */
   readonly key: string;
+  /**
+   * What choices made it, named: the kind of reading, which sense each word took, which operation
+   * each word stood for. Confirmed and corrected readings weigh these (`weight`), so what held before
+   * counts for a reading made of the same choices.
+   */
+  readonly features: readonly string[];
+  /** What it is about, said when asking which reading was meant: the relation asked. */
+  readonly says?: Expr;
   readonly display: Expr;
   readonly run: () => Promise<Expr | undefined>;
   readonly chosen: { word: string; sense: string }[];
@@ -157,6 +169,7 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
         if (outsideOptional(words, item.i, item.j) && (isCall(item.expr) || asking(words, question))) {
           out.push({
             key: format(item.expr),
+            features: ["read:value", ...(item.ops ?? [])],
             score: item.score + 2,
             display: c("ContextScope", mood, c("Value", item.said)),
             chosen: [],
@@ -180,6 +193,7 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
             if (!outsideOptional(words, i, j) || (!isCall(A.expr) && !isCall(B.expr))) continue;
             out.push({
               key: format(c("Claimed", A.expr, B.expr)),
+              features: ["read:claim", ...(A.ops ?? []), ...(B.ops ?? [])],
               score: A.score + B.score + 3,
               display: c("ContextScope", mood, c("Claimed", A.said, B.said)),
               chosen: [],
@@ -203,6 +217,7 @@ function computations(runtime: Runtime, words: readonly Word[], question: boolea
           const said = words.slice(i, k + 1).map((x) => x.text).join(" ");
           out.push({
             key: format(c("Unfilled", c(op.target, L.expr))),
+            features: ["read:unfilled", ...(L.ops ?? []), `op:${op.word}=${op.target}`],
             score: L.score + 1,
             display: c("ContextScope", mood, c("Unfilled", c(op.word, L.said), c(op.holes[1]))),
             chosen: [],
@@ -308,6 +323,8 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         const asked = direction === "of" ? c(rel.head, c(thing.head), c("What")) : c(rel.head, c("What"), c(thing.head));
         out.push({
           key: format(answer),
+          features: ["read:fact", `sense:${relWord}=${rel.head}${rel.inverse ? "~" : ""}`],
+          says: c(rel.head),
           score,
           display: c("ContextScope", c("Interrogative"), part ? call("Asked", [{ value: asked }, { name: "part", value: part }]) : c("Asked", asked)),
           chosen: senses > 1 ? [{ word: relWord, sense: rel.head }] : [],
@@ -334,7 +351,7 @@ function kindQuestions(store: ConceptStore, words: readonly Word[], pointed: str
   if (!thing || !thingWord(rest[1])) return [];
   const kind = rest[1].senses.find((s) => s.type === "kind")?.head ?? named([rest[1]]);
   if (!typesOf(store, c(thing)).slice(1).includes(kind)) return [];
-  return [{ key: "True()", score: 6, display: c("ContextScope", c("Interrogative"), c("Asked", c("IsA", c(thing), c(kind)))), chosen: [], run: async () => c("Answer", c("True")) }];
+  return [{ key: "True()", features: ["read:kind"], score: 6, display: c("ContextScope", c("Interrogative"), c("Asked", c("IsA", c(thing), c(kind)))), chosen: [], run: async () => c("Answer", c("True")) }];
 }
 
 /**
@@ -372,6 +389,7 @@ function reports(runtime: Runtime, words: readonly Word[], pointed: string | und
       const said = isCall(r.display) && r.display.head === "ContextScope" ? r.display.args[1].value : r.display;
       return {
         key: `Reported ${r.key}`,
+        features: ["read:reported", ...r.features],
         score: r.score + 1 + 0.5 * start,
         display: c("ContextScope", c("Declarative"), c("Reported", speaker, said)),
         chosen: r.chosen,
@@ -443,6 +461,7 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
     out.push({
       writes: true,
       key: format(c(holder, fact)),
+      features: ["read:statement"],
       score: 3 + 0.5 * body.length,
       display: c("ContextScope", c("Declarative"), c("Stated", c(holder), fact)),
       chosen: [],
@@ -512,6 +531,42 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
   }
   return out;
 }
+
+/** Where what the frames learned from feedback is kept: Confirmed(feature) and Corrected(feature), a stamp each time. */
+const FRAMES = "Frames";
+/** How much each confirmation or correction weighs, on a log scale: the first counts most. */
+const LEARNED = 0.5;
+
+/** The weight a feature has earned: confirmations count for it, corrections against it. */
+export function weight(store: ConceptStore, feature: string): number {
+  let confirmed = 0;
+  let corrected = 0;
+  for (const { identity, relation } of store.mentioning(feature)) {
+    if (identity !== FRAMES || !isCall(relation.claim) || relation.claim.args[0]?.value !== feature) continue;
+    if (relation.claim.head === "Confirmed") confirmed += relation.stamps?.length ?? 1;
+    if (relation.claim.head === "Corrected") corrected += relation.stamps?.length ?? 1;
+  }
+  return LEARNED * (Math.log1p(confirmed) - Math.log1p(corrected));
+}
+
+/** Keep that a reading made of these choices was right (or wrong): each feature gets a stamp. */
+export function feedback(store: ConceptStore, features: readonly string[], right: boolean, cause?: number): void {
+  for (const f of new Set(features)) store.addRelation(FRAMES, c(right ? "Confirmed" : "Corrected", f), undefined, cause);
+}
+
+/** The choices the last message read by the frames was read with, when that message was this one. */
+export function lastRead(store: ConceptStore, message: string): string[] {
+  let newest: { seq: number; features: string[] } | undefined;
+  for (const r of store.get(FRAMES)?.relations ?? []) {
+    if (!isCall(r.claim) || r.claim.head !== "LastRead" || r.claim.args[0]?.value !== message) continue;
+    const list = r.claim.args[1]?.value;
+    const seq = Math.max(...(r.stamps ?? []).map((st) => st.seq));
+    if (isCall(list) && (!newest || seq > newest.seq)) newest = { seq, features: list.args.map((a) => String(a.value)) };
+  }
+  return newest?.features ?? [];
+}
+
+const features = (reading: Reading, edits: readonly Edit[]) => [...reading.features, ...edits.map((e) => `spell:${e.typed}=${e.meant}`)];
 
 let namesAt = -1;
 
@@ -630,8 +685,9 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       for (const o of choices[i]) walkRows(i + o.span, [...words, ...o.words], cost + o.cost, o.edit ? [...edits, o.edit] : edits);
     };
     walkRows(0, [], 0, []);
-    let best: { reading: Reading; row: (typeof rows)[number]; score: number; text: string } | undefined;
-    let rival = -Infinity;
+    type Ranked = { reading: Reading; row: (typeof rows)[number]; score: number; text: string };
+    // The best reading of each meaning, so two that mean the same thing are not rivals.
+    const byMeaning = new Map<string, Ranked>();
     let asTyped: Word[] = [];
     for (const row of rows) {
       const folded = fold(store, row.words);
@@ -649,20 +705,24 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       for (const reading of readings) {
         if (reading.writes && respelled) continue;
-        const score = reading.score - row.cost;
-        if (process.env.NAPKIN_FRAMES_DEBUG) console.error(" ", score.toFixed(2), folded.join(" "), format(reading.display));
-        if (!best || score > best.score) {
-          if (best && best.reading.key !== reading.key) rival = Math.max(rival, best.score);
-          best = { reading, row, score, text: folded.join(" ") };
-        } else if (best.reading.key !== reading.key) rival = Math.max(rival, score);
+        // What the reading's choices have earned from feedback counts for or against it.
+        const learned = features(reading, row.edits).reduce((sum, f) => sum + weight(store, f), 0);
+        const score = reading.score - row.cost + learned;
+        if (process.env.NAPKIN_FRAMES_DEBUG) console.error(" ", score.toFixed(2), folded.join(" "), format(reading.display), learned ? `(learned ${learned.toFixed(2)})` : "");
+        const held = byMeaning.get(reading.key);
+        if (!held || score > held.score) byMeaning.set(reading.key, { reading, row, score, text: folded.join(" ") });
       }
     }
-    // Two readings that fit as well and say different things: not chosen between by a guess.
-    const clear = best !== undefined && (rival === -Infinity || best.score - rival >= 0.5);
-    return { best: clear ? best : undefined, asTyped };
+    const ranked = [...byMeaning.values()].sort((a, b) => b.score - a.score);
+    const [top, next] = ranked;
+    // Two readings that fit as well and say different things are not chosen between by a guess.
+    const clear = top !== undefined && (next === undefined || top.score - next.score >= MARGIN);
+    // Close, both only answering (neither tells the graph anything): asked about.
+    const close = !clear && top && next && !top.reading.writes && !next.reading.writes ? ranked.filter((r) => top.score - r.score < MARGIN).slice(0, 3) : undefined;
+    return { best: clear ? top : undefined, close, asTyped };
   };
 
-  let { best, asTyped } = await choose();
+  let { best, close, asTyped } = await choose();
   const looked: Looked[] = [];
   // Learn while reading. A question that no reading accounts for looks up, in turn: the things it
   // names that the graph knows only by name (no facts of their own), then the words it holds
@@ -688,7 +748,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       }
       if (!found) continue;
       senses = new Map();
-      ({ best, asTyped } = await choose());
+      ({ best, close, asTyped } = await choose());
       if (best || left <= 0) break;
     }
   }
@@ -718,10 +778,69 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       };
     }
   }
+  // Readings close enough that taking one would be a guess: asked, each said by what it would answer.
+  if (!best && close && close.length > 1) {
+    const offered: Expr[] = [];
+    for (const r of close) {
+      const answered = await r.reading.run();
+      if (answered === undefined) continue;
+      const value = isCall(answered) && answered.head === "Answer" ? answered.args[0]?.value : answered;
+      if (value === undefined) continue;
+      offered.push(call("Option", [{ value }, ...(r.reading.says ? [{ name: "says", value: r.reading.says }] : []), { name: "features", value: call("List", features(r.reading, r.row.edits).map((f) => ({ value: f }))) }]));
+    }
+    if (offered.length > 1 && new Set(offered.map(format)).size === offered.length) {
+      const result = call("ChooseOne", offered.map((value) => ({ value })));
+      return { framed: { display: c("ContextScope", c("Interrogative"), c("Choose", ...close.map((r) => (isCall(r.reading.display) && r.reading.display.head === "ContextScope" ? r.reading.display.args[1].value : r.reading.display)))), result, text: close[0].text, edits: [], chosen: [] }, looked };
+    }
+  }
   if (!best) return { looked };
   if (process.env.NAPKIN_FRAMES_DEBUG) console.error("best", best.score, format(best.reading.display));
   const result = await best.reading.run();
   if (result === undefined) return { looked };
   best.reading.learn?.();
+  // How it was read, so "yes" or "no, ..." after it can confirm or correct those choices.
+  if (!options.part) store.addRelation(FRAMES, c("LastRead", message, call("List", features(best.reading, best.row.edits).map((f) => ({ value: f })))), undefined, runtime.trace.cause);
   return { framed: { display: best.reading.display, result, text: best.text, edits: best.row.edits, chosen: best.reading.chosen }, looked };
+}
+
+/**
+ * The answer to "do you mean A or B?": the option the reply's words point at, by what it answers
+ * or what it is about ("the company" points at RanCompany). Undefined unless exactly one does.
+ */
+export function pickOption(store: ConceptStore, asked: string, reply: string): { value: Expr; features: string[]; others: string[][]; framed: Framed } | undefined {
+  let question: Expr;
+  try {
+    question = parse(asked);
+  } catch {
+    return undefined;
+  }
+  if (!isCall(question) || question.head !== "ChooseOne") return undefined;
+  const said = (reply.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !typesOf(store, c(nameOf(w))).some((k) => k === "Determiner" || k === "Preposition" || k === "Helper"));
+  const options = question.args.map((a) => a.value).filter(isCall).map((o) => {
+    const value = o.args[0]?.value;
+    const says = o.args.find((a) => a.name === "says")?.value;
+    const list = o.args.find((a) => a.name === "features")?.value;
+    const words = [
+      ...(value !== undefined && isCall(value) ? wordsOf(value.head) : [String(value).toLowerCase()]),
+      ...(says !== undefined && isCall(says) ? [...wordsOf(says.head), ...called(store, says.head)] : []),
+    ];
+    return { value: value as Expr, features: list !== undefined && isCall(list) ? list.args.map((a) => String(a.value)) : [], words };
+  });
+  const hit = options.filter((o) => said.some((w) => o.words.some((x) => akin(x, w))));
+  if (hit.length !== 1) return undefined;
+  const value = hit[0].value;
+  return {
+    value,
+    features: hit[0].features,
+    others: options.filter((o) => o !== hit[0]).map((o) => o.features),
+    framed: { display: c("ContextScope", c("Declarative"), c("Picked", value)), result: c("Answer", value), text: reply, edits: [], chosen: [] },
+  };
+}
+
+/** A reply that agrees ("yes", "ok", "thanks") or refuses ("no", "nope"), by the kinds the graph gives its first word. */
+export function reaction(store: ConceptStore, message: string): "agree" | "refuse" | undefined {
+  const first = (message.toLowerCase().match(/[a-z]+/) ?? [])[0];
+  if (!first) return undefined;
+  const kinds = typesOf(store, c(nameOf(first)));
+  return kinds.includes("Agreement") || kinds.includes("Thanking") ? "agree" : kinds.includes("Refusal") ? "refuse" : undefined;
 }

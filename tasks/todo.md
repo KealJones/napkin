@@ -14,9 +14,9 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
   their holes, not by a question-word check.
 - [x] 4. Inverse relation names as senses (0.10.0): import Wikidata's inverse labels so "directed" is
   Director by the graph, not by sharing five letters.
-- [ ] 5. Learned scoring: corrections and confirmed answers adjust which sense won, which hole a word
+- [x] 5. Learned scoring (0.11.0; feature weights from picks, "yes" and "no"; the hand-set costs remain as the prior): corrections and confirmed answers adjust which sense won, which hole a word
   filled, which spelling held. Weights stop being hand-set.
-- [ ] 6. Ask when two readings are close ("born when, or where?"), and keep the answer as a
+- [x] 6. Ask when two readings are close (0.11.0) ("born when, or where?"), and keep the answer as a
   `ReadBeside` sense choice, instead of falling back to `Hear()`.
 - [ ] 7. More computation senses: one-hole and list holes ("square root of", "average of",
   "percent of").

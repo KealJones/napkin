@@ -203,3 +203,22 @@ test("a relation's inverse names are its words read the other way: child asks a 
   const said = await talk(store, ["who is anna's father", "who is anna's dad", "who is boris's child", "who are boris's children", "who is boris's daughter"]);
   assert.deepEqual(said.map((s) => s.spoken), ["Boris.", "Boris.", "Anna.", "Anna.", "Anna."]);
 });
+
+test("readings too close to choose between are asked about, and the pick is learned: the same question is answered next time", async () => {
+  const store = graph(false);
+  for (const [id, rel] of [["Ada", "RanCompany(Acme())"], ["Ada", "RanMarathon(Boston())"], ["RanCompany", "Called(Ran())"], ["RanMarathon", "Called(Ran())"]] as const) store.addRelation(id, parse(rel));
+  const said = await talk(store, ["what did ada run", "the company", "what did ada run"]);
+  assert.match(said[0].spoken, /^Do you mean .*\(ran company\) or .*\(ran marathon\)\?$/i);
+  assert.deepEqual(said.slice(1).map((s) => s.spoken), ["Acme.", "Acme."]);
+  const { weight } = await import("./frames.js");
+  assert.ok(weight(store, "sense:run=RanCompany") > 0 && weight(store, "sense:run=RanMarathon") < 0);
+});
+
+test("yes after a reading confirms its choices, no corrects them", async () => {
+  const store = graph();
+  const { weight } = await import("./frames.js");
+  await talk(store, ["who directed jaws", "yes"]);
+  assert.ok(weight(store, "sense:directed=Director") > 0);
+  await talk(store, ["what year was steven spielberg born", "no"]);
+  assert.ok(weight(store, "sense:born=DateOfBirth") < 0);
+});
