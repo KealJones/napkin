@@ -14,6 +14,7 @@ import { type Call, type Expr, c, isCall, isVariable, walk } from "../concept/ex
 import type { Realization } from "../concept/unit.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma } from "../runtime/host.js";
+import { bases } from "../ears/parser/words.js";
 import { runs } from "../runtime/select.js";
 import { typesOf } from "../runtime/types.js";
 import type { ConceptStore } from "../store/store.js";
@@ -23,7 +24,8 @@ export type Sense =
   | { readonly type: "op"; readonly word: string; readonly target: string; readonly holes: readonly string[]; readonly binds: number; readonly right: boolean }
   | { readonly type: "entity"; readonly head: string }
   | { readonly type: "kind"; readonly head: string }
-  | { readonly type: "relation"; readonly head: string }
+  /** A relation, or (inverse) a word for it read the other way: "child" for Father. */
+  | { readonly type: "relation"; readonly head: string; readonly inverse?: boolean }
   | { readonly type: "question"; readonly head: string; readonly asks: readonly string[]; readonly kinds: readonly string[] }
   | { readonly type: "pointer"; readonly head: string }
   /** A word that says whose: "my" is the user's, "tom's" Tom's. */
@@ -36,22 +38,28 @@ export type Sense =
 export const STRUCTURAL = new Set([
   "IsA", "SubclassOf", "SynonymOf", "HeardAs", "Named", "Called", "SameAs", "WrittenAs", "NotWrittenAs", "ReadBeside",
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
-  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports",
+  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled",
 ]);
 /** Kinds of word that only help say the others: they fill no hole and need none filled. */
 const GLUE = ["Helper", "Determiner", "Preposition", "Conjunction"];
 
 export const wordsOf = (name: string): string[] => name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-/** Two words of a piece: the same, the same base form, or sharing their first five letters ("directed", "director"). */
-export const akin = (a: string, b: string): boolean => a === b || lemma(a) === lemma(b) || (a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5));
+/** Two words of a piece: the same, or the same base form ("directed", "direct"). */
+export const akin = (a: string, b: string): boolean => {
+  if (a === b || lemma(a) === lemma(b)) return true;
+  const of = new Set([...bases(a), lemma(a)]);
+  return [...bases(b), lemma(b)].some((x) => of.has(x));
+};
+/** A word and every form it may be inflected from. */
+const forms = (w: string): string[] => [...new Set([...bases(w), lemma(w)])];
 
 const relationsOf = (store: ConceptStore, id: string) => store.get(id)?.relations ?? [];
 const claimed = (store: ConceptStore, id: string, head: string): Expr[] =>
   relationsOf(store, id).flatMap((r) => (isCall(r.claim) && r.claim.head === head ? r.claim.args.map((a) => a.value) : []));
 
 /** What a Concept is called besides its name, as words: the heads inside its Called(...) relations. */
-export function called(store: ConceptStore, id: string): string[] {
-  return claimed(store, id, "Called").flatMap((e) => [...walk(e)].flatMap((n) => (isCall(n) ? wordsOf(n.head) : [])));
+export function called(store: ConceptStore, id: string, head = "Called"): string[] {
+  return claimed(store, id, head).flatMap((e) => [...walk(e)].flatMap((n) => (isCall(n) ? wordsOf(n.head) : [])));
 }
 
 /** The Concept a word is a word for, followed through SynonymOf and HeardAs: Divided is Over is Divide. */
@@ -104,6 +112,8 @@ interface Index {
   readonly version: number;
   /** Word to the relations it names or that are called by it. */
   readonly relations: Map<string, Set<string>>;
+  /** Word to the relations it names read the other way (InverseCalled). */
+  readonly inverses: Map<string, Set<string>>;
   /** Word to the kinds it names or that are called by it. */
   readonly kinds: Map<string, Set<string>>;
   readonly predicates: Set<string>;
@@ -123,12 +133,14 @@ function index(store: ConceptStore): Index {
   }
   // A word that only helps say a name ("by" in "directed by") does not name it.
   const glue = (w: string) => typesOf(store, c(nameOf(w))).some((k) => GLUE.includes(k));
-  const by = (ids: Iterable<string>) => {
+  // Each word and its base form: "directed by" is found by "direct" too.
+  const by = (ids: Iterable<string>, words: (id: string) => string[]) => {
     const m = new Map<string, Set<string>>();
-    for (const id of ids) for (const w of new Set([...wordsOf(id), ...called(store, id)])) if (!glue(w)) m.set(w, (m.get(w) ?? new Set()).add(id));
+    for (const id of ids) for (const w of new Set(words(id))) if (!glue(w)) for (const k of forms(w)) m.set(k, (m.get(k) ?? new Set()).add(id));
     return m;
   };
-  const built = { version: store.version, relations: by(predicates), kinds: by(kindsHeld), predicates };
+  const named = (id: string) => [...wordsOf(id), ...called(store, id)];
+  const built = { version: store.version, relations: by(predicates, named), inverses: by(predicates, (id) => called(store, id, "InverseCalled")), kinds: by(kindsHeld, named), predicates };
   indexes.set(store, built);
   return built;
 }
@@ -185,13 +197,11 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     if (holdsFacts(store, head)) out.push({ type: "entity", head });
   }
   const at = index(store);
-  for (const w of new Set([lower, lemma(lower)])) {
-    for (const r of at.relations.get(w) ?? []) if (!out.some((s) => s.type === "relation" && s.head === r)) out.push({ type: "relation", head: r });
+  // A word that only helps say the others ("did") names no relation or kind, whatever its base form shares.
+  if (!out.some((s) => s.type === "glue")) for (const w of forms(lower)) {
+    for (const r of at.relations.get(w) ?? []) if (!out.some((s) => s.type === "relation" && s.head === r && !s.inverse)) out.push({ type: "relation", head: r });
+    for (const r of at.inverses.get(w) ?? []) if (!out.some((s) => s.type === "relation" && s.head === r && s.inverse)) out.push({ type: "relation", head: r, inverse: true });
     for (const k of at.kinds.get(w) ?? []) if (!out.some((s) => s.type === "kind" && s.head === k)) out.push({ type: "kind", head: k });
-  }
-  // A relation named by a word akin to this one ("directed" and Director).
-  if (lower.length >= 5) {
-    for (const p of at.predicates) if (wordsOf(p).some((pw) => akin(pw, lower)) && !out.some((s) => s.type === "relation" && s.head === p)) out.push({ type: "relation", head: p });
   }
   if (!out.some((s) => s.type === "value")) {
     const n = await number(lower);

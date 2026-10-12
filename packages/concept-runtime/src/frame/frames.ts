@@ -235,7 +235,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
   const things = words.flatMap((w, k) =>
     w.senses.flatMap((s) => (s.type === "entity" || s.type === "owner" ? [{ k, head: s.head }] : s.type === "pointer" && pointed ? [{ k, head: pointed }] : [])),
   );
-  const relations = words.flatMap((w, k) => w.senses.flatMap((s) => (s.type === "relation" ? [{ k, head: s.head }] : [])));
+  const relations = words.flatMap((w, k) => w.senses.flatMap((s) => (s.type === "relation" ? [{ k, head: s.head, inverse: s.inverse === true }] : [])));
   for (const thing of things) {
     for (const rel of relations) {
       if (rel.k === thing.k) continue;
@@ -246,7 +246,9 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         r.context === undefined && isCall(r.claim) && r.claim.head === rel.head && r.claim.args[0] && !store.retracted(thing.head, r.claim) ? [r.claim.args[0].value] : [],
       );
       const inverse = store.asObject(thing.head).filter((t) => t.predicate === rel.head && t.context === undefined && !store.retracted(t.subject, t.expr)).map((t) => c(t.subject));
-      for (const [direction, found] of [["of", forward], ["holding", inverse]] as const) {
+      // A word for the relation read the other way ("child" for Father) swaps which end is asked.
+      const ways = rel.inverse ? ([["of", inverse], ["holding", forward]] as const) : ([["of", forward], ["holding", inverse]] as const);
+      for (const [direction, found] of ways) {
         if (!found.length) continue;
         let answers: Expr[] = found;
         let part: string | undefined;
@@ -267,7 +269,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
             return void used.push(w.text);
           }
           // Another word for the same relation ("directed ... direct") says nothing more.
-          if (w.senses.some((s) => s.type === "relation" && s.head === rel.head)) return void used.push(w.text);
+          if (w.senses.some((s) => s.type === "relation" && s.head === rel.head && (s.inverse === true) === rel.inverse)) return void used.push(w.text);
           // A word for the kind of thing asked: only answers of that kind.
           const kinds = w.senses.flatMap((s) => (s.type === "kind" ? [s.head] : []));
           // Its kinds, not its own name: "tom" is not a kind Tom is of.

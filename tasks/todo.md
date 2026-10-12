@@ -12,7 +12,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
   that starts retiring `Hear()`.
 - [x] 2. Nested framing (0.9.0): "I told them that X" wraps X as reported; clauses joined by "and" split by
   their holes, not by a question-word check.
-- [ ] 4. Inverse relation names as senses: import Wikidata's inverse labels so "directed" is
+- [x] 4. Inverse relation names as senses (0.10.0): import Wikidata's inverse labels so "directed" is
   Director by the graph, not by sharing five letters.
 - [ ] 5. Learned scoring: corrections and confirmed answers adjust which sense won, which hole a word
   filled, which spelling held. Weights stop being hand-set.

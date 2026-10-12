@@ -19,6 +19,7 @@
  */
 import { type Call, type Expr, c, call, isCall, walk } from "../concept/expression.js";
 import { lemma } from "../runtime/host.js";
+import { bases } from "../ears/parser/words.js";
 import { typesOf } from "../runtime/types.js";
 import type { ConceptStore } from "../store/store.js";
 
@@ -27,8 +28,8 @@ const STRUCTURAL = new Set(["IsA", "SubclassOf", "SynonymOf", "Named", "Called",
 const SCOPE = "ContextScope";
 
 const wordsOf = (name: string): string[] => name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-/** Two words of a piece: the same, the same base form, or sharing their first five letters ("directed", "director"). */
-const akin = (a: string, b: string): boolean => a === b || lemma(a) === lemma(b) || (a.length >= 5 && b.length >= 5 && a.slice(0, 5) === b.slice(0, 5));
+/** Two words of a piece: the same, or the same base form ("directed", "direct"). */
+const akin = (a: string, b: string): boolean => a === b || lemma(a) === lemma(b) || bases(a).some((x) => bases(b).includes(x));
 /** What a Concept is called besides its name: the heads of its Called(...) relations, as words. */
 function called(store: ConceptStore, identity: string): string[] {
   const out: string[] = [];

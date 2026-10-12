@@ -461,7 +461,7 @@ async function everyClaim(
     // kept under, not a second one named from the label.
     const relation = store.asObject(format(call("Wikidata", [{ value: t.property }]))).find((r) => r.predicate === "SameAs")?.subject ?? nameOf(said);
     if (!relation || !/^[A-Z]/.test(relation)) continue;
-    await describeRelation(store, relation, t.property, labels[t.property]);
+    await describeRelation(store, relation, t.property, labels[t.property], get);
     for (const [n, v] of t.values.entries()) {
       if (!v) continue;
       // What Wikidata qualifies the fact by, kept on it: when it held, from its start time (P580)
@@ -531,13 +531,23 @@ export function dateOf(time: string, precision = 11): Expr | undefined {
  * Called("wife")...), by which it is asked about, and whether it is its own inverse (Symmetric():
  * her spouse is him), which the relations derive from. Stamped from the property.
  */
-async function describeRelation(store: ConceptStore, relation: string, property: string, entity: Entity | undefined): Promise<void> {
+async function describeRelation(store: ConceptStore, relation: string, property: string, entity: Entity | undefined, get: Fetch): Promise<void> {
   if (!entity || (store.get(relation)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "SameAs")) return;
   const imported = store.addRelation("Wikidata", call("Imported", [{ value: property }, { name: "license", value: "CC0" }]));
   store.addRelation(relation, c("SameAs", call("Wikidata", [{ value: property }])), undefined, imported.seq);
   await keepAliases(store, relation, entity.aliases?.en ?? [], imported.seq);
   const inverse = (entity.claims?.P1696 ?? []).map((snak) => snak.mainsnak?.datavalue?.value?.id);
   if (inverse.includes(property)) store.addRelation(relation, c("Symmetric"), undefined, imported.seq);
+  // What the relation is called read the other way: P22 father's inverse is P40 child, so "child"
+  // asks a Father fact from its other end (InverseCalled, read by the frames).
+  const others = inverse.filter((p): p is string => !!p && p !== property);
+  if (!others.length) return;
+  const named = await entities(others, "labels|aliases", get).catch(() => ({}) as Record<string, Entity>);
+  for (const p of others) {
+    const e = named[p];
+    const label = e?.labels?.en?.value;
+    await keepAliases(store, relation, [...(label ? [{ value: label }] : []), ...(e?.aliases?.en ?? [])], imported.seq, "InverseCalled");
+  }
 }
 
 /**
@@ -545,14 +555,17 @@ async function describeRelation(store: ConceptStore, relation: string, property:
  * Called(Usa()). Held as Concepts, so the graph reaches the thing from the words (Wife() finds
  * Spouse through the index); an alias hearing cannot take as one thing is left out.
  */
-async function keepAliases(store: ConceptStore, identity: string, aliases: readonly { value: string }[], seq: number): Promise<void> {
+async function keepAliases(store: ConceptStore, identity: string, aliases: readonly { value: string }[], seq: number, head = "Called"): Promise<void> {
   const { hearPhrase } = await import("../ears/phrase.js");
   for (const alias of aliases.slice(0, 20)) {
     // An acronym is a name as it stands ("US", "NASA"): heard alone it may be another word ("us").
     const acronym = /^[A-Z][A-Z.]+$/.test(alias.value.trim()) ? nameOf(alias.value.replace(/\./g, "")) : undefined;
-    const heard = acronym ? c(acronym) : await hearPhrase(store, alias.value);
+    // A phrase hearing cannot take as one thing ("directed by") is kept as the name its words make
+    // (DirectedBy), so its words still find the thing.
+    const words = nameOf(alias.value);
+    const heard = acronym ? c(acronym) : ((await hearPhrase(store, alias.value)) ?? (/^[A-Z]/.test(words) ? c(words) : undefined));
     if (heard === undefined || (isCall(heard) && heard.head === identity)) continue;
-    store.addRelation(identity, call("Called", [{ value: heard }]), undefined, seq);
+    store.addRelation(identity, call(head, [{ value: heard }]), undefined, seq);
   }
 }
 

@@ -303,3 +303,28 @@ export function alternatives(word: string, prev = "", next = ""): Alternative[] 
   for (const o of options) add({ text: o.term, replaces: 1, kind: "spelling", distance: o.distance, graph: known.has(o.term) });
   return out;
 }
+
+/**
+ * The forms a word may be inflected from, itself first: "directed" is direct, "movies" movie,
+ * "studied" study. A regular ending is taken off only where what is left is a word English has
+ * (as `inflects` decides), so "bed" is not b.
+ */
+export function bases(word: string): string[] {
+  const w = word.toLowerCase();
+  const out = [w];
+  const add = (stem: string) => {
+    if (stem.length > 2 && !out.includes(stem) && (COMMON.has(stem) || ENGLISH.has(stem) || known.has(stem))) out.push(stem);
+  };
+  for (const end of ["s", "es", "ed", "d", "ing", "ies", "ied"]) {
+    if (!w.endsWith(end)) continue;
+    const stem = w.slice(0, -end.length);
+    if (end === "ies" || end === "ied") add(stem + "y");
+    else {
+      add(stem);
+      add(stem + "e");
+      // A doubled last letter: "stopped" is stop.
+      if (stem.length > 3 && stem[stem.length - 1] === stem[stem.length - 2]) add(stem.slice(0, -1));
+    }
+  }
+  return out;
+}

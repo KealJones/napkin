@@ -180,3 +180,26 @@ test("two parts joined by and are split by the frames when each reads whole, the
   // A reply of parts says the answer, and the statement beside it is kept without being said back.
   assert.deepEqual(said.map((s) => s.spoken), ["Steven Spielberg. 1946.", "7", "42.", "Sam."]);
 });
+
+test("a relation's inverse names are its words read the other way: child asks a father fact from its other end", async () => {
+  const family: Record<string, Record<string, unknown>> = {
+    Q100: { id: "Q100", labels: { en: { value: "Anna" } }, descriptions: { en: { value: "person" } }, sitelinks: { a: 1 }, claims: { P22: [item("Q101")] } },
+    Q101: { id: "Q101", labels: { en: { value: "Boris" } } },
+    P22: { id: "P22", labels: { en: { value: "father" } }, aliases: { en: [{ value: "dad" }] }, claims: { P1696: [item("P40")] } },
+    P40: { id: "P40", labels: { en: { value: "child" } }, aliases: { en: [{ value: "children" }, { value: "daughter" }] } },
+  };
+  const get = async (url: string): Promise<unknown> => {
+    const u = new URL(url);
+    const q = u.searchParams;
+    if (u.hostname.endsWith("wikipedia.org")) return { query: { pages: {} } };
+    if (q.get("action") === "wbsearchentities") return { search: (q.get("search") ?? "").toLowerCase() === "anna" ? [{ id: "Q100", label: "Anna" }] : [] };
+    const ids = (q.get("ids") ?? "").split("|").filter((id) => family[id]);
+    return { entities: Object.fromEntries(ids.map((id) => [id, family[id]])) };
+  };
+  const store = graph(false);
+  const { groundInWikidata } = await import("../research/wikidata.js");
+  await groundInWikidata(store, "Anna", { fetch: get });
+  assert.ok((store.get("Father")?.relations ?? []).some((r) => format(r.claim) === "InverseCalled(Child())"));
+  const said = await talk(store, ["who is anna's father", "who is anna's dad", "who is boris's child", "who are boris's children", "who is boris's daughter"]);
+  assert.deepEqual(said.map((s) => s.spoken), ["Boris.", "Boris.", "Anna.", "Anna.", "Anna."]);
+});

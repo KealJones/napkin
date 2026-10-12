@@ -14,7 +14,7 @@ The ears do not compose. A message is a row of words, and each word brings its s
 | value | a number, or a number word through `Number` | none |
 | op | a realization that runs, two plain-variable holes, typed or a `Program` | its typed holes; `Binds` says how tightly |
 | entity | the store holds facts of it, either way round | none |
-| relation | used as a fact's predicate; found by its name, what it is `Called`, or a word akin to it | the thing it is a fact of, and the value |
+| relation | used as a fact's predicate (not only in a context); found by its name or what it is `Called`, each word and its base forms; read backwards by what it is `InverseCalled` | the thing it is a fact of, and the value |
 | kind | things are `IsA` it; found the same ways | keeps answers of that kind |
 | question | `IsA(Interrogative())`; `Asks(...)` says what it wants | the hole a fact leaves open |
 | pointer | `IsA(Pointing())` | the last answer the graph holds facts of |
@@ -78,6 +78,16 @@ It stops as soon as a reading accounts for every word, and after three lookups. 
 kept and sourced like anything else learned (the import's `Imported` stamp), so the next question
 about it is answered from the graph with nothing looked up. A property's aliases ("born", "directed
 by") are kept as what its relation is `Called`, which is what gives "born" its senses.
+
+## Relation words
+
+A relation's words are its own name and its Wikidata aliases (`Called`), indexed by every base form
+(`bases`: "directed" is direct, "movies" movie), so "what did he direct" finds Director through its
+alias "directed by", not by sharing letters. Where a Wikidata property names an inverse (P1696:
+father's is child), the inverse's label and aliases are kept on the relation as `InverseCalled`,
+and a word for them reads the relation from its other end: "who is boris's child" is whoever holds
+Father(Boris). A word that only helps say the others ("did") takes no relation sense by its base
+form. An alias hearing cannot take as one thing ("directed by") is kept as the name its words make.
 
 ## What it learns
 
