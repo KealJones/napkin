@@ -1,0 +1,31 @@
+// Frames: reading by senses and holes (src/frame/, design/frames.md). What the frames read off the
+// graph that no other pack says. Written by scripts/pack.mjs from sources/frames (edit those, not
+// this).
+Requires(Core(), Basic())
+
+// A whole statement, as a hole: what "remember" takes.
+Concept(Statement(), IsA(Category()))
+
+// Words whose hole is a statement: "remember (that) my name is Sam" keeps the statement.
+Concept(Remember(), Takes(Statement()))
+
+// A statement read and kept, as said. Held by whom it is about.
+Concept(Stated(), IsA(Result()))
+
+// A statement asked to be kept, kept.
+Concept(Remembered(), IsA(Result()))
+
+// What shape of answer each kind a question asks for takes (as Pursue judges it): someone or a
+// place is a thing named (a Concept), an amount a number, a time a date. An answer of another
+// shape is passed over: "who is my favorite number" is not answered 7.
+Concept(AnsweredBy(), IsA(Relation()))
+
+Concept(Someone(), AnsweredBy(Concept()))
+
+Concept(Place(), AnsweredBy(Concept()))
+
+Concept(Amount(), AnsweredBy(Number()))
+
+Concept(Time(), AnsweredBy(Date()))
+
+Concept(Date(), AnsweredBy(Date()))

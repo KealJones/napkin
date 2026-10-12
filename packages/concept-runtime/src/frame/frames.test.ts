@@ -144,3 +144,23 @@ test("learned while reading: a thing the graph has never heard of is looked up, 
   assert.equal(again.spoken, "Cincinnati.");
   assert.deepEqual(asked, ["jaws"]);
 });
+
+test("a statement is kept as a fact of what it is about, and read back by a question", async () => {
+  const said = await talk(graph(false), [
+    "my name is Sam", "what is my name", "my name is Bob", "what is my name",
+    "tom is taller than ann", "who is taller than ann", "is tom taller than ann", "is ann taller than tom",
+    "remember that my dog's name is Rex", "what is my dog's name",
+  ]);
+  assert.deepEqual(said.map((s) => s.spoken), [
+    "Got it.", "Sam.", "Got it.", "Bob.",
+    "Got it.", "Tom.", "Yes.", "I don't know yet.",
+    "Got it, I'll remember that.", "Rex.",
+  ]);
+});
+
+test("what is said again of whose and which replaces what was said before, and the old stays as history", async () => {
+  const store = graph(false);
+  await talk(store, ["my name is Sam", "my name is Bob"]);
+  const names = (store.get("Me")?.relations ?? []).filter((r) => isCall(r.claim) && r.claim.head === "Name");
+  assert.deepEqual(names.map((r) => [format(r.claim), store.retracted("Me", r.claim)]), [["Name(Sam())", true], ["Name(Bob())", false]]);
+});

@@ -7,7 +7,7 @@ Design: `.agents/planning/2026-09-16-concept-ai-system/design/frames.md`. Measur
 - [x] 3. Learn while reading (0.7.0): a word frames have no sense for, or a thing with no facts, is looked up
   (Wikidata, Wiktionary) during the turn, its senses kept, and the message read again, instead of
   handing it to `Hear()`.
-- [ ] 1. Statements and commands as frames ("my name is Sam", "remember that ...", "Tom is taller
+- [x] 1. Statements and commands as frames (0.8.0; "is"-statements and "remember that", not yet other verbs like "I live in Phoenix") ("my name is Sam", "remember that ...", "Tom is taller
   than Ann"): a relation word with holes for the thing and the value, stored as a fact. The step
   that starts retiring `Hear()`.
 - [ ] 2. Nested framing: "I told them that X" wraps X as reported; clauses joined by "and" split by

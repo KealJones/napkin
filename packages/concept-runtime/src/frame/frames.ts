@@ -18,12 +18,13 @@
  * one taken is kept with the words beside it (ReadBeside), and counts for that sense the next
  * time those words are beside it.
  */
-import { type Expr, c, call, format, isCall, parse, walk } from "../concept/expression.js";
+import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
-import { alternatives, beside, commonness, expandBare, settled, unbare, useGraphNames } from "../ears/parser/words.js";
+import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { typesOf } from "../runtime/types.js";
+import { UNIVERSAL } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
 import type { Edit } from "../resolve/readings.js";
@@ -61,6 +62,7 @@ interface Item {
 const COST = 3;
 const SPACE = 0.5;
 const BESIDE = 0.4;
+const REAL = 1;
 /** Most readings of the row tried. */
 const MOST = 48;
 
@@ -127,6 +129,8 @@ function values(words: readonly Word[]): Map<string, Item[]> {
 }
 
 interface Reading {
+  /** It changes the graph (a statement kept): read only from words as typed, or from slips of non-words. */
+  readonly writes?: boolean;
   readonly score: number;
   /** What it means, for telling two readings apart: what runs, or what is asked of the graph. */
   readonly key: string;
@@ -136,7 +140,9 @@ interface Reading {
   readonly learn?: () => void;
 }
 
-const asking = (words: readonly Word[], question: boolean) => question || words.some((w) => is(w, "question"));
+/** Asked: a "?", a question word, or a word that says what something is put first ("is tom taller than ann"). */
+const asking = (words: readonly Word[], question: boolean) =>
+  question || words.some((w) => is(w, "question")) || (words.length > 1 && words[0].senses.some((s) => s.type === "glue" && s.copula));
 const outsideOptional = (words: readonly Word[], i: number, j: number) => words.every((w, k) => (k >= i && k < j) || optional(w));
 
 /** Readings that work something out: a value asked for, a claim about one, an operation missing a value. */
@@ -226,29 +232,46 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
   if (!asking(words, question)) return [];
   const out: Reading[] = [];
   const asks = words.flatMap((w) => w.senses.flatMap((s) => (s.type === "question" ? s.asks : [])));
-  const things = words.flatMap((w, k) => w.senses.flatMap((s) => (s.type === "entity" ? [{ k, head: s.head }] : s.type === "pointer" && pointed ? [{ k, head: pointed }] : [])));
+  const things = words.flatMap((w, k) =>
+    w.senses.flatMap((s) => (s.type === "entity" || s.type === "owner" ? [{ k, head: s.head }] : s.type === "pointer" && pointed ? [{ k, head: pointed }] : [])),
+  );
   const relations = words.flatMap((w, k) => w.senses.flatMap((s) => (s.type === "relation" ? [{ k, head: s.head }] : [])));
   for (const thing of things) {
     for (const rel of relations) {
       if (rel.k === thing.k) continue;
       // Facts that hold whatever sense is meant: a word with several senses keeps each sense's
       // facts in its own context, and those are not mixed here.
-      const forward = relationsOf(store, thing.head).flatMap((r) => (r.context === undefined && isCall(r.claim) && r.claim.head === rel.head && r.claim.args[0] ? [r.claim.args[0].value] : []));
-      const inverse = store.asObject(thing.head).filter((t) => t.predicate === rel.head && t.context === undefined).map((t) => c(t.subject));
+      // A fact taken back (Retracts) no longer holds.
+      const forward = relationsOf(store, thing.head).flatMap((r) =>
+        r.context === undefined && isCall(r.claim) && r.claim.head === rel.head && r.claim.args[0] && !store.retracted(thing.head, r.claim) ? [r.claim.args[0].value] : [],
+      );
+      const inverse = store.asObject(thing.head).filter((t) => t.predicate === rel.head && t.context === undefined && !store.retracted(t.subject, t.expr)).map((t) => c(t.subject));
       for (const [direction, found] of [["of", forward], ["holding", inverse]] as const) {
         if (!found.length) continue;
         let answers: Expr[] = found;
         let part: string | undefined;
         let score = 4;
         let unused = 0;
+        // "is tom taller than ann": the other thing named, said after the relation, is among the answers: yes.
+        let yes = false;
         const used: string[] = [];
         words.forEach((w, k) => {
           if (k === thing.k || k === rel.k || optional(w)) return;
+          // "my dog's": an owner word that says whose the thing named next is.
+          if (w.senses.some((s) => s.type === "owner") && k + 1 === thing.k && words[thing.k].senses.some((s) => s.type === "owner")) return void used.push(w.text);
+          const other = w.senses.find((s) => s.type === "entity" && answers.some((a) => isCall(a) && a.head === s.head));
+          // Only read forwards: the thing named first holds the relation to the one named after.
+          if (other && direction === "of" && thing.k < rel.k && k > rel.k) {
+            yes = true;
+            score += 2;
+            return void used.push(w.text);
+          }
           // Another word for the same relation ("directed ... direct") says nothing more.
           if (w.senses.some((s) => s.type === "relation" && s.head === rel.head)) return void used.push(w.text);
           // A word for the kind of thing asked: only answers of that kind.
           const kinds = w.senses.flatMap((s) => (s.type === "kind" ? [s.head] : []));
-          const ofKind = answers.filter((a) => typesOf(store, a).some((t) => kinds.includes(t) || [...wordsOf(t), ...called(store, t)].some((x) => akin(x, w.text.toLowerCase()))));
+          // Its kinds, not its own name: "tom" is not a kind Tom is of.
+          const ofKind = answers.filter((a) => typesOf(store, a).slice(1).some((t) => kinds.includes(t) || [...wordsOf(t), ...called(store, t)].some((x) => akin(x, w.text.toLowerCase()))));
           if (ofKind.length) {
             answers = ofKind;
             score += 2;
@@ -265,6 +288,12 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           unused += 1;
         });
         if (unused) continue;
+        // Of the shape the question asks for: someone is a thing named, an amount a number (AnsweredBy).
+        const shapes = words.flatMap((w) => w.senses.flatMap((s) => (s.type === "question" ? s.kinds : []))).flatMap((k) =>
+          relationsOf(store, k).flatMap((r) => (isCall(r.claim) && r.claim.head === "AnsweredBy" && isCall(r.claim.args[0]?.value) ? [(r.claim.args[0].value as { head: string }).head] : [])),
+        );
+        const shapeOf = (v: Expr): string[] => (isCall(v) && !v.args.length ? [UNIVERSAL] : typesOf(store, v));
+        if (!yes && shapes.length && !answers.every((a) => shapeOf(part && isCall(a) ? (a.args.find((x) => x.name === part)?.value ?? a) : a).some((k) => shapes.includes(k)))) continue;
         const relWords = [...wordsOf(rel.head), ...called(store, rel.head)];
         const answerKinds = answers.flatMap((a) => typesOf(store, a).flatMap((t) => [...wordsOf(t), ...called(store, t)]));
         if (asks.some((a) => relWords.includes(a) || answerKinds.includes(a))) score += 1;
@@ -273,7 +302,7 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         score += Math.min(2, 0.5 * besides(store, rel.head, relWord, neighbours));
         const senses = words[rel.k].senses.filter((s) => s.type === "relation").length;
         const shown = answers.map((a) => (part && isCall(a) ? (a.args.find((x) => x.name === part)?.value ?? a) : a));
-        const answer = shown.length === 1 ? shown[0] : call("List", shown.map((value) => ({ value })));
+        const answer = yes ? c("True") : shown.length === 1 ? shown[0] : call("List", shown.map((value) => ({ value })));
         const asked = direction === "of" ? c(rel.head, c(thing.head), c("What")) : c(rel.head, c("What"), c(thing.head));
         out.push({
           key: format(answer),
@@ -286,6 +315,102 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
       }
     }
   }
+  return out;
+}
+
+/**
+ * "is jaws a film": a word that says what something is, put first, then a thing and a kind. Yes
+ * when the thing is of that kind (IsA, SubclassOf, through the chain); otherwise not read here, so
+ * nothing is said no that the graph only does not know.
+ */
+function kindQuestions(store: ConceptStore, words: readonly Word[], pointed: string | undefined): Reading[] {
+  if (!(words.length >= 3 && words[0].senses.some((s) => s.type === "glue" && s.copula))) return [];
+  const rest = words.slice(1).filter((w) => !only(w, "glue"));
+  if (rest.length !== 2) return [];
+  const sense = rest[0].senses.find((s) => s.type === "entity" || s.type === "pointer");
+  const thing = sense?.type === "entity" ? sense.head : sense?.type === "pointer" ? pointed : undefined;
+  if (!thing || !thingWord(rest[1])) return [];
+  const kind = rest[1].senses.find((s) => s.type === "kind")?.head ?? named([rest[1]]);
+  if (!typesOf(store, c(thing)).slice(1).includes(kind)) return [];
+  return [{ key: "True()", score: 6, display: c("ContextScope", c("Interrogative"), c("Asked", c("IsA", c(thing), c(kind)))), chosen: [], run: async () => c("Answer", c("True")) }];
+}
+
+/** The words as one name: "favorite color" is FavoriteColor. */
+const named = (ws: readonly Word[]) => nameOf(ws.map((w) => w.text).join(" "));
+/** A word that names a thing: a thing the graph holds, a pointing word, or a word it has no sense for yet (a name it is told). */
+const thingWord = (w: Word) => w.senses.length === 0 ? /^[a-z]+(?: [a-z]+)*$/i.test(w.text) : w.senses.some((s) => s.type === "entity" || s.type === "pointer" || s.type === "kind");
+
+/**
+ * Readings that tell: a word that says what something is ("is", "was", "am") with what it is
+ * said of before it and what is said after. Whose and which relation ("my name", "tom's age") is
+ * a fact of the owner, replacing what was said of it before; a thing and a kind ("jaws is a film")
+ * is what it is; a thing, a comparing word and "than" ("tom is taller than ann") is a relation
+ * between the two, named by those words. What does not fall into one of these is not read here.
+ */
+function statements(runtime: Runtime, words: readonly Word[], question: boolean, pointed: string | undefined, message: string): Reading[] {
+  if (asking(words, question)) return [];
+  const store = runtime.store;
+  const out: Reading[] = [];
+  // "remember that ...": a word whose hole is a statement takes the rest as one.
+  const taker = words[0]?.senses.find((s) => s.type === "takes");
+  const start = taker ? (words[1]?.senses.some((s) => s.type === "glue") ? 2 : 1) : 0;
+  const body = words.slice(start);
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
+  const comparing = (w: Word) => (tags.get(w.text.toLowerCase()) ?? []).includes("Comparative");
+  const glue = (w: Word) => only(w, "glue");
+  if (process.env.NAPKIN_FRAMES_DEBUG) console.error("statement words", JSON.stringify(body.map((w) => [w.text, w.senses.map((x) => x.type)])));
+  body.forEach((w, k) => {
+    if (!w.senses.some((s) => s.type === "glue" && s.copula) || k === 0 || k === body.length - 1) return;
+    // "my dog's name": an owner before another owner says whose that one is; the last is whose the fact is.
+    const ownerAt = (ws: readonly Word[], i: number) => ws[i]?.senses.some((s) => s.type === "owner");
+    const left = body.slice(0, k).filter((x) => !glue(x)).filter((x, i, ws) => !(ownerAt(ws, i) && ownerAt(ws, i + 1)));
+    const rightAll = body.slice(k + 1);
+    const right = rightAll.filter((x) => !glue(x));
+    if (!left.length || !right.length) return;
+    let subject: string | undefined;
+    let claim: Expr | undefined;
+    let replaces = false;
+    const owner = left[0].senses.find((s) => s.type === "owner");
+    if (owner && left.length >= 2 && left.slice(1).every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation"))) {
+      // Whose, which: the value is a number said, or what the words after name.
+      const value = right.length === 1 ? right[0].senses.find((s) => s.type === "value") : undefined;
+      if (!value && !right.every(thingWord)) return;
+      subject = owner.head;
+      claim = c(named(left.slice(1)), value && value.type === "value" ? value.value : c(named(right)));
+      replaces = true;
+    } else if (left.length === 1 && thingWord(left[0])) {
+      const said = left[0].senses.find((s) => s.type === "entity" || s.type === "pointer");
+      subject = said?.type === "entity" ? said.head : said?.type === "pointer" ? pointed : named(left);
+      const than = right.findIndex((x) => x.text.toLowerCase() === "than" || x.senses.some((s) => s.type === "glue" && s.head === "Than"));
+      if (right.length >= 3 && than === 1 && comparing(right[0]) && right.slice(2).every(thingWord)) {
+        claim = c(nameOf(`${right[0].text} than`), c(named(right.slice(2))));
+      } else if (right.every((x) => thingWord(x) && !x.senses.some((s) => s.type === "pointer")) && rightAll.length > right.length) {
+        // "a film": a kind, said with a word that marks it as one of many.
+        claim = c("IsA", c(named(right)));
+      }
+    }
+    if (!subject || claim === undefined) return;
+    const fact = claim;
+    const holder = subject;
+    out.push({
+      writes: true,
+      key: format(c(holder, fact)),
+      score: 3 + 0.5 * body.length,
+      display: c("ContextScope", c("Declarative"), c("Stated", c(holder), fact)),
+      chosen: [],
+      run: async () => {
+        // What is said now of whose and which takes back what was said of it before.
+        if (replaces && isCall(fact)) {
+          for (const r of relationsOf(store, holder)) {
+            if (r.context !== undefined || !isCall(r.claim) || r.claim.head !== fact.head || equal(r.claim, fact) || store.retracted(holder, r.claim)) continue;
+            for (const st of r.stamps ?? []) store.addRelation(holder, c("Retracts", st.seq), undefined, runtime.trace.cause);
+          }
+        }
+        store.addRelation(holder, fact, undefined, runtime.trace.cause);
+        return taker ? c("Remembered", fact) : c("Noted", fact);
+      },
+    });
+  });
   return out;
 }
 
@@ -327,7 +452,9 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
     let taken = 1;
     for (const n of [3, 2]) {
       const part = words.slice(i, i + n);
-      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && store.has(nameOf(part.join(" ")))) {
+      const whole = nameOf(part.join(" "));
+      // Only into a thing the graph holds facts of: "is a" is not the relation IsA.
+      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && holdsFacts(store, whole)) {
         taken = n;
         break;
       }
@@ -399,7 +526,12 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     const key = w.toLowerCase();
     if (!senses.has(key)) {
       const name = nameOf(w);
-      senses.set(key, store.has(name) && w.includes(" ") ? (holdsFacts(store, name) ? [{ type: "entity", head: name }] : []) : await sensesOf(store, w, number));
+      const owned = /^([A-Za-z]+)'s$/i.exec(w);
+      senses.set(
+        key,
+        // "tom's": whose, the name before the 's.
+        owned ? [{ type: "owner", head: nameOf(owned[1]) }] : store.has(name) && w.includes(" ") ? (holdsFacts(store, name) ? [{ type: "entity", head: name }] : []) : await sensesOf(store, w, number),
+      );
     }
     return senses.get(key)!;
   };
@@ -423,14 +555,17 @@ export async function frames(runtime: Runtime, message: string, history: readonl
         if (l.meant === lower) list[0] = { ...list[0], cost: -l.weight };
         else list.push({ words: l.meant.split(" "), span: 1, cost: -l.weight, edit: { typed: lower, meant: l.meant, kind: "learned" } });
       }
-      if (/^[a-z]+$/i.test(raw) && !settled(raw) && !(await sensesFor(raw)).length) {
+      // A name, typed on purpose: capitalised past the first word ("Rex").
+      const name = i > 0 && /^[A-Z][a-z]/.test(raw);
+      if (/^[a-z]+$/i.test(raw) && !name && !settled(raw) && !(await sensesFor(raw)).length) {
         for (const a of alternatives(raw, typed[i - 1] ?? "", typed[i + 1] ?? "").slice(0, 6)) {
           if (a.replaces === 2 && i + 1 >= typed.length) continue;
           // Less, the more often the word meant is written beside these neighbours than the one typed ("what is", not "was is").
           const prev = typed[i - 1] ?? "";
           const next = typed[i + 1] ?? "";
           const near = a.kind === "spelling" ? BESIDE * (beside(prev, a.text, next) - beside(prev, lower, next)) : 0;
-          const cost = a.kind === "spelling" ? Math.max(0.1, (COST * a.distance) / lower.length - a.common + commonness(lower) - near) : SPACE;
+          // A real word, however rarely written, was more likely meant than mistyped: reading it as another costs more.
+          const cost = (a.kind === "spelling" ? Math.max(0.1, (COST * a.distance) / lower.length - a.common + commonness(lower) - near) : SPACE) + (isWord(lower) ? REAL : 0);
           const meant = unbare(a.text);
           list.push({ words: meant.split(" "), span: a.replaces, cost, edit: { typed: a.replaces === 2 ? `${lower} ${typed[i + 1].toLowerCase()}` : lower, meant, kind: a.kind } });
         }
@@ -454,13 +589,16 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       for (const text of folded) words.push({ text, senses: await sensesFor(text) });
       if (row === rows[0]) asTyped = words;
       // Every word must say something the graph has a sense of.
-      if (words.some((w) => !w.senses.length && !/^[a-z]+$/i.test(w.text) && !/^[()]$/.test(w.text))) continue;
+      if (words.some((w) => !w.senses.length && !/^[a-z]+(?: [a-z]+)*$/i.test(w.text) && !/^[()]$/.test(w.text))) continue;
       // Brackets that do not pair are not read here.
       if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
       // Each kind of reading accounts for every word that says something, or is not made: a word
       // with no sense is used only where it names a part or a kind of a fact's answer.
-      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed)];
+      const readings = [...computations(runtime, words, question), ...facts(store, words, question, pointed), ...statements(runtime, words, question, pointed, message), ...kindQuestions(store, words, pointed)];
+      // Respelling a real word may answer a question, never tell the graph something.
+      const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       for (const reading of readings) {
+        if (reading.writes && respelled) continue;
         const score = reading.score - row.cost;
         if (process.env.NAPKIN_FRAMES_DEBUG) console.error(" ", score.toFixed(2), folded.join(" "), format(reading.display));
         if (!best || score > best.score) {

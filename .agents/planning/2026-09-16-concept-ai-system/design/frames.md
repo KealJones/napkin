@@ -33,6 +33,24 @@ one, one typed as two, a reading the user taught), each at a cost.
 - Every reading of the whole row is scored together; one that accounts for every word that says
   something is used only when no reading meaning something else fits nearly as well.
 
+## Statements
+
+A word that says what something is ("is", "was", "am": a `Helper` read as a copula) with what it is
+said of before it and what is said after, every other word accounted for:
+
+| Said | Kept | Read back by |
+|---|---|---|
+| "my name is Sam", "tom's age is 30" | `Me Name(Sam())`, `Tom Age(30)`: whose (`Possessive` that `Refers`, or a name's 's) and which | "what is my name", "what is tom's age" |
+| "jaws is a film" | `Jaws IsA(Film())` | "is jaws a film" |
+| "tom is taller than ann" | `Tom TallerThan(Ann())`: the tagger's `Comparative`, then "than" | "who is taller than ann", "is tom taller than ann" |
+| "remember that ..." | the statement, by a word that `Takes(Statement())` | as above |
+
+What is said again of whose and which retracts what was said of it before (`Retracts`), so "my name
+is Bob" replaces Sam and Sam stays as history. A statement is never read from a respelled real word
+("i ate an apple" is not "i are an apple"). A question's answer must be of the shape its question
+word asks for (`AnsweredBy`: someone or a place is a thing named, an amount a number, a time a
+date), so "who is my favorite number" is not answered 7.
+
 ## Learning while reading
 
 With learning on, a question no reading accounts for looks up what it is missing, then is read
@@ -58,7 +76,9 @@ by") are kept as what its relation is `Called`, which is what gives "born" its s
 
 ## Not yet
 
-- Statements, commands beyond arithmetic, multi-sentence messages, reported speech ("I told them
-  that ...") as a nested frame: all still `Hear()`.
+- Statements with other verbs ("i live in phoenix", "i ate an apple"), commands beyond arithmetic
+  and "remember", multi-sentence messages, reported speech ("I told them that ...") as a nested
+  frame: all still `Hear()`.
+- "No": "is ann taller than tom" stays unknown until a relation can say it runs one way.
 - Weights are set by hand; only `ReadBeside` and `WrittenAs` are learned.
 - Statements about something not yet known are not looked up here (only questions are).

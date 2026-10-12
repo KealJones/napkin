@@ -24,14 +24,19 @@ export type Sense =
   | { readonly type: "entity"; readonly head: string }
   | { readonly type: "kind"; readonly head: string }
   | { readonly type: "relation"; readonly head: string }
-  | { readonly type: "question"; readonly head: string; readonly asks: readonly string[] }
+  | { readonly type: "question"; readonly head: string; readonly asks: readonly string[]; readonly kinds: readonly string[] }
   | { readonly type: "pointer"; readonly head: string }
+  /** A word that says whose: "my" is the user's, "tom's" Tom's. */
+  | { readonly type: "owner"; readonly head: string }
+  /** A word whose hole is a whole statement: "remember (that) ...". */
+  | { readonly type: "takes"; readonly head: string; readonly what: string }
   | { readonly type: "glue"; readonly head: string; readonly marksFirst: boolean; readonly copula: boolean };
 
 /** Relations that say what a thing is or how it is said, not a fact asked for by name. */
 export const STRUCTURAL = new Set([
   "IsA", "SubclassOf", "SynonymOf", "HeardAs", "Named", "Called", "SameAs", "WrittenAs", "NotWrittenAs", "ReadBeside",
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
+  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy",
 ]);
 /** Kinds of word that only help say the others: they fill no hole and need none filled. */
 const GLUE = ["Helper", "Determiner", "Preposition", "Conjunction"];
@@ -112,7 +117,8 @@ function index(store: ConceptStore): Index {
   const predicates = new Set<string>();
   const kindsHeld = new Set<string>();
   for (const t of store.triples()) {
-    if (!STRUCTURAL.has(t.predicate)) predicates.add(t.predicate);
+    // A relation held only in a context (GlobalName in Code(Python())) is not a word's sense in talk.
+    if (!STRUCTURAL.has(t.predicate) && t.context === undefined) predicates.add(t.predicate);
     if ((t.predicate === "IsA" || t.predicate === "SubclassOf") && isCall(t.object ?? null)) kindsHeld.add((t.object as Call).head);
   }
   // A word that only helps say a name ("by" in "directed by") does not name it.
@@ -153,15 +159,24 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
   const name = nameOf(word);
   const base = nameOf(lemma(lower));
   // The word's own Concept, or its base form's when it has none ("movies" is Movie; "times" stays Times).
-  const heads = store.has(name) ? [name] : store.has(base) ? [base] : [];
+  // A thing named only as what a fact is of ("ann", in Tom's TallerThan(Ann())) is a thing too.
+  const heads = store.has(name) || store.asObject(name).length ? [name] : store.has(base) ? [base] : [];
   for (const head of heads) {
     const kinds = typesOf(store, c(head));
     if (kinds.includes("Interrogative")) {
-      const asks = chain(store, head).flatMap((h) => claimed(store, h, "Asks")).flatMap((k) => (isCall(k) ? wordsOf(k.head) : []));
-      out.push({ type: "question", head, asks });
+      const asked = chain(store, head).flatMap((h) => claimed(store, h, "Asks")).flatMap((k) => (isCall(k) ? [k.head] : []));
+      out.push({ type: "question", head, asks: asked.flatMap(wordsOf), kinds: asked });
       continue;
     }
     if (kinds.includes("Pointing")) out.push({ type: "pointer", head });
+    // A word that refers to someone: "my" says whose (an owner), "I" and "me" are who.
+    const refers = [...claimed(store, head, "Refers"), ...claimed(store, head, "HeardAs")].find((x) => isCall(x));
+    if (refers !== undefined && isCall(refers)) {
+      if (kinds.includes("Possessive")) out.push({ type: "owner", head: refers.head });
+      else if (kinds.includes("Pronoun") || kinds.includes("Deictic")) out.push({ type: "entity", head: refers.head });
+    }
+    const takes = claimed(store, head, "Takes").find((x) => isCall(x));
+    if (takes !== undefined && isCall(takes)) out.push({ type: "takes", head, what: takes.head });
     if (GLUE.some((g) => kinds.includes(g))) {
       out.push({ type: "glue", head, marksFirst: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "MarksFirst"), copula: kinds.includes("Helper") });
     }

@@ -1,43 +1,424 @@
 {
   "fixture": [
-    ["StevenSpielberg", "IsA(Human())"], ["StevenSpielberg", "Named(\"Steven Spielberg\")"],
-    ["StevenSpielberg", "PlaceOfBirth(Cincinnati())"], ["StevenSpielberg", "DateOfBirth(Date(year=1946, month=12, day=18))"],
-    ["Jaws", "IsA(Film())"], ["Jaws", "Director(StevenSpielberg())"], ["ET", "IsA(Film())"], ["ET", "Director(StevenSpielberg())"],
-    ["Cincinnati", "IsA(City())"], ["DateOfBirth", "Called(Born())"], ["PlaceOfBirth", "Called(Born(In()))"],
-    ["Film", "Called(Movie())"], ["Director", "Called(Directed(By()))"]
+    [
+      "StevenSpielberg",
+      "IsA(Human())"
+    ],
+    [
+      "StevenSpielberg",
+      "Named(\"Steven Spielberg\")"
+    ],
+    [
+      "StevenSpielberg",
+      "PlaceOfBirth(Cincinnati())"
+    ],
+    [
+      "StevenSpielberg",
+      "DateOfBirth(Date(year=1946, month=12, day=18))"
+    ],
+    [
+      "Jaws",
+      "IsA(Film())"
+    ],
+    [
+      "Jaws",
+      "Director(StevenSpielberg())"
+    ],
+    [
+      "ET",
+      "IsA(Film())"
+    ],
+    [
+      "ET",
+      "Director(StevenSpielberg())"
+    ],
+    [
+      "Cincinnati",
+      "IsA(City())"
+    ],
+    [
+      "DateOfBirth",
+      "Called(Born())"
+    ],
+    [
+      "PlaceOfBirth",
+      "Called(Born(In()))"
+    ],
+    [
+      "Film",
+      "Called(Movie())"
+    ],
+    [
+      "Director",
+      "Called(Directed(By()))"
+    ]
   ],
   "cases": [
-    { "group": "arithmetic", "say": ["what is 5 times three"], "expect": ["15"] },
-    { "group": "arithmetic", "say": ["what is 6 times 7 minus 2"], "expect": ["40"] },
-    { "group": "arithmetic", "say": ["what is 2 plus 3 times 4"], "expect": ["14"] },
-    { "group": "arithmetic", "say": ["what is 12 divided by 4"], "expect": ["3."] },
-    { "group": "arithmetic", "say": ["what is 12 divided by 0"], "expect": ["Undefined"] },
-    { "group": "arithmetic", "say": ["subtract 3 from 10"], "expect": ["7"] },
-    { "group": "arithmetic", "say": ["add 3 and 4"], "expect": ["7"] },
-    { "group": "arithmetic", "say": ["2+2"], "expect": ["4"] },
-    { "group": "arithmetic", "say": ["what's 9 times 9"], "expect": ["81"] },
-    { "group": "arithmetic", "say": ["calculate 100 minus 1"], "expect": ["99"] },
-    { "group": "typos", "say": ["wat is 2 pluss 2"], "expect": ["4"] },
-    { "group": "typos", "say": ["what is 2 pl us 2"], "expect": ["4"] },
-    { "group": "typos", "say": ["whatis 2 plus 2"], "expect": ["4"] },
-    { "group": "typos", "say": ["waht is 6 tims 7"], "expect": ["42"] },
-    { "group": "typos", "say": ["what is 9 minuss 4"], "expect": ["5"] },
-    { "group": "typos", "say": ["what is 12 divded by 4"], "expect": ["3."] },
-    { "group": "claims", "say": ["2 plus 2 is 5"], "expect": ["actually 4"] },
-    { "group": "claims", "say": ["2 plus 2 is 4"], "expect": ["Yes"] },
-    { "group": "claims", "say": ["I told them that 2 plus two was 5"], "expect": ["actually 4"] },
-    { "group": "holes", "say": ["what is 9 minus", "4"], "expect": ["9 minus what?", "5"] },
-    { "group": "facts", "say": ["who directed jaws"], "expect": ["Steven Spielberg"] },
-    { "group": "facts", "say": ["who was jaws directed by"], "expect": ["Steven Spielberg"] },
-    { "group": "facts", "say": ["what year was steven spielberg born"], "expect": ["1946"] },
-    { "group": "facts", "say": ["where was steven spielberg born"], "expect": ["Cincinnati"] },
-    { "group": "facts", "say": ["when was steven spielberg born"], "expect": ["1946"] },
-    { "group": "facts", "say": ["what movies did steven spielberg direct"], "expect": ["Jaws and ET"] },
-    { "group": "facts", "say": ["who directed jaws", "what year was he born"], "expect": ["Steven Spielberg", "1946"] },
-    { "group": "facts", "say": ["who directed jaws and what year was he born"], "expect": ["Steven Spielberg. 1946"] },
-    { "group": "other", "say": ["hello"], "expect": ["Hello"] },
-    { "group": "other", "say": ["what time is it"], "expect": ["It is"] },
-    { "group": "other", "say": ["my name is Sam", "what is my name"], "expect": ["", "Sam"] },
-    { "group": "other", "say": ["sort 3, 1, 2"], "expect": ["1, 2 and 3"] }
+    {
+      "group": "arithmetic",
+      "say": [
+        "what is 5 times three"
+      ],
+      "expect": [
+        "15"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "what is 6 times 7 minus 2"
+      ],
+      "expect": [
+        "40"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "what is 2 plus 3 times 4"
+      ],
+      "expect": [
+        "14"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "what is 12 divided by 4"
+      ],
+      "expect": [
+        "3."
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "what is 12 divided by 0"
+      ],
+      "expect": [
+        "Undefined"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "subtract 3 from 10"
+      ],
+      "expect": [
+        "7"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "add 3 and 4"
+      ],
+      "expect": [
+        "7"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "2+2"
+      ],
+      "expect": [
+        "4"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "what's 9 times 9"
+      ],
+      "expect": [
+        "81"
+      ]
+    },
+    {
+      "group": "arithmetic",
+      "say": [
+        "calculate 100 minus 1"
+      ],
+      "expect": [
+        "99"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "wat is 2 pluss 2"
+      ],
+      "expect": [
+        "4"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "what is 2 pl us 2"
+      ],
+      "expect": [
+        "4"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "whatis 2 plus 2"
+      ],
+      "expect": [
+        "4"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "waht is 6 tims 7"
+      ],
+      "expect": [
+        "42"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "what is 9 minuss 4"
+      ],
+      "expect": [
+        "5"
+      ]
+    },
+    {
+      "group": "typos",
+      "say": [
+        "what is 12 divded by 4"
+      ],
+      "expect": [
+        "3."
+      ]
+    },
+    {
+      "group": "claims",
+      "say": [
+        "2 plus 2 is 5"
+      ],
+      "expect": [
+        "actually 4"
+      ]
+    },
+    {
+      "group": "claims",
+      "say": [
+        "2 plus 2 is 4"
+      ],
+      "expect": [
+        "Yes"
+      ]
+    },
+    {
+      "group": "claims",
+      "say": [
+        "I told them that 2 plus two was 5"
+      ],
+      "expect": [
+        "actually 4"
+      ]
+    },
+    {
+      "group": "holes",
+      "say": [
+        "what is 9 minus",
+        "4"
+      ],
+      "expect": [
+        "9 minus what?",
+        "5"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "who directed jaws"
+      ],
+      "expect": [
+        "Steven Spielberg"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "who was jaws directed by"
+      ],
+      "expect": [
+        "Steven Spielberg"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "what year was steven spielberg born"
+      ],
+      "expect": [
+        "1946"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "where was steven spielberg born"
+      ],
+      "expect": [
+        "Cincinnati"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "when was steven spielberg born"
+      ],
+      "expect": [
+        "1946"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "what movies did steven spielberg direct"
+      ],
+      "expect": [
+        "Jaws and ET"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "who directed jaws",
+        "what year was he born"
+      ],
+      "expect": [
+        "Steven Spielberg",
+        "1946"
+      ]
+    },
+    {
+      "group": "facts",
+      "say": [
+        "who directed jaws and what year was he born"
+      ],
+      "expect": [
+        "Steven Spielberg. 1946"
+      ]
+    },
+    {
+      "group": "other",
+      "say": [
+        "hello"
+      ],
+      "expect": [
+        "Hello"
+      ]
+    },
+    {
+      "group": "other",
+      "say": [
+        "what time is it"
+      ],
+      "expect": [
+        "It is"
+      ]
+    },
+    {
+      "group": "other",
+      "say": [
+        "my name is Sam",
+        "what is my name"
+      ],
+      "expect": [
+        "",
+        "Sam"
+      ]
+    },
+    {
+      "group": "other",
+      "say": [
+        "sort 3, 1, 2"
+      ],
+      "expect": [
+        "1, 2 and 3"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "my name is Sam",
+        "what is my name",
+        "my name is Bob",
+        "what is my name"
+      ],
+      "expect": [
+        "",
+        "Sam",
+        "",
+        "Bob"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "my favorite color is blue",
+        "what is my favorite color"
+      ],
+      "expect": [
+        "",
+        "Blue"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "tom's age is 30",
+        "what is tom's age"
+      ],
+      "expect": [
+        "",
+        "30"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "tom is taller than ann",
+        "who is taller than ann",
+        "is tom taller than ann"
+      ],
+      "expect": [
+        "",
+        "Tom",
+        "Yes"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "remember that my dog's name is Rex",
+        "what is my dog's name"
+      ],
+      "expect": [
+        "remember",
+        "Rex"
+      ]
+    },
+    {
+      "group": "statements",
+      "say": [
+        "jaws is a film",
+        "is jaws a film"
+      ],
+      "expect": [
+        "",
+        "Yes"
+      ]
+    }
   ]
 }
