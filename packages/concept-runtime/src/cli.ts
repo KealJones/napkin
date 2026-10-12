@@ -301,9 +301,10 @@ if (expr) {
     history,
     conversation: conversationId,
     learn: !flag("--no-learn"),
+    hearing: value("--hear") === "rules" ? "rules" : "frames",
   });
   show("message", t.heard.message);
-  show("heard", t.heard.raw.trim());
+  show(`heard (${t.hearingUsed ?? "rules"})`, t.heard.raw.trim());
   show("parsed", t.parsed ?? "(nothing)");
   show("result", t.rendered);
   show(`said (${t.spokenBy})`, t.spoken);

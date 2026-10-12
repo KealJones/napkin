@@ -70,7 +70,7 @@ test("a hole takes what is inside a word that only marks it: divided by 0 divide
   assert.equal(said[0], "Undefined.");
 });
 
-test("a hole nothing fills is asked for by name, and filled by what is said next", { todo: "the word takes its neighbour, but the turn still runs the call without the missing value" }, async () => {
+test("a hole nothing fills is asked for by name, and filled by what is said next", async () => {
   const said = await talk(fresh(), ["what is 9 minus", "4"]);
   assert.equal(said[0], "9 minus what?");
   assert.equal(said[1], "5.");

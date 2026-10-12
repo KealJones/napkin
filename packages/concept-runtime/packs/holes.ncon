@@ -137,7 +137,7 @@ Concept(ClaimHolds(),
   )
 )
 
-// "9 minus what?": the words as far as they went, and a question where the hole is.
+// "9 minus what?": the words as they were said, as far as they went, and a question where the hole is.
 Concept(Unfilled(),
   Realization(Unfilled(Rest($x)),
     context = Speaking(),
@@ -146,36 +146,49 @@ Concept(Unfilled(),
       ir = Async(
         Lambda(List($args, $bindings, $api),
           Sequence(
-            Bind($r,
-              Await(
-                Call(
-                  Member($api, "evaluate"),
-                  Call(
-                    Member($api, "call"),
-                    "Say",
-                    Member(Index($args, 0), "value")
-                  ),
-                  Call(Member($api, "call"), "Execution")
-                )
-              )
-            ),
-            Bind($said,
+            Bind($said, Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "said")))),
+            Var(
+              $words,
               If(
-                Equals(TypeOf($r), "string"),
-                Call(
-                  Member(Call(Member($r, "trim")), "replace"),
-                  Regex("[.!?]+$", ""),
-                  ""
-                ),
+                And($said, Equals(TypeOf(Member($said, "value")), "string")),
+                Member($said, "value"),
                 ""
               )
             ),
             If(
-              Not($said),
+              Not($words),
+              Sequence(
+                Bind($r,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(
+                        Member($api, "call"),
+                        "Say",
+                        Member(Index($args, 0), "value")
+                      ),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                Assign($words, If(Equals(TypeOf($r), "string"), $r, ""))
+              ),
+              Undefined()
+            ),
+            Assign(
+              $words,
+              Call(
+                Member(Call(Member($words, "trim")), "replace"),
+                Regex("[.!?]+$", ""),
+                ""
+              )
+            ),
+            If(
+              Not($words),
               Return("Something is missing there. What should it be?"),
               Undefined()
             ),
-            Return(Add(Add(Call(Member(Index($said, 0), "toUpperCase")), Call(Member($said, "slice"), 1)), " what?"))
+            Return(Add(Add(Call(Member(Index($words, 0), "toUpperCase")), Call(Member($words, "slice"), 1)), " what?"))
           )
         )
       )

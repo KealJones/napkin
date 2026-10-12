@@ -13,6 +13,7 @@ import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/h
 import { keepReading } from "../resolve/learned.js";
 import { reread } from "../resolve/reread.js";
 import { askGraph } from "../resolve/asked.js";
+import { frames } from "../frame/frames.js";
 import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
@@ -45,6 +46,8 @@ export interface Gap {
 }
 
 export interface TurnResult {
+  /** Which hearing read the message. */
+  hearingUsed?: "frames" | "rules";
   readonly heard: EarsResult;
   /** The reading, as an expression, which is what memory records (memory-spec Part 5.2). */
   readonly expression: Expr | undefined;
@@ -305,6 +308,12 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
+  /**
+   * How a message is heard: "frames" reads it by its words' senses and holes first
+   * (frame/frames.ts) and falls back to the rules hearing when that does not account for every
+   * word; "rules" uses only the rules hearing. Defaults to "frames".
+   */
+  hearing?: "frames" | "rules";
   /** Keep how words were read when the message worked out. Defaults to `learn`. */
   keepReadings?: boolean;
   /** Parse exact Concept syntax directly when explicitly requested. */
@@ -635,6 +644,36 @@ export async function turn(
     message = changed;
     runtime.context.set("replace", "1");
   } else runtime.context.delete("replace");
+  // Read by the words' senses and holes first. Used only when the reading accounts for every
+  // word that says something; anything else is heard by the rules, as before.
+  if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
+    const framed = await frames(runtime, message, options.history ?? []).catch(() => undefined);
+    if (framed) {
+      const result = framed.result;
+      if (options.keepReadings ?? options.learn !== false) for (const e of framed.edits) keepReading(runtime.store, e.typed, e.meant);
+      const rendered = format(result);
+      const graphSpoken = options.speak !== false ? await graphText(runtime, "RenderResponse", result) : undefined;
+      const spoken = options.speak === false ? rendered : graphSpoken ?? (await say(message, forSaying(runtime.store, result), { ...options, unrealized: [], uncomputed: false, asked: framed.display }));
+      const raw = format(framed.display);
+      return {
+        heard: { message, raw, expression: framed.display, problems: [], rejected: [], text: framed.text, edits: framed.edits },
+        expression: framed.display,
+        parsed: raw,
+        resolved: [],
+        resolvedNames: [],
+        result,
+        rendered,
+        spoken,
+        spokenBy: options.speak === false ? "none" : graphSpoken !== undefined ? "graph" : "plain",
+        gaps: [],
+        ambiguities: [],
+        learned: [],
+        rereads: 0,
+        failed: undefined,
+        hearingUsed: "frames",
+      };
+    }
+  }
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
   if (options.conversation === undefined) runtime.context.delete("conversation");
@@ -863,5 +902,6 @@ export async function turn(
     learned,
     rereads,
     failed,
+    hearingUsed: "rules",
   };
 }
