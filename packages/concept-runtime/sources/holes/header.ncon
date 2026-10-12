@@ -1,0 +1,33 @@
+// Holes: what a word expects of its neighbours (src/resolve/holes.ts). The host finds a hole
+// nothing filled, and a claim made of a computation; what each is, and how each is said, is
+// here. Written by scripts/pack.mjs from sources/holes (edit those, not this).
+Requires(Core(), Basic())
+
+// A hole nothing filled: the call as heard, and the kind of thing it still wants. Asked for by
+// name ("9 minus what?"), and filled by what is said next.
+Concept(Unfilled(), IsA(Result()))
+
+// What was said of a computation: "2 plus 2 is 5" claims the sum is 5. Worked out and compared,
+// so a claim that holds is agreed with and one that does not is answered with what it comes to.
+Concept(Claimed(),
+  Realization(Claimed($computed, $claimed),
+    context = Execution(),
+    properties = List(Program()),
+    body = If(
+      Identical($computed, $claimed),
+      MakeCall("Answer", List(MakeCall("ClaimHolds", List($computed)))),
+      MakeCall("Answer", List(MakeCall("ClaimFails", List($computed, $claimed))))
+    )
+  )
+)
+
+Concept(ClaimHolds(), IsA(Result()))
+
+Concept(ClaimFails(), IsA(Result()))
+
+// How a typed form was read, kept on the Concept it was read as (src/resolve/learned.ts):
+// Plus holds WrittenAs("pluss", "plus"). One stamp for each time it held.
+Concept(WrittenAs(), IsA(Relation()))
+
+// A reading the user took back.
+Concept(NotWrittenAs(), IsA(Relation()))

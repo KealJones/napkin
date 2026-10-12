@@ -8,7 +8,8 @@ import { type Expr, c, call, format, heads, isCall, walk } from "../concept/expr
 import { Runtime } from "../runtime/evaluator.js";
 import type { ConceptStore } from "../store/store.js";
 import { dropArticles, lift as liftLines, mendDates, mendNumbers, mendWords, stripFence, type Lifted } from "./lift.js";
-import { correct, expandBare, useGraphNames } from "./parser/words.js";
+import { expandBare, useGraphNames } from "./parser/words.js";
+import { resolve, type Edit } from "../resolve/readings.js";
 
 /** The graph size the speller last took names from, so it refreshes only when the graph grows. */
 let graphNamesAt = -1;
@@ -37,6 +38,12 @@ export interface EarsResult {
   readonly expression: Expr | undefined;
   readonly problems: string[];
   readonly rejected: Lifted["rejected"];
+  /** The message as it was read, where a word was taken for another (resolve/readings.ts). */
+  readonly text?: string;
+  /** Each word read as another, and how. */
+  readonly edits?: readonly Edit[];
+  /** The readings weighed, best first. */
+  readonly considered?: readonly { text: string; score: number }[];
 }
 
 export function check(message: string, expression: Expr | undefined): string[] {
@@ -69,6 +76,8 @@ export interface HearOptions {
    * which resolution needs in order to point a Ref at a real value; `spoken` is what was said.
    */
   history?: readonly { message: string; result: string; spoken?: string }[];
+  /** Hear the words exactly as written: no other reading of any word is weighed. */
+  asWritten?: boolean;
 }
 
 /** Lift, then apply the repairs that need the message itself. */
@@ -93,13 +102,24 @@ export async function hear(store: ConceptStore, message: string, _options: HearO
     useGraphNames(store.all().map((u) => u.identity));
     graphNamesAt = store.size();
   }
-  // Spelling corrected ("waht" is what), for now: a correction should become a competing
-  // reading, both looked up (design/prompt-hearing.md 10), and the Said keeps what was typed
-  // either way.
-  const spelled = correct(expandBare(straightQuotes(message))).text;
-  const heard = await new Runtime(store).evaluate(call("Hear", [{ value: spelled }, { value: "rules" }]), c("Execution"));
-  const lines = isCall(heard) && heard.head === "Phrases" ? heard.args.filter((a) => a.name === undefined).map((a) => format(a.value)) : [];
-  const raw = lines.join("\n");
-  const lifted = lines.length ? read(raw, message) : { expression: undefined, clauses: 0, rejected: [] };
-  return { message, raw, expression: lifted.expression, problems: check(message, lifted.expression), rejected: lifted.rejected };
+  // Which words were meant is decided with the hearing, not before it: every way a word could
+  // have been meant is heard, and the reading that fits best as a whole is the one kept
+  // (resolve/readings.ts). The Said keeps what was typed either way.
+  const lifts = new Map<string, Lifted>();
+  const hearText = async (text: string) => {
+    const heard = await new Runtime(store).evaluate(call("Hear", [{ value: text }, { value: "rules" }]), c("Execution"));
+    const lines = isCall(heard) && heard.head === "Phrases" ? heard.args.filter((a) => a.name === undefined).map((a) => format(a.value)) : [];
+    const raw = lines.join("\n");
+    // Mended against the words as read: against what was typed, a word read as another would be mended back.
+    const lifted: Lifted = lines.length ? read(raw, text) : { expression: undefined, clauses: 0, rejected: [] };
+    lifts.set(raw, lifted);
+    return { expression: lifted.expression, raw };
+  };
+  const straight = straightQuotes(message);
+  const resolved = _options.asWritten
+    ? { text: straight, edits: [], considered: [], ...(await hearText(expandBare(straight))) }
+    : await resolve(store, straight, hearText);
+  const raw = resolved.raw;
+  const lifted = lifts.get(raw) ?? { expression: undefined, clauses: 0, rejected: [] };
+  return { message, raw, expression: lifted.expression, problems: check(message, lifted.expression), rejected: lifted.rejected, text: resolved.text, edits: resolved.edits, considered: resolved.considered };
 }

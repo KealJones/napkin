@@ -7,9 +7,12 @@
  * state that can disagree with it.
  */
 import { type Call, type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
-import { typesOf } from "./types.js";
 import { ANON } from "../concept/match.js";
 import { hear, type EarsResult, type HearOptions } from "../ears/ears.js";
+import { fillHoles, unfilledResult, UNFILLED, type Unfilled } from "../resolve/holes.js";
+import { keepReading } from "../resolve/learned.js";
+import { reread } from "../resolve/reread.js";
+import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
@@ -301,6 +304,8 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
+  /** Keep how words were read when the message worked out. Defaults to `learn`. */
+  keepReadings?: boolean;
   /** Parse exact Concept syntax directly when explicitly requested. */
   inputMode?: "message" | "expression";
   /**
@@ -540,6 +545,31 @@ export async function turn(
       // Not a description that can be read: the words are heard as they are.
     }
   }
+  // "no, I meant plus", after a message read some other way: the word of it that was not the
+  // one meant is found, the message is read again with it, and the reading is kept
+  // (resolve/reread.ts), so the same typing is read right next time.
+  let taught: { typed: string; meant: string } | undefined;
+  if (meant && !correcting && last) {
+    const before = await hear(runtime.store, last.message, options).catch(() => undefined);
+    const again = reread(runtime.store, last.message, meant[1], before?.edits ?? []);
+    if (again) {
+      taught = again.kept ? { typed: again.typed, meant: again.meant } : undefined;
+      message = again.message;
+    }
+  }
+  // "4", answering "9 minus what?": said after the words that left the hole, it fills it.
+  if (last?.result?.startsWith(`${UNFILLED}(`)) {
+    try {
+      const wanted = parse(last.result);
+      const kind = isCall(wanted) && isCall(wanted.args[1]?.value) ? wanted.args[1].value.head : undefined;
+      let line = (await hear(runtime.store, message, options).catch(() => undefined))?.expression;
+      while (line !== undefined && isCall(line) && line.head === "ContextScope" && line.args.length === 2) line = line.args[1].value;
+      const value = line !== undefined && (!isCall(line) || line.args.every((a) => !isCall(a.value)));
+      if (line !== undefined && value && (kind === undefined ? !isCall(line) : typesOf(runtime.store, line).includes(kind))) message = `${last.message.replace(/[\s?.!]+$/, "")} ${message}`;
+    } catch {
+      // Not a hole that can be read: the words are heard as they are.
+    }
+  }
   let answering = asked ? answerToWhich(asked, message, parse, runtime.store) : undefined;
   if (asked) {
     // What the reply is: a thing named ("the animal?", "the taxon") picks, a question in the
@@ -619,8 +649,13 @@ export async function turn(
       runtime.ambiguities,
       chosen,
     );
-    return { expression: named, resolved, resolvedNames };
+    // Each word that expects something of its neighbours checks what it was given, and the
+    // words mend their own arrangement (resolve/holes.ts). A hole nothing fills is asked about.
+    const filled = fillHoles(runtime.store, named);
+    unfilled = filled.unfilled;
+    return { expression: filled.expression, resolved, resolvedNames };
   };
+  let unfilled: Unfilled | undefined;
   let { expression, resolved, resolvedNames } = await read(heard);
   // Evaluate under what the message asked for, not only under what the caller assumed.
   // `expression` is what was said and is what gets reported; `running` is what evaluates,
@@ -638,6 +673,9 @@ export async function turn(
   const which = whichOf(runtime.store, expression, message);
   if (which) {
     result = which;
+  } else if (unfilled) {
+    // A hole nothing filled is asked for by name, never guessed and never run without.
+    result = unfilledResult(unfilled);
   } else if (options.learn !== false) {
     /**
      * Resolution is a loop, not one shot (`ir-spec.md` Part 8.3).
@@ -692,7 +730,7 @@ export async function turn(
   // A facet word may be what is asked about, not a setting: "what is python" lifted Python into
   // the context and left What(Is()). When the lifted reading is no answer, the words are worked
   // out again with the facet left where it was said, as a thing, and that is kept if it answers.
-  if (!which && !equal(running, expression)) {
+  if (!which && !unfilled && !equal(running, expression)) {
     const unanswered = (r: Expr | undefined) => r === undefined || holdsResidual(runtime, r) || learnable(runtime, collectGaps(runtime, r)).length > 0 || unknownAnswer(r, runtime.store);
     if (unanswered(result)) {
       let again: Expr | undefined;
@@ -736,6 +774,13 @@ export async function turn(
   }
   const rendered = result !== undefined ? format(result) : (failed ?? "(no result)");
   const gaps = collectGaps(runtime, result);
+  // A word read as another, in a message that then worked out: the reading is kept, a stamp
+  // more each time it holds, so it weighs for itself the next time (resolve/learned.ts). What
+  // the user said outright was kept when it was said.
+  if (options.keepReadings ?? options.learn !== false) {
+    const worked = result !== undefined && !unfilled && !holdsResidual(runtime, result) && !unknownAnswer(result, runtime.store) && !learnable(runtime, gaps).length;
+    if (worked) for (const e of heard.edits ?? []) if (!(taught && taught.typed === e.typed)) keepReading(runtime.store, e.typed, e.meant);
+  }
   // Anything still learnable after learning has run means the result is not an answer.
   // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
   // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",

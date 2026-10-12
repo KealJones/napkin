@@ -38,6 +38,9 @@ const BARE: Record<string, string> = {
   ya: "you", u: "you", ur: "your", pls: "please", plz: "please", thx: "thanks",
 };
 
+/** The words a contraction typed without its apostrophe stands for ("whats" is "what is"), else the word. */
+export const unbare = (word: string): string => BARE[word.toLowerCase()] ?? word;
+
 export function expandBare(text: string): string {
   return text
     .replace(/\s&\s/g, " and ")
@@ -205,4 +208,98 @@ export function correct(text: string): { text: string; typed: Map<string, string
     return expanded ?? meant;
   });
   return { text: out, typed };
+}
+
+/**
+ * Every way a word could have been meant, for the readings to choose among by how well each
+ * fits the words around it (resolve/readings.ts). Nothing is decided here: `spelling` above
+ * picks one correction before anything is heard; this proposes several and lets what the graph
+ * can do with each decide.
+ *
+ *  - spelling: words within two edits, the graph's own names first, then common English;
+ *  - join: the word and the next one typed as two ("pl us" is plus);
+ *  - split: two words typed as one ("dividedby" is divided by).
+ */
+export interface Alternative {
+  /** The words meant, in place of what was typed. */
+  readonly text: string;
+  /** How many typed words it stands for: two when it joins this word with the next. */
+  readonly replaces: 1 | 2;
+  readonly kind: "spelling" | "join" | "split";
+  /** Letters changed; a join or a split changes one (the space). */
+  readonly distance: number;
+  /** A name the graph holds, so the graph can do something with it. */
+  readonly graph: boolean;
+  /** How much it speaks for itself as a word people write, 0 to 1 (`commonness`). */
+  readonly common: number;
+}
+
+/** A word the graph names, or that English commonly has. */
+const real = (w: string): boolean => known.has(w) || COMMON.has(w) || (ENGLISH.has(w) && frequency(w) >= COMMONLY);
+/** Written often enough that it is taken as typed unless the graph says otherwise. */
+const OFTEN = 1e7;
+/** Whether the word needs no reading other than itself: the graph names it, or it is a word people write often. */
+export const settled = (word: string): boolean => {
+  const w = word.toLowerCase();
+  // The tagger's lexicon alone does not settle a word: it holds forms it made itself ("minuss").
+  return !/^[a-z]+$/.test(w) || known.has(w) || BARE[w] !== undefined || frequency(w) >= OFTEN || (COMMON.has(w) && NAMED(w));
+};
+/**
+ * How much a word speaks for itself as what was meant, from how often it is written: nothing
+ * below a million, all of it at a hundred million. A name the graph holds speaks fully.
+ */
+export const commonness = (word: string): number => {
+  const w = word.toLowerCase();
+  if (known.has(w)) return 1;
+  const count = frequency(w);
+  return count <= 0 ? 0 : Math.max(0, Math.min(1, (Math.log10(count) - 6) / 2));
+};
+
+/** How much a word is written beside its neighbours, 0 to 1, over the sides it has one on: "what is" far more than "was is". */
+export const beside = (prev: string, word: string, next: string): number => {
+  const sides = [prev && together(prev.toLowerCase(), word.toLowerCase()), next && together(word.toLowerCase(), next.toLowerCase())].filter((x): x is number => typeof x === "number");
+  return sides.length ? sides.reduce((sum, count) => sum + Math.min(1, Math.log10(1 + count) / 9.5), 0) / sides.length : 0;
+};
+/** A word English has, however rarely it is written. */
+export const isWord = (word: string): boolean => ENGLISH.has(word.toLowerCase()) || frequency(word.toLowerCase()) > 0;
+
+export function alternatives(word: string, prev = "", next = ""): Alternative[] {
+  const w = word.toLowerCase();
+  const out: Alternative[] = [];
+  if (!/^[a-z]+$/.test(w)) return out;
+  const seen = new Set<string>([w]);
+  const add = (a: Omit<Alternative, "common">) => {
+    if (seen.has(a.text + a.replaces)) return;
+    seen.add(a.text + a.replaces);
+    out.push({ ...a, common: Math.max(...a.text.split(" ").map(commonness)) });
+  };
+  const n = next.toLowerCase();
+  // Typed as two: the pair is a word the graph names or English commonly has, and one half
+  // alone is not a word people write.
+  if (/^[a-z]+$/.test(n) && real(w + n) && (!settled(w) || !settled(n)) && (w.length <= 3 || n.length <= 3)) {
+    add({ text: w + n, replaces: 2, kind: "join", distance: 1, graph: known.has(w + n) });
+  }
+  if (settled(w)) return out;
+  const word_ = ENGLISH.has(w) || frequency(w) > 0;
+  // What `spelling` would have decided alone, kept as one of the proposals.
+  const old = spelling(word, prev);
+  if (old) add({ text: old, replaces: 1, kind: "spelling", distance: Math.min(2, distance(w, old, 2)), graph: known.has(old) });
+  // Typed as one: both halves are words, and the whole is not.
+  if (!word_) {
+    for (let i = 2; i <= w.length - 2; i++) {
+      const a = w.slice(0, i);
+      const b = w.slice(i);
+      if (real(a) && real(b) && (known.has(a) || known.has(b))) add({ text: `${a} ${b}`, replaces: 1, kind: "split", distance: 1, graph: known.has(a) && known.has(b) });
+    }
+  }
+  const mine = frequency(w);
+  const options = symspell()
+    .lookup(w, VERBOSITY_ALL, w.length >= 6 ? 2 : 1)
+    .filter((o) => o.term !== w && /^[a-z]+$/.test(o.term) && (known.has(o.term) || o.count >= COMMONLY))
+    // A real word, only rare: it is another word only when one a letter away is the graph's, or written far more.
+    .filter((o) => !word_ || (o.distance === 1 && (known.has(o.term) || o.count >= mine * 100)))
+    .sort((a, b) => a.distance - b.distance || Number(known.has(b.term)) - Number(known.has(a.term)) || together(prev, b.term) - together(prev, a.term) || b.count - a.count)
+    .slice(0, 6);
+  for (const o of options) add({ text: o.term, replaces: 1, kind: "spelling", distance: o.distance, graph: known.has(o.term) });
+  return out;
 }

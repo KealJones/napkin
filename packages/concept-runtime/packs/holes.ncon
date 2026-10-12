@@ -1,0 +1,184 @@
+// Holes: what a word expects of its neighbours (src/resolve/holes.ts). The host finds a hole
+// nothing filled, and a claim made of a computation; what each is, and how each is said, is
+// here. Written by scripts/pack.mjs from sources/holes (edit those, not this).
+Requires(Core(), Basic())
+
+// A hole nothing filled: the call as heard, and the kind of thing it still wants. Asked for by
+// name ("9 minus what?"), and filled by what is said next.
+Concept(Unfilled(), IsA(Result()))
+
+// What was said of a computation: "2 plus 2 is 5" claims the sum is 5. Worked out and compared,
+// so a claim that holds is agreed with and one that does not is answered with what it comes to.
+Concept(Claimed(),
+  Realization(Claimed($computed, $claimed),
+    context = Execution(),
+    properties = List(Program()),
+    body = If(
+      Identical($computed, $claimed),
+      MakeCall("Answer", List(MakeCall("ClaimHolds", List($computed)))),
+      MakeCall("Answer", List(MakeCall("ClaimFails", List($computed, $claimed))))
+    )
+  )
+)
+
+Concept(ClaimHolds(), IsA(Result()))
+
+Concept(ClaimFails(), IsA(Result()))
+
+// How a typed form was read, kept on the Concept it was read as (src/resolve/learned.ts):
+// Plus holds WrittenAs("pluss", "plus"). One stamp for each time it held.
+Concept(WrittenAs(), IsA(Relation()))
+
+// A reading the user took back.
+Concept(NotWrittenAs(), IsA(Relation()))
+
+// "It's actually 4, not 5."
+Concept(ClaimFails(),
+  Realization(ClaimFails(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($say,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Say", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      Call(
+                        Member(
+                          If(
+                            And(Equals(TypeOf($r), "string"), $r),
+                            $r,
+                            Call($String, $e)
+                          ),
+                          "replace"
+                        ),
+                        Regex("[.!?]+$", ""),
+                        ""
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(Add("It's actually ", Await(Call($say, Member(Index($args, 0), "value")))), ", not "),
+                  Await(Call($say, Member(Index($args, 1), "value")))
+                ),
+                "."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "Yes, that's 4."
+Concept(ClaimHolds(),
+  Realization(ClaimHolds(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($r,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Say",
+                    Member(Index($args, 0), "value")
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  "Yes, that's ",
+                  Call(
+                    Member(
+                      If(
+                        And(Equals(TypeOf($r), "string"), $r),
+                        $r,
+                        Call($String, Member(Index($args, 0), "value"))
+                      ),
+                      "replace"
+                    ),
+                    Regex("[.!?]+$", ""),
+                    ""
+                  )
+                ),
+                "."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// "9 minus what?": the words as far as they went, and a question where the hole is.
+Concept(Unfilled(),
+  Realization(Unfilled(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($r,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Say",
+                    Member(Index($args, 0), "value")
+                  ),
+                  Call(Member($api, "call"), "Execution")
+                )
+              )
+            ),
+            Bind($said,
+              If(
+                Equals(TypeOf($r), "string"),
+                Call(
+                  Member(Call(Member($r, "trim")), "replace"),
+                  Regex("[.!?]+$", ""),
+                  ""
+                ),
+                ""
+              )
+            ),
+            If(
+              Not($said),
+              Return("Something is missing there. What should it be?"),
+              Undefined()
+            ),
+            Return(Add(Add(Call(Member(Index($said, 0), "toUpperCase")), Call(Member($said, "slice"), 1)), " what?"))
+          )
+        )
+      )
+    )
+  )
+)
