@@ -606,9 +606,15 @@ Concept(Call(),
                       ),
                       Sequence(
                         Bind($obj, Member(Index(Member($e, "args"), 0), "value")),
+                        Comment(
+                          "A name is said as the name; anything else (a call, a list written out) as the code it is."
+                        ),
                         Bind($o,
                           If(
-                            And(Call($isCall, $obj), Equals(Member($obj, "head"), "Call")),
+                            And(
+                              And(Call($isCall, $obj), NotEquals(Member($obj, "head"), "Name")),
+                              NotEquals(Member($obj, "head"), "Member")
+                            ),
                             Call($code, $obj),
                             If(
                               Equals(TypeOf($obj), "string"),
@@ -2606,11 +2612,30 @@ Concept(Explain(),
                     )
                   )
                 ),
+                Comment(
+                  "A call is said as a doing (\"calls print with i\"); where its value is what is used (\"x is ...\","
+                ),
+                Comment("\"for each i in ...\"), it is said as what the call gives."),
+                Bind($valued,
+                  Lambda(List($w),
+                    Call(
+                      Member($w, "replace"),
+                      Regex("(\\S+) calls ", "g"),
+                      Lambda(List($m, $before),
+                        If(
+                          Or(Equals($before, "it"), Call(Member($before, "endsWith"), ";")),
+                          $m,
+                          Add($before, " the result of calling ")
+                        )
+                      )
+                    )
+                  )
+                ),
                 Call(
                   Member($said, "push"),
                   If(
                     Equals(TypeOf($words), "string"),
-                    $words,
+                    Call($valued, $words),
                     Add(
                       Add(
                         "does `",
@@ -4300,13 +4325,13 @@ Concept(WriteDoing(),
                                     And(
                                       And(
                                         And(
-                                          And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
                                           And(
-                                            Equals(Member(Member($r, "pattern"), "head"), $name),
-                                            Or(
-                                              Equals(Member($r, "context"), Undefined()),
-                                              Includes(Call(Member($api, "format"), Member($r, "context")), "Execution")
-                                            )
+                                            And(Not(Member($r, "retired")), Call($isCall, Member($r, "pattern"))),
+                                            Equals(Member(Member($r, "pattern"), "head"), $name)
+                                          ),
+                                          Or(
+                                            Equals(Member($r, "context"), Undefined()),
+                                            Includes(Call(Member($api, "format"), Member($r, "context")), "Execution")
                                           )
                                         ),
                                         GreaterThan(Length(Member(Member($r, "pattern"), "args")), 0)

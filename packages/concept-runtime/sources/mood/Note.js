@@ -1,9 +1,14 @@
 // @realization Note($line), context = Declarative(), evaluateArguments = false
 // What is told and nothing takes: noted, with a reply. What follows from it (packs/follows.ncon)
 // comes first when the graph knows what the event leads to; a reply from the conversation corpus
-// when one is close to what was said; how it felt when the corpus has nothing close.
+// when one is close to what was said; how it felt when the corpus has nothing close. Code said
+// with nothing asked of it (a line read as code, `ir=`) is explained, as "explain this" would.
 async (args, bindings, api) => {
   const line = bindings.get("line");
+  if (line && line.args && line.args.some((a) => a.name === "ir")) {
+    const explained = await api.evaluate(api.call("Explain", line), api.call("Execution"));
+    if (explained && explained.head === "Explained") return explained;
+  }
   const message = api.ambient("message");
   const told = message && !message.includes("?");
   const noted = (reply) => ({ head: "Noted", args: [{ value: line }, { name: "reply", value: reply }] });

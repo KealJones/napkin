@@ -30,8 +30,8 @@ async (args, bindings, api) => {
         said = { name, base, noun: object ? object.value : undefined };
       }
       const unit = name !== e.head || e.args.length ? api.store.get(name) : undefined;
-      // Of its realizations of plain values, the one taking fewest ("sort a list" is Sort($xs)).
-      const r = unit?.realizations.filter((r) => !r.retired && isCall(r.pattern) && r.pattern.head === name && r.pattern.args.length > 0 && r.pattern.args.every((p) => isVar(p.value)) && !r.properties.some((p) => isCall(p) && p.head === "Effectful")).sort((a, b) => a.pattern.args.length - b.pattern.args.length)[0];
+      // Of its working realizations of plain values, the one taking fewest ("sort a list" is Sort($xs)).
+      const r = unit?.realizations.filter((r) => !r.retired && isCall(r.pattern) && r.pattern.head === name && (r.context === undefined || api.format(r.context).includes("Execution")) && r.pattern.args.length > 0 && r.pattern.args.every((p) => isVar(p.value)) && !r.properties.some((p) => isCall(p) && p.head === "Effectful")).sort((a, b) => a.pattern.args.length - b.pattern.args.length)[0];
       if (r) {
         doing = { name, base, arity: r.pattern.args.length };
         const object = e.args.find((a) => a.name === undefined && isCall(a.value) && a.value.head !== "Ref");

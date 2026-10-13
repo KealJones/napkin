@@ -64,7 +64,10 @@ async (args, bindings, api) => {
   for (const s of statements) {
     if (isCall(s) && s.head === "Comment") continue;
     const words = await api.evaluate(named(s), api.call("Explaining"));
-    said.push(typeof words === "string" ? words : "does `" + api.writeCode(s, "JavaScript").text.trim() + "`");
+    // A call is said as a doing ("calls print with i"); where its value is what is used ("x is ...",
+    // "for each i in ..."), it is said as what the call gives.
+    const valued = (w) => w.replace(/(\S+) calls /g, (m, before) => (before === "it" || before.endsWith(";") ? m : before + " the result of calling "));
+    said.push(typeof words === "string" ? valued(words) : "does `" + api.writeCode(s, "JavaScript").text.trim() + "`");
   }
   // Where what was said about each built-in method came from.
   const from = [];

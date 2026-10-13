@@ -855,7 +855,8 @@ Concept(NamedWhole(),
 
 // What is told and nothing takes: noted, with a reply. What follows from it (packs/follows.ncon)
 // comes first when the graph knows what the event leads to; a reply from the conversation corpus
-// when one is close to what was said; how it felt when the corpus has nothing close.
+// when one is close to what was said; how it felt when the corpus has nothing close. Code said
+// with nothing asked of it (a line read as code, `ir=`) is explained, as "explain this" would.
 Concept(Note(),
   Realization(Note($line),
     context = Declarative(),
@@ -865,6 +866,29 @@ Concept(Note(),
         Lambda(List($args, $bindings, $api),
           Sequence(
             Bind($line, Call(Member($bindings, "get"), "line")),
+            If(
+              And(
+                And($line, Member($line, "args")),
+                Call(Member(Member($line, "args"), "some"), Lambda(List($a), Equals(Member($a, "name"), "ir")))
+              ),
+              Sequence(
+                Bind($explained,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Explain", $line),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And($explained, Equals(Member($explained, "head"), "Explained")),
+                  Return($explained),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             Bind($message, Call(Member($api, "ambient"), "message")),
             Bind($told, And($message, Not(Includes($message, "?")))),
             Bind($noted,

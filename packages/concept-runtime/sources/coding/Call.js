@@ -10,7 +10,8 @@ async (args, bindings, api) => {
   const said = async (e) => {
     if (isCall(e) && e.head === "Member" && e.args.length === 2) {
       const obj = e.args[0].value;
-      const o = isCall(obj) && obj.head === "Call" ? code(obj) : typeof obj === "string" ? JSON.stringify(obj) : await said(obj);
+      // A name is said as the name; anything else (a call, a list written out) as the code it is.
+      const o = isCall(obj) && obj.head !== "Name" && obj.head !== "Member" ? code(obj) : typeof obj === "string" ? JSON.stringify(obj) : await said(obj);
       return typeof o === "string" ? o + "." + String(e.args[1].value) : o;
     }
     return api.evaluate(e, api.context);
