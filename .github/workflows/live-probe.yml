@@ -14,6 +14,10 @@ on:
         description: "A benchmark to run instead (gsm8k), with how many items: e.g. 'gsm8k 50'"
         required: false
         default: ""
+      test:
+        description: "Built test files to run with the network instead, e.g. 'dist/runtime/pursue.test.js'"
+        required: false
+        default: ""
   push:
     branches: [main]
     paths: [packages/concept-runtime/scripts/live-probe.mjs]
@@ -38,12 +42,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @napkin/concept-runtime build
       - run: |
-          if [ -n "$NAPKIN_BENCH" ]; then node scripts/bench.mjs $NAPKIN_BENCH | tee /tmp/live-probe.txt
+          if [ -n "$NAPKIN_TEST" ]; then (node --test $NAPKIN_TEST 2>&1 || true) | grep -vE '^\s+at ' | tail -150 | tee /tmp/live-probe.txt
+          elif [ -n "$NAPKIN_BENCH" ]; then node scripts/bench.mjs $NAPKIN_BENCH | tee /tmp/live-probe.txt
           else node scripts/live-probe.mjs | tee /tmp/live-probe.txt; fi
         working-directory: packages/concept-runtime
         env:
           NAPKIN_PROBE: ${{ github.event.inputs.say }}
           NAPKIN_BENCH: ${{ github.event.inputs.bench }}
+          NAPKIN_TEST: ${{ github.event.inputs.test }}
           NAPKIN_PROBE_DETAIL: ${{ github.event.inputs.say != '' && '1' || '' }}
       - name: Keep the results on the live-probe branch
         run: |
