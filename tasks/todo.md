@@ -89,6 +89,26 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   P828) for a second "because"; "how does X work" by the same chain over HasPart/UsedFor.
 - [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
 
+# Understanding word problems and lists (GSM8K 0/50, 2026-10-13: scripts/bench.mjs, live-probe workflow)
+
+Failures seen: names the text introduces looked up as world things ("Siobhan" a Korean singer, "In"
+a postal service); every sentence heard alone; quantities as words; 14 of 50 timed out.
+
+- [ ] W1. A message of several sentences is one situation: each sentence read into it, pointing
+  words resolved inside it ("she" is Janet), a name the text introduces is a person of the text,
+  never looked up.
+- [ ] W2. Quantities as values with units: "16 eggs" Quantity(16, Egg), "$2 per egg" a rate,
+  "a dozen" 12, "twice as many" a ratio (units pack, number words).
+- [ ] W3. What a doing does to quantities, as facts on its Concept (eat, use, sell, give take
+  away from the one doing it; buy, get, earn add; "per", "each" multiply), so a verb learned once
+  works in every problem.
+- [ ] W4. The question names the unknown and its unit ("how much money", "how many eggs"); it is
+  found by combining the situation's quantities whose units come out as the unit asked
+  (dimensional analysis), each step shown.
+- [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
+  ("eggs, milk and bread"), taken whole by a word whose hole takes many.
+- [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
+
 # Concept games and chess
 
 - [ ] Add reusable collection, record, geometry, and persistent-state Concepts.
