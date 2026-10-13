@@ -889,6 +889,11 @@ function App() {
               <span>✎</span>
               <b className="nav-label">How it works</b>
             </button>
+            {/* The plain chat (chat.html): the conversation, with all of this one tap under each reply. */}
+            <a className="nav-link" href="chat.html">
+              <span>✳</span>
+              <b className="nav-label">Simple chat</b>
+            </a>
           </nav>
         </div>
         <div className="side-bottom">

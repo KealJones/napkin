@@ -20,5 +20,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    // Two pages: the studio (index.html) and the chat (chat.html).
+    rollupOptions: { input: { studio: "index.html", chat: "chat.html" } },
   },
 });

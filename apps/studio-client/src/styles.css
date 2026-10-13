@@ -104,6 +104,16 @@ button.ghost {
   border: 0;
   color: #cccccc;
 }
+.nav a.nav-link {
+  display: block;
+  color: #cccccc;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.nav a.nav-link:hover {
+  background: #2d2d2d;
+}
 .nav button.active {
   background: #717171;
   color: white;

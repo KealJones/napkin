@@ -51,13 +51,20 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 /** Whether a request comes from this studio: its Host is this server, and its Origin, when it has one, too. */
+/** The port the client's Vite dev server runs on (apps/studio-client package.json). */
+const DEV_CLIENT = Number(process.env.NAPKIN_DEV_CLIENT_PORT ?? 4173);
+
 function sameStudio(request: IncomingMessage): boolean {
   const own = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
   if (!own.has(request.headers.host ?? "")) return false;
   const origin = request.headers.origin;
   if (origin === undefined) return true;
+  // The client's dev server (`pnpm --filter @napkin/studio-client dev`, port 4173) proxies /api here
+  // and its pages send their own origin.
+  const dev = new Set([`127.0.0.1:${DEV_CLIENT}`, `localhost:${DEV_CLIENT}`]);
   try {
-    return own.has(new URL(origin).host);
+    const from = new URL(origin).host;
+    return own.has(from) || dev.has(from);
   } catch {
     return false;
   }
