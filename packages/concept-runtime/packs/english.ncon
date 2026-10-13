@@ -1242,7 +1242,16 @@ Concept(Describes(),
             If(
               $means,
               Sequence(
-                Bind($words, Call($String, Index(Call($positional, $means), 0))),
+                Comment(
+                  "A dictionary sense begins a sentence (\"The physique of ...\"): said inside one, it starts small."
+                ),
+                Bind($words,
+                  Call(
+                    Member(Call($String, Index(Call($positional, $means), 0)), "replace"),
+                    Regex("^(A|An|The|To|Any|One|Something|Someone)\\b", ""),
+                    Lambda(List($m), Call(Member($m, "toLowerCase")))
+                  )
+                ),
                 Bind($an,
                   Lambda(List($w),
                     If(

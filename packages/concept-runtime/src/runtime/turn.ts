@@ -18,7 +18,7 @@ import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
-import { learn, unknownAnswer, type LearnStep } from "../learn/learn.js";
+import { learn, lookUpWord, unknownAnswer, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, pickSense, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
@@ -732,7 +732,7 @@ export async function turn(
   if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
     // Learning on, a question with words the graph holds nothing of looks them up while it is
     // read (frame/frames.ts), and what is found is kept like anything else learned.
-    const lookup = options.learn === false ? undefined : async (identity: string, said: string) => (await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, ...(options.fetch ? { fetch: options.fetch } : {}) })) !== undefined;
+    const lookup = options.learn === false ? undefined : (identity: string, said: string) => lookUpWord(runtime, identity, said, options.fetch ? { fetch: options.fetch } : {});
     // The reply to "do you mean A or B?" picks one: its choices are confirmed, the others' corrected.
     const picked = last?.result?.startsWith("ChooseOne(") ? pickOption(runtime.store, last.result, message) : undefined;
     if (picked) {
@@ -741,7 +741,7 @@ export async function turn(
     }
     const read: FrameRead = picked ? { looked: [] } : await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
     stuck = read.stuck;
-    lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "wikidata" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
+    lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "research" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
     const framed: Framed | undefined = picked ? picked.framed : read.framed;
     if (framed) {
       const result = framed.result;

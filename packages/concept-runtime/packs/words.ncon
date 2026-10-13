@@ -389,11 +389,14 @@ Concept(Meaning(),
                 )
               )
             ),
+            Comment(
+              "The part of speech asked for is tried first (a thing named is a noun, a word applied a verb); then any."
+            ),
             Bind($order,
               If(
                 Equals($use, "Interjection"),
                 List("Interjection", "Phrase", "Noun"),
-                List()
+                If($use, List($use), List())
               )
             ),
             Bind($STRUCTURE,

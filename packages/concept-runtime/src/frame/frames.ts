@@ -508,11 +508,13 @@ function describes(store: ConceptStore, words: readonly Word[], question: boolea
   const content = words.filter((w) => !optional(w));
   if (content.length !== 1 || !words.some((w) => w.senses.some((s) => s.type === "glue" && s.copula))) return [];
   const sense = content[0].senses.find((s) => s.type === "entity");
-  if (!sense || sense.type !== "entity" || typesOf(store, c(nameOf(content[0].text))).some((k) => k === "Deictic" || k === "Pronoun")) return [];
-  const thing = sense.head;
-  // What it is (IsA), then every fact it holds, as said: none taken back, none held only in a context.
+  // A thing known only by what it is in words ("web app" Means ...) is described by that.
+  const named = nameOf(content[0].text);
+  const thing = sense && sense.type === "entity" ? sense.head : relationsOf(store, named).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "Means") ? named : undefined;
+  if (!thing || typesOf(store, c(named)).some((k) => k === "Deictic" || k === "Pronoun")) return [];
+  // What it is (IsA, Means), then every fact it holds, as said: none taken back, none held only in a context.
   const known = relationsOf(store, thing).flatMap((r) =>
-    r.context === undefined && isCall(r.claim) && r.claim.args.length && (r.claim.head === "IsA" || !STRUCTURAL.has(r.claim.head)) && !store.retracted(thing, r.claim) ? [r.claim] : [],
+    r.context === undefined && isCall(r.claim) && r.claim.args.length && (r.claim.head === "IsA" || r.claim.head === "Means" || !STRUCTURAL.has(r.claim.head)) && !store.retracted(thing, r.claim) ? [r.claim] : [],
   );
   if (!known.length) return [];
   const facts = call("List", known.map((value) => ({ value })));
@@ -798,7 +800,9 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
       // "is a" is not the relation IsA.
       // A code primitive (SquareRootOf) is the host's machinery, not what words name.
       const computes = (store.get(whole)?.realizations ?? []).some((r) => !r.retired && runs(r)) && !typesOf(store, c(whole)).includes("CodePrimitive");
-      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes)) {
+      // Or a thing described ("web app" Means ...): what it is is known, if nothing else of it.
+      const described = relationsOf(store, whole).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "Means" && typeof r.claim.args[0]?.value === "string") && !(store.get(whole)?.realizations.length);
+      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes || described)) {
         taken = n;
         break;
       }
@@ -1127,7 +1131,21 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     const own = (id: string) => relationsOf(store, id).some((r) => r.context === undefined && isCall(r.claim) && !STRUCTURAL.has(r.claim.head) && r.claim.args.length > 0);
     const named = asTyped.flatMap((w) => w.senses.flatMap((x) => (x.type === "entity" ? [x.head] : x.type === "pointer" && pointed ? [pointed] : [])));
     const runs = unknownRuns(store, asTyped, message);
+    // A phrase is one thing: quoted ("“web app”"), or nouns side by side that no reading took
+    // together ("web app"), looked up whole before its words.
+    const quoted = [...message.matchAll(/["“”']([^"“”']{2,40})["“”']/g)].map((m) => m[1]!.trim()).filter((q) => q.includes(" "));
+    const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
+    const nounish = (w: Word) => /^[a-z]+$/i.test(w.text) && (tags.get(w.text.toLowerCase()) ?? []).includes("Noun") && !(tags.get(w.text.toLowerCase()) ?? []).some((t) => t === "Pronoun" || t === "Possessive") && !w.senses.some((s) => s.type === "glue" || s.type === "owner" || s.type === "question");
+    const phrases: string[] = [...quoted];
+    for (let i = 0; i < asTyped.length; i++) {
+      let j = i;
+      while (j < asTyped.length && j - i < 3 && nounish(asTyped[j]!)) j++;
+      if (j - i >= 2) phrases.push(asTyped.slice(i, j).map((w) => w.text).join(" "));
+      if (j > i) i = j - 1;
+    }
+    const whole = [...new Set(phrases.map((p) => nameOf(p)))].filter((id) => id && !own(id));
     const tries: string[][] = [
+      ...whole.map((id) => [id]),
       ...[...new Set(named)].filter((id) => !own(id)).map((id) => [id]),
       ...(runs.length <= 2 && runs.every((r) => r.length <= 3) ? runs.flatMap((r) => (r.length > 1 ? [[nameOf(r.join(" "))], r.map((w) => nameOf(w))] : [[nameOf(r[0])]])) : []),
     ];

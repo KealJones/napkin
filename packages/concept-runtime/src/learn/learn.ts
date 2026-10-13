@@ -12,7 +12,8 @@ import { type Expr, c, call, format, isCall, walk } from "../concept/expression.
 import { reachesBehaviour } from "../runtime/select.js";
 import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
-import { lemma } from "../runtime/host.js";
+import { lemma, properNoun } from "../runtime/host.js";
+import { isWord } from "../ears/parser/words.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
@@ -350,6 +351,27 @@ async function learnOnce(
           // Unreachable: the form is looked up as it is.
         }
       }
+      // A common word ("build", "app") is asked of the dictionary first: Wikidata names things, and
+      // the item a common word's article points at is often not what people mean by the word
+      // ("build" was answered as morphology, the study of organisms' forms). A name, or a phrase,
+      // is Wikidata's first.
+      const meaningOf = async (): Promise<boolean> => {
+        try {
+          const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, { value: c(named ? "Noun" : "Verb") }]), c("Execution"));
+          if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {
+            steps.push({ identity: gap.identity, how: "dictionary", detail: meaning.args[1].value });
+            return true;
+          }
+        } catch {
+          // Unreachable: the next source is tried.
+        }
+        return false;
+      };
+      const common = !words.includes(" ") && isWord(words) && !properNoun(words);
+      if (looked && common && options.research !== false && (await meaningOf())) {
+        learnedSomething = true;
+        continue;
+      }
       if (looked && named && options.research !== false) {
         try {
           // The sense is the one what was said fits, this message and the ones before it.
@@ -368,17 +390,9 @@ async function learnOnce(
       // A word's meaning, worked out like a question (packs/words.ncon): what was said about
       // it, then the dictionary sense that fits how it was used. Applied to something, it is
       // a verb.
-      if (looked && options.research !== false) {
-        try {
-          const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, ...(named ? [] : [{ value: c("Verb") }])]), c("Execution"));
-          if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {
-            steps.push({ identity: gap.identity, how: "dictionary", detail: meaning.args[1].value });
-            learnedSomething = true;
-            continue;
-          }
-        } catch {
-          // Unreachable is not an answer: what nothing sourced can say stays a residual.
-        }
+      if (looked && !common && options.research !== false && (await meaningOf())) {
+        learnedSomething = true;
+        continue;
       }
     }
     // Nothing new was learned from the gaps. An answer of not knowing is researched still (the
@@ -400,4 +414,30 @@ async function learnOnce(
     result = caught instanceof ConceptError ? caught.value : result;
   }
   return { steps, result, passes, remaining: collectGaps(runtime, result) };
+}
+
+/**
+ * A word a question names that the graph holds nothing of, looked up while it is read
+ * (frame/frames.ts): a common word ("app") in the dictionary first, what people mean by it; a name
+ * or a phrase in Wikidata first, what the world says the thing is. Whether anything was found.
+ */
+export async function lookUpWord(
+  runtime: Runtime,
+  identity: string,
+  said: string,
+  options: { fetch?: (url: string) => Promise<unknown> } = {},
+): Promise<boolean> {
+  const words = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  const common = !words.includes(" ") && isWord(words) && !properNoun(words);
+  const dictionary = async () => {
+    try {
+      const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }, { value: c("Noun") }]), c("Execution"));
+      return isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string";
+    } catch {
+      return false;
+    }
+  };
+  const world = async () =>
+    (await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)) !== undefined;
+  return common ? (await dictionary()) || (await world()) : (await world()) || (await dictionary());
 }
