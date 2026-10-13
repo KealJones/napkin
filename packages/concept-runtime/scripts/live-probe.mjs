@@ -55,3 +55,4 @@ for (const say of conversations) {
     for (const s of sourcesOf(store, t.result, t.expression)) console.log(`  source: ${s.label} ${s.url}`);
   }
 }
+// 2026-10-13T14:23:50Z

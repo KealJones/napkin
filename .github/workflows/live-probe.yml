@@ -15,7 +15,8 @@ on:
     paths: [packages/concept-runtime/scripts/live-probe.mjs]
 
 permissions:
-  contents: read
+  # The results are pushed to the live-probe branch, where they can be read without the log.
+  contents: write
 
 jobs:
   probe:
@@ -32,7 +33,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @napkin/concept-runtime build
-      - run: node scripts/live-probe.mjs
+      - run: node scripts/live-probe.mjs | tee /tmp/live-probe.txt
         working-directory: packages/concept-runtime
         env:
           NAPKIN_PROBE: ${{ github.event.inputs.say }}
+      - name: Keep the results on the live-probe branch
+        run: |
+          git config user.name "napkin-live-probe"
+          git config user.email "live-probe@users.noreply.github.com"
+          git checkout --orphan live-probe
+          git rm -rfq .
+          cp /tmp/live-probe.txt results.txt
+          git add results.txt
+          git commit -qm "Live probe of ${GITHUB_SHA::7}"
+          git push -qf origin live-probe
