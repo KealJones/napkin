@@ -435,76 +435,156 @@ Concept(Meaning(),
                         List()
                       )
                     ),
+                    Bind($contextArg,
+                      Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), "context")))
+                    ),
+                    Bind($around,
+                      If(
+                        And($contextArg, Equals(TypeOf(Member($contextArg, "value")), "string")),
+                        Or(
+                          Call(
+                            Member(Call(Member(Member($contextArg, "value"), "toLowerCase")), "match"),
+                            Regex("[a-z]+", "g")
+                          ),
+                          List()
+                        ),
+                        List()
+                      )
+                    ),
+                    Bind($own, Call(Member($spelling, "toLowerCase"))),
+                    Bind($near, Filter($around, Lambda(List($w), And(GreaterThan(Length($w), 3), NotEquals($w, $own))))),
+                    Bind($fits,
+                      Lambda(List($w),
+                        And(
+                          GreaterThan(Length($w), 3),
+                          Call(
+                            Member($near, "some"),
+                            Lambda(List($x), Or(Call(Member($w, "startsWith"), $x), Call(Member($x, "startsWith"), $w)))
+                          )
+                        )
+                      )
+                    ),
+                    Bind($score,
+                      Lambda(List($d),
+                        Length(
+                          Filter(
+                            Concat(
+                              New(
+                                $Set,
+                                Or(Call(Member(Call(Member($d, "toLowerCase")), "match"), Regex("[a-z]+", "g")), List())
+                              )
+                            ),
+                            $fits
+                          )
+                        )
+                      )
+                    ),
                     ForOf(
                       $pos,
-                      Concat($order, List(Undefined())),
-                      ForOf(
-                        $e,
-                        $entries,
-                        Sequence(
-                          If(
-                            And(NotEquals($pos, Undefined()), NotEquals(Member($e, "partOfSpeech"), $pos)),
-                            Continue(),
-                            Undefined()
-                          ),
-                          ForOf(
-                            $x,
-                            Or(Member($e, "definitions"), List()),
-                            Sequence(
-                              Bind($html, Call($String, Or(Member($x, "definition"), ""))),
-                              Bind($d, Call($plain, $html)),
-                              If(AtMost(Length($d), 2), Continue(), Undefined()),
-                              Bind($pointer,
-                                And(
-                                  Includes($html, "form-of-definition"),
-                                  Call(Member(Regex("^alternative .*form of", "i"), "test"), $d)
-                                )
-                              ),
-                              Bind($link,
-                                Call(
-                                  Member(
-                                    Concat(
-                                      Call(
-                                        Member($html, "matchAll"),
-                                        Regex("rel=\"mw:WikiLink\" href=\"\\/wiki\\/([^\"#]+)", "g")
+                      Call(Member($order, "concat"), List(Undefined())),
+                      Sequence(
+                        Bind($found, List()),
+                        ForOf(
+                          $e,
+                          $entries,
+                          Sequence(
+                            If(
+                              And(NotEquals($pos, Undefined()), NotEquals(Member($e, "partOfSpeech"), $pos)),
+                              Continue(),
+                              Undefined()
+                            ),
+                            ForOf(
+                              $x,
+                              Or(Member($e, "definitions"), List()),
+                              Sequence(
+                                Bind($html, Call($String, Or(Member($x, "definition"), ""))),
+                                Bind($d, Call($plain, $html)),
+                                If(AtMost(Length($d), 2), Continue(), Undefined()),
+                                Bind($pointer,
+                                  And(
+                                    Includes($html, "form-of-definition"),
+                                    Call(Member(Regex("^alternative .*form of", "i"), "test"), $d)
+                                  )
+                                ),
+                                Bind($link,
+                                  Call(
+                                    Member(
+                                      Concat(
+                                        Call(
+                                          Member($html, "matchAll"),
+                                          Regex("rel=\"mw:WikiLink\" href=\"\\/wiki\\/([^\"#]+)", "g")
+                                        )
+                                      ),
+                                      "find"
+                                    ),
+                                    Lambda(List($l), Not(Includes(Call($decodeURIComponent, Index($l, 1)), ":")))
+                                  )
+                                ),
+                                If(
+                                  And(And($pointer, $link), LessThan($depth, 1)),
+                                  Sequence(
+                                    Bind($further,
+                                      Await(
+                                        Call(
+                                          $lookUp,
+                                          Call(
+                                            Member(
+                                              Call(Member(Call($decodeURIComponent, Index($link, 1)), "split"), "_"),
+                                              "join"
+                                            ),
+                                            " "
+                                          ),
+                                          Add($depth, 1)
+                                        )
                                       )
                                     ),
-                                    "find"
+                                    If($further, Return($further), Undefined()),
+                                    Continue()
                                   ),
-                                  Lambda(List($l), Not(Includes(Call($decodeURIComponent, Index($l, 1)), ":")))
-                                )
-                              ),
-                              If(
-                                And(And($pointer, $link), LessThan($depth, 1)),
-                                Sequence(
-                                  Bind($found,
-                                    Await(
-                                      Call(
-                                        $lookUp,
-                                        Call(
-                                          Member(
-                                            Call(Member(Call($decodeURIComponent, Index($link, 1)), "split"), "_"),
-                                            "join"
-                                          ),
-                                          " "
-                                        ),
-                                        Add($depth, 1)
-                                      )
-                                    )
-                                  ),
-                                  If($found, Return($found), Undefined()),
-                                  Continue()
+                                  Undefined()
                                 ),
-                                Undefined()
-                              ),
-                              If(
-                                Includes($STRUCTURE, Member($e, "partOfSpeech")),
-                                Return(Undefined()),
-                                Undefined()
-                              ),
-                              Return(Object(d = $d, pos = Member($e, "partOfSpeech"), url = $url))
+                                If(
+                                  Includes($STRUCTURE, Member($e, "partOfSpeech")),
+                                  Return(Undefined()),
+                                  Undefined()
+                                ),
+                                Call(
+                                  Member($found, "push"),
+                                  Object(
+                                    d = $d,
+                                    pos = Member($e, "partOfSpeech"),
+                                    url = $url,
+                                    fit = Call($score, $d),
+                                    at = Length($found)
+                                  )
+                                )
+                              )
                             )
                           )
+                        ),
+                        Comment(
+                          "Of the senses of this part of speech, the one the words around it fit (what was said, and"
+                        ),
+                        Comment(
+                          "what the graph knows of the words beside it); the dictionary's first when none fits better."
+                        ),
+                        If(
+                          Length($found),
+                          Return(
+                            Index(
+                              Call(
+                                Member($found, "sort"),
+                                Lambda(List($a, $b),
+                                  Or(
+                                    Subtract(Member($b, "fit"), Member($a, "fit")),
+                                    Subtract(Member($a, "at"), Member($b, "at"))
+                                  )
+                                )
+                              ),
+                              0
+                            )
+                          ),
+                          Undefined()
                         )
                       )
                     ),

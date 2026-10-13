@@ -514,8 +514,9 @@ function describes(store: ConceptStore, words: readonly Word[], question: boolea
   if (!thing || typesOf(store, c(named)).some((k) => k === "Deictic" || k === "Pronoun")) return [];
   // What it is (IsA, Means), then every fact it holds, as said: none taken back, none held only in a context.
   const known = relationsOf(store, thing).flatMap((r) =>
-    r.context === undefined && isCall(r.claim) && r.claim.args.length && (r.claim.head === "IsA" || r.claim.head === "Means" || !STRUCTURAL.has(r.claim.head)) && !store.retracted(thing, r.claim) ? [r.claim] : [],
+    r.context === undefined && isCall(r.claim) && r.claim.args.length && (r.claim.head === "IsA" || r.claim.head === "Means" || !STRUCTURAL.has(r.claim.head)) && !typesOf(store, c(r.claim.head)).includes("WordFact") && !store.retracted(thing, r.claim) ? [r.claim] : [],
   );
+  // What the word can be ("can be a verb") is about the word, not the thing: alone, it is not a description.
   if (!known.length) return [];
   const facts = call("List", known.map((value) => ({ value })));
   return [{
@@ -1146,7 +1147,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     const whole = [...new Set(phrases.map((p) => nameOf(p)))].filter((id) => id && !own(id));
     const tries: string[][] = [
       ...whole.map((id) => [id]),
-      ...[...new Set(named)].filter((id) => !own(id)).map((id) => [id]),
+      // Never the ones talking ("me", "you"): the world does not know who they are.
+      ...[...new Set(named)].filter((id) => !own(id) && !typesOf(store, c(id)).some((k) => k === "Deictic" || k === "Pronoun")).map((id) => [id]),
       ...(runs.length <= 2 && runs.every((r) => r.length <= 3) ? runs.flatMap((r) => (r.length > 1 ? [[nameOf(r.join(" "))], r.map((w) => nameOf(w))] : [[nameOf(r[0])]])) : []),
     ];
     let left = options.lookups ?? 3;

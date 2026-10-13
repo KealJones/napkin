@@ -83,7 +83,7 @@ export function unknownAnswer(result: Expr | undefined, store?: Runtime["store"]
 
 /** A thing Napkin holds only the name of. */
 function nameOnly(store: Runtime["store"], identity: string): boolean {
-  return !(store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head));
+  return !(store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs", "CanBe", "Called"].includes(r.claim.head));
 }
 
 /**
@@ -94,7 +94,7 @@ function nameOnly(store: Runtime["store"], identity: string): boolean {
 /** A Concept whose every fact a pack declared: how Napkin uses the word, nothing the world said. */
 /** Whether a thing is described by anything but its name: what it is, is part of, means. */
 function describedAlready(runtime: Runtime, identity: string): boolean {
-  return (runtime.store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs"].includes(r.claim.head));
+  return (runtime.store.get(identity)?.relations ?? []).some((r) => isCall(r.claim) && !["Named", "SameAs", "CanBe", "Called"].includes(r.claim.head));
 }
 
 /**
@@ -215,9 +215,10 @@ async function learnOnce(
         if (attempted.has(identity)) continue;
         attempted.add(identity);
         try {
-          const grounded = await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said });
-          if (grounded?.relations.length) {
-            steps.push({ identity, how: "research", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
+          // A common word from the dictionary first, a name from Wikidata first (lookUpWord).
+          if (await lookUpWord(runtime, identity, said)) {
+            const learned = (runtime.store.get(identity)?.relations ?? []).filter((r) => isCall(r.claim) && (r.claim.head === "Means" || r.claim.head === "IsA")).map((r) => format(r.claim));
+            steps.push({ identity, how: "research", detail: learned.join(", ") || "looked up" });
             found = true;
           }
         } catch {
@@ -357,7 +358,8 @@ async function learnOnce(
       // is Wikidata's first.
       const meaningOf = async (): Promise<boolean> => {
         try {
-          const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, { value: c(named ? "Noun" : "Verb") }]), c("Execution"));
+          const around = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+          const meaning = await runtime.evaluate(call("Meaning", [{ value: c(gap.identity) }, { value: c(named ? "Noun" : "Verb") }, { name: "context", value: wordContext(runtime.store, around, words) }]), c("Execution"));
           if (isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string") {
             steps.push({ identity: gap.identity, how: "dictionary", detail: meaning.args[1].value });
             return true;
@@ -417,6 +419,31 @@ async function learnOnce(
 }
 
 /**
+ * What a word is said among, for choosing which of its senses is meant: what was said (this message
+ * and the ones before), and what the graph knows of the words beside it, what each is and means
+ * ("app": "a computer program ..."), so "build" beside "app" is the software kind.
+ */
+export function wordContext(store: Runtime["store"], said: string, word: string): string {
+  const own = word.toLowerCase();
+  const known: string[] = [];
+  const ws = said.toLowerCase().match(/[a-z]+/g) ?? [];
+  // Each word, and each two or three side by side ("web app" is a thing of its own).
+  const names = new Set<string>();
+  for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) names.add(ws.slice(i, i + n).join(" "));
+  for (const w of names) {
+    if (w === own || w.length < 3) continue;
+    const id = nameOf(w);
+    for (const r of store.get(id)?.relations ?? []) {
+      if (r.context !== undefined || !isCall(r.claim)) continue;
+      const v = r.claim.args[0]?.value;
+      if (r.claim.head === "Means" && typeof v === "string") known.push(v);
+      else if (r.claim.head === "IsA" && v !== undefined && isCall(v)) known.push(v.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2"));
+    }
+  }
+  return [said, ...known].join(" ");
+}
+
+/**
  * A word a question names that the graph holds nothing of, looked up while it is read
  * (frame/frames.ts): a common word ("app") in the dictionary first, what people mean by it; a name
  * or a phrase in Wikidata first, what the world says the thing is. Whether anything was found.
@@ -431,7 +458,7 @@ export async function lookUpWord(
   const common = !words.includes(" ") && isWord(words) && !properNoun(words);
   const dictionary = async () => {
     try {
-      const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }, { value: c("Noun") }]), c("Execution"));
+      const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }, { value: c("Noun") }, { name: "context", value: wordContext(runtime.store, said, words) }]), c("Execution"));
       return isCall(meaning) && meaning.head === "Meaning" && typeof meaning.args[1]?.value === "string";
     } catch {
       return false;

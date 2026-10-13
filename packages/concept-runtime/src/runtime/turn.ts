@@ -732,7 +732,7 @@ export async function turn(
   if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
     // Learning on, a question with words the graph holds nothing of looks them up while it is
     // read (frame/frames.ts), and what is found is kept like anything else learned.
-    const lookup = options.learn === false ? undefined : (identity: string, said: string) => lookUpWord(runtime, identity, said, options.fetch ? { fetch: options.fetch } : {});
+    const lookup = options.learn === false ? undefined : (identity: string, said: string) => lookUpWord(runtime, identity, [said, ...(options.history ?? []).slice(-4).map((h) => h.message)].join(" "), options.fetch ? { fetch: options.fetch } : {});
     // The reply to "do you mean A or B?" picks one: its choices are confirmed, the others' corrected.
     const picked = last?.result?.startsWith("ChooseOne(") ? pickOption(runtime.store, last.result, message) : undefined;
     if (picked) {

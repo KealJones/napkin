@@ -38,7 +38,7 @@ export type Sense =
 export const STRUCTURAL = new Set([
   "IsA", "SubclassOf", "SynonymOf", "HeardAs", "Named", "Called", "SameAs", "WrittenAs", "NotWrittenAs", "ReadBeside",
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
-  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled", "SaysSame",
+  "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled", "SaysSame", "CanBe",
 ]);
 /**
  * Kinds of word that only help say the others: they fill no hole and need none filled. Of the
