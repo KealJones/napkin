@@ -283,6 +283,8 @@ function holderOf(tokens: readonly Token[], last: { holder?: string }): string |
 /** Every amount a sentence states. */
 function amountsIn(store: ConceptStore, sentence: string, index: number, last: Last, optional = false): Amount[] {
   const tokens = tokenize(sentence);
+  // Who was talked of before this sentence: what "he" in "than he has" points at.
+  const before = last.holder;
   let holder = holderOf(tokens, last);
   if (holder) last.holder = holder;
   const out: Amount[] = [];
@@ -292,7 +294,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   // After "5 more than", the ratio said next is a step in that amount, no one's own.
   let inner = false;
   // A clause that names someone else doing ("..., and Harry has half as many") is theirs.
-  const names = (k: number) => k > 0 && /^[A-Z]/.test(tokens[k]!.text) && tokens[k]!.number === undefined && !tokens[k]!.tags.includes("Pronoun") && (tokens[k]!.comma || /^(and|but|while|whereas)$/.test(tokens[k - 1]!.lower)) && !!tokens[k + 1]?.tags.includes("Verb");
+  const names = (k: number) => k > 0 && /^[A-Z]/.test(tokens[k]!.text) && tokens[k]!.number === undefined && !tokens[k]!.tags.includes("Pronoun") && (tokens[k]!.comma || (/^(and|but|while|whereas)$/.test(tokens[k - 1]!.lower) && !(k > 1 && /^[A-Z]/.test(tokens[k - 2]!.text) && tokens[k - 2]!.number === undefined && !tokens[k - 1]!.comma && (k === 2 || tokens[k - 2]!.comma)))) && !!tokens[k + 1]?.tags.includes("Verb");
   // What a ratio is of: "as many sheep as Charleston" (a holder), "that much", "of the price",
   // "by 30%" (the amount said last; increased or reduced by it).
   const ratioOf = (at: number): Amount["of"] => {
@@ -316,8 +318,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     const from = rest.findIndex((t) => t.lower === "from");
     if (from >= 0 && /^(original|regular|usual|normal|full|old|initial|starting)$/.test(rest[from + 2]?.lower ?? rest[from + 1]?.lower ?? "")) return { last: true, named: (rest[from + 2] ?? rest[from + 1])!.lower };
     const of = rest.findIndex((t) => t.lower === "of" || t.lower === "that" || t.lower === "it" || t.lower === "this");
-    // "of it": the thing itself, as said, not a share already taken of it.
-    const thing = of >= 0 && (rest[of]!.lower === "it" || rest[of + 1]?.lower === "it");
+    // "of it", "of the sandwiches": the thing itself, as said, not a share already taken of it.
+    const thing = of >= 0 && (rest[of]!.lower === "it" || rest[of + 1]?.lower === "it" || (rest[of]!.lower === "of" && rest[of + 1]?.lower === "the" && isNoun(rest[of + 2]) && !/^(rest|remaining|remainder)$/.test(rest[of + 2]!.lower)));
     // "of what is left", "of the rest", "the remaining money": what is had by then.
     if (of >= 0 && rest.slice(of + 1, of + 5).some((t) => /^(left|rest|remaining|remainder)$/.test(t.lower))) return { last: true, left: true };
     // "a third of what Laurie did": Laurie's.
@@ -425,7 +427,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     if (way && than >= 0) {
       const who = tokens.slice(than + 1, than + 4).find((x) => (/^[A-Z]/.test(x.text) && !x.tags.includes("Pronoun")) || isNoun(x));
       // Told apart by a describing word ("than silver coins") or a doing ("than they lost").
-      const afterPronoun = tokens[than + 1]?.tags.includes("Pronoun") && tokens[than + 2]?.tags.includes("Verb") ? lemma(tokens[than + 2]!.lower) : undefined;
+      // "than he has", "than she is": the one before, restated, not a kind of its own.
+      const restated = tokens[than + 1]?.tags.includes("Pronoun") && /^(has|have|had|is|was|are|were|does|did|do)$/.test(tokens[than + 2]?.lower ?? "");
+      const afterPronoun = !restated && tokens[than + 1]?.tags.includes("Pronoun") && tokens[than + 2]?.tags.includes("Verb") ? lemma(tokens[than + 2]!.lower) : undefined;
       const named = afterPronoun ?? (who && !/^[A-Z]/.test(who.text) ? describer(tokens, than + 1, than + 5) : undefined);
       const doing = [...tokens.slice(0, i)].reverse().find((x) => x.tags.includes("Verb") && x.number === undefined && !/^(is|are|was|were|be|has|have|had)$/.test(x.lower));
       const kind = describer(tokens, i + 1, than) ?? (afterPronoun && doing ? lemma(doing.lower) : undefined);
@@ -442,7 +446,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
         ...(holder ? { holder } : {}),
         of: nested
           ? { next: true, differs: MORE.test(way.lower) ? 1 : -1 }
-          : { ...(who && /^[A-Z]/.test(who.text) ? { holder: who.text } : { last: true }), differs: MORE.test(way.lower) ? 1 : -1, ...(unit && unit !== "year" ? { unit } : {}), ...(named ? { named } : {}) },
+          : { ...(who && /^[A-Z]/.test(who.text) ? { holder: who.text } : restated && before ? { holder: before } : { last: true }), differs: MORE.test(way.lower) ? 1 : -1, ...(unit && unit !== "year" ? { unit } : {}), ...(named ? { named } : {}) },
         ...(kind ? { kind } : {}),
       });
       i = Math.max(i, than);
@@ -487,7 +491,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       ...(holder ? { holder } : {}),
       ...(optional ? { optional } : {}),
       ...(describer(tokens, i + 1, end) ? { kind: describer(tokens, i + 1, end)! } : {}),
-      ...(/\b(combined|in total|altogether|all together|in all|total of)\b/i.test(sentence) ? { whole: true } : {}),
+      ...(/\b(combined|in total|altogether|all together|together|in all|total of|between (them|the two|the three)|among (them|the))\b/i.test(sentence) ? { whole: true } : {}),
     });
     i = Math.max(i, Math.max(per.end, end) - 1);
   }
@@ -696,7 +700,9 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
     !asked.total &&
     ((!!asked.kind && amounts.every((a, i) => (w.used & (1 << i)) === 0 || a.optional || (a.kind === asked.kind && !a.consumed))) ||
       (!!asked.holder && !asked.kind && amounts.every((a, i) => (w.used & (1 << i)) === 0 || a.optional || (a.holder === asked.holder && !a.consumed))));
-  const total = (w: Worked) => score(w) - 1.5 * owed(w.used) - 1.5 * again(w.used) + (theirs(w) ? 3 : 0) - (usesRatios(w) ? 0 : 4);
+  // A conversion is used only when it is needed.
+  const converts = (m: number) => amounts.filter((a, i) => a.sentence === -1 && (m & (1 << i)) !== 0).length;
+  const total = (w: Worked) => score(w) - 0.75 * converts(w.used) - 1.5 * owed(w.used) - 1.5 * again(w.used) + (theirs(w) ? 3 : 0) - (usesRatios(w) ? 0 : 4);
   const pool = masks.flatMap((m) => by.get(m) ?? []).filter((w) => sameUnit(w.unit, asked.unit) && w.value > 0).sort((x, y) => total(y) - total(x));
   const best = pool[0];
   if (best && owed(best.used) <= 2) {
@@ -740,7 +746,9 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   // Amounts said side by side go together: "3 dozen donuts which cost $68 per dozen".
   const leafAt = (w: Worked) => (bits(w.used) === 1 ? Math.log2(w.used) : -1);
   const beside = leafAt(a) >= 0 && leafAt(b) >= 0 && Math.abs(leafAt(a) - leafAt(b)) === 1 && amounts[leafAt(a)]!.sentence === amounts[leafAt(b)]!.sentence;
-  if (sameUnit(a.unit, b.unit) && !ratioOf(a) && !ratioOf(b)) {
+  // A conversion ("7 days in a week") is only ever multiplied or divided by.
+  const conversion = (w: Worked) => amounts.every((x, i) => (w.used & (1 << i)) === 0 || x.sentence === -1);
+  if (sameUnit(a.unit, b.unit) && !ratioOf(a) && !ratioOf(b) && !conversion(a) && !conversion(b)) {
     // Added: what is added, or all of it together. Taken away: what is removed from what was had.
     const plusFit = (signOf(b) >= 0 ? 0.5 : -1) + (asked.total ? 0.5 : 0) + (asked.left ? -0.25 : 0) + (asked.more ? -1 : 0) + (rate(a.unit) && !askedRate ? -0.75 : 0);
     out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", plusFit));
@@ -837,6 +845,15 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
   const held = cap ? named.map((a) => (a === cap ? { ...a, sign: 1 } : top(a) === top(cap) && a.sign === 0 ? { ...a, sign: -1 } : a)) : named;
   const resolved = resolveRatios(held);
   if (resolved.length < 2 && !resolved.some((a) => a.derived)) return undefined;
+  // A rate per something nothing counts ("A boy has 5 cards", and no boys are counted) is just the amount.
+  const counts = new Set(resolved.flatMap((a) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0)));
+  const askedText = question.toLowerCase();
+  const usable = resolved.map((a) => {
+    const per = Object.keys(a.unit).filter((k) => a.unit[k]! < 0);
+    if (per.length !== 1 || a.ratio || TIME.test(per[0]!) || counts.has(per[0]!) || askedText.includes(per[0]!)) return a;
+    return { ...a, unit: Object.fromEntries(Object.entries(a.unit).filter(([k]) => k !== per[0])) };
+  });
+  resolved.splice(0, resolved.length, ...usable);
   const asked = askedIn(question, resolved, sentences[q]!);
   if (!asked) return undefined;
   return { amounts: [...resolved, ...conversions(store, resolved, asked, question)], asked };
