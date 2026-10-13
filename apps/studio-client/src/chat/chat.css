@@ -950,3 +950,84 @@ svg .fill {
 .field details.body[open] summary::before {
   content: "▾ ";
 }
+
+/* ---- long-press actions ---- */
+
+.napkin {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (pointer: fine) {
+  .napkin {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+.actions-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fade 0.18s ease-out;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.actions {
+  width: min(100%, 520px);
+  margin: 0 10px calc(var(--bottom) + 10px);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 8px;
+  animation: rise 0.22s ease-out;
+}
+
+.actions-said {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--soft);
+  margin: 10px 14px 8px;
+}
+
+.actions button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 17px;
+}
+
+.actions button:active,
+.actions button:hover {
+  background: var(--raised);
+}
+
+.actions button svg {
+  color: var(--soft);
+  flex: none;
+}
+
+.actions button span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actions button small {
+  font-size: 13px;
+  color: var(--faint);
+}

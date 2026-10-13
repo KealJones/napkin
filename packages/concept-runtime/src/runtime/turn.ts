@@ -372,6 +372,12 @@ async function pointAt(runtime: Runtime, expression: Expr): Promise<Expr> {
 }
 
 /** Optional graph hooks use their own attempt so their residuals never become user gaps. */
+/** "she=Mom" as the frames left it: said as a reason. */
+const pointedNote = (pointed: string | undefined): string[] => {
+  const [word, thing] = (pointed ?? "").split("=");
+  return word && thing ? [`"${word.toLowerCase()}" points at ${thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2")}.`] : [];
+};
+
 async function graphText(runtime: Runtime, identity: string, input: Expr): Promise<string | undefined> {
   if (!runtime.store.has(identity)) return undefined;
   const hook = new Runtime(runtime.store, {
@@ -766,7 +772,8 @@ export async function turn(
         rereads: 0,
         failed: undefined,
         hearingUsed: "frames",
-        why: framed.why ?? [],
+        // What a pointing word in it meant ("she" is Mom), first: the reading rests on it.
+        why: [...pointedNote(runtime.context.get("pointed")), ...(framed.why ?? [])],
       };
     }
   }

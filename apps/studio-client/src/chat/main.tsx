@@ -5,10 +5,11 @@
  * is more to see. Same API as the studio (transport.ts), so it runs against the Node server or,
  * on GitHub Pages, the in-browser host.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { formatExpression, parseExpression, type Expr } from "@napkin/concept-runtime/expression";
 import type { TraceEvent } from "@napkin/concept-runtime";
+import { RUNTIME_BUILD } from "@napkin/concept-runtime/version";
 import { request } from "../transport";
 import "./chat.css";
 
@@ -374,6 +375,196 @@ function Sheet({ stack, setStack }: { stack: Page[]; setStack: (s: Page[]) => vo
 }
 
 /* ------------------------------------------------------------------ *
+ * A turn, written out whole for whoever is improving Napkin: what was said and in what
+ * conversation, how it was heard and why, what was looked up, what was left undone, every step
+ * that ran (as a tree: what it was called with, which realization it chose, what it gave), and
+ * what was answered. Long-press a reply (or right-click it) to copy it.
+ * ------------------------------------------------------------------ */
+
+function report(t: Turn, before: Turn[], conversation: string | undefined): string {
+  const d = t.detail;
+  const out: string[] = [];
+  const line = (s = "") => out.push(s);
+  const block = (label: string, body: string | undefined) => {
+    if (!body) return;
+    line(`### ${label}`);
+    line("```");
+    line(body);
+    line("```");
+    line();
+  };
+  line(`## Napkin turn report`);
+  line();
+  line(`- runtime: ${RUNTIME_BUILD}`);
+  line(`- host: ${import.meta.env.VITE_NAPKIN_HOST === "browser" ? "browser (GitHub Pages)" : "studio server"}`);
+  line(`- conversation: ${conversation ?? "(none)"}`);
+  line(`- when: ${new Date().toISOString()}`);
+  if (d.ms !== undefined) line(`- took: ${d.ms} ms`);
+  line(`- hearing: ${d.stored ? "(reloaded turn: only what was stored)" : d.hearing ?? "unknown"}`);
+  line();
+  line(`### What I expected`);
+  line(`(write what the answer should have been)`);
+  line();
+  if (before.length) {
+    line(`### Conversation before (last ${before.length})`);
+    for (const b of before) {
+      line(`> ${b.said.replace(/\n/g, "\n> ")}`);
+      line(`< ${(b.reply ?? b.failed ?? "").replace(/\n/g, "\n< ")}`);
+    }
+    line();
+  }
+  block("Said", t.said);
+  block("Replied", t.failed ? `(failed) ${t.failed}` : t.reply);
+  block("Heard", d.heard ? pretty(d.heard, 100) : undefined);
+  block("What ran", d.meaning && d.meaning !== d.heard ? pretty(d.meaning, 100) : undefined);
+  block("Result", d.result ? pretty(d.result, 100) : undefined);
+  if (d.why.length) {
+    line(`### Why it was read so`);
+    for (const w of d.why) line(`- ${w}`);
+    line();
+  }
+  const listed = (label: string, items: string[]) => {
+    if (!items.length) return;
+    line(`### ${label}`);
+    for (const i of items) line(`- ${i}`);
+    line();
+  };
+  listed("Pointing words resolved", d.resolved.map((r) => `"${r.reference}" -> ${r.to}`));
+  listed("Learned", d.learned.map((l) => `${l.identity} (${l.how})${l.detail ? `: ${l.detail}` : ""}`));
+  listed("Left undone", d.gaps.map((g) => `${g.identity} [${g.kind}]: ${g.expression}`));
+  listed("Problems", d.problems);
+  listed("Lines not read", d.rejected.map((r) => `${r.line}: ${r.reason}`));
+  listed("Sources", t.sources.map((s) => `${s.label}: ${s.url}`));
+  if (d.events.length) {
+    line(`### Steps (${d.events.length})`);
+    line("```");
+    const ids = new Set(d.events.map((e) => e.id));
+    const kids = new Map<string | null, TraceEvent[]>();
+    for (const e of d.events) {
+      const p = e.parentEventId && ids.has(e.parentEventId) ? e.parentEventId : null;
+      kids.set(p, [...(kids.get(p) ?? []), e]);
+    }
+    const chose = (r: Expr | null) => {
+      if (!r || typeof r !== "object" || !("head" in r)) return "";
+      const arg = (n: string) => r.args.find((a) => a.name === n)?.value;
+      const pattern = arg("pattern") ?? r.args[0]?.value;
+      const context = arg("context");
+      return ` via ${pattern === undefined ? "?" : formatExpression(pattern)}${context === undefined ? "" : ` in ${formatExpression(context)}`}`;
+    };
+    const walk = (parent: string | null, depth: number) => {
+      for (const e of kids.get(parent) ?? []) {
+        const gave = e.output === null ? `ERROR ${e.error ?? ""}` : formatExpression(e.output);
+        const extra = [e.outcome, e.durationMs === null ? "" : `${e.durationMs}ms`, e.candidateCount > 1 ? `${e.candidateCount} candidates` : ""].filter(Boolean).join(", ");
+        line(`${"  ".repeat(depth)}${formatExpression(e.input)} [${formatExpression(e.useContext)}]${chose(e.selectedRealization)}`);
+        line(`${"  ".repeat(depth)}  => ${gave}  (${extra})`);
+        walk(e.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    line("```");
+  } else if (d.stored) {
+    line(`(Steps and reasons are kept only for turns seen live: send the message again to capture them.)`);
+  }
+  return out.join("\n");
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // No clipboard API (an insecure page, an old browser): the selection way.
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
+}
+
+/** Long-press (touch) or right-click (mouse): `onPress` with where it happened. */
+function usePress(onPress: () => void) {
+  const timer = useRef<number | undefined>(undefined);
+  const start = useRef<{ x: number; y: number } | undefined>(undefined);
+  const cancel = () => {
+    window.clearTimeout(timer.current);
+    timer.current = undefined;
+  };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      start.current = { x: e.clientX, y: e.clientY };
+      cancel();
+      timer.current = window.setTimeout(() => {
+        timer.current = undefined;
+        navigator.vibrate?.(12);
+        onPress();
+      }, 480);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (start.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > 10) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      cancel();
+      onPress();
+    },
+  };
+}
+
+/** What a long-press offers: the reply, or everything about the turn. */
+function Actions({ turn, onCopy, onClose, onOpen }: { turn: Turn | undefined; onCopy: (what: "reply" | "report") => void; onClose: () => void; onOpen: () => void }) {
+  if (!turn) return null;
+  return (
+    <div className="actions-scrim" onClick={onClose}>
+      <div className="actions" role="menu" onClick={(e) => e.stopPropagation()}>
+        <p className="actions-said">{short(turn.reply ?? turn.failed ?? "", 120)}</p>
+        <button type="button" role="menuitem" onClick={() => onCopy("report")}>
+          {Icon.steps}
+          <span>
+            Copy everything
+            <small>Said, heard, why, steps, answer: all of it, to improve Napkin</small>
+          </span>
+        </button>
+        <button type="button" role="menuitem" onClick={() => onCopy("reply")}>
+          {Icon.answer}
+          <span>Copy reply</span>
+        </button>
+        <button type="button" role="menuitem" onClick={onOpen}>
+          {Icon.ear}
+          <span>How it answered</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Reply({ turn, onPress }: { turn: Turn; onPress: () => void }) {
+  const press = usePress(onPress);
+  return (
+    <div className="napkin" {...press}>
+      {turn.failed ? <p className="failed-text">{turn.failed}</p> : <Rich text={turn.reply ?? ""} />}
+      {turn.sources.length ? (
+        <div className="sources">
+          {turn.sources.map((s) => (
+            <a key={s.url} href={s.url} target="_blank" rel="noreferrer">
+              {s.label}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * The app.
  * ------------------------------------------------------------------ */
 
@@ -389,6 +580,7 @@ function App() {
   const [filter, setFilter] = useState("");
   const [stack, setStack] = useState<Page[]>([]);
   const [toast, setToast] = useState("");
+  const [pressed, setPressed] = useState<string | undefined>();
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
@@ -576,20 +768,7 @@ function App() {
                   <span className="activity-text">{summaryLine(t)}</span>
                   {t.pending ? null : <span className="activity-chevron">{Icon.chevron}</span>}
                 </button>
-                {t.reply !== undefined || t.failed ? (
-                  <div className="napkin">
-                    {t.failed ? <p className="failed-text">{t.failed}</p> : <Rich text={t.reply ?? ""} />}
-                    {t.sources.length ? (
-                      <div className="sources">
-                        {t.sources.map((s) => (
-                          <a key={s.url} href={s.url} target="_blank" rel="noreferrer">
-                            {s.label}
-                          </a>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                {t.reply !== undefined || t.failed ? <Reply turn={t} onPress={() => setPressed(t.id)} /> : null}
               </article>
             ))}
           </div>
@@ -664,6 +843,23 @@ function App() {
         </button>
       </nav>
 
+      <Actions
+        turn={turns.find((t) => t.id === pressed)}
+        onClose={() => setPressed(undefined)}
+        onOpen={() => {
+          const t = turns.find((x) => x.id === pressed);
+          setPressed(undefined);
+          if (t) setStack([{ kind: "turn", turn: t }]);
+        }}
+        onCopy={(what) => {
+          const at = turns.findIndex((x) => x.id === pressed);
+          const t = turns[at];
+          setPressed(undefined);
+          if (!t) return;
+          const text = what === "reply" ? t.reply ?? t.failed ?? "" : report(t, turns.slice(Math.max(0, at - 4), at), current);
+          void copyText(text).then((ok) => setToast(ok ? (what === "reply" ? "Reply copied" : `Copied everything (${text.length.toLocaleString()} characters)`) : "Couldn't copy"));
+        }}
+      />
       <Sheet stack={stack} setStack={setStack} />
       {toast ? <div className="toast">{toast}</div> : null}
     </div>
