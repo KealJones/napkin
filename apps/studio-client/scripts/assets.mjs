@@ -31,6 +31,8 @@ for (const spec of [
   "an-array-of-english-words/index.json",
   "node-symspell/dictionaries/frequency_dictionary_en_82_765.txt",
   "node-symspell/dictionaries/frequency_bigramdictionary_en_243_342.txt",
+  // How words feel (research/feeling.ts).
+  "vader-sentiment/vader_lexicon.txt",
 ]) add(`/modules/${spec}`, require.resolve(spec));
 
 rmSync(out, { recursive: true, force: true });

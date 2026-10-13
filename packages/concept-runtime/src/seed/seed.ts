@@ -72,7 +72,7 @@ export function forwardSynonym(store: ConceptStore, identity: string, target: st
   return true;
 }
 
-function deriveSynonymForwarding(store: ConceptStore): number {
+export function deriveSynonymForwarding(store: ConceptStore): number {
   let derived = 0;
   // A forwarding is derived from a synonym, so it goes when the synonym does: emoji kept
   // answering "what is an emoji" with Emoticon after SynonymOf(Emoticon()) was retracted.

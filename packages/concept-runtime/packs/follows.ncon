@@ -1,0 +1,436 @@
+// Follows: what is told answered by what follows from it and how it feels, read off the graph
+// (src/research/conceptnet.ts, src/research/feeling.ts). Written by scripts/pack.mjs from
+// sources/follows (edit those, not this).
+Requires(Core(), Basic())
+
+// How a word feels, from -4 (worst) to 4 (best): learned from the VADER lexicon the first time
+// a message says the word, kept on the written word (`Word_broken Valence(-2.1)`).
+Concept(Valence(), IsA(Relation()))
+
+// What an event leads to, as ConceptNet says it: what it causes, makes one want, has happen in
+// it, takes first, is done for. Looked up when a message tells of the event.
+Concept(CausesDesire(), IsA(Relation()))
+
+Concept(HasSubevent(), IsA(Relation()))
+
+Concept(HasFirstSubevent(), IsA(Relation()))
+
+Concept(HasLastSubevent(), IsA(Relation()))
+
+Concept(HasPrerequisite(), IsA(Relation()))
+
+Concept(MotivatedByGoal(), IsA(Relation()))
+
+Concept(Entails(), IsA(Relation()))
+
+// What follows from what was told, and how it felt: a reply's matter.
+Concept(Follows(), IsA(Result()))
+
+// Where the lexicon and the common sense come from, and under what license.
+Concept(Vader(), IsA(LearningSource()), License("MIT"))
+
+Concept(ConceptNet(),
+  IsA(LearningSource()),
+  License("CC BY-SA 4.0")
+)
+
+// What follows from what was told, read off the graph: how its words feel (each word's Valence,
+// turned by a word the tagger calls negative just before it, and summed the way VADER sums), and
+// what the event it tells of leads to (the event the turn found, `follows`). Follows() when
+// neither says anything.
+Concept(Follows(),
+  Realization(Follows($said),
+    context = Execution(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($said,
+              If(
+                Index($args, 0),
+                Member(Index($args, 0), "value"),
+                Undefined()
+              )
+            ),
+            If(
+              Or(NotEquals(TypeOf($said), "string"), Not(Call(Member($said, "trim")))),
+              Return(Call(Member($api, "call"), "Follows")),
+              Undefined()
+            ),
+            Bind($code,
+              Lambda(List($w),
+                Add(
+                  "Word_",
+                  Call(
+                    Member(
+                      Map(
+                        Concat(Call(Member($w, "toLowerCase"))),
+                        Lambda(List($ch),
+                          If(
+                            Call(Member(Regex("[a-z]", ""), "test"), $ch),
+                            $ch,
+                            Add("x", Call(Member(Call(Member($ch, "codePointAt"), 0), "toString"), 16))
+                          )
+                        )
+                      ),
+                      "join"
+                    ),
+                    ""
+                  )
+                )
+              )
+            ),
+            Bind($valence,
+              Lambda(List($w),
+                Sequence(
+                  ForOf(
+                    $t,
+                    Call(Member(Member($api, "store"), "asSubject"), Call($code, $w)),
+                    If(
+                      And(
+                        And(Equals(Member($t, "predicate"), "Valence"), Index(Member(Member($t, "expr"), "args"), 0)),
+                        Equals(TypeOf(Member(Index(Member(Member($t, "expr"), "args"), 0), "value")), "number")
+                      ),
+                      Return(Member(Index(Member(Member($t, "expr"), "args"), 0), "value")),
+                      Undefined()
+                    )
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Bind($ws, Call(Member($api, "words"), $said)),
+            Var($sum, 0),
+            Var($felt, false),
+            ForOf(
+              List($i, $w),
+              Call(Member($ws, "entries")),
+              Sequence(
+                Var($v, Call($valence, Member($w, "text"))),
+                If(
+                  And(Equals($v, Undefined()), Member($w, "typed")),
+                  Assign($v, Call($valence, Member($w, "typed"))),
+                  Undefined()
+                ),
+                If(Equals($v, Undefined()), Continue(), Undefined()),
+                Assign($felt, true),
+                Bind($turned,
+                  Call(
+                    Member(
+                      Call(
+                        Member($ws, "slice"),
+                        Call(Member($Math, "max"), 0, Subtract($i, 3)),
+                        $i
+                      ),
+                      "some"
+                    ),
+                    Lambda(List($x), Includes(Member($x, "tags"), "Negative"))
+                  )
+                ),
+                Assign($sum, Add($sum, If($turned, Multiply($v, Negate(0.74)), $v)))
+              )
+            ),
+            Bind($out, List()),
+            If(
+              $felt,
+              Call(
+                Member($out, "push"),
+                Object(
+                  name = "valence",
+                  value = Divide(
+                    Call(
+                      Member($Math, "round"),
+                      Multiply(Divide($sum, Call(Member($Math, "sqrt"), Add(Multiply($sum, $sum), 15))), 100)
+                    ),
+                    100
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($event, Call(Member($api, "ambient"), "follows")),
+            If(
+              $event,
+              Sequence(
+                Bind($by, Object()),
+                Bind($unit, Call(Member(Member($api, "store"), "get"), $event)),
+                ForOf(
+                  $r,
+                  If($unit, Member($unit, "relations"), List()),
+                  Sequence(
+                    Bind($claim, Member($r, "claim")),
+                    If(
+                      Or(
+                        Or(Or(NotEquals(Member($r, "context"), Undefined()), Not($claim)), Not(Member($claim, "head"))),
+                        Not(Length(Member($claim, "args")))
+                      ),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($target, Member(Index(Member($claim, "args"), 0), "value")),
+                    If(
+                      Or(Or(Not($target), NotEquals(TypeOf($target), "object")), Not(Member($target, "head"))),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Call(
+                      Member(
+                        Assign(Index($by, Member($claim, "head")), Or(Index($by, Member($claim, "head")), List())),
+                        "push"
+                      ),
+                      Call(Member($api, "call"), Member($target, "head"))
+                    )
+                  )
+                ),
+                Bind($names,
+                  Object(
+                    Causes = "causes",
+                    CausesDesire = "wants",
+                    HasSubevent = "involves",
+                    HasFirstSubevent = "involves",
+                    HasLastSubevent = "involves",
+                    HasPrerequisite = "needs",
+                    MotivatedByGoal = "for",
+                    Entails = "causes"
+                  )
+                ),
+                Bind($lists, Object()),
+                ForOf(
+                  List($head, $items),
+                  Call(Member($Object, "entries"), $by),
+                  Sequence(
+                    Bind($name, Index($names, $head)),
+                    If(Not($name), Continue(), Undefined()),
+                    Call(Member(Assign(Index($lists, $name), Or(Index($lists, $name), List())), "push"), Spread($items))
+                  )
+                ),
+                If(
+                  Length(Call(Member($Object, "keys"), $lists)),
+                  Sequence(
+                    Call(Member($out, "unshift"), Object(value = Call(Member($api, "call"), $event))),
+                    ForOf(
+                      List($name, $items),
+                      Call(Member($Object, "entries"), $lists),
+                      Call(
+                        Member($out, "push"),
+                        Object(name = $name, value = Call(Member($api, "call"), "List", Spread($items)))
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Return(
+              If(
+                Length($out),
+                Object(head = "Follows", args = $out),
+                Call(Member($api, "call"), "Follows")
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+// What follows from what was told, said: how it felt ("Sorry to hear that."), what the event
+// leads to ("Losing your job can cause depression."), and what it makes one want, asked ("Do you
+// want to find a new job?"). A Concept is said in its name's words (FindANewJob is "find a new
+// job"); a doing (the tagger says its first word is a verb) is what something makes you do.
+Concept(Follows(),
+  Realization(Follows(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($wordsOf,
+              Lambda(List($e),
+                If(
+                  And($e, Member($e, "head")),
+                  Call(
+                    Member(
+                      Call(
+                        Member(
+                          Call(
+                            Member(Member($e, "head"), "replace"),
+                            Regex("([a-z0-9])([A-Z])", "g"),
+                            "$1 $2"
+                          ),
+                          "replace"
+                        ),
+                        Regex("([A-Z])([A-Z][a-z])", "g"),
+                        "$1 $2"
+                      ),
+                      "toLowerCase"
+                    )
+                  ),
+                  ""
+                )
+              )
+            ),
+            Bind($items,
+              Lambda(List($list),
+                If(
+                  And($list, Member($list, "args")),
+                  Filter(Map(Member($list, "args"), Lambda(List($a), Call($wordsOf, Member($a, "value")))), $Boolean),
+                  List()
+                )
+              )
+            ),
+            Bind($either,
+              Lambda(List($xs),
+                If(
+                  LessThan(Length($xs), 2),
+                  Call(Member($xs, "join"), ""),
+                  Add(
+                    Add(Call(Member(Call(Member($xs, "slice"), 0, Negate(1)), "join"), ", "), " or "),
+                    Index($xs, Subtract(Length($xs), 1))
+                  )
+                )
+              )
+            ),
+            Bind($doing,
+              Lambda(List($phrase),
+                Sequence(
+                  Bind($first, Index(Call(Member($api, "words"), $phrase), 0)),
+                  Return(
+                    If(
+                      $first,
+                      And(Includes(Member($first, "tags"), "Verb"), Not(Includes(Member($first, "tags"), "Gerund"))),
+                      false
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($up,
+              Lambda(List($s),
+                If(
+                  $s,
+                  Add(Call(Member(Index($s, 0), "toUpperCase")), Call(Member($s, "slice"), 1)),
+                  $s
+                )
+              )
+            ),
+            Bind($parts, List()),
+            Bind($v, Call($named, "valence")),
+            If(
+              Equals(TypeOf($v), "number"),
+              If(
+                AtMost($v, Negate(0.5)),
+                Call(Member($parts, "push"), "Sorry to hear that."),
+                If(
+                  LessThan($v, Negate(0.2)),
+                  Call(Member($parts, "push"), "That doesn't sound good."),
+                  If(
+                    AtLeast($v, 0.5),
+                    Call(Member($parts, "push"), "That's great!"),
+                    If(
+                      GreaterThan($v, 0.2),
+                      Call(Member($parts, "push"), "Nice."),
+                      Undefined()
+                    )
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($first, Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
+            Bind($event, If($first, Call($wordsOf, Member($first, "value")), "")),
+            Bind($causes,
+              Call(
+                Member(Call($items, Call($named, "causes")), "slice"),
+                0,
+                2
+              )
+            ),
+            Bind($wants, Call($items, Call($named, "wants"))),
+            If(
+              And($event, Length($causes)),
+              Sequence(
+                Bind($made, Filter($causes, $doing)),
+                Bind($brought, Filter($causes, Lambda(List($x), Not(Call($doing, $x))))),
+                If(
+                  Length($brought),
+                  Call(
+                    Member($parts, "push"),
+                    Add(Add(Add(Call($up, $event), " can cause "), Call($either, $brought)), ".")
+                  ),
+                  Call(
+                    Member($parts, "push"),
+                    Add(Add(Add(Call($up, $event), " can make you "), Call($either, $made)), ".")
+                  )
+                )
+              ),
+              If(
+                And($event, Not(Length($wants))),
+                Sequence(
+                  Bind($involves,
+                    Call(
+                      Member(Call($items, Call($named, "involves")), "slice"),
+                      0,
+                      2
+                    )
+                  ),
+                  Bind($needs,
+                    Call(
+                      Member(Call($items, Call($named, "needs")), "slice"),
+                      0,
+                      2
+                    )
+                  ),
+                  If(
+                    Length($involves),
+                    Call(
+                      Member($parts, "push"),
+                      Add(Add(Add(Call($up, $event), " usually means "), Call($either, $involves)), ".")
+                    ),
+                    If(
+                      Length($needs),
+                      Call(
+                        Member($parts, "push"),
+                        Add(Add(Add(Call($up, $event), " takes "), Call($either, $needs)), " first.")
+                      ),
+                      Undefined()
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            If(
+              Length($wants),
+              Sequence(
+                Bind($want, Or(Call(Member($wants, "find"), $doing), Index($wants, 0))),
+                Call(
+                  Member($parts, "push"),
+                  If(
+                    Call($doing, $want),
+                    Add(Add("Do you want to ", $want), "?"),
+                    Add(Add("Do you want ", $want), "?")
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Call(Member($parts, "join"), " "))
+          )
+        )
+      )
+    )
+  )
+)

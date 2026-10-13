@@ -27,6 +27,8 @@ import { Runtime } from "./evaluator.js";
 import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
+import { whatFollows } from "../research/conceptnet.js";
+import { learnFeelings } from "../research/feeling.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -705,6 +707,19 @@ export async function turn(
   }
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
+  // What is told: how its words feel (local, from the lexicon), and what follows from the event
+  // it tells of (ConceptNet, when learning is on), learned onto the graph for the reply to read
+  // (research/feeling.ts, research/conceptnet.ts, packs/follows.ncon).
+  runtime.context.delete("follows");
+  if (options.inputMode !== "expression" && !message.includes("?")) {
+    learnFeelings(runtime.store, message, runtime.trace.cause);
+    const followed = await whatFollows(runtime.store, message, {
+      lookup: options.learn !== false && options.research !== false,
+      cause: runtime.trace.cause,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    }).catch(() => undefined);
+    if (followed) runtime.context.set("follows", followed.identity);
+  }
   if (options.conversation === undefined) runtime.context.delete("conversation");
   else runtime.context.set("conversation", options.conversation);
   // The graph's multi-word names the message says, heard so their folds are there to read

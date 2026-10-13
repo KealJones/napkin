@@ -853,7 +853,9 @@ Concept(NamedWhole(),
   )
 )
 
-// What is told and nothing takes: noted, with a reply when the conversation corpus has one.
+// What is told and nothing takes: noted, with a reply. What follows from it (packs/follows.ncon)
+// comes first when the graph knows what the event leads to; a reply from the conversation corpus
+// when one is close to what was said; how it felt when the corpus has nothing close.
 Concept(Note(),
   Realization(Note($line),
     context = Declarative(),
@@ -864,20 +866,67 @@ Concept(Note(),
           Sequence(
             Bind($line, Call(Member($bindings, "get"), "line")),
             Bind($message, Call(Member($api, "ambient"), "message")),
+            Bind($told, And($message, Not(Includes($message, "?")))),
+            Bind($noted,
+              Lambda(List($reply),
+                Object(head = "Noted", args = List(Object(value = $line), Object(name = "reply", value = $reply)))
+              )
+            ),
+            Bind($follows,
+              If(
+                $told,
+                Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Follows", $message))),
+                Undefined()
+              )
+            ),
+            Bind($has,
+              Lambda(List($e, Spread($names)),
+                And(
+                  And($e, Member($e, "args")),
+                  Call(Member(Member($e, "args"), "some"), Lambda(List($a), Includes($names, Member($a, "name"))))
+                )
+              )
+            ),
+            Bind($followed,
+              If(
+                And(And($follows, Equals(Member($follows, "head"), "Follows")), Length(Member($follows, "args"))),
+                $follows,
+                Undefined()
+              )
+            ),
+            If(
+              Call(
+                $has,
+                $followed,
+                "causes",
+                "wants",
+                "involves",
+                "needs"
+              ),
+              Return(Call($noted, $followed)),
+              Undefined()
+            ),
             Bind($reply,
               If(
-                And($message, Not(Includes($message, "?"))),
+                $told,
                 Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Reply", $message))),
                 Undefined()
               )
             ),
-            Return(
+            Bind($replied,
               If(
                 And(And($reply, Equals(Member($reply, "head"), "Reply")), Length(Member($reply, "args"))),
-                Object(head = "Noted", args = List(Object(value = $line), Object(name = "reply", value = $reply))),
-                Call(Member($api, "call"), "Noted", $line)
+                $reply,
+                Undefined()
               )
-            )
+            ),
+            If(
+              And($replied, Or(Call($has, $replied, "close"), Not($followed))),
+              Return(Call($noted, $replied)),
+              Undefined()
+            ),
+            If($followed, Return(Call($noted, $followed)), Undefined()),
+            Return(Call(Member($api, "call"), "Noted", $line))
           )
         )
       )

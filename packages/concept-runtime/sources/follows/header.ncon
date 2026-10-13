@@ -1,0 +1,32 @@
+// Follows: what is told answered by what follows from it and how it feels, read off the graph
+// (src/research/conceptnet.ts, src/research/feeling.ts). Written by scripts/pack.mjs from
+// sources/follows (edit those, not this).
+Requires(Core(), Basic())
+
+// How a word feels, from -4 (worst) to 4 (best): learned from the VADER lexicon the first time
+// a message says the word, kept on the written word (`Word_broken Valence(-2.1)`).
+Concept(Valence(), IsA(Relation()))
+
+// What an event leads to, as ConceptNet says it: what it causes, makes one want, has happen in
+// it, takes first, is done for. Looked up when a message tells of the event.
+Concept(CausesDesire(), IsA(Relation()))
+
+Concept(HasSubevent(), IsA(Relation()))
+
+Concept(HasFirstSubevent(), IsA(Relation()))
+
+Concept(HasLastSubevent(), IsA(Relation()))
+
+Concept(HasPrerequisite(), IsA(Relation()))
+
+Concept(MotivatedByGoal(), IsA(Relation()))
+
+Concept(Entails(), IsA(Relation()))
+
+// What follows from what was told, and how it felt: a reply's matter.
+Concept(Follows(), IsA(Result()))
+
+// Where the lexicon and the common sense come from, and under what license.
+Concept(Vader(), IsA(LearningSource()), License("MIT"))
+
+Concept(ConceptNet(), IsA(LearningSource()), License("CC BY-SA 4.0"))
