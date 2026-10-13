@@ -646,16 +646,26 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
       while (b > a && edge(rightAll[b - 1])) b--;
       const spanning = values(rightAll.slice(a, b)).get(`0,${b - a}`)?.find((v) => !isCall(v.expr) || v.expr.head === "Date");
       if (!spanning && !right.every(thingWord)) return;
-      subject = owner.head;
-      claim = c(named(relationWords), spanning ? spanning.expr : c(named(right)));
-      replaces = true;
+      // "my mom is sick", "my car is red": what is owned is a thing, said to be some way (the
+      // tagger's adjective), not an attribute of the owner ("my name", "my favorite color", which
+      // the graph calls a relation, or a word before it says which). Held by the thing.
+      const tagged = (x: Word, t: string) => (tags.get(x.text.toLowerCase()) ?? []).includes(t);
+      const attribute = relationWords.some((x) => x.senses.some((s) => s.type === "relation") || tagged(x, "Adjective"));
+      if (!spanning && !attribute && owner !== ofOwner && right.every((x) => tagged(x, "Adjective"))) {
+        subject = named(relationWords);
+        claim = c("HasProperty", c(named(right)));
+      } else {
+        subject = owner.head;
+        claim = c(named(relationWords), spanning ? spanning.expr : c(named(right)));
+        replaces = true;
+      }
     } else if (left.length === 1 && thingWord(left[0])) {
       const said = left[0].senses.find((s) => s.type === "entity" || s.type === "pointer");
       subject = said?.type === "entity" ? said.head : said?.type === "pointer" ? pointed : named(left);
       const than = right.findIndex((x) => x.text.toLowerCase() === "than" || x.senses.some((s) => s.type === "glue" && s.head === "Than"));
       if (right.length >= 3 && than === 1 && comparing(right[0]) && right.slice(2).every(thingWord)) {
         claim = c(nameOf(`${right[0].text} than`), c(named(right.slice(2))));
-      } else if (right.every((x) => thingWord(x) && !x.senses.some((s) => s.type === "pointer")) && rightAll.length > right.length) {
+      } else if (right.every((x) => thingWord(x) && !x.senses.some((s) => s.type === "pointer")) && rightAll.length > right.length && rightAll[0] !== undefined && /^(?:A|An|The)$/.test(rightAll[0].senses.find((s) => s.type === "glue")?.head ?? "")) {
         // "a film": a kind, said with a word that marks it as one of many.
         claim = c("IsA", c(named(right)));
       }

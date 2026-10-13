@@ -73,8 +73,8 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   what "my"/"I" and "your"/"you" Refer to; a kept statement that felt strongly is answered as it felt
   ("my mom is sick"); what an event leads to counts for how it feels; said of Napkin ("you're
   awesome", "you are useless") is thanked for or owned.
-- [ ] 32. Frames keep wrong facts from some statements: "my mom is sick" as `Me Mom(Sick())`, "i was
-  late to work" as `Me IsA(LateWork())`.
+- [x] 32. Frames keep wrong facts from some statements: "my mom is sick" as `Me Mom(Sick())`, "i was
+  late to work" as `Me IsA(LateWork())`. Now `Mom HasProperty(Sick())`; "is a" needs a/an/the.
 - [x] 33. Remembering: a bad thing told is a Concern, asked after at the next small talk, once; a yes
   or no answers what the last reply offered.
 - [x] 34. Why-questions explained as a chain from what is written (research/why.ts): the sentence that

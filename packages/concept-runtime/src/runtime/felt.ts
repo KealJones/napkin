@@ -5,6 +5,11 @@
 import { c, call, isCall, type Expr } from "../concept/expression.js";
 import type { Runtime } from "./evaluator.js";
 import { typesOf } from "./types.js";
+import { words } from "./host.js";
+
+/** Whether a message tells of something that happened (a doing, not "is"): news, felt more readily than a fact kept. */
+export const happened = (message: string): boolean =>
+  words(message).some((w) => w.tags.includes("Verb") && !w.tags.includes("Copula") && !w.tags.includes("Auxiliary"));
 
 /** A result that only kept what was told (believed, noted, stated): nothing was asked. */
 export const keptOnly = (e: Expr | undefined): boolean =>
@@ -18,29 +23,58 @@ export async function feltReply(
   runtime: Runtime,
   message: string,
   word: (runtime: Runtime, identity: string, input: Expr) => Promise<string | undefined>,
+  /** How strongly it must feel: a fact kept ("my favorite color is blue") needs more than news does. */
+  least = 0.2,
 ): Promise<string | undefined> {
   if (message.includes("?") || !runtime.store.has("Follows")) return undefined;
   const follows = await runtime.evaluate(call("Follows", [{ value: message }]), c("Execution")).catch(() => undefined);
   if (follows === undefined || !isCall(follows) || follows.head !== "Follows") return undefined;
   const v = follows.args.find((a) => a.name === "valence")?.value;
   const led = follows.args.some((a) => a.name === "causes" || a.name === "wants");
-  if (!led && (typeof v !== "number" || Math.abs(v) < 0.2)) return undefined;
+  if (!led && (typeof v !== "number" || Math.abs(v) < least)) return undefined;
   const text = await word(runtime, "RenderResponse", follows).catch(() => undefined);
-  // Something bad going on in the life of the one talking is kept, to ask after later.
-  const told = follows.args.find((a) => a.name === "told")?.value;
-  const about = follows.args.find((a) => a.name === "about")?.value;
-  if (typeof v === "number" && v <= -0.3 && typeof told === "string" && told && about === undefined) {
+  return text?.trim() || undefined;
+}
+
+/** The Follows a turn answered with, wherever it is in the result (a Noted's reply, or the reply itself). */
+export function followsIn(result: Expr | undefined): Expr | undefined {
+  if (result === undefined || !isCall(result)) return undefined;
+  if (result.head === "Follows" && result.args.length) return result;
+  for (const a of result.args) {
+    const f = followsIn(a.value);
+    if (f) return f;
+  }
+  return undefined;
+}
+
+/**
+ * After a reply about something told: something bad going on in the life of the one talking is
+ * kept, to ask after later (`Concern`); and what the reply offered, ending on a question ("Do you
+ * want to talk about it?"), is kept with the words it was said in, so a "yeah" next answers it.
+ */
+export async function remember(runtime: Runtime, message: string, result: Expr | undefined, spoken: string, felt: boolean): Promise<void> {
+  let follows = followsIn(result);
+  // Only a reply about what was told keeps anything: one that said "Got it." keeps nothing.
+  if (!follows && !felt) return;
+  if (!follows && !message.includes("?") && runtime.store.has("Follows")) {
+    const f = await runtime.evaluate(call("Follows", [{ value: message }]), c("Execution")).catch(() => undefined);
+    if (f !== undefined && isCall(f) && f.head === "Follows" && f.args.length) follows = f;
+  }
+  if (!follows || !isCall(follows)) return;
+  const arg = (n: string) => (isCall(follows!) ? follows!.args.find((a) => a.name === n)?.value : undefined);
+  const v = arg("valence");
+  const told = arg("told");
+  const about = arg("about");
+  if (about !== undefined) return;
+  const said = spoken.trim();
+  if (typeof v === "number" && v <= -0.3 && typeof told === "string" && told) {
     runtime.store.addRelation("Me", call("Concern", [{ value: told }, { name: "valence", value: v }, { name: "at", value: new Date().toISOString() }]), undefined, runtime.trace.cause);
   }
-  const said = text?.trim();
-  // What the reply offered, ending on a question ("Do you want to talk about it?", "Do you want to
-  // find a new job?"), kept with the words it was offered in, so a "yeah" next is taken as yes to it.
-  if (said && said.endsWith("?") && about === undefined) {
-    const wants = follows.args.find((a) => a.name === "wants")?.value;
+  if (said.endsWith("?")) {
+    const wants = arg("wants");
     const offered = wants !== undefined && isCall(wants) && wants.args[0] ? wants.args[0].value : c("TalkingItOver");
     runtime.store.addRelation("Self", call("Offered", [{ value: offered }, { name: "said", value: said }]), undefined, runtime.trace.cause);
   }
-  return said || undefined;
 }
 
 /**
