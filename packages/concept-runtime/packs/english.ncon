@@ -2714,3 +2714,77 @@ Concept(Date(),
     )
   )
 )
+
+// Couldn't compare: nothing found of either (judge found neither grounded).
+Concept(Judged(),
+  Realization(Judged($options, NotFound(Rest($x)), Rest($rest)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($options,
+              If(
+                Index($args, 0),
+                Member(Index($args, 0), "value"),
+                Undefined()
+              )
+            ),
+            Bind($opts,
+              If(
+                And($options, Member($options, "args")),
+                Map(
+                  Filter(Member($options, "args"), Lambda(List($a), Equals(Member($a, "name"), Undefined()))),
+                  Lambda(List($a), Member($a, "value"))
+                ),
+                List()
+              )
+            ),
+            Bind($names, List()),
+            ForOf(
+              $o,
+              $opts,
+              Sequence(
+                Bind($r,
+                  Await(
+                    Call(
+                      Member($api, "evaluate"),
+                      Call(Member($api, "call"), "Say", $o),
+                      Call(Member($api, "call"), "Execution")
+                    )
+                  )
+                ),
+                If(
+                  And(Equals(TypeOf($r), "string"), $r),
+                  Call(
+                    Member($names, "push"),
+                    Call(Member(Call(Member($r, "replace"), Regex("[.!?]$", ""), ""), "toLowerCase"))
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Bind($both,
+              If(
+                LessThan(Length($names), 2),
+                Call(Member($names, "join"), ""),
+                Add(
+                  Add(Call(Member(Call(Member($names, "slice"), 0, Negate(1)), "join"), ", "), " and "),
+                  Index($names, Subtract(Length($names), 1))
+                )
+              )
+            ),
+            Return(
+              If(
+                $both,
+                Add(Add("I couldn't find enough about ", $both), " to compare them yet."),
+                "I couldn't find enough to compare them yet."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)

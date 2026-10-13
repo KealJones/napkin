@@ -54,16 +54,22 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 20. Pack audit: `scripts/audit-packs.mjs` (usage, removal with dependents, `--alone=`), report.
 - [x] 21. Told events answered by what follows (ConceptNet, lazily, per event) and how they feel
   (VADER valence, learned per word): packs/follows.ncon; the corpus reply only when close.
-- [ ] 22. Pursue answers what was not asked ("what is todays date?" "Yes."; "how you doing?"
+- [x] 22. Pursue answers what was not asked ("what is todays date?" "Yes."; "how you doing?"
   "Arithmetic."): an answer must account for the question, as frames' `AnsweredBy` does.
-- [ ] 23. Judge answers a choice with nothing grounded ("Both are kinds of elephant."): don't.
-- [ ] 24. code-hearing (10.5k lines) is off the live path: keep as the code-hearing experiment, or
-  remove (the user's call).
+- [x] 23. Judge answers a choice with nothing grounded ("Both are kinds of elephant."): now "I couldn't
+  find enough about mouse and elephant to compare them yet."
+- [ ] 24. code-hearing (10.5k lines) is off the live path (code blocks are read by tree-sitter and the
+  TypeScript reader). Kept: it is the design's direction (code heard word by word, as concepts).
+  Next: run it beside readCode on the coding tests and switch over where it reads the same.
 - [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
   DailyDialog; ConceptNet has little for "my car broke down".
 - [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
 - [ ] 27. Three unit tests fail on main (chat "when you say hello?", focus "supplies list", pursue
   "cake recipe").
+- [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
+- [ ] 29. sources/grounding no longer regenerates packs/grounding.ncon as committed (the pack was
+  edited by hand); bring the sources back in line.
+- [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
 
 # Concept games and chess
 

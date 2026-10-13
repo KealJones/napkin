@@ -1413,6 +1413,92 @@ Concept(Unworked(),
             Await(Call($ask, $line)),
             Comment("Pursue finds what a question asks for; a command (\"make a function that ...\") asks nothing,"),
             Comment("and a fact found for its words is no answer to it. What is written may still be what it wants."),
+            Comment("An answer has to be the kind of thing asked for: what the asked kind is `AnsweredBy` (Someone"),
+            Comment("a thing named, Amount a number, Time a date), or else a thing of that kind (\"how\" asks for"),
+            Comment("steps, and \"arithmetic\" is not steps). A question word that asks for something (\"what\","),
+            Comment("\"who\", \"how\") is not answered yes or no."),
+            Bind($heads, List()),
+            Bind($walk,
+              Lambda(List($e),
+                Sequence(
+                  If(Not(Call($isCall, $e)), Return(), Undefined()),
+                  Call(Member($heads, "push"), Member($e, "head")),
+                  ForOf(
+                    $a,
+                    Member($e, "args"),
+                    If(
+                      Equals(Member($a, "name"), Undefined()),
+                      Call($walk, Member($a, "value")),
+                      Undefined()
+                    )
+                  ),
+                  Undefined()
+                )
+              )
+            ),
+            Call($walk, $line),
+            Bind($wh,
+              Call(
+                Member($heads, "some"),
+                Lambda(List($h),
+                  Call(
+                    Member(
+                      Call(Member(Call(Member($api, "typesOf"), Call(Member($api, "call"), $h)), "slice"), 1),
+                      "some"
+                    ),
+                    Lambda(List($t), Or(Equals($t, "Interrogative"), Equals($t, "QuestionWord")))
+                  )
+                )
+              )
+            ),
+            Bind($fits,
+              Lambda(List($v),
+                Sequence(
+                  Bind($types, Call(Member($api, "typesOf"), $v)),
+                  If(
+                    And($wh, Includes($types, "TruthValue")),
+                    Return(false),
+                    Undefined()
+                  ),
+                  If(Not(Call($isCall, $asks)), Return(true), Undefined()),
+                  Bind($shapes,
+                    Map(
+                      Filter(
+                        Call(Member(Member($api, "store"), "asSubject"), Member($asks, "head")),
+                        Lambda(List($t),
+                          And(
+                            And(Equals(Member($t, "predicate"), "AnsweredBy"), Call($isCall, Member($t, "expr"))),
+                            Call($isCall, OptionalMember(Index(Member(Member($t, "expr"), "args"), 0), "value"))
+                          )
+                        )
+                      ),
+                      Lambda(List($t), Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"))
+                    )
+                  ),
+                  If(
+                    Not(Length($shapes)),
+                    Return(Includes($types, Member($asks, "head"))),
+                    Undefined()
+                  ),
+                  Return(
+                    Call(
+                      Member($shapes, "some"),
+                      Lambda(List($s),
+                        If(
+                          Equals($s, "Concept"),
+                          And(Call($isCall, $v), Not(Length(Member($v, "args")))),
+                          If(
+                            Equals($s, "Number"),
+                            Equals(TypeOf($v), "number"),
+                            Includes($types, $s)
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            ),
             Bind($facets,
               If(
                 And(Call($isCall, Member($api, "context")), Equals(Member(Member($api, "context"), "head"), "Context")),
@@ -1447,7 +1533,10 @@ Concept(Unworked(),
                     )
                   ),
                   If(
-                    And(Call($isCall, $found), Equals(Member($found, "head"), "Found")),
+                    And(
+                      And(Call($isCall, $found), Equals(Member($found, "head"), "Found")),
+                      Or(NotEquals($step, "Pursue"), Call($fits, Member(Index(Member($found, "args"), 0), "value")))
+                    ),
                     Return(
                       Call(
                         Member($api, "call"),

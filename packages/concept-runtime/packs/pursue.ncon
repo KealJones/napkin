@@ -1662,30 +1662,64 @@ Concept(Pursue(),
               Undefined()
             ),
             Bind($wanted, If(Call($isCall, $asks), Member($asks, "head"), Undefined())),
+            Comment(
+              "What is asked for decides what fits: what that kind is AnsweredBy (Someone a thing named, Amount a number, Time a date), or else a thing of that kind (\"how\" asks for steps)."
+            ),
+            Comment("\"What language ...\": a kind named is asked for, so the answer is a thing, not text."),
             Bind($fits,
               Lambda(List($v),
                 Sequence(
                   If(
-                    Or(Equals($wanted, "Someone"), Equals($wanted, "Place")),
-                    Return(And(Call($isCall, $v), Not(Length(Member($v, "args"))))),
-                    Undefined()
-                  ),
-                  If(
-                    Equals($wanted, "Amount"),
-                    Return(Equals(TypeOf($v), "number")),
-                    Undefined()
-                  ),
-                  If(
-                    Equals($wanted, "Time"),
+                    Call($isCall, $asks),
                     Sequence(
-                      Comment("A time is a date the graph holds (Date(year=, month=, day=)), or a time said as text."),
-                      Return(
-                        Or(And(Call($isCall, $v), Equals(Member($v, "head"), "Date")), Equals(TypeOf($v), "string"))
-                      )
+                      Bind($types, Call(Member($api, "typesOf"), $v)),
+                      Bind($shapes,
+                        Map(
+                          Filter(
+                            Call(Member(Member($api, "store"), "asSubject"), Member($asks, "head")),
+                            Lambda(List($t),
+                              And(
+                                And(Equals(Member($t, "predicate"), "AnsweredBy"), Call($isCall, Member($t, "expr"))),
+                                Call($isCall, OptionalMember(Index(Member(Member($t, "expr"), "args"), 0), "value"))
+                              )
+                            )
+                          ),
+                          Lambda(List($t),
+                            Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head")
+                          )
+                        )
+                      ),
+                      If(
+                        Length($shapes),
+                        Return(
+                          Call(
+                            Member($shapes, "some"),
+                            Lambda(List($s),
+                              If(
+                                Equals($s, "Concept"),
+                                And(Call($isCall, $v), Not(Length(Member($v, "args")))),
+                                If(
+                                  Equals($s, "Number"),
+                                  Equals(TypeOf($v), "number"),
+                                  If(
+                                    Equals($s, "Date"),
+                                    Or(
+                                      And(Call($isCall, $v), Equals(Member($v, "head"), "Date")),
+                                      Equals(TypeOf($v), "string")
+                                    ),
+                                    Includes($types, $s)
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        ),
+                        Undefined()
+                      ),
+                      Return(Includes($types, Member($asks, "head")))
                     ),
                     Undefined()
                   ),
-                  Comment("\"What language ...\": a kind named is asked for, so the answer is a thing, not text."),
                   If(
                     And(
                       And(

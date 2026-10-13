@@ -32,12 +32,32 @@ async (args, bindings, api) => {
   await ask(line);
   // Pursue finds what a question asks for; a command ("make a function that ...") asks nothing,
   // and a fact found for its words is no answer to it. What is written may still be what it wants.
+  // An answer has to be the kind of thing asked for: what the asked kind is `AnsweredBy` (Someone
+  // a thing named, Amount a number, Time a date), or else a thing of that kind ("how" asks for
+  // steps, and "arithmetic" is not steps). A question word that asks for something ("what",
+  // "who", "how") is not answered yes or no.
+  const heads = [];
+  const walk = (e) => {
+    if (!isCall(e)) return;
+    heads.push(e.head);
+    for (const a of e.args) if (a.name === undefined) walk(a.value);
+  };
+  walk(line);
+  const wh = heads.some((h) => api.typesOf(api.call(h)).slice(1).some((t) => t === "Interrogative" || t === "QuestionWord"));
+  const fits = (v) => {
+    const types = api.typesOf(v);
+    if (wh && types.includes("TruthValue")) return false;
+    if (!isCall(asks)) return true;
+    const shapes = api.store.asSubject(asks.head).filter((t) => t.predicate === "AnsweredBy" && isCall(t.expr) && isCall(t.expr.args[0]?.value)).map((t) => t.expr.args[0].value.head);
+    if (!shapes.length) return types.includes(asks.head);
+    return shapes.some((s) => (s === "Concept" ? isCall(v) && !v.args.length : s === "Number" ? typeof v === "number" : types.includes(s)));
+  };
   const facets = isCall(api.context) && api.context.head === "Context" ? api.context.args.map((a) => a.value) : [api.context];
   const asked = facets.some((f) => isCall(f) && f.head === "Interrogative");
   for (const goal of open.slice(0, 3)) {
     for (const step of asked ? ["Pursue", "Written"] : ["Written"]) {
       const found = await api.evaluate(step === "Pursue" && asks ? api.call(step, goal, asks) : api.call(step, goal), api.context);
-      if (isCall(found) && found.head === "Found") return api.call("Answer", found.args[0].value);
+      if (isCall(found) && found.head === "Found" && (step !== "Pursue" || fits(found.args[0].value))) return api.call("Answer", found.args[0].value);
     }
   }
   return api.call("Unworked", line, value, bindings.get("since"));

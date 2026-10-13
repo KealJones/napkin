@@ -5482,3 +5482,18 @@ Concept(Supposing(),
     )
   )
 )
+
+// What shape of answer each kind a question asks for takes (as Pursue and the frames judge it): someone or a
+// place is a thing named (a Concept), an amount a number, a time a date. An answer of another
+// shape is passed over: "who is my favorite number" is not answered 7.
+Concept(AnsweredBy(), IsA(Relation()))
+
+Concept(Someone(), AnsweredBy(Concept()))
+
+Concept(Place(), AnsweredBy(Concept()))
+
+Concept(Amount(), AnsweredBy(Number()))
+
+Concept(Time(), AnsweredBy(Date()))
+
+Concept(Date(), AnsweredBy(Date()))

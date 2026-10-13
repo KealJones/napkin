@@ -15,20 +15,7 @@ Concept(Stated(), IsA(Result()))
 // A statement asked to be kept, kept.
 Concept(Remembered(), IsA(Result()))
 
-// What shape of answer each kind a question asks for takes (as Pursue judges it): someone or a
-// place is a thing named (a Concept), an amount a number, a time a date. An answer of another
-// shape is passed over: "who is my favorite number" is not answered 7.
-Concept(AnsweredBy(), IsA(Relation()))
-
-Concept(Someone(), AnsweredBy(Concept()))
-
-Concept(Place(), AnsweredBy(Concept()))
-
-Concept(Amount(), AnsweredBy(Number()))
-
-Concept(Time(), AnsweredBy(Date()))
-
-Concept(Date(), AnsweredBy(Date()))
+// What shape of answer each kind a question asks for takes is basic's (`AnsweredBy`).
 
 // Words that report what someone said or thinks: their hole is a statement, and what it says is
 // not asserted by the one speaking now. "I told them that 2 plus 2 was 5" checks the claim and
