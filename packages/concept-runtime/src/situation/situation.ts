@@ -480,6 +480,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     const perEach = per.per ? undefined : eachAfter ? (last.unit !== unit ? last.unit : undefined) : eachNoun && eachBefore >= 0 && tokens[i - 3 + eachBefore + 1]?.lower !== "of" ? base(eachNoun.text) : undefined;
     // "can carry no more than 5000 pounds", "a budget of $50": what the rest is taken from.
     const capacity = /(no more than|up to|at most|maximum of|limit of|capacity of|can (carry|hold|fit)|budget of)$/.test(tokens.slice(Math.max(0, i - 5), i).map((x) => x.lower).join(" "));
+    // "3 minutes to dig a small hole": of the small ones, as said of what it is per.
+    const beforePer = per.per ? tokens[per.end - 2] : undefined;
+    const perKind = beforePer && beforePer.number === undefined && !beforePer.tags.includes("Determiner") && !/^(a|an|each|every|per|one|of|to|on|in|for)$/.test(beforePer.lower) && (beforePer.tags.includes("Adjective") || isNoun(beforePer)) ? lemma(beforePer.lower) : undefined;
     // "if 5 did not grow": not done, so taken away.
     const not = tokens.slice(i + 1, i + 5).some((x) => /^(not|never|didn't|don't|doesn't|won't|can't|couldn't|wasn't|weren't)$/.test(x.lower) || x.lower.endsWith("n't"));
     const inGroup = tokens[i - 1]?.lower === "of" && last.groupOf ? last.groupOf : undefined;
@@ -501,7 +504,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       ...(capacity ? { capacity } : {}),
       ...(holder ? { holder } : {}),
       ...(optional ? { optional } : {}),
-      ...(describer(tokens, i + 1, end) ? { kind: describer(tokens, i + 1, end)! } : {}),
+      ...(describer(tokens, i + 1, end) ? { kind: describer(tokens, i + 1, end)! } : perKind ? { kind: perKind } : {}),
       ...(/\b(combined|in total|altogether|all together|together|in all|total of|between (them|the two|the three)|among (them|the))\b/i.test(sentence) ? { whole: true } : {}),
     });
     i = Math.max(i, Math.max(per.end, end) - 1);
@@ -669,7 +672,8 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
   // that was not, in another sentence ("has 16 ... eats 3"), or a question about what is left.
   // "He sold 86 ... sold twice that many" asks how many were sold, all of them.
   const tops = (u: Unit) => Object.keys(u).filter((k) => u[k]! > 0).join();
-  const signs = asked.left || amounts.some((a) => a.sign < 0 && amounts.some((b) => b.sign >= 0 && b.sentence !== a.sentence && tops(a.unit) === tops(b.unit)));
+  const told = (a: Amount) => a.sentence >= 0 && !a.optional;
+  const signs = asked.left || amounts.some((a) => told(a) && a.sign < 0 && amounts.some((b) => told(b) && b.sign >= 0 && b.sentence !== a.sentence && tops(a.unit) === tops(b.unit)));
   const by = new Map<number, Worked[]>();
   const keyed = new Map<number, Map<string, Worked>>();
   const score = (w: Worked) => w.fit * 2 - w.divisions * 0.5 - w.depth * 0.05 + (Number.isInteger(round(w.value)) ? 1 : 0) + (w.value > 0 ? 1 : -5);
@@ -785,7 +789,11 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   const cancels = Object.keys(a.unit).some((k) => (a.unit[k] ?? 0) * (b.unit[k] ?? 0) < 0);
   const bare = !Object.keys(a.unit).length || !Object.keys(b.unit).length;
   const meaningful = Object.values(product).every((v) => Math.abs(v) <= 1) && (cancels || bare);
-  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", (ratioOf(a) || ratioOf(b) ? 0.25 : 0) + (beside ? 0.75 : 0)));
+  // Of the same kind, they go together ("30 small holes" × "3 minutes a small hole"); of different kinds, not.
+  const kindA = leafAt(a) >= 0 ? amounts[leafAt(a)]!.kind : undefined;
+  const kindB = leafAt(b) >= 0 ? amounts[leafAt(b)]!.kind : undefined;
+  const kinds = kindA && kindB ? (kindA === kindB ? 0.75 : -1) : 0;
+  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", (ratioOf(a) || ratioOf(b) ? 0.25 : 0) + (beside ? 0.75 : 0) + kinds));
   // Divided: units divide; not by a ratio's opposite, nothing by zero.
   for (const [x, y] of [[a, b], [b, a]] as const) {
     if (y.value === 0 || ratioOf(x)) continue;

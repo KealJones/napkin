@@ -88,6 +88,10 @@ test("the remaining said with no number is what is left by then of the thing sai
   assert.equal(answer("Ray had 25 lollipops. He kept 5 lollipops and shared the remaining equally with his four friends. How many lollipops did each of his friends receive?"), 5);
 });
 
+test("amounts of the same kind go together: the small holes' time with the small holes", () => {
+  assert.equal(answer("It takes Matthew 3 minutes to dig a small hole for shrubs and 10 minutes to dig a large hole for trees.  How many hours will it take him to dig 30 small holes and 15 large holes?"), 4);
+});
+
 test("amounts are said as people say them", () => {
   assert.equal(sayAmount(18, { dollar: 1, day: -1 }), "18 dollars a day");
   assert.equal(sayAmount(260, { sheep: 1 }), "260 sheep");
