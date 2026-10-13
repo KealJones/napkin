@@ -63,3 +63,43 @@ Concept(Save(), Adds())
 Concept(Borrow(), Adds())
 
 Concept(Add(), Adds())
+
+// How many of a smaller unit one of a larger holds: a year holds 12 months. Read when a situation
+// counts in one and asks in the other ("4 car washes a month ... in a year").
+Concept(Holds(), IsA(Relation()))
+
+Concept(Year(), Holds(Month(), 12), Holds(Week(), 52), Holds(Day(), 365))
+
+Concept(Month(), Holds(Week(), 4), Holds(Day(), 30))
+
+Concept(Week(), Holds(Day(), 7))
+
+Concept(Day(), Holds(Hour(), 24))
+
+Concept(Hour(), Holds(Minute(), 60))
+
+Concept(Minute(), Holds(Second(), 60))
+
+Concept(Dozen(), Holds(Item(), 12))
+
+Concept(Foot(), Holds(Inch(), 12))
+
+Concept(Yard(), Holds(Foot(), 3))
+
+Concept(Mile(), Holds(Foot(), 5280))
+
+Concept(Pound(), Holds(Ounce(), 16))
+
+Concept(Gallon(), Holds(Quart(), 4))
+
+Concept(Quart(), Holds(Pint(), 2))
+
+Concept(Pint(), Holds(Cup(), 2))
+
+Concept(Kilogram(), Holds(Gram(), 1000))
+
+Concept(Kilometer(), Holds(Meter(), 1000))
+
+Concept(Meter(), Holds(Centimeter(), 100))
+
+Concept(Dollar(), Holds(Cent(), 100))
