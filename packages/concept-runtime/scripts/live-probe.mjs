@@ -53,6 +53,16 @@ for (const say of conversations) {
     for (const l of t.learned ?? []) console.log(`  learned: ${l.identity} [${l.how}] ${String(l.detail).slice(0, 200)}`);
     for (const f of knownFrom(store, t.result, t.expression)) console.log(`  from: ${f}`);
     for (const s of sourcesOf(store, t.result, t.expression)) console.log(`  source: ${s.label} ${s.url}`);
+    if (process.env.NAPKIN_PROBE_DETAIL) {
+      console.log(`  pointed: ${runtime.context.get("pointed") ?? "-"}`);
+      const heads = new Set();
+      const walk = (e) => { if (e && typeof e === "object" && "head" in e) { heads.add(e.head); for (const a of e.args) walk(a.value); } };
+      walk(t.result); walk(t.expression);
+      for (const h of [...heads].filter((h) => store.get(h) && !store.get(h).realizations.length).slice(0, 6)) {
+        const rs = store.get(h).relations.filter((r) => !r.stamps?.[0]?.pack).map((r) => format(r.claim) + (r.context ? ` [in ${format(r.context)}]` : ""));
+        if (rs.length) console.log(`  facts ${h}: ${rs.slice(0, 12).join("; ").slice(0, 600)}`);
+      }
+    }
   }
 }
 // 2026-10-13T14:23:50Z

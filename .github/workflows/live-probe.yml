@@ -37,6 +37,7 @@ jobs:
         working-directory: packages/concept-runtime
         env:
           NAPKIN_PROBE: ${{ github.event.inputs.say }}
+          NAPKIN_PROBE_DETAIL: ${{ github.event.inputs.say != '' && '1' || '' }}
       - name: Keep the results on the live-probe branch
         run: |
           git config user.name "napkin-live-probe"
