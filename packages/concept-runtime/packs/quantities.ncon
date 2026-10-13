@@ -64,6 +64,45 @@ Concept(Borrow(), Adds())
 
 Concept(Add(), Adds())
 
+// A situation read but not worked out: what was read, said honestly, instead of a guess.
+Concept(Unworked(),
+  Realization(Unworked(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($read, Call($named, "read")),
+            Bind($amounts,
+              If(
+                And($read, Member($read, "args")),
+                Map(Member($read, "args"), Lambda(List($a), Call($String, Member($a, "value")))),
+                List()
+              )
+            ),
+            If(Not(Length($amounts)), Return(""), Undefined()),
+            Return(
+              Add(
+                Add("I read ", Call(Member($amounts, "join"), ", ")),
+                ", but I couldn't work out how they come together to answer that yet."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A situation worked out, said with its working so it can be checked: what was worked out from
 // what was said ("twice of 20 sheep = 40"), each step, then the answer. Not sure of the reading,
 // it says so first.

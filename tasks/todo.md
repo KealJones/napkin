@@ -105,7 +105,7 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
 - [x] W4. The question names the unknown and its unit ("how much money", "how many eggs"); it is
   found by combining the situation's quantities whose units come out as the unit asked
   (dimensional analysis), each step shown.
-- [ ] W7. Measured (scratch, learning off): 4/100 unseen test items right, 60 answered; about 8% of
+- [ ] W7. CI with learning on (8826f4a): GSM8K 7/50, from 0/50. Scratch, learning off, after the unknowns: 9/100 unseen test items right (was 4); about 8% of
   answers right on the train slice tuned against. Most misses need what it does not read yet: an
   unknown solved for ("8 times as many packages as meals ... 27 combined"), state as it goes ("a
   quarter of what is left"), "the rest" of a whole split by shares, nested comparisons ("5 less than

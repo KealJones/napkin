@@ -30,7 +30,7 @@ import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
-import { situationOf, solve, sure, worked } from "../situation/situation.js";
+import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
 import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
@@ -733,8 +733,11 @@ export async function turn(
   if (options.inputMode !== "expression" && /\?|\bhow (much|many|long|far|old)\b/i.test(message)) {
     const situation = situationOf(runtime.store, message);
     const solved = situation && situation.amounts.some((a) => Object.keys(a.unit).length > 0) ? solve(situation.amounts, situation.asked) : undefined;
-    if (solved) {
-      const result = worked(solved);
+    // Read as a situation of several sentences but not worked out: said so, with what was read,
+    // rather than heard a sentence at a time.
+    const unsolved = !solved && situation && situation.amounts.length >= 2 && new Set(situation.amounts.map((a) => a.sentence)).size >= 2;
+    if (solved || unsolved) {
+      const result = solved ? worked(solved) : unworked(situation!);
       const rendered = format(result);
       const spoken = options.speak === false ? rendered : (await graphText(runtime, "RenderResponse", result)) ?? rendered;
       return {
@@ -755,8 +758,7 @@ export async function turn(
         hearingUsed: "frames",
         why: [
           `Read as one situation: ${situation!.amounts.map((a) => a.said).join(", ")}; asked: "${situation!.asked.said}".`,
-          ...solved.steps,
-          sure(solved) ? "That reading was clearly ahead of the others." : `Other readings came close (by ${solved.margin.toFixed(2)}), so it says it isn't sure.`,
+          ...(solved ? [...solved.steps, sure(solved) ? "That reading was clearly ahead of the others." : `Other readings came close (by ${solved.margin.toFixed(2)}), so it says it isn't sure.`] : ["No way of combining them came out in the unit asked."]),
         ],
       };
     }
