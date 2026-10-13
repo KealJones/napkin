@@ -1,0 +1,38 @@
+name: Live probe
+
+# Napkin against the real sources (Wikidata, Wiktionary, Wikipedia, ConceptNet), which the
+# development sandbox cannot reach: each conversation in scripts/live-probe.mjs, every reply with
+# what was looked up, why it was read so, and where the answer came from, printed to the log.
+on:
+  workflow_dispatch:
+    inputs:
+      say:
+        description: "Conversations: messages split by ' | ', conversations by ' || ' (empty: the built-in set)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths: [packages/concept-runtime/scripts/live-probe.mjs]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @napkin/concept-runtime build
+      - run: node scripts/live-probe.mjs
+        working-directory: packages/concept-runtime
+        env:
+          NAPKIN_PROBE: ${{ github.event.inputs.say }}
