@@ -69,6 +69,12 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
 - [ ] 29. sources/grounding no longer regenerates packs/grounding.ncon as committed (the pack was
   edited by hand); bring the sources back in line.
+- [x] 31. What was told is said back to whom it happened ("Sorry to hear your car broke down."), by
+  what "my"/"I" and "your"/"you" Refer to; a kept statement that felt strongly is answered as it felt
+  ("my mom is sick"); what an event leads to counts for how it feels; said of Napkin ("you're
+  awesome", "you are useless") is thanked for or owned.
+- [ ] 32. Frames keep wrong facts from some statements: "my mom is sick" as `Me Mom(Sick())`, "i was
+  late to work" as `Me IsA(LateWork())`.
 - [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
 
 # Concept games and chess

@@ -57,9 +57,17 @@ test("told an event, the reply says what follows from it and how it felt, not a 
   const said = (m: string) => turn(new Runtime(store, {}), m, c("Execution"), { fetch });
   const lost = await said("I lost my job");
   assert.match(lost.spoken, /Losing your job can cause depression or sadness\. Do you want to find a new job\?/);
-  assert.match(lost.spoken, /^That doesn't sound good\./);
-  // Nothing known of the event: how it felt is still said.
-  assert.equal((await said("My car broke down :(")).spoken, "Sorry to hear that.");
+  // What it leads to counts for how it feels: losing a job is bad news, said back to whom it happened.
+  assert.match(lost.spoken, /^Sorry to hear you lost your job\./);
+  // Nothing known of the event: how it felt is still said, with what was told.
+  assert.equal((await said("My car broke down :(")).spoken, "Sorry to hear your car broke down. Do you want to talk about it?");
   // Negated, a good word feels bad.
-  assert.match((await said("I'm not happy")).spoken, /doesn't sound good|Sorry/);
+  assert.match((await said("I'm not happy")).spoken, /you are not happy/);
+  // A statement kept still feels: "my mom is sick" is not answered "Got it."
+  assert.match((await said("my mom is sick")).spoken, /^Sorry to hear your mom is sick\./);
+  // Said of Napkin itself.
+  assert.match((await said("you're awesome")).spoken, /^Thank you/);
+  assert.match((await said("you are useless")).spoken, /What did I get wrong\?/);
+  // Nothing felt: kept as before.
+  assert.equal((await said("my name is Sam")).spoken, "Got it.");
 });

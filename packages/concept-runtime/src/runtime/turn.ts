@@ -29,6 +29,7 @@ import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
+import { feltReply, keptOnly } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -659,6 +660,26 @@ export async function turn(
     message = changed;
     runtime.context.set("replace", "1");
   } else runtime.context.delete("replace");
+  // What is told: how its words feel (local, from the lexicon), and what follows from the event
+  // it tells of (ConceptNet, when learning is on), learned onto the graph for the reply to read
+  // (research/feeling.ts, research/conceptnet.ts, packs/follows.ncon).
+  runtime.context.delete("follows");
+  if (options.inputMode !== "expression" && !message.includes("?")) {
+    learnFeelings(runtime.store, message, runtime.trace.cause);
+    const followed = await whatFollows(runtime.store, message, {
+      lookup: options.learn !== false && options.research !== false,
+      cause: runtime.trace.cause,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    }).catch(() => undefined);
+    if (followed) {
+      runtime.context.set("follows", followed.identity);
+      // What it leads to feels some way too (depression is bad): learned, for how the event feels.
+      for (const r of followed.relations) {
+        const target = isCall(r) ? r.args[0]?.value : undefined;
+        if (target !== undefined && isCall(target)) learnFeelings(runtime.store, target.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2"), runtime.trace.cause);
+      }
+    }
+  }
   let lookedUp: LearnStep[] = [];
   // Where the frames got stuck, said with a "don't know" if the rules hearing does not answer either.
   let stuck: Stuck | undefined;
@@ -683,7 +704,9 @@ export async function turn(
       if (options.keepReadings ?? options.learn !== false) for (const e of framed.edits) keepReading(runtime.store, e.typed, e.meant);
       const rendered = format(result);
       const graphSpoken = options.speak !== false ? await graphText(runtime, "RenderResponse", result) : undefined;
-      const spoken = options.speak === false ? rendered : graphSpoken ?? (await say(message, forSaying(runtime.store, result), { ...options, unrealized: [], uncomputed: false, asked: framed.display }));
+      let spoken = options.speak === false ? rendered : graphSpoken ?? (await say(message, forSaying(runtime.store, result), { ...options, unrealized: [], uncomputed: false, asked: framed.display }));
+      // A statement kept ("my mom is sick") that felt some way is answered as it felt, not "Got it."
+      if (options.speak !== false && keptOnly(result)) spoken = (await feltReply(runtime, message, graphText)) ?? spoken;
       const raw = format(framed.display);
       return {
         heard: { message, raw, expression: framed.display, problems: [], rejected: [], text: framed.text, edits: framed.edits },
@@ -707,19 +730,6 @@ export async function turn(
   }
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
-  // What is told: how its words feel (local, from the lexicon), and what follows from the event
-  // it tells of (ConceptNet, when learning is on), learned onto the graph for the reply to read
-  // (research/feeling.ts, research/conceptnet.ts, packs/follows.ncon).
-  runtime.context.delete("follows");
-  if (options.inputMode !== "expression" && !message.includes("?")) {
-    learnFeelings(runtime.store, message, runtime.trace.cause);
-    const followed = await whatFollows(runtime.store, message, {
-      lookup: options.learn !== false && options.research !== false,
-      cause: runtime.trace.cause,
-      ...(options.fetch ? { fetch: options.fetch } : {}),
-    }).catch(() => undefined);
-    if (followed) runtime.context.set("follows", followed.identity);
-  }
   if (options.conversation === undefined) runtime.context.delete("conversation");
   else runtime.context.set("conversation", options.conversation);
   // The graph's multi-word names the message says, heard so their folds are there to read
@@ -931,8 +941,16 @@ export async function turn(
   if (options.speak === false || result === undefined) spokenBy = "none";
   // Not known: where reading it got stuck, so the person can see which words to put another way.
   const unanswered = result === undefined || uncomputed || unrealized.length > 0 || unknownAnswer(result, runtime.store);
+  // Told something that felt some way, and not understood whole: what it felt like is answered,
+  // not which words were missing ("I just got promoted!" is good news, whatever "promoted" is).
+  // A statement kept (believed or noted) is answered as it felt too; the fact is still kept.
+  const felt = (unanswered || keptOnly(result)) && options.speak !== false && options.inputMode !== "expression" ? await feltReply(runtime, message, graphText) : undefined;
+  if (felt) {
+    spoken = felt;
+    spokenBy = "graph";
+  }
   let stuckSaid: string | undefined;
-  if (unanswered && stuck && (stuck.near || stuck.unknown.length)) {
+  if (unanswered && !felt && stuck && (stuck.near || stuck.unknown.length)) {
     stuckSaid = await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined);
     if (stuckSaid && options.speak !== false) spoken = `${spoken} ${stuckSaid}`;
   }

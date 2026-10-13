@@ -103,10 +103,29 @@ Concept(Follows(),
             Bind($ws, Call(Member($api, "words"), $said)),
             Var($sum, 0),
             Var($felt, false),
+            Comment("The words said in parts (sentences, and what \"and\" joins), each with how strongly it felt."),
+            Bind($parts, List()),
+            Var($part, Object(words = List(), strength = 0)),
             ForOf(
               List($i, $w),
               Call(Member($ws, "entries")),
               Sequence(
+                If(
+                  And(
+                    Length(Member($part, "words")),
+                    Or(
+                      Includes(Member($w, "tags"), "Conjunction"),
+                      And($i, NotEquals(Member($w, "sentence"), Member(Index($ws, Subtract($i, 1)), "sentence")))
+                    )
+                  ),
+                  Sequence(Call(Member($parts, "push"), $part), Assign($part, Object(words = List(), strength = 0))),
+                  Undefined()
+                ),
+                If(
+                  Not(Includes(Member($w, "tags"), "Conjunction")),
+                  Call(Member(Member($part, "words"), "push"), $w),
+                  Undefined()
+                ),
                 Var($v, Call($valence, Member($w, "text"))),
                 If(
                   And(Equals($v, Undefined()), Member($w, "typed")),
@@ -128,8 +147,367 @@ Concept(Follows(),
                     Lambda(List($x), Includes(Member($x, "tags"), "Negative"))
                   )
                 ),
-                Assign($sum, Add($sum, If($turned, Multiply($v, Negate(0.74)), $v)))
+                Bind($value, If($turned, Multiply($v, Negate(0.74)), $v)),
+                Assign($sum, Add($sum, $value)),
+                Assign(
+                  Member($part, "strength"),
+                  Call(
+                    Member($Math, "max"),
+                    Member($part, "strength"),
+                    Call(Member($Math, "abs"), $value)
+                  )
+                )
               )
+            ),
+            If(
+              Length(Member($part, "words")),
+              Call(Member($parts, "push"), $part),
+              Undefined()
+            ),
+            Comment("What the event leads to counts for how it feels, at half weight: losing a job causes"),
+            Comment("depression, so losing a job is bad even said plainly."),
+            Bind($event, Call(Member($api, "ambient"), "follows")),
+            Bind($led,
+              If(
+                And($event, Call(Member(Member($api, "store"), "get"), $event)),
+                Member(Call(Member(Member($api, "store"), "get"), $event), "relations"),
+                List()
+              )
+            ),
+            ForOf(
+              $r,
+              $led,
+              Sequence(
+                Bind($claim, Member($r, "claim")),
+                If(
+                  Or(
+                    Or(NotEquals(Member($r, "context"), Undefined()), Not($claim)),
+                    And(
+                      And(NotEquals(Member($claim, "head"), "Causes"), NotEquals(Member($claim, "head"), "Entails")),
+                      NotEquals(Member($claim, "head"), "CausesDesire")
+                    )
+                  ),
+                  Continue(),
+                  Undefined()
+                ),
+                Bind($target,
+                  If(
+                    Index(Member($claim, "args"), 0),
+                    Member(Index(Member($claim, "args"), 0), "value"),
+                    Undefined()
+                  )
+                ),
+                If(
+                  Or(Not($target), Not(Member($target, "head"))),
+                  Continue(),
+                  Undefined()
+                ),
+                ForOf(
+                  $w,
+                  Call(
+                    Member(
+                      Call(
+                        Member(Member($target, "head"), "replace"),
+                        Regex("([a-z0-9])([A-Z])", "g"),
+                        "$1 $2"
+                      ),
+                      "split"
+                    ),
+                    " "
+                  ),
+                  Sequence(
+                    Bind($v, Call($valence, $w)),
+                    If(Equals($v, Undefined()), Continue(), Undefined()),
+                    Assign($felt, true),
+                    Assign($sum, Add($sum, Multiply($v, 0.5)))
+                  )
+                )
+              )
+            ),
+            Comment(
+              "What was told, said back to the one who told it: a word for the one speaking (\"my\", \"I\") becomes"
+            ),
+            Comment("the word of the same kind for the one spoken to (\"your\", \"you\"), by what each Refers to."),
+            Bind($kinds,
+              Lambda(List($id),
+                Sequence(
+                  Bind($u, Call(Member(Member($api, "store"), "get"), $id)),
+                  Return(
+                    If(
+                      $u,
+                      Map(
+                        Filter(
+                          Member($u, "relations"),
+                          Lambda(List($r),
+                            And(
+                              And(
+                                And(
+                                  And(Member($r, "claim"), Equals(Member(Member($r, "claim"), "head"), "IsA")),
+                                  Index(Member(Member($r, "claim"), "args"), 0)
+                                ),
+                                Member(Index(Member(Member($r, "claim"), "args"), 0), "value")
+                              ),
+                              Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head")
+                            )
+                          )
+                        ),
+                        Lambda(List($r), Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"))
+                      ),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($refersTo,
+              Lambda(List($id),
+                Sequence(
+                  ForOf(
+                    $t,
+                    Call(Member(Member($api, "store"), "asSubject"), $id),
+                    If(
+                      And(
+                        And(
+                          And(Equals(Member($t, "predicate"), "Refers"), Index(Member(Member($t, "expr"), "args"), 0)),
+                          Member(Index(Member(Member($t, "expr"), "args"), 0), "value")
+                        ),
+                        Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head")
+                      ),
+                      Return(Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head")),
+                      Undefined()
+                    )
+                  ),
+                  ForOf(
+                    $t,
+                    Call(Member(Member($api, "store"), "asSubject"), $id),
+                    If(
+                      And(
+                        And(
+                          And(
+                            And(
+                              Equals(Member($t, "predicate"), "HeardAs"),
+                              Index(Member(Member($t, "expr"), "args"), 0)
+                            ),
+                            Member(Index(Member(Member($t, "expr"), "args"), 0), "value")
+                          ),
+                          Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head")
+                        ),
+                        NotEquals(Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"), $id)
+                      ),
+                      Return(
+                        Call($refersTo, Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"))
+                      ),
+                      Undefined()
+                    )
+                  ),
+                  Return(Undefined())
+                )
+              )
+            ),
+            Bind($listener,
+              Map(
+                Filter(
+                  Call(Member(Member($api, "store"), "asObject"), "Self"),
+                  Lambda(List($t), Equals(Member($t, "predicate"), "Refers"))
+                ),
+                Lambda(List($t), Member($t, "subject"))
+              )
+            ),
+            Bind($suffix,
+              Lambda(List($a, $b),
+                Sequence(
+                  Var($n, 0),
+                  While(
+                    And(
+                      And(LessThan($n, Length($a)), LessThan($n, Length($b))),
+                      Equals(
+                        Index($a, Subtract(Subtract(Length($a), 1), $n)),
+                        Index($b, Subtract(Subtract(Length($b), 1), $n))
+                      )
+                    ),
+                    Assign($n, Add($n, 1))
+                  ),
+                  Return($n)
+                )
+              )
+            ),
+            Bind($swapped,
+              Lambda(List($word),
+                Sequence(
+                  Bind($id,
+                    Add(
+                      Call(Member(Call(Member($word, "charAt"), 0), "toUpperCase")),
+                      Call(Member(Call(Member($word, "slice"), 1), "toLowerCase"))
+                    )
+                  ),
+                  If(
+                    NotEquals(Call($refersTo, $id), "Me"),
+                    Return(Undefined()),
+                    Undefined()
+                  ),
+                  Bind($mine,
+                    Call(
+                      Member(Call($kinds, $id), "concat"),
+                      Spread(
+                        Map(
+                          Filter(
+                            Call(Member(Member($api, "store"), "asSubject"), $id),
+                            Lambda(List($t), Equals(Member($t, "predicate"), "HeardAs"))
+                          ),
+                          Lambda(List($t),
+                            Call($kinds, Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"))
+                          )
+                        )
+                      )
+                    )
+                  ),
+                  Bind($best,
+                    Index(
+                      Call(
+                        Member(
+                          Map(
+                            $listener,
+                            Lambda(List($c),
+                              Object(
+                                c = $c,
+                                score = Add(
+                                  Multiply(Length(Filter(Call($kinds, $c), Lambda(List($k), Includes($mine, $k)))), 10),
+                                  Call(
+                                    $suffix,
+                                    Call(Member($c, "toLowerCase")),
+                                    Call(Member($word, "toLowerCase"))
+                                  )
+                                )
+                              )
+                            )
+                          ),
+                          "sort"
+                        ),
+                        Lambda(List($a, $b), Subtract(Member($b, "score"), Member($a, "score")))
+                      ),
+                      0
+                    )
+                  ),
+                  Return(
+                    If(
+                      And($best, AtLeast(Member($best, "score"), 10)),
+                      Call(Member(Member($best, "c"), "toLowerCase")),
+                      Undefined()
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($strongest,
+              Index(
+                Call(
+                  Member(
+                    Filter(
+                      $parts,
+                      Lambda(List($x),
+                        Call(
+                          Member(Member($x, "words"), "some"),
+                          Lambda(List($w), Not(Includes(Member($w, "tags"), "Emoticon")))
+                        )
+                      )
+                    ),
+                    "sort"
+                  ),
+                  Lambda(List($a, $b), Subtract(Member($b, "strength"), Member($a, "strength")))
+                ),
+                0
+              )
+            ),
+            Var($told, ""),
+            Comment("Said of the one spoken to (\"i love you\", \"you're useless\"): about Napkin, answered as such."),
+            Bind($aboutListener,
+              If(
+                $strongest,
+                Call(
+                  Member(Member($strongest, "words"), "some"),
+                  Lambda(List($w),
+                    Equals(
+                      Call(
+                        $refersTo,
+                        Add(
+                          Call(Member(Call(Member(Member($w, "text"), "charAt"), 0), "toUpperCase")),
+                          Call(Member(Call(Member(Member($w, "text"), "slice"), 1), "toLowerCase"))
+                        )
+                      ),
+                      "Self"
+                    )
+                  )
+                ),
+                false
+              )
+            ),
+            If(
+              $strongest,
+              Sequence(
+                Bind($out, List()),
+                Var($subject, false),
+                ForOf(
+                  $w,
+                  Member($strongest, "words"),
+                  Sequence(
+                    If(
+                      Includes(Member($w, "tags"), "Emoticon"),
+                      Continue(),
+                      Undefined()
+                    ),
+                    Bind($word, Member($w, "text")),
+                    Bind($other, Call($swapped, $word)),
+                    Comment("What agrees with the one now spoken of: \"I am\" is \"you are\", \"I was\" \"you were\"."),
+                    If(
+                      And($subject, Includes(Member($w, "tags"), "Copula")),
+                      Call(
+                        Member($out, "push"),
+                        If(
+                          Equals($word, "am"),
+                          "are",
+                          If(Equals($word, "was"), "were", $word)
+                        )
+                      ),
+                      Call(
+                        Member($out, "push"),
+                        Otherwise(
+                          $other,
+                          If(
+                            Includes(Member($w, "tags"), "ProperNoun"),
+                            $word,
+                            Call(Member($word, "toLowerCase"))
+                          )
+                        )
+                      )
+                    ),
+                    Assign(
+                      $subject,
+                      And(NotEquals($other, Undefined()), Not(Includes(Member($w, "tags"), "Possessive")))
+                    )
+                  )
+                ),
+                Assign(
+                  $told,
+                  Call(
+                    Member(
+                      Call(
+                        Member(
+                          Call(
+                            Member(Call(Member($out, "join"), " "), "replace"),
+                            Regex("\\s+([,.!?;:])", "g"),
+                            "$1"
+                          ),
+                          "replace"
+                        ),
+                        Regex("[.!?]+$", ""),
+                        ""
+                      ),
+                      "trim"
+                    )
+                  )
+                )
+              ),
+              Undefined()
             ),
             Bind($out, List()),
             If(
@@ -149,7 +527,16 @@ Concept(Follows(),
               ),
               Undefined()
             ),
-            Bind($event, Call(Member($api, "ambient"), "follows")),
+            If(
+              And($felt, $told),
+              Call(Member($out, "push"), Object(name = "told", value = $told)),
+              Undefined()
+            ),
+            If(
+              And($felt, $aboutListener),
+              Call(Member($out, "push"), Object(name = "about", value = Call(Member($api, "call"), "Self"))),
+              Undefined()
+            ),
             If(
               $event,
               Sequence(
@@ -328,19 +715,62 @@ Concept(Follows(),
             ),
             Bind($parts, List()),
             Bind($v, Call($named, "valence")),
+            Bind($told, Call($named, "told")),
+            Comment("Said of Napkin itself: thanked for, or owned."),
+            Bind($about, Call($named, "about")),
+            If(
+              And(And(Equals(TypeOf($v), "number"), $about), Equals(Member($about, "head"), "Self")),
+              Sequence(
+                If(
+                  AtLeast($v, 0.1),
+                  Return("Thank you, that's really kind of you!"),
+                  Undefined()
+                ),
+                If(
+                  AtMost($v, Negate(0.1)),
+                  Return("I'm sorry. What did I get wrong?"),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
+            Comment(
+              "How it felt, said back with what was told when it is known (\"Sorry to hear your car broke down.\")."
+            ),
             If(
               Equals(TypeOf($v), "number"),
               If(
                 AtMost($v, Negate(0.5)),
-                Call(Member($parts, "push"), "Sorry to hear that."),
-                If(
-                  LessThan($v, Negate(0.2)),
-                  Call(Member($parts, "push"), "That doesn't sound good."),
+                Call(
+                  Member($parts, "push"),
                   If(
-                    AtLeast($v, 0.5),
-                    Call(Member($parts, "push"), "That's great!"),
+                    And(Equals(TypeOf($told), "string"), $told),
+                    Add(Add("Sorry to hear ", $told), "."),
+                    "Sorry to hear that."
+                  )
+                ),
+                If(
+                  LessThan($v, Negate(0.1)),
+                  Call(
+                    Member($parts, "push"),
                     If(
-                      GreaterThan($v, 0.2),
+                      And(Equals(TypeOf($told), "string"), $told),
+                      Add(Add("Oh no, ", $told), "? That doesn't sound good."),
+                      "That doesn't sound good."
+                    )
+                  ),
+                  If(
+                    AtLeast($v, 0.3),
+                    Call(
+                      Member($parts, "push"),
+                      If(
+                        And(Equals(TypeOf($told), "string"), $told),
+                        Add(Add("That's great that ", $told), "!"),
+                        "That's great!"
+                      )
+                    ),
+                    If(
+                      GreaterThan($v, 0.1),
                       Call(Member($parts, "push"), "Nice."),
                       Undefined()
                     )
@@ -423,6 +853,20 @@ Concept(Follows(),
                     Add(Add("Do you want to ", $want), "?"),
                     Add(Add("Do you want ", $want), "?")
                   )
+                )
+              ),
+              Undefined()
+            ),
+            Comment("Nothing more to say of it: the conversation is left open, the way a friend would."),
+            If(
+              And(Equals(TypeOf($v), "number"), Not(Length($wants))),
+              If(
+                AtMost($v, Negate(0.2)),
+                Call(Member($parts, "push"), "Do you want to talk about it?"),
+                If(
+                  AtLeast($v, 0.3),
+                  Call(Member($parts, "push"), "Tell me more!"),
+                  Undefined()
                 )
               ),
               Undefined()

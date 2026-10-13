@@ -18,11 +18,19 @@ async (args, bindings, api) => {
   const up = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
   const parts = [];
   const v = named("valence");
+  const told = named("told");
+  // Said of Napkin itself: thanked for, or owned.
+  const about = named("about");
+  if (typeof v === "number" && about && about.head === "Self") {
+    if (v >= 0.1) return "Thank you, that's really kind of you!";
+    if (v <= -0.1) return "I'm sorry. What did I get wrong?";
+  }
+  // How it felt, said back with what was told when it is known ("Sorry to hear your car broke down.").
   if (typeof v === "number") {
-    if (v <= -0.5) parts.push("Sorry to hear that.");
-    else if (v < -0.2) parts.push("That doesn't sound good.");
-    else if (v >= 0.5) parts.push("That's great!");
-    else if (v > 0.2) parts.push("Nice.");
+    if (v <= -0.5) parts.push(typeof told === "string" && told ? "Sorry to hear " + told + "." : "Sorry to hear that.");
+    else if (v < -0.1) parts.push(typeof told === "string" && told ? "Oh no, " + told + "? That doesn't sound good." : "That doesn't sound good.");
+    else if (v >= 0.3) parts.push(typeof told === "string" && told ? "That's great that " + told + "!" : "That's great!");
+    else if (v > 0.1) parts.push("Nice.");
   }
   const first = args.find((a) => a.name === undefined);
   const event = first ? wordsOf(first.value) : "";
@@ -42,6 +50,11 @@ async (args, bindings, api) => {
   if (wants.length) {
     const want = wants.find(doing) || wants[0];
     parts.push(doing(want) ? "Do you want to " + want + "?" : "Do you want " + want + "?");
+  }
+  // Nothing more to say of it: the conversation is left open, the way a friend would.
+  if (typeof v === "number" && !wants.length) {
+    if (v <= -0.2) parts.push("Do you want to talk about it?");
+    else if (v >= 0.3) parts.push("Tell me more!");
   }
   return parts.join(" ");
 };
