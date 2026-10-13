@@ -10,6 +10,10 @@ on:
         description: "Conversations: messages split by ' | ', conversations by ' || ' (empty: the built-in set)"
         required: false
         default: ""
+      bench:
+        description: "A benchmark to run instead (gsm8k), with how many items: e.g. 'gsm8k 50'"
+        required: false
+        default: ""
   push:
     branches: [main]
     paths: [packages/concept-runtime/scripts/live-probe.mjs]
@@ -21,7 +25,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -33,10 +37,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @napkin/concept-runtime build
-      - run: node scripts/live-probe.mjs | tee /tmp/live-probe.txt
+      - run: |
+          if [ -n "$NAPKIN_BENCH" ]; then node scripts/bench.mjs $NAPKIN_BENCH | tee /tmp/live-probe.txt
+          else node scripts/live-probe.mjs | tee /tmp/live-probe.txt; fi
         working-directory: packages/concept-runtime
         env:
           NAPKIN_PROBE: ${{ github.event.inputs.say }}
+          NAPKIN_BENCH: ${{ github.event.inputs.bench }}
           NAPKIN_PROBE_DETAIL: ${{ github.event.inputs.say != '' && '1' || '' }}
       - name: Keep the results on the live-probe branch
         run: |
