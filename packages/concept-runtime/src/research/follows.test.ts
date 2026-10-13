@@ -125,7 +125,7 @@ test("why is answered by a chain put together from what is written: the cause, w
   const why = await turn(new Runtime(store, {}), "why is the sky blue?", c("Execution"), { fetch });
   assert.equal(
     why.spoken,
-    "Because of Rayleigh scattering, which affects short wavelengths of light more than long ones. Rayleigh scattering is the scattering of light by particles much smaller than the wavelength of the light. That happens because the light makes the charges in each molecule oscillate, and faster oscillations radiate more. (From Wikipedia: Diffuse sky radiation; Rayleigh scattering.)",
+    "Because of Rayleigh scattering. Rayleigh scattering is the scattering of light by particles much smaller than the wavelength of the light. That happens because the light makes the charges in each molecule oscillate, and faster oscillations radiate more. (From Wikipedia: Diffuse sky radiation; Rayleigh scattering.)",
   );
   const n = asked.length;
   const again = await turn(new Runtime(store, {}), "why is the sky blue", c("Execution"), { fetch, learn: false });

@@ -57,11 +57,13 @@ function connectives(store: ConceptStore): string[] {
 }
 
 /** What a why-question asks about: its words that say something, as written and as lemmas. */
-export function askedAbout(message: string): { phrase: string; lemmas: string[] } {
+export function askedAbout(message: string, store?: ConceptStore): { phrase: string; lemmas: string[] } {
   const said = words(message).slice(1);
+  // A word the graph calls a helper ("do" in "why do cats purr") says nothing of what is asked.
+  const helper = (w: string) => !!store && store.asSubject(nameOf(w)).some((t) => t.predicate === "IsA" && isCall(t.expr) && isCall(t.expr.args[0]?.value) && (t.expr.args[0].value as { head: string }).head === "Helper");
   const kept = said.filter((w) => {
     const t = new Set(w.tags);
-    return !(t.has("Copula") || t.has("Auxiliary") || t.has("Determiner") || t.has("Pronoun") || t.has("Preposition") || t.has("Conjunction") || t.has("QuestionWord"));
+    return !(t.has("Copula") || t.has("Auxiliary") || t.has("Determiner") || t.has("Pronoun") || t.has("Preposition") || t.has("Conjunction") || t.has("QuestionWord") || helper(w.text));
   });
   return { phrase: kept.map((w) => w.text.toLowerCase()).join(" "), lemmas: kept.map((w) => lemma(w.text.toLowerCase())) };
 }
@@ -90,6 +92,8 @@ export function causeIn(sentence: string, said: readonly string[]): { connective
 
 const sentencesOf = (text: string): string[] =>
   text
+    // Asides in brackets (a pronunciation, "( RAY-lee)") are not what is said.
+    .replace(/\s*\([^()]*\)/g, "")
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+(?=[A-Z])/)
     .map((s) => s.trim())
@@ -158,7 +162,7 @@ export async function explainWhy(
   message: string,
   options: { fetch?: Fetch; cause?: number; lookup?: boolean } = {},
 ): Promise<Explained | undefined> {
-  const { phrase, lemmas } = askedAbout(message);
+  const { phrase, lemmas } = askedAbout(message, store);
   if (!phrase) return undefined;
   const held = heldWhy(store, phrase);
   if (held || !options.lookup) return held;
@@ -171,7 +175,9 @@ export async function explainWhy(
     if (!p) continue;
     for (const [i, sentence] of sentencesOf(p.text).entries()) {
       const cov = coverage(sentence, lemmas);
-      if (cov < 0.5) continue;
+      // About all of what was asked when that is two words or fewer ("cats purr": a sentence about
+      // cats is not about their purring), most of it otherwise.
+      if (cov < (lemmas.length <= 2 ? 1 : 0.66)) continue;
       const found = causeIn(sentence, said);
       if (!found) continue;
       // About more of what was asked first, then earlier on its page (the lead says it plainest).
@@ -208,13 +214,17 @@ export async function explainWhy(
       }
     }
   }
-  const explained: Explained = { about: phrase, connective: best.found.connective, said: best.sentence, cause: best.found.cause, ...(causeIs ? { causeIs } : {}), ...(then ? { then } : {}), from };
+  // What is said of the cause after it (", which also involves the diatomic gases ...") is kept only
+  // when it is about what was asked.
+  const after = best.found.cause.slice(named.length);
+  const spoken = after && coverage(after, lemmas) === 0 ? named : best.found.cause;
+  const explained: Explained = { about: phrase, connective: best.found.connective, said: best.sentence, cause: spoken, ...(causeIs ? { causeIs } : {}), ...(then ? { then } : {}), from };
   const imported = store.addRelation("Wikipedia", call("Imported", [{ value: from.join("; ") }, { name: "license", value: "CC BY-SA 4.0" }]), undefined, options.cause);
   store.addRelation(
     nameOf(phrase),
     call("HasCause", [
       { value: c(nameOf(named) || "Cause") },
-      { name: "cause", value: best.found.cause },
+      { name: "cause", value: spoken },
       { name: "connective", value: best.found.connective },
       { name: "said", value: best.sentence },
       ...(causeIs ? [{ name: "is", value: causeIs }] : []),

@@ -151,3 +151,19 @@ export async function checkIn(
   runtime.store.addRelation("Me", call("CheckedIn", [{ value: told }]), undefined, runtime.trace.cause);
   return text.trim();
 }
+
+/**
+ * Asked of Napkin to do something ("can you help me build a web app?"): a helper word put to the
+ * one spoken to (a word that `Refers(Self())`), in what was heard.
+ */
+export function askedOfNapkin(store: Runtime["store"], heard: Expr | undefined): boolean {
+  if (heard === undefined) return false;
+  const refersToSelf = (e: Expr): boolean =>
+    isCall(e) && store.asSubject(e.head).some((t) => t.predicate === "Refers" && t.object !== undefined && isCall(t.object) && (t.object as { head: string }).head === "Self");
+  const walk = (e: Expr): boolean => {
+    if (!isCall(e)) return false;
+    if (typesOf(store, c(e.head)).includes("Helper") && e.args[0] !== undefined && refersToSelf(e.args[0].value)) return true;
+    return e.args.some((a) => walk(a.value));
+  };
+  return walk(heard);
+}

@@ -188,7 +188,9 @@ export function knownFrom(store: ConceptStore, result: Expr | undefined, asked?:
     for (const r of store.get(head)?.relations ?? []) {
       if (r.context !== undefined || !isCall(r.claim) || !format(r.claim).includes(answer) || store.retracted(head, r.claim)) continue;
       const stamp = r.stamps?.[0];
-      const fact = `${head} ${format(r.claim)}`;
+      // The fact as it reads, without its qualifiers ("from=1789", "validInPeriod=...").
+      const bare = isCall(r.claim) ? { head: r.claim.head, args: r.claim.args.filter((a) => a.name === undefined) } : r.claim;
+      const fact = `${head} ${format(bare)}`;
       if (stamp?.pack) {
         out.push(`Known from the ${stamp.pack} pack: ${fact}.`);
         continue;
@@ -201,8 +203,12 @@ export function knownFrom(store: ConceptStore, result: Expr | undefined, asked?:
         const claim = entry.relation.claim;
         if (isCall(claim) && claim.head === "Said") {
           const text = claim.args.find((a) => a.name === "text")?.value;
-          if (typeof text === "string") said = `You told me "${text}"${when(entry.stamp.recordedAt)}.`;
-          break;
+          // Only something told is "you told me": a question that led to looking it up is not.
+          const asked = format(claim).includes("Interrogative()");
+          if (typeof text === "string") said = asked ? `Looked up when you asked "${text}"${when(entry.stamp.recordedAt)}: ${fact}.` : `You told me "${text}"${when(entry.stamp.recordedAt)}.`;
+          if (!asked) break;
+          at = entry.stamp.source;
+          continue;
         }
         if (isCall(claim) && claim.head === "Imported") {
           const what = claim.args[0]?.value;
@@ -211,7 +217,7 @@ export function knownFrom(store: ConceptStore, result: Expr | undefined, asked?:
         }
         at = entry.stamp.source;
       }
-      out.push(said ?? imported ?? `Known: ${fact}${when(stamp?.recordedAt)}.`);
+      out.push(imported ?? said ?? `Known: ${fact}${when(stamp?.recordedAt)}.`);
     }
   }
   return [...new Set(out)].slice(0, 4);

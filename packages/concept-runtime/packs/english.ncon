@@ -1255,7 +1255,7 @@ Concept(Describes(),
                 Bind($an,
                   Lambda(List($w),
                     If(
-                      Call(Member(Regex("^(a|an|the)\\s", "i"), "test"), $w),
+                      Call(Member(Regex("^(a|an|the|any|one|some|something|someone|every|each)\\b", "i"), "test"), $w),
                       $w,
                       Add(
                         If(

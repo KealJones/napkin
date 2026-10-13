@@ -30,7 +30,7 @@ import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
-import { asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
+import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -1006,8 +1006,17 @@ export async function turn(
   const askedAfter = !felt && options.speak !== false ? await checkIn(runtime, result, graphText) : undefined;
   if (askedAfter) spoken = `${spoken} ${askedAfter}`;
   if (replying && !answeredOffer) await remember(runtime, message, result, spoken, feltSaid !== undefined);
+  // Asked to do something it cannot work out ("can you help me build a web app?"): said plainly,
+  // with what it can do, rather than where reading got stuck.
+  if (unanswered && !felt && replying && askedOfNapkin(runtime.store, expression) && !message.toLowerCase().startsWith("what can")) {
+    const can = await turn(new Runtime(runtime.store, { traceQuiet: true }), "what can you do", c("Execution"), { learn: false, speak: true }).catch(() => undefined);
+    if (can?.spoken) {
+      spoken = `I can't do that yet. Here's what I can do: ${can.spoken.charAt(0).toLowerCase()}${can.spoken.slice(1)}`;
+      spokenBy = "graph";
+    }
+  }
   let stuckSaid: string | undefined;
-  if (unanswered && !felt && stuck && (stuck.near || stuck.unknown.length)) {
+  if (unanswered && !felt && !spoken.startsWith("I can't do that yet") && stuck && (stuck.near || stuck.unknown.length)) {
     stuckSaid = await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined);
     if (stuckSaid && options.speak !== false) spoken = `${spoken} ${stuckSaid}`;
   }

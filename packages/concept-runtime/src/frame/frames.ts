@@ -18,6 +18,7 @@
  * one taken is kept with the words beside it (ReadBeside), and counts for that sense the next
  * time those words are beside it.
  */
+import { wikidataItem } from "../research/wikidata.js";
 import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
@@ -420,7 +421,10 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           says: c(rel.head),
           notes: [
             ...notes,
-            ...(senses > 1 ? [`"${relWord}" could also have been ${words[rel.k].senses.flatMap((x) => (x.type === "relation" && x.head !== rel.head ? [readableName(x.head)] : [])).join(" or ")}.`] : []),
+            ...((() => {
+              const others = words[rel.k].senses.flatMap((x) => (x.type === "relation" && x.head !== rel.head ? [readableName(x.head)] : [])).filter((x) => x.trim());
+              return senses > 1 && others.length ? [`"${relWord}" could also have been ${others.join(" or ")}.`] : [];
+            })()),
           ],
           score,
           display: c("ContextScope", c("Interrogative"), part ? call("Asked", [{ value: asked }, { name: "part", value: part }]) : c("Asked", asked)),
@@ -761,7 +765,9 @@ function pointedAt(store: ConceptStore, history: readonly { result: string }[], 
   for (const r of results) for (const n of walk(r)) if (isCall(n) && holdsFacts(store, n.head) && fits(n.head)) return n.head;
   for (const h of [...history].reverse()) {
     try {
-      for (const n of walk(parse(h.result))) if (isCall(n) && holdsFacts(store, n.head) && !contradicts(n.head)) return n.head;
+      // A thing known only by name, tied to its item ("Steven Spielberg", answered from Jaws), is
+      // meant too: what it holds is looked up when it is asked about.
+      for (const n of walk(parse(h.result))) if (isCall(n) && (holdsFacts(store, n.head) || wikidataItem(store, n.head) !== undefined) && !contradicts(n.head)) return n.head;
     } catch {
       // A result that does not read as Concepts points at nothing.
     }
