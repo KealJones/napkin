@@ -89,3 +89,45 @@ test("a friend remembers: something bad told is asked after at the next small ta
   await say("I lost my job");
   assert.equal(await say("nah"), "That's okay. I'm here if you change your mind.");
 });
+
+// Wikipedia as its API answers search and extracts, for the pages these tests read (text written
+// for the test, shaped like the real pages).
+const PAGES: Record<string, string> = {
+  "Diffuse sky radiation":
+    "Diffuse sky radiation is solar radiation reaching the Earth's surface after having been scattered from the direct solar beam by molecules or particulates in the atmosphere. " +
+    "On a clear day the sky is blue because of Rayleigh scattering, which affects short wavelengths of light more than long ones. " +
+    "Near sunrise and sunset, most of the light arrives at a low angle.",
+  "Rayleigh scattering":
+    "Rayleigh scattering is the scattering of light by particles much smaller than the wavelength of the light. It is named after Lord Rayleigh.",
+};
+function wikipedia() {
+  const asked: string[] = [];
+  const fetch = async (url: string) => {
+    const q = new URL(url).searchParams;
+    asked.push(q.get("srsearch") ?? q.get("titles") ?? "");
+    if (q.get("list") === "search") {
+      const s = (q.get("srsearch") ?? "").toLowerCase();
+      const hits = s.includes("rayleigh") ? ["Rayleigh scattering"] : s.includes("sky") ? ["Diffuse sky radiation"] : [];
+      return { query: { search: hits.map((title) => ({ title })) } };
+    }
+    const title = q.get("titles") ?? "";
+    const text = PAGES[title];
+    return { query: { pages: text ? { "1": { title, extract: q.get("exintro") ? text.split(". ")[0] + "." : text } } : {} } };
+  };
+  return { asked, fetch };
+}
+
+test("why is answered by a chain put together from what is written: the cause, what the cause is, where each was read; then from the graph", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const { asked, fetch } = wikipedia();
+  const why = await turn(new Runtime(store, {}), "why is the sky blue?", c("Execution"), { fetch });
+  assert.equal(
+    why.spoken,
+    "Because of Rayleigh scattering, which affects short wavelengths of light more than long ones. Rayleigh scattering is the scattering of light by particles much smaller than the wavelength of the light. (From Wikipedia: Diffuse sky radiation; Rayleigh scattering.)",
+  );
+  const n = asked.length;
+  const again = await turn(new Runtime(store, {}), "why is the sky blue", c("Execution"), { fetch, learn: false });
+  assert.equal(again.spoken, why.spoken);
+  assert.equal(asked.length, n);
+});

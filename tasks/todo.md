@@ -75,6 +75,13 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   awesome", "you are useless") is thanked for or owned.
 - [ ] 32. Frames keep wrong facts from some statements: "my mom is sick" as `Me Mom(Sick())`, "i was
   late to work" as `Me IsA(LateWork())`.
+- [x] 33. Remembering: a bad thing told is a Concern, asked after at the next small talk, once; a yes
+  or no answers what the last reply offered.
+- [x] 34. Why-questions explained as a chain from what is written (research/why.ts): the sentence that
+  says why (a `CausalConnective`), the cause taken from it, what the cause is from its own page,
+  sources; kept as HasCause.
+- [ ] 35. Explanations past one link: follow HasCause of the cause (and Wikidata "has cause",
+  P828) for a second "because"; "how does X work" by the same chain over HasPart/UsedFor.
 - [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
 
 # Concept games and chess

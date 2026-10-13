@@ -54,3 +54,34 @@ Concept(Offered(), IsA(Relation()))
 Concept(OfferAnswered(), IsA(Result()))
 
 Concept(TalkingItOver(), IsA(Data()))
+
+// Why: a question word that asks for a reason, answered from causes (src/research/why.ts).
+Concept(Reason(), IsA(Category()))
+
+Concept(Why(), Asks(Reason()))
+
+// The words that say why, in what is written. One that a whole clause follows ("because the
+// air scatters blue light") Introduces(Clause()); the others name the cause as a thing ("due to
+// Rayleigh scattering").
+Concept(CausalConnective(), IsA(Category()))
+
+Concept(Clause(), IsA(Category()))
+
+Concept(Because(), IsA(CausalConnective()), Introduces(Clause()))
+
+Concept(BecauseOf(), IsA(CausalConnective()))
+
+Concept(DueTo(), IsA(CausalConnective()))
+
+Concept(CausedBy(), IsA(CausalConnective()))
+
+Concept(OwingTo(), IsA(CausalConnective()))
+
+Concept(ResultsFrom(), IsA(CausalConnective()))
+
+Concept(HasCause(), IsA(Relation()))
+
+Concept(Introduces(), IsA(Relation()))
+
+// Why something is so, put together: the cause, what the cause is, and where each was read.
+Concept(Explanation(), IsA(Result()))

@@ -58,6 +58,40 @@ Concept(OfferAnswered(), IsA(Result()))
 
 Concept(TalkingItOver(), IsA(Data()))
 
+// Why: a question word that asks for a reason, answered from causes (src/research/why.ts).
+Concept(Reason(), IsA(Category()))
+
+Concept(Why(), Asks(Reason()))
+
+// The words that say why, in what is written. One that a whole clause follows ("because the
+// air scatters blue light") Introduces(Clause()); the others name the cause as a thing ("due to
+// Rayleigh scattering").
+Concept(CausalConnective(), IsA(Category()))
+
+Concept(Clause(), IsA(Category()))
+
+Concept(Because(),
+  IsA(CausalConnective()),
+  Introduces(Clause())
+)
+
+Concept(BecauseOf(), IsA(CausalConnective()))
+
+Concept(DueTo(), IsA(CausalConnective()))
+
+Concept(CausedBy(), IsA(CausalConnective()))
+
+Concept(OwingTo(), IsA(CausalConnective()))
+
+Concept(ResultsFrom(), IsA(CausalConnective()))
+
+Concept(HasCause(), IsA(Relation()))
+
+Concept(Introduces(), IsA(Relation()))
+
+// Why something is so, put together: the cause, what the cause is, and where each was read.
+Concept(Explanation(), IsA(Result()))
+
 // What follows from what was told, read off the graph: how its words feel (each word's Valence,
 // turned by a word the tagger calls negative just before it, and summed the way VADER sums), and
 // what the event it tells of leads to (the event the turn found, `follows`). Follows() when
@@ -701,6 +735,86 @@ Concept(CheckIn(),
               Undefined()
             ),
             Return(Add(Add("By the way, how have things been since ", $told), "?"))
+          )
+        )
+      )
+    )
+  )
+)
+
+// Why, said as a chain: the cause ("Because of Rayleigh scattering."), then what the cause is,
+// then where each link was read. A connective that a clause follows says the clause as it is.
+Concept(Explanation(),
+  Realization(Explanation(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($cause, Call($named, "cause")),
+            If(
+              Or(NotEquals(TypeOf($cause), "string"), Not($cause)),
+              Return(""),
+              Undefined()
+            ),
+            Bind($connective, Call($named, "connective")),
+            Bind($clause,
+              And(
+                And($connective, Member($connective, "head")),
+                Call(
+                  Member(Call(Member(Member($api, "store"), "asSubject"), Member($connective, "head")), "some"),
+                  Lambda(List($t),
+                    And(
+                      And(
+                        And(Equals(Member($t, "predicate"), "Introduces"), Index(Member(Member($t, "expr"), "args"), 0)),
+                        Member(Index(Member(Member($t, "expr"), "args"), 0), "value")
+                      ),
+                      Equals(Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"), "Clause")
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($parts,
+              List(
+                Add(
+                  Add(
+                    If($clause, "Because ", "Because of "),
+                    Call(Member($cause, "replace"), Regex("[.\\s]+$", ""), "")
+                  ),
+                  "."
+                )
+              )
+            ),
+            Bind($is, Call($named, "is")),
+            If(
+              And(Equals(TypeOf($is), "string"), $is),
+              Call(Member($parts, "push"), Call(Member($is, "trim"))),
+              Undefined()
+            ),
+            Bind($from, Call($named, "from")),
+            Bind($pages,
+              If(
+                And($from, Member($from, "args")),
+                Map(Member($from, "args"), Lambda(List($a), Call($String, Member($a, "value")))),
+                List()
+              )
+            ),
+            If(
+              Length($pages),
+              Call(Member($parts, "push"), Add(Add("(From Wikipedia: ", Call(Member($pages, "join"), "; ")), ".)")),
+              Undefined()
+            ),
+            Return(Call(Member($parts, "join"), " "))
           )
         )
       )

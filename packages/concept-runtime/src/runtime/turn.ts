@@ -29,6 +29,7 @@ import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
+import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { checkIn, feltReply, keptOnly, offerAnswered } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
@@ -678,6 +679,39 @@ export async function turn(
         const target = isCall(r) ? r.args[0]?.value : undefined;
         if (target !== undefined && isCall(target)) learnFeelings(runtime.store, target.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2"), runtime.trace.cause);
       }
+    }
+  }
+  // "Why ...?": a question word that asks for a reason is answered from causes, the graph's or
+  // put together from what the world has written (research/why.ts).
+  const firstWord = message.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
+  if (options.inputMode !== "expression" && firstWord && asksReason(runtime.store, firstWord)) {
+    const why = await explainWhy(runtime.store, message, {
+      lookup: options.learn !== false && options.research !== false,
+      cause: runtime.trace.cause,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+    }).catch(() => undefined);
+    if (why) {
+      const result = explanation(why);
+      const rendered = format(result);
+      const spoken = options.speak === false ? rendered : (await graphText(runtime, "RenderResponse", result)) ?? rendered;
+      return {
+        heard: { message, raw: rendered, expression: result, problems: [], rejected: [], text: message, edits: [] },
+        expression: result,
+        parsed: rendered,
+        resolved: [],
+        resolvedNames: [],
+        result,
+        rendered,
+        spoken,
+        spokenBy: options.speak === false ? "none" : "graph",
+        gaps: [],
+        ambiguities: [],
+        learned: [],
+        rereads: 0,
+        failed: undefined,
+        hearingUsed: "frames",
+        why: [`Asked for a reason: "${why.cause}" is what "${why.connective}" says causes it, in ${why.from[0]}.`, ...(why.causeIs ? [`What that is, from ${why.from[1]}.`] : [])],
+      };
     }
   }
   let lookedUp: LearnStep[] = [];
