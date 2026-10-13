@@ -64,7 +64,7 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
   DailyDialog; ConceptNet has little for "my car broke down".
 - [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
-- [ ] 27. (chat and focus fixed; pursue "cake recipe" needs the network: Wikidata item, its Wikibooks Cookbook link, the page; it fails offline. Next: a globalThis.fetch stub with those responses) Three unit tests fail on main (chat "when you say hello?", focus "supplies list", pursue
+- [x] 27. Chat ("when you say hello?") and focus ("supplies list") fixed; pursue's "cake recipe" reads Wikibooks, so it passes only with the network: run it in CI with the live-probe workflow's `test` input (passes, 3aedfc0).
   "cake recipe").
 - [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
 - [ ] 29. sources/grounding no longer regenerates packs/grounding.ncon as committed (the pack was
@@ -105,7 +105,7 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
 - [x] W4. The question names the unknown and its unit ("how much money", "how many eggs"); it is
   found by combining the situation's quantities whose units come out as the unit asked
   (dimensional analysis), each step shown.
-- [ ] W7. CI with learning on (first 50, partly looked at while building): 7/50 (8826f4a), 8/50 (d58bfd7), 9/50 (f8285dc), 14/50 (c6e4850), from 0/50. Unseen 650 test items (12-661): 100 right (15%). Scratch after conversions: 47/250 unseen test items (12-261), 53% of "sure" answers right. CI d58bfd7: 8/50. Scratch, learning off, after nesting and each-rates: 15/100 unseen test items right (was 4), 18/150 on a fresh slice; about 8% of
+- [ ] W7. CI with learning on (first 50, partly looked at while building): 7/50 (8826f4a), 8/50 (d58bfd7), 9/50 (f8285dc), 14/50 (c6e4850), 13/50 (c426a36), 15/50 (beeb3d5), from 0/50. Unseen 650 test items (12-661): 100 right (15%). Scratch after conversions: 47/250 unseen test items (12-261), 53% of "sure" answers right. CI d58bfd7: 8/50. Scratch, learning off, after nesting and each-rates: 15/100 unseen test items right (was 4), 18/150 on a fresh slice; about 8% of
   answers right on the train slice tuned against. Most misses need what it does not read yet: an
   unknown solved for ("8 times as many packages as meals ... 27 combined"), state as it goes ("a
   quarter of what is left"), "the rest" of a whole split by shares, nested comparisons ("5 less than
