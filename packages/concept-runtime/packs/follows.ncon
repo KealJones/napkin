@@ -34,6 +34,30 @@ Concept(ConceptNet(),
   License("CC BY-SA 4.0")
 )
 
+// Talk that keeps company rather than asks: a greeting, and how one is doing. When something bad
+// was told before, small talk asks after it (`CheckIn`), once.
+Concept(SmallTalk(), IsA(Category()))
+
+Concept(Greeting(), IsA(SmallTalk()))
+
+Concept(DoingWell(), IsA(SmallTalk()))
+
+// Something going on in the life of the one talking, as they told it ("your mom is sick"), kept
+// on Me with how bad it felt; and that it was asked after.
+Concept(Concern(), IsA(Relation()))
+
+Concept(CheckedIn(), IsA(Relation()))
+
+Concept(CheckIn(), IsA(Result()))
+
+// What a reply offered ("Do you want to talk about it?"): kept on Self with the words it was said in,
+// so a yes or no next answers it (`OfferAnswered`).
+Concept(Offered(), IsA(Relation()))
+
+Concept(OfferAnswered(), IsA(Result()))
+
+Concept(TalkingItOver(), IsA(Data()))
+
 // What follows from what was told, read off the graph: how its words feel (each word's Valence,
 // turned by a word the tagger calls negative just before it, and summed the way VADER sums), and
 // what the event it tells of leads to (the event the turn found, `follows`). Follows() when
@@ -624,6 +648,66 @@ Concept(Follows(),
   )
 )
 
+// Asking after something told before: about someone or something of theirs ("your mom is sick"),
+// how it is ("How is your mom doing?"); about themselves ("you lost your job"), how things have
+// been since. What it is about is read by the tagger: the words before the doing.
+Concept(CheckIn(),
+  Realization(CheckIn($told),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($told,
+              If(
+                Index($args, 0),
+                Member(Index($args, 0), "value"),
+                Undefined()
+              )
+            ),
+            If(
+              Or(NotEquals(TypeOf($told), "string"), Not($told)),
+              Return(""),
+              Undefined()
+            ),
+            Bind($ws, Call(Member($api, "words"), $told)),
+            Bind($first, Index($ws, 0)),
+            If(Not($first), Return(""), Undefined()),
+            If(
+              Includes(Member($first, "tags"), "Possessive"),
+              Sequence(
+                Bind($whose, List(Call(Member(Member($first, "text"), "toLowerCase")))),
+                ForOf(
+                  $w,
+                  Call(Member($ws, "slice"), 1),
+                  Sequence(
+                    If(
+                      Includes(Member($w, "tags"), "Verb"),
+                      Break(),
+                      Undefined()
+                    ),
+                    Call(Member($whose, "push"), Call(Member(Member($w, "text"), "toLowerCase")))
+                  )
+                ),
+                Return(
+                  If(
+                    GreaterThan(Length($whose), 1),
+                    Add(Add("By the way, how is ", Call(Member($whose, "join"), " ")), " doing?"),
+                    ""
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Return(Add(Add("By the way, how have things been since ", $told), "?"))
+          )
+        )
+      )
+    )
+  )
+)
+
 // What follows from what was told, said: how it felt ("Sorry to hear that."), what the event
 // leads to ("Losing your job can cause depression."), and what it makes one want, asked ("Do you
 // want to find a new job?"). A Concept is said in its name's words (FindANewJob is "find a new
@@ -872,6 +956,65 @@ Concept(Follows(),
               Undefined()
             ),
             Return(Call(Member($parts, "join"), " "))
+          )
+        )
+      )
+    )
+  )
+)
+
+// A yes or no to what was offered: to talking, an open ear; to a doing ("find a new job"), the
+// first step asked; a no, left open.
+Concept(OfferAnswered(),
+  Realization(OfferAnswered($what, $answer),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($what,
+              If(
+                Index($args, 0),
+                Member(Index($args, 0), "value"),
+                Undefined()
+              )
+            ),
+            Bind($answer,
+              If(
+                Index($args, 1),
+                Member(Index($args, 1), "value"),
+                Undefined()
+              )
+            ),
+            Bind($yes, And($answer, Equals(Member($answer, "head"), "Agreement"))),
+            Bind($words,
+              If(
+                And($what, Member($what, "head")),
+                Call(
+                  Member(
+                    Call(
+                      Member(Member($what, "head"), "replace"),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    ),
+                    "toLowerCase"
+                  )
+                ),
+                ""
+              )
+            ),
+            If(
+              Not($yes),
+              Return("That's okay. I'm here if you change your mind."),
+              Undefined()
+            ),
+            If(
+              Or(Not($what), Equals(Member($what, "head"), "TalkingItOver")),
+              Return("I'm listening. What's been going on?"),
+              Undefined()
+            ),
+            Return(Add(Add("Okay. What would be the first step to ", $words), "?"))
           )
         )
       )

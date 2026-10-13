@@ -30,3 +30,27 @@ Concept(Follows(), IsA(Result()))
 Concept(Vader(), IsA(LearningSource()), License("MIT"))
 
 Concept(ConceptNet(), IsA(LearningSource()), License("CC BY-SA 4.0"))
+
+// Talk that keeps company rather than asks: a greeting, and how one is doing. When something bad
+// was told before, small talk asks after it (`CheckIn`), once.
+Concept(SmallTalk(), IsA(Category()))
+
+Concept(Greeting(), IsA(SmallTalk()))
+
+Concept(DoingWell(), IsA(SmallTalk()))
+
+// Something going on in the life of the one talking, as they told it ("your mom is sick"), kept
+// on Me with how bad it felt; and that it was asked after.
+Concept(Concern(), IsA(Relation()))
+
+Concept(CheckedIn(), IsA(Relation()))
+
+Concept(CheckIn(), IsA(Result()))
+
+// What a reply offered ("Do you want to talk about it?"): kept on Self with the words it was said in,
+// so a yes or no next answers it (`OfferAnswered`).
+Concept(Offered(), IsA(Relation()))
+
+Concept(OfferAnswered(), IsA(Result()))
+
+Concept(TalkingItOver(), IsA(Data()))

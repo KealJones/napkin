@@ -71,3 +71,21 @@ test("told an event, the reply says what follows from it and how it felt, not a 
   // Nothing felt: kept as before.
   assert.equal((await said("my name is Sam")).spoken, "Got it.");
 });
+
+test("a friend remembers: something bad told is asked after at the next small talk, once; a yes or no answers what was offered", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const history: { message: string; result: string; spoken: string }[] = [];
+  const say = async (m: string) => {
+    const t = await turn(new Runtime(store, {}), m, c("Execution"), { learn: false, history: history.slice(-6) });
+    history.push({ message: m, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
+    return t.spoken;
+  };
+  assert.equal(await say("my mom is sick"), "Sorry to hear your mom is sick. Do you want to talk about it?");
+  assert.equal(await say("yeah"), "I'm listening. What's been going on?");
+  assert.equal(await say("what is 2 plus 2"), "4.");
+  assert.equal(await say("hi"), "Hello! By the way, how is your mom doing?");
+  assert.equal(await say("hello"), "Hello!");
+  await say("I lost my job");
+  assert.equal(await say("nah"), "That's okay. I'm here if you change your mind.");
+});

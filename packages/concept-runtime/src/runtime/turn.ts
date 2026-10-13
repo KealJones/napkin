@@ -29,7 +29,7 @@ import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
-import { feltReply, keptOnly } from "./felt.js";
+import { checkIn, feltReply, keptOnly, offerAnswered } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -706,7 +706,7 @@ export async function turn(
       const graphSpoken = options.speak !== false ? await graphText(runtime, "RenderResponse", result) : undefined;
       let spoken = options.speak === false ? rendered : graphSpoken ?? (await say(message, forSaying(runtime.store, result), { ...options, unrealized: [], uncomputed: false, asked: framed.display }));
       // A statement kept ("my mom is sick") that felt some way is answered as it felt, not "Got it."
-      if (options.speak !== false && keptOnly(result)) spoken = (await feltReply(runtime, message, graphText)) ?? spoken;
+      if (options.speak !== false && keptOnly(result)) spoken = (await offerAnswered(runtime, message, options.history?.at(-1)?.spoken, graphText)) ?? (await feltReply(runtime, message, graphText)) ?? spoken;
       const raw = format(framed.display);
       return {
         heard: { message, raw, expression: framed.display, problems: [], rejected: [], text: framed.text, edits: framed.edits },
@@ -944,11 +944,17 @@ export async function turn(
   // Told something that felt some way, and not understood whole: what it felt like is answered,
   // not which words were missing ("I just got promoted!" is good news, whatever "promoted" is).
   // A statement kept (believed or noted) is answered as it felt too; the fact is still kept.
-  const felt = (unanswered || keptOnly(result)) && options.speak !== false && options.inputMode !== "expression" ? await feltReply(runtime, message, graphText) : undefined;
+  // A yes or no to what the last reply offered is an answer to that, whatever else it reads as.
+  const replying = options.speak !== false && options.inputMode !== "expression";
+  const felt = (replying ? await offerAnswered(runtime, message, options.history?.at(-1)?.spoken, graphText) : undefined)
+    ?? ((unanswered || keptOnly(result)) && replying ? await feltReply(runtime, message, graphText) : undefined);
   if (felt) {
     spoken = felt;
     spokenBy = "graph";
   }
+  // Small talk, with something told before still open: asked after.
+  const askedAfter = !felt && options.speak !== false ? await checkIn(runtime, result, graphText) : undefined;
+  if (askedAfter) spoken = `${spoken} ${askedAfter}`;
   let stuckSaid: string | undefined;
   if (unanswered && !felt && stuck && (stuck.near || stuck.unknown.length)) {
     stuckSaid = await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined);
