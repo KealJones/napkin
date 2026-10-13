@@ -25,12 +25,19 @@ async (args, bindings, api) => {
     if (v >= 0.1) return "Thank you, that's really kind of you!";
     if (v <= -0.1) return "I'm sorry. What did I get wrong?";
   }
+  // Said differently from the last reply: of the ways to say it, the first the last reply did not
+  // already say (its words, less what was told). A conversation is not the same line over and over.
+  const last = (api.ambient("lastSpoken") || "").toLowerCase();
+  const said = (form) => form.split("{t}").every((piece) => !piece.trim() || !last.includes(piece.trim().toLowerCase()));
+  const pick = (forms) => forms.find(said) || forms[0];
+  const t = typeof told === "string" && told ? told : "";
+  const fill = (form) => form.split("{t}").join(t);
   // How it felt, said back with what was told when it is known ("Sorry to hear your car broke down.").
   if (typeof v === "number") {
-    if (v <= -0.5) parts.push(typeof told === "string" && told ? "Sorry to hear " + told + "." : "Sorry to hear that.");
-    else if (v < -0.1) parts.push(typeof told === "string" && told ? "Oh no, " + told + "? That doesn't sound good." : "That doesn't sound good.");
-    else if (v >= 0.3) parts.push(typeof told === "string" && told ? "That's great that " + told + "!" : "That's great!");
-    else if (v > 0.1) parts.push("Nice.");
+    if (v <= -0.5) parts.push(fill(pick(t ? ["Sorry to hear {t}.", "Oh no, {t}. I'm so sorry.", "That's really hard, {t}."] : ["Sorry to hear that.", "That's really hard."])));
+    else if (v < -0.1) parts.push(fill(pick(t ? ["Oh no, {t}? That doesn't sound good.", "Hmm, {t}. That sounds rough.", "I'm sorry {t}."] : ["That doesn't sound good.", "That sounds rough."])));
+    else if (v >= 0.3) parts.push(fill(pick(t ? ["That's great that {t}!", "Nice, {t}!", "That's wonderful!"] : ["That's great!", "That's wonderful!"])));
+    else if (v > 0.1) parts.push(pick(["Nice.", "Good to hear."]));
   }
   const first = args.find((a) => a.name === undefined);
   const event = first ? wordsOf(first.value) : "";
@@ -51,10 +58,11 @@ async (args, bindings, api) => {
     const want = wants.find(doing) || wants[0];
     parts.push(doing(want) ? "Do you want to " + want + "?" : "Do you want " + want + "?");
   }
-  // Nothing more to say of it: the conversation is left open, the way a friend would.
+  // Nothing more to say of it: the conversation is left open, the way a friend would, and not with
+  // the question just asked.
   if (typeof v === "number" && !wants.length) {
-    if (v <= -0.2) parts.push("Do you want to talk about it?");
-    else if (v >= 0.3) parts.push("Tell me more!");
+    if (v <= -0.2) parts.push(pick(["Do you want to talk about it?", "How are you holding up?", "Is there anything I can do?"]));
+    else if (v >= 0.3) parts.push(pick(["Tell me more!", "How do you feel about it?"]));
   }
   return parts.join(" ");
 };

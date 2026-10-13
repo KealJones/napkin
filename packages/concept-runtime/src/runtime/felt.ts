@@ -70,7 +70,12 @@ export async function remember(runtime: Runtime, message: string, result: Expr |
   if (typeof v === "number" && v <= -0.3 && typeof told === "string" && told) {
     runtime.store.addRelation("Me", call("Concern", [{ value: told }, { name: "valence", value: v }, { name: "at", value: new Date().toISOString() }]), undefined, runtime.trace.cause);
   }
-  if (said.endsWith("?")) {
+  // A yes-or-no question ("Do you want to talk about it?", led by a helper word): "yeah" answers it.
+  // "How are you holding up?" is not one.
+  const question = said.split(/(?<=[.!?])\s+/).pop() ?? "";
+  const lead = question.split(/\s+/)[0]?.replace(/[^A-Za-z]/g, "") ?? "";
+  const yesNo = !!lead && typesOf(runtime.store, c(lead.charAt(0).toUpperCase() + lead.slice(1).toLowerCase())).includes("Helper");
+  if (said.endsWith("?") && yesNo) {
     const wants = arg("wants");
     const offered = wants !== undefined && isCall(wants) && wants.args[0] ? wants.args[0].value : c("TalkingItOver");
     runtime.store.addRelation("Self", call("Offered", [{ value: offered }, { name: "said", value: said }]), undefined, runtime.trace.cause);

@@ -2564,15 +2564,18 @@ Concept(Read(),
 // English, like the pointing words.
 Concept(Helper(), IsA(Category()))
 
-Concept(Is(), IsA(Helper()))
+// The helpers that say what something is ("tom is tall"), as the frames read a statement.
+Concept(BeVerb(), IsA(Helper()))
 
-Concept(Are(), IsA(Helper()))
+Concept(Is(), IsA(Helper()), IsA(BeVerb()))
 
-Concept(Was(), IsA(Helper()))
+Concept(Are(), IsA(Helper()), IsA(BeVerb()))
 
-Concept(Were(), IsA(Helper()))
+Concept(Was(), IsA(Helper()), IsA(BeVerb()))
 
-Concept(Am(), IsA(Helper()))
+Concept(Were(), IsA(Helper()), IsA(BeVerb()))
+
+Concept(Am(), IsA(Helper()), IsA(BeVerb()))
 
 Concept(Do(), IsA(Helper()))
 
@@ -2596,7 +2599,7 @@ Concept(Have(), IsA(Helper()))
 
 Concept(Had(), IsA(Helper()))
 
-Concept(Be(), IsA(Helper()))
+Concept(Be(), IsA(Helper()), IsA(BeVerb()))
 
 // A yes/no question wants a truth value, not a subject, so it declares its own
 // realization locally, which beats the inherited one on distance.

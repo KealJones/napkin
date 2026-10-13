@@ -32,7 +32,7 @@ export type Sense =
   | { readonly type: "owner"; readonly head: string }
   /** A word whose hole is a whole statement: "remember (that) ...". */
   | { readonly type: "takes"; readonly head: string; readonly what: string; readonly reports: boolean }
-  | { readonly type: "glue"; readonly head: string; readonly marksFirst: boolean; readonly copula: boolean };
+  | { readonly type: "glue"; readonly head: string; readonly marksFirst: boolean; readonly copula: boolean; readonly helper?: boolean };
 
 /** Relations that say what a thing is or how it is said, not a fact asked for by name. */
 export const STRUCTURAL = new Set([
@@ -40,7 +40,10 @@ export const STRUCTURAL = new Set([
   "Said", "Asks", "Spelled", "Binds", "MarksFirst", "Relation", "Requires", "Symmetric", "Transitive", "InverseOf",
   "Retracts", "Refers", "PointsAt", "Takes", "Means", "AnsweredBy", "Reports", "InverseCalled", "SaysSame",
 ]);
-/** Kinds of word that only help say the others: they fill no hole and need none filled. */
+/**
+ * Kinds of word that only help say the others: they fill no hole and need none filled. Of the
+ * helpers, a `BeVerb` ("is", "was", "am") says what something is; "has", "do", "can" do not.
+ */
 const GLUE = ["Helper", "Determiner", "Preposition", "Conjunction"];
 
 export const wordsOf = (name: string): string[] => name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -201,7 +204,7 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     const takes = claimed(store, head, "Takes").find((x) => isCall(x));
     if (takes !== undefined && isCall(takes)) out.push({ type: "takes", head, what: takes.head, reports: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "Reports") });
     if (GLUE.some((g) => kinds.includes(g))) {
-      out.push({ type: "glue", head, marksFirst: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "MarksFirst"), copula: kinds.includes("Helper") });
+      out.push({ type: "glue", head, marksFirst: relationsOf(store, head).some((r) => isCall(r.claim) && r.claim.head === "MarksFirst"), copula: kinds.includes("BeVerb"), helper: kinds.includes("Helper") });
     }
     // A word that helps say the others ("is", "of") stands for a computation only when it says what
     // it takes (typed holes): "over" divides; "is" does not compute what it joins.

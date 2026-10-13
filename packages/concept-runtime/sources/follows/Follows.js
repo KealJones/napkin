@@ -68,7 +68,20 @@ async (args, bindings, api) => {
     while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n += 1;
     return n;
   };
+  // A pointing word said back as what it pointed at ("she" after "my mom is sick" is "your mom"):
+  // someone's relative is theirs.
+  const pointedPair = (api.ambient("pointed") || "").split("=");
+  const pointedWords = (word) => {
+    const id = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    if (pointedPair.length !== 2 || pointedPair[0] !== id) return undefined;
+    const thing = pointedPair[1];
+    const words = thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+    const kinds = api.typesOf(api.call(thing));
+    return kinds.includes("Relative") ? "your " + words : kinds.includes("Human") ? thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2") : "the " + words;
+  };
   const swapped = (word) => {
+    const pointedAs = pointedWords(word);
+    if (pointedAs) return pointedAs;
     const id = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     if (refersTo(id) !== "Me") return undefined;
     const mine = kinds(id).concat(...api.store.asSubject(id).filter((t) => t.predicate === "HeardAs").map((t) => kinds(t.expr.args[0].value.head)));
@@ -91,7 +104,7 @@ async (args, bindings, api) => {
       // What agrees with the one now spoken of: "I am" is "you are", "I was" "you were".
       if (subject && w.tags.includes("Copula")) out.push(word === "am" ? "are" : word === "was" ? "were" : word);
       else out.push(other ?? (w.tags.includes("ProperNoun") ? word : word.toLowerCase()));
-      subject = other !== undefined && !w.tags.includes("Possessive");
+      subject = other === "you";
     }
     told = out.join(" ").replace(/\s+([,.!?;:])/g, "$1").replace(/[.!?]+$/, "").trim();
   }

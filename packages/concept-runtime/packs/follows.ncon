@@ -389,9 +389,62 @@ Concept(Follows(),
                 )
               )
             ),
+            Comment(
+              "A pointing word said back as what it pointed at (\"she\" after \"my mom is sick\" is \"your mom\"):"
+            ),
+            Comment("someone's relative is theirs."),
+            Bind($pointedPair, Call(Member(Or(Call(Member($api, "ambient"), "pointed"), ""), "split"), "=")),
+            Bind($pointedWords,
+              Lambda(List($word),
+                Sequence(
+                  Bind($id,
+                    Add(
+                      Call(Member(Call(Member($word, "charAt"), 0), "toUpperCase")),
+                      Call(Member(Call(Member($word, "slice"), 1), "toLowerCase"))
+                    )
+                  ),
+                  If(
+                    Or(NotEquals(Length($pointedPair), 2), NotEquals(Index($pointedPair, 0), $id)),
+                    Return(Undefined()),
+                    Undefined()
+                  ),
+                  Bind($thing, Index($pointedPair, 1)),
+                  Bind($words,
+                    Call(
+                      Member(
+                        Call(
+                          Member($thing, "replace"),
+                          Regex("([a-z0-9])([A-Z])", "g"),
+                          "$1 $2"
+                        ),
+                        "toLowerCase"
+                      )
+                    )
+                  ),
+                  Bind($kinds, Call(Member($api, "typesOf"), Call(Member($api, "call"), $thing))),
+                  Return(
+                    If(
+                      Includes($kinds, "Relative"),
+                      Add("your ", $words),
+                      If(
+                        Includes($kinds, "Human"),
+                        Call(
+                          Member($thing, "replace"),
+                          Regex("([a-z0-9])([A-Z])", "g"),
+                          "$1 $2"
+                        ),
+                        Add("the ", $words)
+                      )
+                    )
+                  )
+                )
+              )
+            ),
             Bind($swapped,
               Lambda(List($word),
                 Sequence(
+                  Bind($pointedAs, Call($pointedWords, $word)),
+                  If($pointedAs, Return($pointedAs), Undefined()),
                   Bind($id,
                     Add(
                       Call(Member(Call(Member($word, "charAt"), 0), "toUpperCase")),
@@ -538,10 +591,7 @@ Concept(Follows(),
                         )
                       )
                     ),
-                    Assign(
-                      $subject,
-                      And(NotEquals($other, Undefined()), Not(Includes(Member($w, "tags"), "Possessive")))
-                    )
+                    Assign($subject, Equals($other, "you"))
                   )
                 ),
                 Assign(
@@ -732,6 +782,12 @@ Concept(CheckIn(),
                   )
                 )
               ),
+              Undefined()
+            ),
+            Comment("How they felt (\"you were so sad\": \"you\", a \"be\", what they were): asked how they feel now."),
+            If(
+              And(Index($ws, 1), Includes(Member(Index($ws, 1), "tags"), "Copula")),
+              Return("By the way, how are you feeling now?"),
               Undefined()
             ),
             Return(Add(Add("By the way, how have things been since ", $told), "?"))
@@ -932,6 +988,25 @@ Concept(Follows(),
               ),
               Undefined()
             ),
+            Comment("Said differently from the last reply: of the ways to say it, the first the last reply did not"),
+            Comment("already say (its words, less what was told). A conversation is not the same line over and over."),
+            Bind($last, Call(Member(Or(Call(Member($api, "ambient"), "lastSpoken"), ""), "toLowerCase"))),
+            Bind($said,
+              Lambda(List($form),
+                Call(
+                  Member(Call(Member($form, "split"), "{t}"), "every"),
+                  Lambda(List($piece),
+                    Or(
+                      Not(Call(Member($piece, "trim"))),
+                      Not(Includes($last, Call(Member(Call(Member($piece, "trim")), "toLowerCase"))))
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($pick, Lambda(List($forms), Or(Call(Member($forms, "find"), $said), Index($forms, 0)))),
+            Bind($t, If(And(Equals(TypeOf($told), "string"), $told), $told, "")),
+            Bind($fill, Lambda(List($form), Call(Member(Call(Member($form, "split"), "{t}"), "join"), $t))),
             Comment(
               "How it felt, said back with what was told when it is known (\"Sorry to hear your car broke down.\")."
             ),
@@ -941,35 +1016,65 @@ Concept(Follows(),
                 AtMost($v, Negate(0.5)),
                 Call(
                   Member($parts, "push"),
-                  If(
-                    And(Equals(TypeOf($told), "string"), $told),
-                    Add(Add("Sorry to hear ", $told), "."),
-                    "Sorry to hear that."
+                  Call(
+                    $fill,
+                    Call(
+                      $pick,
+                      If(
+                        $t,
+                        List(
+                          "Sorry to hear {t}.",
+                          "Oh no, {t}. I'm so sorry.",
+                          "That's really hard, {t}."
+                        ),
+                        List("Sorry to hear that.", "That's really hard.")
+                      )
+                    )
                   )
                 ),
                 If(
                   LessThan($v, Negate(0.1)),
                   Call(
                     Member($parts, "push"),
-                    If(
-                      And(Equals(TypeOf($told), "string"), $told),
-                      Add(Add("Oh no, ", $told), "? That doesn't sound good."),
-                      "That doesn't sound good."
+                    Call(
+                      $fill,
+                      Call(
+                        $pick,
+                        If(
+                          $t,
+                          List(
+                            "Oh no, {t}? That doesn't sound good.",
+                            "Hmm, {t}. That sounds rough.",
+                            "I'm sorry {t}."
+                          ),
+                          List("That doesn't sound good.", "That sounds rough.")
+                        )
+                      )
                     )
                   ),
                   If(
                     AtLeast($v, 0.3),
                     Call(
                       Member($parts, "push"),
-                      If(
-                        And(Equals(TypeOf($told), "string"), $told),
-                        Add(Add("That's great that ", $told), "!"),
-                        "That's great!"
+                      Call(
+                        $fill,
+                        Call(
+                          $pick,
+                          If(
+                            $t,
+                            List(
+                              "That's great that {t}!",
+                              "Nice, {t}!",
+                              "That's wonderful!"
+                            ),
+                            List("That's great!", "That's wonderful!")
+                          )
+                        )
                       )
                     ),
                     If(
                       GreaterThan($v, 0.1),
-                      Call(Member($parts, "push"), "Nice."),
+                      Call(Member($parts, "push"), Call($pick, List("Nice.", "Good to hear."))),
                       Undefined()
                     )
                   )
@@ -1055,15 +1160,26 @@ Concept(Follows(),
               ),
               Undefined()
             ),
-            Comment("Nothing more to say of it: the conversation is left open, the way a friend would."),
+            Comment("Nothing more to say of it: the conversation is left open, the way a friend would, and not with"),
+            Comment("the question just asked."),
             If(
               And(Equals(TypeOf($v), "number"), Not(Length($wants))),
               If(
                 AtMost($v, Negate(0.2)),
-                Call(Member($parts, "push"), "Do you want to talk about it?"),
+                Call(
+                  Member($parts, "push"),
+                  Call(
+                    $pick,
+                    List(
+                      "Do you want to talk about it?",
+                      "How are you holding up?",
+                      "Is there anything I can do?"
+                    )
+                  )
+                ),
                 If(
                   AtLeast($v, 0.3),
-                  Call(Member($parts, "push"), "Tell me more!"),
+                  Call(Member($parts, "push"), Call($pick, List("Tell me more!", "How do you feel about it?"))),
                   Undefined()
                 )
               ),

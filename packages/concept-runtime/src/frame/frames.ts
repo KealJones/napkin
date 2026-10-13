@@ -222,9 +222,9 @@ interface Reading {
   readonly learn?: () => void;
 }
 
-/** Asked: a "?", a question word, or a word that says what something is put first ("is tom taller than ann"). */
+/** Asked: a "?", a question word, or a helper put first ("is tom taller than ann", "does tom live in denver"). */
 const asking = (words: readonly Word[], question: boolean) =>
-  question || words.some((w) => is(w, "question")) || (words.length > 1 && words[0].senses.some((s) => s.type === "glue" && s.copula));
+  question || words.some((w) => is(w, "question")) || (words.length > 1 && words[0].senses.some((s) => s.type === "glue" && (s.copula || s.helper === true)));
 const outsideOptional = (words: readonly Word[], i: number, j: number) => words.every((w, k) => (k >= i && k < j) || optional(w));
 
 /** Readings that work something out: a value asked for, a claim about one, an operation missing a value. */
@@ -547,7 +547,9 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
     const who = words.slice(0, v);
     const self = who.length === 1 ? who[0].senses.find((s) => s.type === "entity") : undefined;
     const owned = who.length === 2 && who[0].senses.some((s) => s.type === "owner") && thingWord(who[1]) ? named([who[1]]) : undefined;
-    const subject = self && self.type === "entity" ? self.head : owned ?? (who.length === 1 && thingWord(who[0]) && !deictic(who[0]) ? named(who) : undefined);
+    // Or one pointed at ("she has the flu", after "my mom is sick").
+    const pointer = who.length === 1 && pointed && who[0].senses.some((s) => s.type === "pointer") ? pointed : undefined;
+    const subject = self && self.type === "entity" ? self.head : owned ?? pointer ?? (who.length === 1 && thingWord(who[0]) && !deictic(who[0]) ? named(who) : undefined);
     if (!subject) return;
     // What it takes: past one word that marks it ("in"), and the words that only help say it ("an").
     let at = v + 1;
@@ -580,7 +582,7 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
           for (const st of r.stamps ?? []) store.addRelation(subject, c("Retracts", st.seq), undefined, runtime.trace.cause);
         }
         store.addRelation(subject, fact, undefined, runtime.trace.cause);
-        return c("Noted", fact);
+        return c("Noted", fact, c(subject));
       },
     });
   });
@@ -695,18 +697,42 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
           }
         }
         store.addRelation(holder, fact, undefined, runtime.trace.cause);
-        return taker ? c("Remembered", fact) : c("Noted", fact);
+        // Who it was said of, kept in what is answered, so a pointing word next can find them.
+        return taker ? c("Remembered", fact) : c("Noted", fact, c(holder));
       },
     });
   });
   return out;
 }
 
-/** The thing a pointing word ("he", "it") most likely means: the last answer the graph holds facts of. */
-function pointedAt(store: ConceptStore, history: readonly { result: string }[]): string | undefined {
+/**
+ * The thing a pointing word ("he", "she", "it") most likely means: the last answer the graph holds
+ * facts of that is the kind the word points at (`She PointsAt(Someone()), PointsAt(Female())`): a
+ * kind it is, or a value it holds (`Mom SexOrGender(Female())`). Never the ones talking (`Deictic`).
+ */
+function pointedAt(store: ConceptStore, history: readonly { result: string }[], kinds: readonly string[] = []): string | undefined {
+  const fits = (head: string): boolean => {
+    const types = typesOf(store, c(head));
+    if (types.includes("Deictic")) return false;
+    return kinds.every((k) => types.includes(k) || store.asSubject(head).some((t) => t.context === undefined && t.object !== undefined && isCall(t.object) && (t.object as { head: string }).head === k));
+  };
+  // What some pointing word points at ("Male" for "he"): a thing that is one of those, and not what
+  // this word points at, is someone else. A thing the graph says neither of may still be meant.
+  const pointable = new Set(store.triples().filter((t) => t.predicate === "PointsAt" && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head));
+  const contradicts = (head: string): boolean =>
+    typesOf(store, c(head)).includes("Deictic") ||
+    [...typesOf(store, c(head)), ...store.asSubject(head).filter((t) => t.context === undefined && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head)].some((k) => pointable.has(k) && !kinds.includes(k));
+  const results = [...history].reverse().flatMap((h) => {
+    try {
+      return [parse(h.result)];
+    } catch {
+      return [];
+    }
+  });
+  for (const r of results) for (const n of walk(r)) if (isCall(n) && holdsFacts(store, n.head) && fits(n.head)) return n.head;
   for (const h of [...history].reverse()) {
     try {
-      for (const n of walk(parse(h.result))) if (isCall(n) && holdsFacts(store, n.head)) return n.head;
+      for (const n of walk(parse(h.result))) if (isCall(n) && holdsFacts(store, n.head) && !contradicts(n.head)) return n.head;
     } catch {
       // A result that does not read as Concepts points at nothing.
     }
@@ -957,7 +983,13 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     }
     return senses.get(key)!;
   };
-  const pointed = pointedAt(store, history);
+  // What the message's pointing word points at, by the kinds it points at.
+  const pointing = message.toLowerCase().split(/[^a-z']+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).find((w) => store.asSubject(w).some((t) => t.predicate === "PointsAt"));
+  const pointsAt = pointing ? store.asSubject(pointing).filter((t) => t.predicate === "PointsAt" && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head) : [];
+  const pointed = pointedAt(store, history, pointsAt);
+  // Ambient for the turn: what saying back the message ("she" is your mom) reads (packs/follows.ncon).
+  if (pointed && pointing) runtime.context.set("pointed", `${pointing}=${pointed}`);
+  else runtime.context.delete("pointed");
 
   /** Every reading of the message, as the graph stands now: the best, the best that means something else, and the words as typed. */
   const choose = async () => {

@@ -1024,3 +1024,41 @@ Concept(No(), IsA(Refusal()))
 Concept(Nope(), IsA(Refusal()))
 
 Concept(Nah(), IsA(Refusal()))
+
+// ================================================================
+// The people in one's life, and who they are: a mother is a woman, a brother a man. What "she"
+// and "he" point at reads this (packs/focus.ncon `PointsAt`), so after "my mom is sick", "she" is
+// your mom.
+Concept(Relative(), IsA(Human()))
+
+Concept(Mom(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Mother(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Dad(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Father(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Sister(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Brother(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Daughter(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Son(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Wife(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Husband(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Grandma(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Grandpa(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Aunt(), IsA(Relative()), SexOrGender(Female()))
+
+Concept(Uncle(), IsA(Relative()), SexOrGender(Male()))
+
+Concept(Girlfriend(), IsA(Human()), SexOrGender(Female()))
+
+Concept(Boyfriend(), IsA(Human()), SexOrGender(Male()))

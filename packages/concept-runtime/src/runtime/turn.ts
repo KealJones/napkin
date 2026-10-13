@@ -665,6 +665,10 @@ export async function turn(
   // it tells of (ConceptNet, when learning is on), learned onto the graph for the reply to read
   // (research/feeling.ts, research/conceptnet.ts, packs/follows.ncon).
   runtime.context.delete("follows");
+  // What was said last, so a reply is not said the same way twice running.
+  const lastSpoken = options.history?.at(-1)?.spoken;
+  if (lastSpoken) runtime.context.set("lastSpoken", lastSpoken);
+  else runtime.context.delete("lastSpoken");
   if (options.inputMode !== "expression" && !message.includes("?")) {
     learnFeelings(runtime.store, message, runtime.trace.cause);
     const followed = await whatFollows(runtime.store, message, {

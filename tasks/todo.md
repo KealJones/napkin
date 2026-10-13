@@ -80,6 +80,11 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 34. Why-questions explained as a chain from what is written (research/why.ts): the sentence that
   says why (a `CausalConnective`), the cause taken from it, what the cause is from its own page,
   sources; kept as HasCause.
+- [x] 36. "she"/"he" point by kind: the last thing in play that is what the word points at
+  (`She PointsAt(Female())`; `Mom SexOrGender(Female())`), never the ones talking; said back as
+  what it points at ("your mom has the flu"). Only forms of "be" are copulas ("has" is not).
+- [x] 37. Replies said differently from the last one; only yes/no questions are offers; a feeling
+  told is asked after as "how are you feeling now?".
 - [ ] 35. Explanations past one link: follow HasCause of the cause (and Wikidata "has cause",
   P828) for a second "because"; "how does X work" by the same chain over HasPart/UsedFor.
 - [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
