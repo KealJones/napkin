@@ -21,6 +21,7 @@ import {
   clearGraph,
   journalText,
   openNapkinGraph,
+  knownFrom,
   sourcesOf,
   type ConceptUnit,
   type TraceEvent,
@@ -339,6 +340,8 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
           hearing: result.hearingUsed ?? "rules",
           // The outside sources the answer rests on, as links (Wikidata, Wiktionary ...).
           sources: sourcesOf(store, result.result, result.expression),
+          // Where a recalled answer was learned: what the user said, an import, a pack.
+          from: knownFrom(store, result.result, result.expression),
           events,
           size: store.size(),
         });

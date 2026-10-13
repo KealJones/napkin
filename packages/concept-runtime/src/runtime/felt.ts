@@ -7,6 +7,15 @@ import type { Runtime } from "./evaluator.js";
 import { typesOf } from "./types.js";
 import { words } from "./host.js";
 
+/** Whether a message asks, "?" or not: it starts with a question word or a helper ("what is ...", "is it ..."). */
+export const asks = (store: Runtime["store"], message: string): boolean => {
+  if (message.includes("?")) return true;
+  const first = message.trim().split(/\s+/)[0]?.replace(/[^A-Za-z]/g, "") ?? "";
+  if (!first) return false;
+  const kinds = typesOf(store, c(first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()));
+  return kinds.includes("Interrogative") || kinds.includes("QuestionWord") || kinds.includes("Helper");
+};
+
 /** Whether a message tells of something that happened (a doing, not "is"): news, felt more readily than a fact kept. */
 export const happened = (message: string): boolean =>
   words(message).some((w) => w.tags.includes("Verb") && !w.tags.includes("Copula") && !w.tags.includes("Auxiliary"));

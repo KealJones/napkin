@@ -54,6 +54,14 @@ Concept(Equals(), SaysSame())
 
 Concept(Same(), SaysSame())
 
+// Words that say what a word means ("bday means birthday"): what is said teaches how the word is
+// written (`WrittenAs`), so it is read as the other from then on.
+Concept(Defines(), IsA(Relation()))
+
+Concept(Mean(), Defines(WrittenAs()))
+
+Concept(Means(), Defines(WrittenAs()))
+
 // "Do you mean Acme (ran company) or Boston (ran marathon)?": each reading by what it would answer,
 // and what it is about where it says.
 Concept(ChooseOne(),

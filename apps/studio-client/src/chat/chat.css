@@ -1031,3 +1031,11 @@ svg .fill {
   font-size: 13px;
   color: var(--faint);
 }
+
+.tl-sub.prose {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  color: var(--soft);
+  white-space: normal;
+  overflow: visible;
+}

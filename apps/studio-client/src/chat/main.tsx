@@ -24,6 +24,8 @@ interface Detail {
   result?: string | undefined;
   hearing?: string | undefined;
   why: string[];
+  /** Where a recalled answer was learned ("You told me ..."). */
+  from: string[];
   resolved: { reference: string; to: string }[];
   learned: { how: string; identity: string; detail: string }[];
   gaps: { kind: string; identity: string; expression: string }[];
@@ -45,7 +47,7 @@ interface Turn {
   detail: Detail;
 }
 
-const empty = (): Detail => ({ why: [], resolved: [], learned: [], gaps: [], problems: [], rejected: [], events: [] });
+const empty = (): Detail => ({ why: [], from: [], resolved: [], learned: [], gaps: [], problems: [], rejected: [], events: [] });
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await request(path, { ...init, headers: { "content-type": "application/json", ...init?.headers } });
@@ -167,6 +169,8 @@ interface Row {
   sub?: string;
   open?: Page;
   tone?: "warn" | "muted";
+  /** The line under it is words to read, not an expression: wrapped, not cut. */
+  prose?: boolean;
 }
 
 function rowsOf(t: Turn): Row[] {
@@ -204,6 +208,7 @@ function rowsOf(t: Turn): Row[] {
       open: { kind: "steps", turn: t },
     });
   }
+  for (const f of d.from) rows.push({ icon: Icon.book, title: f.startsWith("You told me") ? "Known because you told me" : "Known from", sub: f.replace(/^You told me /, ""), prose: true });
   if (d.result) rows.push({ icon: Icon.answer, title: "Answer", sub: short(d.result, 80), open: { kind: "text", title: "Answer", sections: [{ label: "Worked out to", body: pretty(d.result), mono: true }, ...(t.reply ? [{ label: "Said as", body: t.reply }] : [])] } });
   if (d.stored && !d.events.length) rows.push({ icon: Icon.dot, title: "Steps and reasons are kept only for turns seen live", tone: "muted" });
   return rows;
@@ -218,7 +223,7 @@ function Timeline({ rows, onOpen }: { rows: Row[]; onOpen: (p: Page) => void }) 
             <span className={`tl-icon ${r.tone ?? ""}`}>{r.icon}</span>
             <span className="tl-text">
               <span className={`tl-title ${r.tone ?? ""}`}>{r.title}</span>
-              {r.sub ? <span className="tl-sub">{r.sub}</span> : null}
+              {r.sub ? <span className={`tl-sub ${r.prose ? "prose" : ""}`}>{r.sub}</span> : null}
             </span>
             {r.open ? <span className="tl-chevron">{Icon.chevron}</span> : null}
           </>
@@ -429,6 +434,7 @@ function report(t: Turn, before: Turn[], conversation: string | undefined): stri
     for (const i of items) line(`- ${i}`);
     line();
   };
+  listed("Where the answer came from", d.from);
   listed("Pointing words resolved", d.resolved.map((r) => `"${r.reference}" -> ${r.to}`));
   listed("Learned", d.learned.map((l) => `${l.identity} (${l.how})${l.detail ? `: ${l.detail}` : ""}`));
   listed("Left undone", d.gaps.map((g) => `${g.identity} [${g.kind}]: ${g.expression}`));
@@ -694,6 +700,7 @@ function App() {
               result: typeof ev.result === "string" ? ev.result : undefined,
               hearing: typeof ev.hearing === "string" ? ev.hearing : undefined,
               why: list<string>(ev.why),
+              from: list<string>(ev.from),
               resolved: list(ev.resolved),
               learned: list(ev.learned),
               gaps: list(ev.gaps),

@@ -7,7 +7,7 @@
  *
  * A source is any Concept that is a `LearningSource`. A new one needs no change here.
  */
-import { type Call, type Expr, isCall } from "../concept/expression.js";
+import { type Call, type Expr, format, isCall } from "../concept/expression.js";
 import { lineage } from "../runtime/select.js";
 import type { ConceptStore } from "./store.js";
 
@@ -130,10 +130,16 @@ export function sourcesOf(store: ConceptStore, result: Expr | undefined, asked?:
   // The facts joining what was asked to what was answered, back to where they were read.
   if (asked !== undefined) {
     const said = heads(asked, new Set(), false);
+    // Only a fact that holds the answer itself: "Birthday IsA Date" from Wikidata mentions a date,
+    // but the user's birthday did not come from it.
+    let value: Expr | undefined = result;
+    while (called(value) && (value.head === "Answer" || value.head === "Noted") && value.args.length) value = value.args[0]!.value;
+    const answer = value === undefined ? "" : format(value);
     for (const head of heads(result, new Set())) {
       if (said.has(head)) continue;
       for (const m of store.mentioning({ head, args: [] })) {
         if (!said.has(m.identity)) continue;
+        if (answer && !format(m.relation.claim).includes(answer)) continue;
         // A fact that says where it came from (`from = Wikidata("Q142", "P36")`).
         walk(m.relation.claim);
         for (let at = m.relation.stamps?.[0]?.source, hops = 0; at !== undefined && hops < 16; hops += 1) {
@@ -149,4 +155,64 @@ export function sourcesOf(store: ConceptStore, result: Expr | undefined, asked?:
     }
   }
   return [...out].map(([url, label]) => ({ label, url }));
+}
+
+/**
+ * Where an answer came from, in words: for each fact that holds the answer (of what was asked),
+ * followed back through its stamps to where it was learned: something the user said ("You told me
+ * \"my birthday is march 5 1991\" on Oct 12, 2026"), an import ("From Wikidata"), or a pack ("Built
+ * in"). Empty when the answer was worked out rather than recalled.
+ */
+export function knownFrom(store: ConceptStore, result: Expr | undefined, asked?: Expr): string[] {
+  if (asked === undefined || result === undefined) return [];
+  // Telling it is not recalling it.
+  if (isCall(result) && result.head === "Noted") return [];
+  let value: Expr | undefined = result;
+  while (value !== undefined && isCall(value) && (value.head === "Answer" || value.head === "Noted") && value.args.length) value = value.args[0]!.value;
+  if (value === undefined) return [];
+  const answer = format(value);
+  const said = new Set<string>();
+  const heads = (e: Expr | undefined) => {
+    if (e === undefined || !isCall(e)) return;
+    said.add(e.head);
+    for (const a of e.args) heads(a.value);
+  };
+  heads(asked);
+  const out: string[] = [];
+  const when = (iso: string | undefined) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : ` on ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  };
+  for (const head of said) {
+    for (const r of store.get(head)?.relations ?? []) {
+      if (r.context !== undefined || !isCall(r.claim) || !format(r.claim).includes(answer) || store.retracted(head, r.claim)) continue;
+      const stamp = r.stamps?.[0];
+      const fact = `${head} ${format(r.claim)}`;
+      if (stamp?.pack) {
+        out.push(`Known from the ${stamp.pack} pack: ${fact}.`);
+        continue;
+      }
+      let said: string | undefined;
+      let imported: string | undefined;
+      for (let at = stamp?.source, hops = 0; at !== undefined && hops < 16; hops += 1) {
+        const entry = store.findStamp(at);
+        if (!entry) break;
+        const claim = entry.relation.claim;
+        if (isCall(claim) && claim.head === "Said") {
+          const text = claim.args.find((a) => a.name === "text")?.value;
+          if (typeof text === "string") said = `You told me "${text}"${when(entry.stamp.recordedAt)}.`;
+          break;
+        }
+        if (isCall(claim) && claim.head === "Imported") {
+          const what = claim.args[0]?.value;
+          imported = `From ${entry.identity}${typeof what === "string" ? ` (${what})` : ""}${when(entry.stamp.recordedAt)}: ${fact}.`;
+          break;
+        }
+        at = entry.stamp.source;
+      }
+      out.push(said ?? imported ?? `Known: ${fact}${when(stamp?.recordedAt)}.`);
+    }
+  }
+  return [...new Set(out)].slice(0, 4);
 }

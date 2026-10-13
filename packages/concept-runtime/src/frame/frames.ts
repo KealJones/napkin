@@ -18,6 +18,7 @@
  * one taken is kept with the words beside it (ReadBeside), and counts for that sense the next
  * time those words are beside it.
  */
+import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
@@ -541,8 +542,33 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
     (tags.get(w.text.toLowerCase()) ?? []).includes("Verb") && !w.senses.some((s) => (s.type === "glue" && s.copula) || s.type === "takes" || s.type === "op" || s.type === "question");
   const deictic = (w: Word) => typesOf(store, c(nameOf(w.text))).some((k) => k === "Deictic" || k === "Pronoun" || k === "Pointing");
   const out: Reading[] = [];
+  // "bday means birthday": a word that says what a word means (`Mean Defines(WrittenAs())`) teaches
+  // a reading of it, so "bday" is read as "birthday" from then on. One word on each side.
+  words.forEach((w, v) => {
+    if (v !== 1 || words.length !== 3 || !doing(w)) return;
+    const verb = nameOf(lemma(w.text.toLowerCase()));
+    const teaches = relationsOf(store, verb).some((r) => isCall(r.claim) && r.claim.head === "Defines" && isCall(r.claim.args[0]?.value) && (r.claim.args[0]!.value as { head: string }).head === "WrittenAs");
+    if (!teaches) return;
+    const typed = words[0]!.text.toLowerCase();
+    const meant = words[2]!.text.toLowerCase();
+    if (!/^[a-z']+$/.test(typed) || !/^[a-z']+$/.test(meant) || typed === meant) return;
+    out.push({
+      writes: true,
+      key: `WrittenAs(${typed}, ${meant})`,
+      features: ["read:defines"],
+      score: 4 + 0.5 * words.length,
+      display: c("ContextScope", c("Declarative"), c("WrittenAs", typed, meant)),
+      chosen: [],
+      notes: [`"${w.text}" says what a word means: "${typed}" is read as "${meant}" from now on.`],
+      run: async () => {
+        keepReading(store, typed, meant, 3);
+        return c("Noted", c("WrittenAs", typed, meant));
+      },
+    });
+  });
   words.forEach((w, v) => {
     if (v === 0 || !doing(w)) return;
+    if (words.length === 3 && v === 1 && relationsOf(store, nameOf(lemma(w.text.toLowerCase()))).some((r) => isCall(r.claim) && r.claim.head === "Defines")) return;
     // Who does it: "i", a thing, or whose thing ("my sister", the thing).
     const who = words.slice(0, v);
     const self = who.length === 1 ? who[0].senses.find((s) => s.type === "entity") : undefined;
@@ -915,8 +941,13 @@ function unknownRuns(store: ConceptStore, words: readonly Word[], message: strin
   const thing = (w: string) => w.toLowerCase().split(" ").every((x) => (tags.get(x) ?? ["Noun"]).some((t) => t === "Noun" || t === "ProperNoun") && !(tags.get(x) ?? []).includes("Verb"));
   const runs: string[][] = [];
   let run: string[] = [];
+  // A word after "my" ("my bday") names something of the one talking, not a thing in the world:
+  // never looked up.
+  let owned = false;
   for (const w of words) {
-    const unknown = !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase()))) && thing(w.text);
+    const after = owned;
+    owned = w.senses.some((s) => s.type === "owner");
+    const unknown = !after && !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase()))) && thing(w.text);
     if (unknown) run.push(w.text);
     else if (run.length) runs.push(run.splice(0));
   }
@@ -1063,6 +1094,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       }
       for (const reading of readings) {
         if (reading.writes && respelled) continue;
+        // Teaching how a word is written is read only from the words as typed.
+        if (reading.features.includes("read:defines") && row.edits.length) continue;
         // What the reading's choices have earned from feedback counts for or against it.
         const learned = features(reading, row.edits).reduce((sum, f) => sum + weight(store, f), 0);
         const score = reading.score - row.cost + learned;

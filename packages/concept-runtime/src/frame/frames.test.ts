@@ -269,3 +269,23 @@ test("a doing is kept as a relation named by it, the newest winning, and read ba
   assert.deepEqual(said.map((s) => s.spoken), ["Got it.", "Got it.", "Got it.", "Phoenix.", "Apple.", "Denver.", "Got it.", "Tucson."]);
   assert.ok(said.every((s) => s.by === "frames"));
 });
+
+test("\"bday means birthday\" teaches a reading; a word after \"my\" is never looked up; a recalled answer says where it came from", async () => {
+  const { knownFrom } = await import("../store/provenance.js");
+  const store = new ConceptStore();
+  seed(store);
+  const looked: string[] = [];
+  const fetch = async (url: string) => {
+    looked.push(url);
+    return {};
+  };
+  const runtime = () => new Runtime(store, {});
+  await turn(runtime(), "my birthday is march 5 1991", c("Execution"), { fetch });
+  await turn(runtime(), "what is my bday", c("Execution"), { fetch });
+  assert.ok(!looked.some((u) => /search=bday|titles=bday/.test(u)), "bday was looked up as a thing in the world");
+  assert.equal((await turn(runtime(), "bday means birthday", c("Execution"), { fetch })).hearingUsed, "frames");
+  const asked = await turn(runtime(), "what is my bday", c("Execution"), { fetch });
+  assert.equal(asked.spoken, "Tuesday, March 5, 1991");
+  // Told outside a conversation here, so known by the fact itself (in a conversation: "You told me ...").
+  assert.match(knownFrom(store, asked.result, asked.expression)[0] ?? "", /Me Birthday\(Date\(year=1991/);
+});

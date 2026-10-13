@@ -30,7 +30,7 @@ import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
-import { checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
+import { asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -675,7 +675,7 @@ export async function turn(
   const lastSpoken = options.history?.at(-1)?.spoken;
   if (lastSpoken) runtime.context.set("lastSpoken", lastSpoken);
   else runtime.context.delete("lastSpoken");
-  if (options.inputMode !== "expression" && !message.includes("?")) {
+  if (options.inputMode !== "expression" && !asks(runtime.store, message)) {
     learnFeelings(runtime.store, message, runtime.trace.cause);
     const followed = await whatFollows(runtime.store, message, {
       lookup: options.learn !== false && options.research !== false,
