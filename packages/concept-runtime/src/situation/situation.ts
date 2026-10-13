@@ -861,6 +861,23 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
   const top = (a: Amount) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0).join();
   const held = cap ? named.map((a) => (a === cap ? { ...a, sign: 1 } : top(a) === top(cap) && a.sign === 0 ? { ...a, sign: -1 } : a)) : named;
   const resolved = resolveRatios(held);
+  // "He kept 5 lollipops and shared the remaining", "the rest went to ...": said with no number,
+  // what is left by then of what was had first, less the others of it said since.
+  sentences.forEach((sentence, at) => {
+    if (at === q || !/\b(the remaining|the rest|the remainder|what was left|what is left|the leftovers?)\b(?!\s+(of|\d))/i.test(sentence)) return;
+    if (resolved.some((a) => a.sentence === at && a.derived && /what was left/.test(a.said))) return;
+    // Of the thing said more than once by then: what was had and what went.
+    const plainUnit = (a: Amount) => a.sentence <= at && !a.ratio && !a.optional && Object.keys(a.unit).length === 1 && (Object.values(a.unit)[0] ?? 0) > 0;
+    const thing = [...resolved].reverse().find((a) => plainUnit(a) && resolved.filter((b) => plainUnit(b) && sameUnit(b.unit, a.unit)).length >= 2);
+    if (!thing) return;
+    const same = resolved.filter((a) => a.sentence <= at && !a.ratio && !a.optional && sameUnit(a.unit, thing.unit));
+    const had = same[0];
+    if (!had || same.length < 2) return;
+    const left = same.slice(1).reduce((n, a) => n - a.value, had.value);
+    if (!(left > 0)) return;
+    for (const a of same) resolved[resolved.indexOf(a)] = { ...a, consumed: true };
+    resolved.push({ value: left, unit: had.unit, said: `what was left: ${[had, ...same.slice(1)].map((a) => show(a.value)).join(" - ")} = ${show(left)}`, sentence: at, sign: 0, derived: true });
+  });
   if (resolved.length < 2 && !resolved.some((a) => a.derived)) return undefined;
   // Each unit by the word the graph has for it: "ml" is milliliter, "kids" are children.
   const canon = (u: Unit): Unit => {

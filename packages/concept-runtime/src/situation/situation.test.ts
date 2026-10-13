@@ -84,6 +84,10 @@ test("a word for all the things counted, groups of things, units written short, 
   assert.equal(answer("Gerald works at a daycare that pays him $30 every day. He worked for an entire week and spent a total of $100. How much does he have left?"), 110);
 });
 
+test("the remaining said with no number is what is left by then of the thing said", () => {
+  assert.equal(answer("Ray had 25 lollipops. He kept 5 lollipops and shared the remaining equally with his four friends. How many lollipops did each of his friends receive?"), 5);
+});
+
 test("amounts are said as people say them", () => {
   assert.equal(sayAmount(18, { dollar: 1, day: -1 }), "18 dollars a day");
   assert.equal(sayAmount(260, { sheep: 1 }), "260 sheep");
