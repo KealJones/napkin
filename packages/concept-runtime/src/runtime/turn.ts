@@ -30,6 +30,7 @@ import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
+import { situationOf, solve, sure, worked } from "../situation/situation.js";
 import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
@@ -721,6 +722,42 @@ export async function turn(
         failed: undefined,
         hearingUsed: "frames",
         why: [`Asked for a reason: "${why.cause}" is what "${why.connective}" says causes it, in ${why.from[0]}.`, ...(why.causeIs ? [`What that is, from ${why.from[1]}.`] : [])],
+      };
+    }
+  }
+  // A message that tells a situation and asks about it ("Janet's ducks lay 16 eggs per day ...
+  // How much does she make every day?") is read whole, as one situation: its amounts with their
+  // units, what each doing does to them, what is asked; worked out by combining the amounts until
+  // the units come out as asked (situation/situation.ts), each step said. Names the text introduces
+  // are people of the text, never looked up.
+  if (options.inputMode !== "expression" && /\?|\bhow (much|many|long|far|old)\b/i.test(message)) {
+    const situation = situationOf(runtime.store, message);
+    const solved = situation && situation.amounts.some((a) => Object.keys(a.unit).length > 0) ? solve(situation.amounts, situation.asked) : undefined;
+    if (solved) {
+      const result = worked(solved);
+      const rendered = format(result);
+      const spoken = options.speak === false ? rendered : (await graphText(runtime, "RenderResponse", result)) ?? rendered;
+      return {
+        heard: { message, raw: rendered, expression: result, problems: [], rejected: [], text: message, edits: [] },
+        expression: result,
+        parsed: rendered,
+        resolved: [],
+        resolvedNames: [],
+        result,
+        rendered,
+        spoken,
+        spokenBy: options.speak === false ? "none" : "graph",
+        gaps: [],
+        ambiguities: [],
+        learned: [],
+        rereads: 0,
+        failed: undefined,
+        hearingUsed: "frames",
+        why: [
+          `Read as one situation: ${situation!.amounts.map((a) => a.said).join(", ")}; asked: "${situation!.asked.said}".`,
+          ...solved.steps,
+          sure(solved) ? "That reading was clearly ahead of the others." : `Other readings came close (by ${solved.margin.toFixed(2)}), so it says it isn't sure.`,
+        ],
       };
     }
   }

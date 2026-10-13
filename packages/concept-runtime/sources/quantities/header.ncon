@@ -1,0 +1,65 @@
+// Quantities: what a doing does to what it is done with, read when a message tells a situation and
+// asks about it (src/situation/situation.ts). What is eaten, sold, spent, given or lost is taken away
+// from what was had; what is bought, earned, found or received is added. Each is a fact on the
+// doing's own Concept, so a doing known once counts in every situation.
+Requires(Core(), Basic())
+
+Concept(Removes(), IsA(Relation()))
+
+Concept(Adds(), IsA(Relation()))
+
+Concept(Eat(), Removes())
+
+Concept(Drink(), Removes())
+
+Concept(Use(), Removes())
+
+Concept(Bake(), Removes())
+
+Concept(Cook(), Removes())
+
+Concept(Sell(), Removes())
+
+Concept(Spend(), Removes())
+
+Concept(Pay(), Removes())
+
+Concept(Give(), Removes())
+
+Concept(Donate(), Removes())
+
+Concept(Lose(), Removes())
+
+Concept(Break(), Removes())
+
+Concept(Throw(), Removes())
+
+Concept(Lend(), Removes())
+
+Concept(Remove(), Removes())
+
+Concept(Take(), Removes())
+
+Concept(Buy(), Adds())
+
+Concept(Earn(), Adds())
+
+Concept(Receive(), Adds())
+
+Concept(Get(), Adds())
+
+Concept(Find(), Adds())
+
+Concept(Collect(), Adds())
+
+Concept(Win(), Adds())
+
+Concept(Gain(), Adds())
+
+Concept(Pick(), Adds())
+
+Concept(Save(), Adds())
+
+Concept(Borrow(), Adds())
+
+Concept(Add(), Adds())

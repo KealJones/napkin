@@ -1,0 +1,125 @@
+// Quantities: what a doing does to what it is done with, read when a message tells a situation and
+// asks about it (src/situation/situation.ts). What is eaten, sold, spent, given or lost is taken away
+// from what was had; what is bought, earned, found or received is added. Each is a fact on the
+// doing's own Concept, so a doing known once counts in every situation.
+Requires(Core(), Basic())
+
+Concept(Removes(), IsA(Relation()))
+
+Concept(Adds(), IsA(Relation()))
+
+Concept(Eat(), Removes())
+
+Concept(Drink(), Removes())
+
+Concept(Use(), Removes())
+
+Concept(Bake(), Removes())
+
+Concept(Cook(), Removes())
+
+Concept(Sell(), Removes())
+
+Concept(Spend(), Removes())
+
+Concept(Pay(), Removes())
+
+Concept(Give(), Removes())
+
+Concept(Donate(), Removes())
+
+Concept(Lose(), Removes())
+
+Concept(Break(), Removes())
+
+Concept(Throw(), Removes())
+
+Concept(Lend(), Removes())
+
+Concept(Remove(), Removes())
+
+Concept(Take(), Removes())
+
+Concept(Buy(), Adds())
+
+Concept(Earn(), Adds())
+
+Concept(Receive(), Adds())
+
+Concept(Get(), Adds())
+
+Concept(Find(), Adds())
+
+Concept(Collect(), Adds())
+
+Concept(Win(), Adds())
+
+Concept(Gain(), Adds())
+
+Concept(Pick(), Adds())
+
+Concept(Save(), Adds())
+
+Concept(Borrow(), Adds())
+
+Concept(Add(), Adds())
+
+// A situation worked out, said with its working so it can be checked: what was worked out from
+// what was said ("twice of 20 sheep = 40"), each step, then the answer. Not sure of the reading,
+// it says so first.
+Concept(Worked(),
+  Realization(Worked(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($answer, Call($named, "answer")),
+            If(
+              Or(NotEquals(TypeOf($answer), "string"), Not($answer)),
+              Return(""),
+              Undefined()
+            ),
+            Bind($list,
+              Lambda(List($n),
+                Sequence(
+                  Bind($v, Call($named, $n)),
+                  Return(
+                    If(
+                      And($v, Member($v, "args")),
+                      Map(Member($v, "args"), Lambda(List($a), Call($String, Member($a, "value")))),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($working, Concat(Call($list, "read"), Call($list, "steps"))),
+            Bind($said,
+              If(
+                Length($working),
+                Add(Call(Member($working, "join"), "; "), ". "),
+                ""
+              )
+            ),
+            If(
+              Equals(Call($named, "sure"), true),
+              Return(Add(Add(Add($said, "So "), $answer), ".")),
+              Undefined()
+            ),
+            Return(Add(Add(Add(Add("I'm not sure I read it right. ", $said), "My best reading gives "), $answer), "."))
+          )
+        )
+      )
+    )
+  )
+)

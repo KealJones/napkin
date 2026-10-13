@@ -94,17 +94,23 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 Failures seen: names the text introduces looked up as world things ("Siobhan" a Korean singer, "In"
 a postal service); every sentence heard alone; quantities as words; 14 of 50 timed out.
 
-- [ ] W1. A message of several sentences is one situation: each sentence read into it, pointing
+- [x] W1. (situation/situation.ts; pointing words inside it still to do) A message of several sentences is one situation: each sentence read into it, pointing
   words resolved inside it ("she" is Janet), a name the text introduces is a person of the text,
   never looked up.
-- [ ] W2. Quantities as values with units: "16 eggs" Quantity(16, Egg), "$2 per egg" a rate,
+- [x] W2. Quantities as values with units: "16 eggs" Quantity(16, Egg), "$2 per egg" a rate,
   "a dozen" 12, "twice as many" a ratio (units pack, number words).
-- [ ] W3. What a doing does to quantities, as facts on its Concept (eat, use, sell, give take
+- [x] W3. (packs/quantities.ncon) What a doing does to quantities, as facts on its Concept (eat, use, sell, give take
   away from the one doing it; buy, get, earn add; "per", "each" multiply), so a verb learned once
   works in every problem.
-- [ ] W4. The question names the unknown and its unit ("how much money", "how many eggs"); it is
+- [x] W4. The question names the unknown and its unit ("how much money", "how many eggs"); it is
   found by combining the situation's quantities whose units come out as the unit asked
   (dimensional analysis), each step shown.
+- [ ] W7. Measured (scratch, learning off): 4/100 unseen test items right, 60 answered; about 8% of
+  answers right on the train slice tuned against. Most misses need what it does not read yet: an
+  unknown solved for ("8 times as many packages as meals ... 27 combined"), state as it goes ("a
+  quarter of what is left"), "the rest" of a whole split by shares, nested comparisons ("5 less than
+  half as many"). Next: amounts as each holder's state through the sentences, "what is left" as that
+  state; one unknown solved for by a linear equation.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
