@@ -150,6 +150,16 @@ export function words(text: string): { text: string; typed: string; tags: string
       if (said) out.push({ text: said, typed, tags, sentence, after: (last.post ?? "").trim(), could: aloneTags(said) });
     }
   });
+  // "a supplies list": "a" names one thing, so a plural after it only describes, and the word it
+  // describes is that one thing, even where the tagger took it for a doing. The same after a
+  // preposition ("on my supplies list").
+  for (let k = 0; k + 2 < out.length; k++) {
+    const [a, plural, head] = [out[k]!, out[k + 1]!, out[k + 2]!];
+    // Or a preposition's object ("on my supplies list"): no doing of the plural's is said there.
+    const one = /^(a|an)$/i.test(a.text) || (k > 0 && out[k - 1]!.tags.includes("Preposition") && (a.tags.includes("Possessive") || a.tags.includes("Determiner")));
+    if (!one || a.sentence !== head.sentence || !plural.tags.includes("Plural") || !plural.tags.includes("Noun")) continue;
+    if (head.tags.includes("Verb") && !head.tags.some((t) => t === "Copula" || t === "Modal" || t === "Auxiliary" || t === "PastTense" || t === "Gerund")) head.tags = ["Noun", "Singular"];
+  }
   return out;
 }
 

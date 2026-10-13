@@ -64,7 +64,7 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
   DailyDialog; ConceptNet has little for "my car broke down".
 - [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
-- [ ] 27. Three unit tests fail on main (chat "when you say hello?", focus "supplies list", pursue
+- [ ] 27. (chat and focus fixed; pursue remains) Three unit tests fail on main (chat "when you say hello?", focus "supplies list", pursue
   "cake recipe").
 - [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
 - [ ] 29. sources/grounding no longer regenerates packs/grounding.ncon as committed (the pack was

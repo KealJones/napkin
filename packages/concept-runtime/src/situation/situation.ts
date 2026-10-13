@@ -106,8 +106,7 @@ const unitOf = (top: string | undefined, bottom: string | undefined): Unit => {
   const u: Record<string, number> = {};
   if (top) u[top] = (u[top] ?? 0) + 1;
   if (bottom) u[bottom] = (u[bottom] ?? 0) - 1;
-  for (const k of Object.keys(u)) if (u[k] === 0) delete u[k];
-  return u;
+  return Object.fromEntries(Object.entries(u).filter(([, v]) => v !== 0));
 };
 
 export const sameUnit = (a: Unit, b: Unit): boolean => {
@@ -117,8 +116,7 @@ export const sameUnit = (a: Unit, b: Unit): boolean => {
 export const times = (a: Unit, b: Unit, sign = 1): Unit => {
   const u: Record<string, number> = { ...a };
   for (const [k, v] of Object.entries(b)) u[k] = (u[k] ?? 0) + sign * v;
-  for (const k of Object.keys(u)) if (u[k] === 0) delete u[k];
-  return u;
+  return Object.fromEntries(Object.entries(u).filter(([, v]) => v !== 0));
 };
 export const sayUnit = (u: Unit): string => {
   const top = Object.entries(u).filter(([, v]) => v > 0).map(([k, v]) => (v > 1 ? `${k}^${v}` : k));
@@ -638,7 +636,7 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
 
 const bits = (m: number) => {
   let c = 0;
-  for (let x = m; x; x &= x - 1) c++;
+  for (let x = m; x > 0; x = x & (x - 1)) c++;
   return c;
 };
 

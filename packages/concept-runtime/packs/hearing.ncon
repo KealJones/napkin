@@ -2677,12 +2677,19 @@ Concept(Hear(),
             Comment("them; \"red light, speed camera ahead\" is two phrases."),
             Comment("\"eggs aspirin and cheese\": nouns in a row, one of them plural, before an \"and\", are a list,"),
             Comment("as with commas: a plural does not describe the thing after it (\"egg carton\", not \"eggs\")."),
+            Comment("Unless \"a\" is said before it: \"a supplies list\" is one thing, the plural describing it."),
             Bind($series,
               Lambda(List($i),
                 And(
                   And(
                     And(
-                      And(Call($thing, Index($said, $i)), Call($thing, Index($said, Add($i, 1)))),
+                      And(
+                        And(Call($thing, Index($said, $i)), Call($thing, Index($said, Add($i, 1)))),
+                        Or(
+                          Equals($i, 0),
+                          Not(Call(Member(Regex("^an?$", "i"), "test"), Member(Index($said, Subtract($i, 1)), "text")))
+                        )
+                      ),
                       Includes(Member(Index($said, $i), "tags"), "Plural")
                     ),
                     Not(Includes(Member(Index($said, $i), "after"), ","))
