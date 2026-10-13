@@ -49,6 +49,22 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [ ] 19. Reminders and tasks ("remember to buy milk", "what do i need to buy"): a doing to do, kept
   as a task, not a fact.
 
+# Packs and replies (audit 2026-10-12, research/pack-audit.md)
+
+- [x] 20. Pack audit: `scripts/audit-packs.mjs` (usage, removal with dependents, `--alone=`), report.
+- [x] 21. Told events answered by what follows (ConceptNet, lazily, per event) and how they feel
+  (VADER valence, learned per word): packs/follows.ncon; the corpus reply only when close.
+- [ ] 22. Pursue answers what was not asked ("what is todays date?" "Yes."; "how you doing?"
+  "Arithmetic."): an answer must account for the question, as frames' `AnsweredBy` does.
+- [ ] 23. Judge answers a choice with nothing grounded ("Both are kinds of elephant."): don't.
+- [ ] 24. code-hearing (10.5k lines) is off the live path: keep as the code-hearing experiment, or
+  remove (the user's call).
+- [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
+  DailyDialog; ConceptNet has little for "my car broke down".
+- [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
+- [ ] 27. Three unit tests fail on main (chat "when you say hello?", focus "supplies list", pursue
+  "cake recipe").
+
 # Concept games and chess
 
 - [ ] Add reusable collection, record, geometry, and persistent-state Concepts.
