@@ -452,10 +452,11 @@ export async function lookUpWord(
   runtime: Runtime,
   identity: string,
   said: string,
-  options: { fetch?: (url: string) => Promise<unknown> } = {},
+  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean } = {},
 ): Promise<boolean> {
   const words = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-  const common = !words.includes(" ") && isWord(words) && !properNoun(words);
+  // A fact asked of it ("who directed jaws") makes it a thing in the world, whatever the word.
+  const common = !options.thing && !words.includes(" ") && isWord(words) && !properNoun(words);
   const dictionary = async () => {
     try {
       const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }, { value: c("Noun") }, { name: "context", value: wordContext(runtime.store, said, words) }]), c("Execution"));

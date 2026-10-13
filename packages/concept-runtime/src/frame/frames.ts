@@ -399,6 +399,14 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
           misses.push({ reading: c("Asked", c(rel.head), c(thing.head)), left: unusedWords });
           continue;
         }
+        // The relation's own word may name a part of its value too ("what year was he born", where
+        // "year" is what stood for date of birth): that part is the answer.
+        if (part === undefined) {
+          const own = words[rel.k]!.text.toLowerCase();
+          if (answers.length && answers.every((a) => isCall(a) && a.args.some((x) => x.name !== undefined && akin(x.name, own)))) {
+            part = (answers[0] as { args: readonly { name?: string }[] }).args.find((x) => x.name !== undefined && akin(x.name, own))?.name;
+          }
+        }
         // Of the shape the question asks for: someone is a thing named, an amount a number (AnsweredBy).
         const shapes = words.flatMap((w) => w.senses.flatMap((s) => (s.type === "question" ? s.kinds : []))).flatMap((k) =>
           relationsOf(store, k).flatMap((r) => (isCall(r.claim) && r.claim.head === "AnsweredBy" && isCall(r.claim.args[0]?.value) ? [(r.claim.args[0].value as { head: string }).head] : [])),
@@ -767,7 +775,7 @@ function pointedAt(store: ConceptStore, history: readonly { result: string }[], 
     try {
       // A thing known only by name, tied to its item ("Steven Spielberg", answered from Jaws), is
       // meant too: what it holds is looked up when it is asked about.
-      for (const n of walk(parse(h.result))) if (isCall(n) && (holdsFacts(store, n.head) || wikidataItem(store, n.head) !== undefined) && !contradicts(n.head)) return n.head;
+      for (const n of walk(parse(h.result))) if (isCall(n) && (holdsFacts(store, n.head) || wikidataItem(store, n.head) !== undefined || store.asSubject(n.head).some((t) => t.predicate === "Named")) && !contradicts(n.head)) return n.head;
     } catch {
       // A result that does not read as Concepts points at nothing.
     }
@@ -909,7 +917,8 @@ export interface FrameOptions {
    * Look a thing up in the world and keep what is found (Wikidata, by `groundInWikidata`).
    * Answers whether anything was learned. Absent, nothing is looked up.
    */
-  readonly lookup?: (identity: string, said: string) => Promise<boolean>;
+  /** `thing`: a word beside it asks a fact of it ("directed"), so it is a thing in the world, not a word to define. */
+  readonly lookup?: (identity: string, said: string, thing?: boolean) => Promise<boolean>;
   /** Most lookups in one turn. */
   readonly lookups?: number;
   /** Reading one part of a message joined by "and": not split again. */
@@ -1163,7 +1172,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       for (const identity of group) {
         if (left <= 0 || looked.some((l) => l.identity === identity)) continue;
         left -= 1;
-        const learned = await options.lookup(identity, message).catch(() => false);
+        const asksFact = asTyped.some((w) => w.senses.some((x) => x.type === "relation"));
+        const learned = await options.lookup(identity, message, asksFact).catch(() => false);
         looked.push({ identity, learned });
         found ||= learned;
       }
