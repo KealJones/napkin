@@ -401,10 +401,13 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
         }
         // The relation's own word may name a part of its value too ("what year was he born", where
         // "year" is what stood for date of birth): that part is the answer.
-        if (part === undefined) {
-          const own = words[rel.k]!.text.toLowerCase();
+        // Any word that stood for the relation counts: "year" and "born" both say date of birth.
+        for (const w of part === undefined ? words : []) {
+          const own = w.text.toLowerCase();
+          if (!w.senses.some((x) => x.type === "relation" && x.head === rel.head)) continue;
           if (answers.length && answers.every((a) => isCall(a) && a.args.some((x) => x.name !== undefined && akin(x.name, own)))) {
             part = (answers[0] as { args: readonly { name?: string }[] }).args.find((x) => x.name !== undefined && akin(x.name, own))?.name;
+            break;
           }
         }
         // Of the shape the question asks for: someone is a thing named, an amount a number (AnsweredBy).
