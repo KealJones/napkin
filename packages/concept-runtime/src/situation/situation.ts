@@ -133,6 +133,8 @@ interface Token {
   readonly percent?: boolean;
   /** A share said in words ("a third", "two-fifths"): its number is the fraction. */
   readonly share?: boolean;
+  /** A comma was written just before it. */
+  readonly comma?: boolean;
 }
 
 /** A sentence's words, with numbers read ("$80,000", "60%", "three", "1.5"). */
@@ -150,16 +152,27 @@ function tokenize(sentence: string): Token[] {
     return tagged.find((w) => w.text.toLowerCase() === lower)?.tags ?? [];
   };
   const out: Token[] = [];
-  for (const raw of sentence.match(/\$?(?:\d[\d,]*)?\.?\d+%?|[A-Za-z]+(?:[-'][A-Za-z]+)*|[/]/g) ?? []) {
+  const pattern = /\$?(?:\d[\d,]*)?\.?\d+(?:\/\d+)?%?|[A-Za-z]+(?:[-'’][A-Za-z]+)*|[/]/g;
+  let was = 0;
+  for (let m = pattern.exec(sentence); m; m = pattern.exec(sentence)) {
+    const raw = m[0];
+    const comma = sentence.slice(was, m.index).includes(",");
+    was = m.index + raw.length;
     const lower = raw.toLowerCase();
+    // "2/5": a share written as a fraction.
+    const fraction = /^(\d+)\/(\d+)$/.exec(raw);
+    if (fraction && Number(fraction[2]) > 0) {
+      out.push({ text: raw, lower, tags: ["Value"], number: Number(fraction[1]) / Number(fraction[2]), share: true, ...(comma ? { comma } : {}) });
+      continue;
+    }
     const digits = /^\$?((?:\d[\d,]*)?\.?\d+)(%?)$/.exec(raw);
     if (digits) {
-      out.push({ text: raw, lower, tags: ["Value"], number: Number(digits[1]!.replace(/,/g, "")), money: raw.startsWith("$"), percent: digits[2] === "%" });
+      out.push({ text: raw, lower, tags: ["Value"], number: Number(digits[1]!.replace(/,/g, "")), money: raw.startsWith("$"), percent: digits[2] === "%", ...(comma ? { comma } : {}) });
       continue;
     }
     const t = tagsOf(lower);
     const n = NUMBER_WORDS[lower];
-    out.push({ text: raw, lower, tags: t, ...(n !== undefined ? { number: n } : {}) });
+    out.push({ text: raw, lower, tags: t, ...(n !== undefined ? { number: n } : {}), ...(comma ? { comma } : {}) });
   }
   // A share in words: "a third", "two thirds", "one-fifth", "three fourths". Only less than a whole:
   // "20 quarters" are coins.
@@ -194,7 +207,8 @@ function headAfter(tokens: readonly Token[], at: number): { unit?: string; end: 
   if (!isNoun(tokens[i])) return { end: at };
   // A compound ("duck egg", "chicken feed") is named by its last noun.
   let j = i;
-  while ((isNoun(tokens[j + 1]) || (counted(tokens[j + 1]) && tokens[j + 2]?.number === undefined)) && !tokens[j + 1]!.tags.includes("Adjective") && tokens[j + 1]!.lower !== "old" && j - i < 2) j++;
+  // A plural does not describe the word after it ("8 pencils cost", "his friends receive").
+  while (!tokens[j]!.tags.includes("Plural") && (isNoun(tokens[j + 1]) || (counted(tokens[j + 1]) && tokens[j + 2]?.number === undefined)) && !tokens[j + 1]!.tags.includes("Adjective") && tokens[j + 1]!.lower !== "old" && j - i < 2) j++;
   return { unit: base(tokens[j]!.text), end: j + 1 };
 }
 
@@ -213,6 +227,11 @@ function perAfter(tokens: readonly Token[], at: number): { per?: string; end: nu
   if (tokens[at]?.lower === "of" && isNoun(tokens[at + 1]) && /^(on|in|inside|per|each|every|a|an)$/.test(tokens[at + 2]?.lower ?? "")) {
     const past = perAfter(tokens, at + 2);
     if (past.per) return past;
+  }
+  // What it takes to do one: "3 minutes to dig a small hole", "$5 to make each shirt".
+  if (tokens[at]?.lower === "to" && tokens[at + 1]?.tags.includes("Verb") && /^(a|an|one|each|every)$/.test(tokens[at + 2]?.lower ?? "")) {
+    const h = headAfter(tokens, at + 3);
+    if (h.unit && !TIME.test(h.unit)) return { per: h.unit, end: h.end };
   }
   // In what holds it: "30 sheets on a pad", "12 eggs in a carton", "4 wheels on each car".
   if (/^(on|in|inside)$/.test(tokens[at]?.lower ?? "") && /^(a|an|one|each|every)$/.test(tokens[at + 1]?.lower ?? "")) {
@@ -268,10 +287,12 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   if (holder) last.holder = holder;
   const out: Amount[] = [];
   let verb = 0;
+  // How many amounts were read before each word: what a clause says is out[countAt[from] .. countAt[to]).
+  const countAt: number[] = [];
   // After "5 more than", the ratio said next is a step in that amount, no one's own.
   let inner = false;
   // A clause that names someone else doing ("..., and Harry has half as many") is theirs.
-  const names = (k: number) => k > 0 && /^[A-Z]/.test(tokens[k]!.text) && tokens[k]!.number === undefined && !tokens[k]!.tags.includes("Pronoun") && /^(and|,|but|while|whereas)$/.test(tokens[k - 1]!.lower) && !!tokens[k + 1]?.tags.includes("Verb");
+  const names = (k: number) => k > 0 && /^[A-Z]/.test(tokens[k]!.text) && tokens[k]!.number === undefined && !tokens[k]!.tags.includes("Pronoun") && (tokens[k]!.comma || /^(and|but|while|whereas)$/.test(tokens[k - 1]!.lower)) && !!tokens[k + 1]?.tags.includes("Verb");
   // What a ratio is of: "as many sheep as Charleston" (a holder), "that much", "of the price",
   // "by 30%" (the amount said last; increased or reduced by it).
   const ratioOf = (at: number): Amount["of"] => {
@@ -307,6 +328,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     return { last: true, ...(money ? { unit: MONEY } : {}), ...(thing ? { thing } : {}) };
   };
   for (let i = 0; i < tokens.length; i++) {
+    countAt[i] = out.length;
     let t = tokens[i]!;
     if (names(i)) {
       holder = t.text;
@@ -470,15 +492,30 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     i = Math.max(i, Math.max(per.end, end) - 1);
   }
   // "Each rose bush has 25 roses", "Every ticket costs $5": what is said of each one is per one.
-  const each = tokens.findIndex((tk) => tk.lower === "each" || tk.lower === "every");
-  const first = tokens.findIndex((tk) => tk.number !== undefined);
-  const verbAt = tokens.findIndex((tk) => tk.tags.includes("Verb") && tk.number === undefined);
-  const eachHead = each >= 0 ? headAfter(tokens, each + 1) : { end: 0 };
-  // The doing between what each one is and the amount: a verb, or a word the tagger took for a plural ("costs").
-  if (each >= 0 && each < 3 && eachHead.unit && (first < 0 || first > eachHead.end) && (verbAt > each || first > eachHead.end)) {
-    const h = eachHead;
-    if (h.unit && (first < 0 || h.end < first)) return out.map((a) => (a.ratio || Object.values(a.unit).some((v) => v < 0) || a.unit[h.unit!] ? a : { ...a, unit: times(a.unit, { [h.unit!]: -1 }) }));
-  }
+  // "Each rose bush has 25 roses", "An eraser costs $2 and a pencil costs $3", "A glass of milk is 8
+  // ounces": what each one, or one of them, has, is or costs is per one, in its own clause.
+  for (let k = tokens.length; k >= 0; k--) countAt[k] ??= out.length;
+  const starts = tokens.flatMap((tk, k) => {
+    if (!/^(a|an|one|each|every)$/.test(tk.lower) || !(k === 0 || tk.comma || /^(and|but|while|if|so|then)$/.test(tokens[k - 1]!.lower) || (k < 3 && /^(each|every)$/.test(tk.lower)))) return [];
+    const h = headAfter(tokens, k + 1);
+    const first = tokens.findIndex((x, n) => n >= h.end && x.number !== undefined);
+    if (!h.unit || TIME.test(h.unit) || first < 0) return [];
+    const between = tokens.slice(h.end, first);
+    const one = /^(each|every)$/.test(tk.lower)
+      ? between.length > 0
+      : between.some((x) => /^(costs?|is|are|was|weighs?|has|have|holds?|contains?|takes?|needs?|sells?|pays?|earns?|makes?|gives?|produces?|lays?)$/.test(x.lower));
+    return one ? [{ at: k, unit: h.unit, end: h.end }] : [];
+  });
+  const per = out.slice();
+  starts.forEach((st, n) => {
+    const to = countAt[starts[n + 1]?.at ?? tokens.length] ?? out.length;
+    for (let a = countAt[st.end] ?? out.length; a < to; a++) {
+      const x = per[a]!;
+      if (x.ratio || Object.values(x.unit).some((v) => v < 0) || x.unit[st.unit]) continue;
+      per[a] = { ...x, unit: times(x.unit, { [st.unit]: -1 }) };
+    }
+  });
+  if (starts.length) return per;
   // A period said after the amounts ("... with four every day"): what the sentence counts per.
   const tail = tokens.findIndex((tk, k) => (tk.lower === "every" || tk.lower === "each" || tk.lower === "per" || PART_OF[tk.lower] !== undefined || ((tk.lower === "a" || tk.lower === "an") && TIME.test(headAfter(tokens, k + 1).unit ?? ""))) && k > 0);
   if (tail >= 0) {
@@ -525,9 +562,16 @@ function askedIn(question: string, amounts: readonly Amount[], whole = question)
   if (!top && !count) return undefined;
   // "... a week", "every day", "per hour" in the question: asked per that.
   let per: string | undefined;
+  // "how many did each of his friends receive", "how much does each person pay": per one of them.
+  const eachAt = tokens.findIndex((t, k) => (t.lower === "each" || t.lower === "every") && k > many);
+  if (eachAt >= 0) {
+    const of = tokens[eachAt + 1]?.lower === "of" ? eachAt + 2 : eachAt + 1;
+    const h = headAfter(tokens, of);
+    if (h.unit && h.unit !== top && !TIME.test(h.unit)) per = h.unit;
+  }
   for (let i = 0; i < tokens.length; i++) {
     const p = perAfter(tokens, i);
-    if (p.per && p.per !== top && /^(day|week|month|year|hour|minute)$/.test(p.per)) {
+    if (!per && p.per && p.per !== top && /^(day|week|month|year|hour|minute)$/.test(p.per)) {
       // Only when the amounts are counted per it too.
       if (amounts.some((a) => (a.unit[p.per!] ?? 0) < 0)) per = p.per;
       break;
@@ -536,13 +580,21 @@ function askedIn(question: string, amounts: readonly Amount[], whole = question)
   // The one asked about; several named ("Toulouse, Charleston, and Seattle") are asked about together.
   const holders = tokens.filter((t, i) => i > 0 && /^[A-Z]/.test(t.text) && !t.tags.includes("Pronoun") && amounts.some((a) => a.holder === plain(t.text)));
   const named = new Set(holders.map((t) => plain(t.text))).size === 1 ? holders[0] : undefined;
+  // "How much does the discounted subscription cost": the price of one, when every price said is
+  // per one of it and no count of them is.
+  if (!per && top === MONEY) {
+    const named = new Set(tokens.map((t) => base(t.text)));
+    const priced = amounts.filter((a) => a.unit[MONEY] === 1).map((a) => Object.keys(a.unit).find((k) => a.unit[k] === -1));
+    const thing = priced[0];
+    if (thing && priced.every((x) => x === thing) && named.has(thing) && !amounts.some((a) => a.unit[thing] === 1)) per = thing;
+  }
   // The kind asked about: a word of the question that is some amount's kind ("how many gold coins").
   const said = new Set(tokens.flatMap((t) => [t.lower, lemma(t.lower), base(t.text)]));
   const kind = amounts.find((a) => a.kind && a.derived && said.has(a.kind))?.kind ?? amounts.find((a) => a.kind && said.has(a.kind))?.kind;
   return {
     ...(kind ? { kind } : {}),
     unit: unitOf(top, per),
-    more: /\bhow (many|much) (more|fewer|less|longer|older|younger|further|farther)\b|\bcompared (to|with)\b|\bdifference\b/.test(all),
+    more: /\bhow (many|much) (more|fewer|less|longer|older|younger|further|farther)\b|\bby how (many|much)\b|\bcompared (to|with)\b|\bdifference\b/.test(all),
     ...(named ? { holder: plain(named.text) } : {}),
     left: /\b(left|remain|remaining|remainder|rest|leftover|unused|not (be )?used|not (be )?sold|not (be )?eaten)\b/.test(all),
     total: /\b(total|together|altogether|in all|combined|overall|both)\b/.test(lower) || new Set(holders.map((t) => plain(t.text))).size > 1,
