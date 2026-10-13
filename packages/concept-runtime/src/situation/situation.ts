@@ -724,7 +724,17 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
   // A conversion is used only when it is needed.
   const converts = (m: number) => amounts.filter((a, i) => a.sentence === -1 && (m & (1 << i)) !== 0).length;
   const total = (w: Worked) => score(w) - 0.75 * converts(w.used) - 1.5 * owed(w.used) - 1.5 * again(w.used) + (theirs(w) ? 3 : 0) - (usesRatios(w) ? 0 : 4);
-  const pool = masks.flatMap((m) => by.get(m) ?? []).filter((w) => sameUnit(w.unit, asked.unit) && w.value > 0).sort((x, y) => total(y) - total(x));
+  // What can be: things counted come whole, money in cents; a reading that comes to 7.5 lollipops
+  // is not one, when another can be.
+  const whole = (w: Worked) => {
+    const v = round(w.value);
+    const cents = Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
+    const counts = Object.keys(asked.unit).every((k) => k === MONEY || !TIME.test(k)) && !Object.keys(asked.unit).some((k) => /^(mile|kilometer|meter|foot|inch|pound|ounce|gallon|liter|kilogram|gram|cup|centimeter|degree|percent|yard|hour|minute)$/.test(k));
+    return asked.unit[MONEY] ? cents : counts ? Number.isInteger(v) : Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
+  };
+  const all = masks.flatMap((m) => by.get(m) ?? []).filter((w) => sameUnit(w.unit, asked.unit) && w.value > 0);
+  // None can be: not worked out, rather than said as if it were.
+  const pool = all.filter(whole).sort((x, y) => total(y) - total(x));
   const best = pool[0];
   if (best && owed(best.used) <= 2) {
     const next = pool.find((w) => Math.abs(w.value - best.value) > 1e-9);
