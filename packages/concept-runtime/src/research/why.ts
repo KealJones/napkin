@@ -124,6 +124,8 @@ export interface Explained {
   readonly cause: string;
   /** What the cause is, from its own page's first sentence, if it has one. */
   readonly causeIs?: string;
+  /** Why the cause is so, in turn: the next link, from the cause's own page. */
+  readonly then?: { readonly connective: string; readonly cause: string };
   readonly from: string[];
 }
 
@@ -137,9 +139,11 @@ export function heldWhy(store: ConceptStore, about: string): Explained | undefin
     const cause = arg("cause");
     const from = arg("from");
     const causeIs = arg("is");
+    const thenCause = arg("then");
+    const thenConnective = arg("thenConnective");
     if (typeof said === "string" && typeof cause === "string") {
       const connective = arg("connective");
-      return { about, connective: typeof connective === "string" ? connective : "because", said, cause, ...(typeof causeIs === "string" ? { causeIs } : {}), from: typeof from === "string" ? from.split("; ") : [] };
+      return { about, connective: typeof connective === "string" ? connective : "because", said, cause, ...(typeof causeIs === "string" ? { causeIs } : {}), ...(typeof thenCause === "string" ? { then: { cause: thenCause, connective: typeof thenConnective === "string" ? thenConnective : "because" } } : {}), from: typeof from === "string" ? from.split("; ") : [] };
     }
   }
   return undefined;
@@ -190,7 +194,21 @@ export async function explainWhy(
       from.push(causeTitle);
     }
   }
-  const explained: Explained = { about: phrase, connective: best.found.connective, said: best.sentence, cause: best.found.cause, ...(causeIs ? { causeIs } : {}), from };
+  // The next link: why the cause is so, from its own page, read the same way.
+  let then: { connective: string; cause: string } | undefined;
+  if (causeTitle && causeIs) {
+    const whole = await page(causeTitle, get).catch(() => undefined);
+    const own = named.toLowerCase().split(/\s+/).map((w) => lemma(w));
+    for (const sentence of whole ? sentencesOf(whole.text) : []) {
+      if (coverage(sentence, own) < 0.5) continue;
+      const next = causeIn(sentence, said);
+      if (next && next.cause.toLowerCase() !== best.found.cause.toLowerCase()) {
+        then = next;
+        break;
+      }
+    }
+  }
+  const explained: Explained = { about: phrase, connective: best.found.connective, said: best.sentence, cause: best.found.cause, ...(causeIs ? { causeIs } : {}), ...(then ? { then } : {}), from };
   const imported = store.addRelation("Wikipedia", call("Imported", [{ value: from.join("; ") }, { name: "license", value: "CC BY-SA 4.0" }]), undefined, options.cause);
   store.addRelation(
     nameOf(phrase),
@@ -200,6 +218,7 @@ export async function explainWhy(
       { name: "connective", value: best.found.connective },
       { name: "said", value: best.sentence },
       ...(causeIs ? [{ name: "is", value: causeIs }] : []),
+      ...(then ? [{ name: "then", value: then.cause }, { name: "thenConnective", value: then.connective }] : []),
       { name: "from", value: from.join("; ") },
     ]),
     undefined,
@@ -216,6 +235,7 @@ export function explanation(e: Explained): Expr {
     { name: "connective", value: c(nameOf(e.connective)) },
     { name: "said", value: e.said },
     ...(e.causeIs ? [{ name: "is", value: e.causeIs }] : []),
+    ...(e.then ? [{ name: "then", value: e.then.cause }, { name: "thenConnective", value: c(nameOf(e.then.connective)) }] : []),
     { name: "from", value: call("List", e.from.map((f) => ({ value: f }))) },
   ]);
 }

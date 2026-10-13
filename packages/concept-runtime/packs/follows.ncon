@@ -857,6 +857,48 @@ Concept(Explanation(),
               Call(Member($parts, "push"), Call(Member($is, "trim"))),
               Undefined()
             ),
+            Comment("The next link: why the cause is so (\"That happens because ...\")."),
+            Bind($then, Call($named, "then")),
+            If(
+              And(Equals(TypeOf($then), "string"), $then),
+              Sequence(
+                Bind($k, Call($named, "thenConnective")),
+                Bind($thenClause,
+                  And(
+                    And($k, Member($k, "head")),
+                    Call(
+                      Member(Call(Member(Member($api, "store"), "asSubject"), Member($k, "head")), "some"),
+                      Lambda(List($t),
+                        And(
+                          And(
+                            And(
+                              Equals(Member($t, "predicate"), "Introduces"),
+                              Index(Member(Member($t, "expr"), "args"), 0)
+                            ),
+                            Member(Index(Member(Member($t, "expr"), "args"), 0), "value")
+                          ),
+                          Equals(
+                            Member(Member(Index(Member(Member($t, "expr"), "args"), 0), "value"), "head"),
+                            "Clause"
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Call(
+                  Member($parts, "push"),
+                  Add(
+                    Add(
+                      Add("That happens ", If($thenClause, "because ", "because of ")),
+                      Call(Member($then, "replace"), Regex("[.\\s]+$", ""), "")
+                    ),
+                    "."
+                  )
+                )
+              ),
+              Undefined()
+            ),
             Bind($from, Call($named, "from")),
             Bind($pages,
               If(

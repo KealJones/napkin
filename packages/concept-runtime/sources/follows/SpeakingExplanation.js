@@ -13,6 +13,13 @@ async (args, bindings, api) => {
   const parts = [(clause ? "Because " : "Because of ") + cause.replace(/[.\s]+$/, "") + "."];
   const is = named("is");
   if (typeof is === "string" && is) parts.push(is.trim());
+  // The next link: why the cause is so ("That happens because ...").
+  const then = named("then");
+  if (typeof then === "string" && then) {
+    const k = named("thenConnective");
+    const thenClause = k && k.head && api.store.asSubject(k.head).some((t) => t.predicate === "Introduces" && t.expr.args[0] && t.expr.args[0].value && t.expr.args[0].value.head === "Clause");
+    parts.push("That happens " + (thenClause ? "because " : "because of ") + then.replace(/[.\s]+$/, "") + ".");
+  }
   const from = named("from");
   const pages = from && from.args ? from.args.map((a) => String(a.value)) : [];
   if (pages.length) parts.push("(From Wikipedia: " + pages.join("; ") + ".)");
