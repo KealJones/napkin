@@ -15,7 +15,8 @@
  * be checked.
  */
 import { call, isCall, type Expr } from "../concept/expression.js";
-import type { ConceptStore } from "../store/store.js";
+import { ConceptStore } from "../store/store.js";
+import { lexicon, type Lexicon } from "./lexicon.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { chain } from "../frame/senses.js";
@@ -69,38 +70,26 @@ export interface Asked {
   readonly said: string;
 }
 
-/** Words that compare: said after an amount and before "than", the amount is more (+1) or less (-1) than the other. */
-const MORE = /^(more|greater|older|taller|longer|higher|bigger|larger|heavier|faster|later|further|farther|extra|additional)$/;
-const LESS = /^(fewer|less|younger|shorter|lower|smaller|lighter|slower|earlier|cheaper)$/;
-/** Words that say which way a share changes what it is a share of ("45% discount", "50% more expensive"). */
-const UP = /^(more|increase|increased|higher|markup|tax|tip|raise|rise|expensive|extra|interest|gain|growth|bigger|larger)$/;
-const DOWN = /^(discount|off|less|cheaper|fewer|decrease|decreased|lower|reduction|smaller|sale)$/;
-
-const NUMBER_WORDS: Record<string, number> = {
-  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
-  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
-};
-/** Words that are a ratio of what they are said of. */
-const RATIOS: Record<string, number> = { half: 0.5, twice: 2, double: 2, triple: 3, thrice: 3 };
-/** What a share's word divides by: "a third", "two-fifths", "one quarter". */
-const PARTS: Record<string, number> = { half: 2, halves: 2, third: 3, quarter: 4, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
-const partOf = (w: string): number | undefined => PARTS[w] ?? PARTS[w.replace(/s$/, "")];
+/** The words of the situation being read: what each does, from the graph (situation/lexicon.ts). */
+let lex: Lexicon = lexicon(new ConceptStore());
+const comparesUp = (w: string) => lex.compares(w) > 0;
+const comparesDown = (w: string) => lex.compares(w) < 0;
+const partOf = (w: string): number | undefined => lex.parts(w);
 const MONEY = "dollar";
 /** A name as said of what it has: "Harald's" is Harald. */
 const plain = (name: string): string => name.replace(/['’]s$/, "");
-const TIME = /^(second|minute|hour|day|week|month|year)$/;
-/** A part of a day counts as the day it is part of: "every morning" is once a day. */
-const PART_OF: Record<string, string> = { morning: "day", evening: "day", afternoon: "day", night: "day", daily: "day", weekly: "week", monthly: "month", yearly: "year", annually: "year", hourly: "hour" };
-
+/** A unit of time: what the graph says it measures. */
+const TIME = { test: (u: string) => lex.measures(u) === "Time" };
 const base = (word: string): string => {
   const w = word.toLowerCase().replace(/[^a-z]/g, "");
   if (!w) return w;
-  if (w === "dollars" || w === "bucks" || w === "buck") return MONEY;
-  if (w === "cents") return "cent";
-  if (w === "feet") return "foot";
-  const l = lemma(w);
-  return PART_OF[l] ?? PART_OF[w] ?? l;
+  // A written form of a unit is that unit ("feet" foot, "bucks" dollar); other synonyms are not units.
+  const unit = (x: string) => {
+    const to = lex.synonym(x);
+    return to && lex.measures(to) ? to : undefined;
+  };
+  const l = unit(w) ?? lemma(w);
+  return lex.per(w) ?? lex.per(l) ?? unit(l) ?? l;
 };
 
 const unitOf = (top: string | undefined, bottom: string | undefined): Unit => {
@@ -172,7 +161,7 @@ function tokenize(sentence: string): Token[] {
       continue;
     }
     const t = tagsOf(lower);
-    const n = NUMBER_WORDS[lower];
+    const n = lex.count(lower);
     out.push({ text: raw, lower, tags: t, ...(n !== undefined ? { number: n } : {}), ...(comma ? { comma } : {}) });
   }
   // A share in words: "a third", "two thirds", "one-fifth", "three fourths". Only less than a whole:
@@ -181,7 +170,7 @@ function tokenize(sentence: string): Token[] {
   for (let k = 0; k < out.length; k++) {
     const tk = out[k]!;
     const hyphen = /^([a-z]+)-([a-z]+)$/.exec(tk.lower);
-    const top = hyphen ? (hyphen[1] === "a" || hyphen[1] === "an" ? 1 : NUMBER_WORDS[hyphen[1]!]) : tk.lower === "a" || tk.lower === "an" ? 1 : tk.number;
+    const top = hyphen ? (hyphen[1] === "a" || hyphen[1] === "an" ? 1 : lex.count(hyphen[1]!)) : tk.lower === "a" || tk.lower === "an" ? 1 : tk.number;
     const bottom = hyphen ? partOf(hyphen[2]!) : out[k + 1] ? partOf(out[k + 1]!.lower) : undefined;
     if (top !== undefined && bottom !== undefined && top < bottom && !(bottom === 2 && !hyphen && tk.lower !== "one")) {
       shared.push({ text: hyphen ? tk.text : `${tk.text} ${out[k + 1]!.text}`, lower: tk.lower, tags: ["Value"], number: top / bottom, share: true });
@@ -249,7 +238,7 @@ function perAfter(tokens: readonly Token[], at: number): { per?: string; end: nu
     const h = headAfter(tokens, at + 1);
     if (h.unit && (t.lower !== "a" && t.lower !== "an" ? true : /^(day|week|month|year|hour|minute|second|time)$/.test(h.unit))) return { per: h.unit, end: h.end };
   }
-  if (PART_OF[t.lower]) return { per: PART_OF[t.lower], end: at + 1 };
+  if (lex.per(t.lower)) return { per: lex.per(t.lower), end: at + 1 };
   return { end: at };
 }
 
@@ -309,7 +298,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     const theirs = rest.slice(0, 4).find((t, k) => /^[A-Z]/.test(t.text) && !t.tags.includes("Pronoun") && (/['’]s$/.test(t.text) || rest[k - 1]?.lower === "what"));
     if (theirs && !rest.slice(0, rest.indexOf(theirs)).some((t) => t.lower === "as")) return { holder: theirs.text };
     // "as many sheep as Charleston", "two times older than Suzy's": what it is a ratio of follows.
-    const as = rest.findIndex((t, k) => k > 0 && ((t.lower === "as" && (rest[0]?.lower === "as" || rest.slice(0, k).some((x) => x.lower === "many" || x.lower === "much" || isNoun(x)))) || (t.lower === "than" && rest.slice(0, k).some((x) => MORE.test(x.lower)))));
+    const as = rest.findIndex((t, k) => k > 0 && ((t.lower === "as" && (rest[0]?.lower === "as" || rest.slice(0, k).some((x) => x.lower === "many" || x.lower === "much" || isNoun(x)))) || (t.lower === "than" && rest.slice(0, k).some((x) => comparesUp(x.lower)))));
     if (as >= 0) {
       const who = rest.slice(as + 1).find((t) => /^[A-Z]/.test(t.text) || t.tags.includes("Pronoun") || isNoun(t));
       const counted = rest.slice(0, as).find((t) => isNoun(t));
@@ -322,17 +311,17 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     }
  // "a 25% discount from the original price": the original, whatever it was.
     const from = rest.findIndex((t) => t.lower === "from");
-    if (from >= 0 && /^(original|regular|usual|normal|full|old|initial|starting)$/.test(rest[from + 2]?.lower ?? rest[from + 1]?.lower ?? "")) return { last: true, named: (rest[from + 2] ?? rest[from + 1])!.lower };
+    if (from >= 0 && lex.marks(rest[from + 2]?.lower ?? rest[from + 1]?.lower ?? "", "Before")) return { last: true, named: (rest[from + 2] ?? rest[from + 1])!.lower };
     const of = rest.findIndex((t) => t.lower === "of" || t.lower === "that" || t.lower === "it" || t.lower === "this");
     // "of it", "of the sandwiches": the thing itself, as said, not a share already taken of it.
     const thing = of >= 0 && (rest[of]!.lower === "it" || rest[of + 1]?.lower === "it" || (rest[of]!.lower === "of" && rest[of + 1]?.lower === "the" && isNoun(rest[of + 2]) && !/^(rest|remaining|remainder)$/.test(rest[of + 2]!.lower)));
     // "of what is left", "of the rest", "the remaining money": what is had by then.
-    if (of >= 0 && rest.slice(of + 1, of + 5).some((t) => /^(left|rest|remaining|remainder)$/.test(t.lower))) return { last: true, left: true };
+    if (of >= 0 && rest.slice(of + 1, of + 5).some((t) => lex.marks(t.lower, "Remaining"))) return { last: true, left: true };
     // "a third of what Laurie did": Laurie's.
     const whose = of >= 0 && rest[of + 1]?.lower === "what" ? rest[of + 2] : undefined;
     if (whose && /^[A-Z]/.test(whose.text) && !whose.tags.includes("Pronoun")) return { holder: whose.text };
     const priced = rest.slice(of + 1).find((t) => isNoun(t));
-    const money = priced && /^(price|cost|rate|pay|salary|wage|amount|fee)$/.test(base(priced.text));
+    const money = priced && lex.marks(base(priced.text), "Money");
     return { last: true, ...(money ? { unit: MONEY } : {}), ...(thing ? { thing } : {}) };
   };
   for (let i = 0; i < tokens.length; i++) {
@@ -348,7 +337,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       if (e !== 0) verb = e;
     }
     // A ratio: "twice as many", "half that much", "3 times as many", "1.2 times her rate".
-    const ratioWord = RATIOS[t.lower];
+    const ratioWord = lex.times(t.lower);
     if (ratioWord !== undefined && t.number === undefined) {
       const wasInner = inner;
       inner = false;
@@ -371,7 +360,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       }
     }
     const next = tokens[i + 1];
-    if (next && next.lower === "times" && tokens[i + 2] && (/^(as|more|the|her|his|their|its|that|what)$/.test(tokens[i + 2]!.lower) || MORE.test(tokens[i + 2]!.lower))) {
+    if (next && next.lower === "times" && tokens[i + 2] && (/^(as|more|the|her|his|their|its|that|what)$/.test(tokens[i + 2]!.lower) || comparesUp(tokens[i + 2]!.lower))) {
       out.push({ value: t.number, unit: {}, said: `${t.text} times`, sentence: index, ratio: true, sign: verb, ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 2) });
       i += 1;
       continue;
@@ -381,7 +370,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       const by = tokens[i - 1]?.lower === "by";
       // "45% discount", "50% more expensive", "20% off": which way the words after it say.
       const way = tokens.slice(i + 1, i + 4).map((x) => x.lower);
-      const said = way.some((w) => DOWN.test(w)) ? -1 : way.some((w) => UP.test(w)) ? 1 : undefined;
+      const said = way.some((w) => lex.changes(w) < 0) ? -1 : way.some((w) => lex.changes(w) > 0) ? 1 : undefined;
       const change = said ?? (by ? (verb !== 0 ? verb : /increase|rais|grow|gain|rose|up/.test(tokens.slice(0, i).map((x) => x.lower).join(" ")) ? 1 : -1) : undefined);
       out.push({ value: t.number / 100, unit: {}, said: t.text + (t.text.endsWith("%") ? "" : "%"), sentence: index, ratio: true, sign: 0, ...(holder ? { holder } : {}), of: { ...ratioOf(i + 1), ...(change !== undefined ? { change } : {}) } });
       continue;
@@ -431,7 +420,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     // "40 more goats than Washington", "three years younger than Katherine": an amount more or less
     // than another one's, which is what it is of.
     const near = tokens.slice(i + 1, Math.max(per.end, end) + 2);
-    const way = near.find((x) => MORE.test(x.lower) || LESS.test(x.lower));
+    const way = near.find((x) => comparesUp(x.lower) || comparesDown(x.lower));
     const than = way ? tokens.findIndex((x, k) => k > i && k <= Math.max(per.end, end) + 3 && x.lower === "than") : -1;
     if (way && than >= 0) {
       const who = tokens.slice(than + 1, than + 4).find((x) => (/^[A-Z]/.test(x.text) && !x.tags.includes("Pronoun")) || isNoun(x));
@@ -444,7 +433,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       const kind = describer(tokens, i + 1, than) ?? (afterPronoun && doing ? lemma(doing.lower) : undefined);
       // "5 more than half of Raymond's", "2 less than 4 times what Grace weighs": than the ratio said next.
       const after = tokens[than + 1];
-      const nested = !!after && (RATIOS[after.lower] !== undefined || after.share === true || (after.number !== undefined && tokens[than + 2]?.lower === "times"));
+      const nested = !!after && (lex.times(after.lower) !== undefined || after.share === true || (after.number !== undefined && tokens[than + 2]?.lower === "times"));
       out.push({
         value: t.number!,
         unit: unitOf(unit, per.per),
@@ -454,8 +443,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
         sign: verb,
         ...(holder ? { holder } : {}),
         of: nested
-          ? { next: true, differs: MORE.test(way.lower) ? 1 : -1 }
-          : { ...(who && /^[A-Z]/.test(who.text) ? { holder: who.text } : restated && before ? { holder: before } : { last: true }), differs: MORE.test(way.lower) ? 1 : -1, ...(unit && unit !== "year" ? { unit } : {}), ...(named ? { named } : {}) },
+          ? { next: true, differs: comparesUp(way.lower) ? 1 : -1 }
+          : { ...(who && /^[A-Z]/.test(who.text) ? { holder: who.text } : restated && before ? { holder: before } : { last: true }), differs: comparesUp(way.lower) ? 1 : -1, ...(unit && unit !== "year" ? { unit } : {}), ...(named ? { named } : {}) },
         ...(kind ? { kind } : {}),
       });
       i = Math.max(i, than);
@@ -490,8 +479,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     // "In June, his expenditure was $60 less", "she slept 2 hours less": more or less than what was
     // said before it.
     const after = tokens[Math.max(per.end, end)];
-    if (after && (MORE.test(after.lower) || LESS.test(after.lower)) && after.lower !== "extra" && after.lower !== "additional" && !tokens.slice(Math.max(per.end, end), Math.max(per.end, end) + 4).some((x) => x.lower === "than")) {
-      out.push({ value: t.number!, unit: unitOf(unit, per.per), said: tokens.slice(i, Math.max(per.end, end) + 1).map((x) => x.text).join(" "), sentence: index, ratio: true, sign: verb, ...(holder ? { holder } : {}), of: { last: true, differs: MORE.test(after.lower) ? 1 : -1, ...(unit ? { unit } : {}) } });
+    if (after && (comparesUp(after.lower) || comparesDown(after.lower)) && after.lower !== "extra" && after.lower !== "additional" && !tokens.slice(Math.max(per.end, end), Math.max(per.end, end) + 4).some((x) => x.lower === "than")) {
+      out.push({ value: t.number!, unit: unitOf(unit, per.per), said: tokens.slice(i, Math.max(per.end, end) + 1).map((x) => x.text).join(" "), sentence: index, ratio: true, sign: verb, ...(holder ? { holder } : {}), of: { last: true, differs: comparesUp(after.lower) ? 1 : -1, ...(unit ? { unit } : {}) } });
       i = Math.max(per.end, end);
       continue;
     }
@@ -540,7 +529,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   });
   if (starts.length) return per;
   // A period said after the amounts ("... with four every day"): what the sentence counts per.
-  const tail = tokens.findIndex((tk, k) => (tk.lower === "every" || tk.lower === "each" || tk.lower === "per" || PART_OF[tk.lower] !== undefined || ((tk.lower === "a" || tk.lower === "an") && TIME.test(headAfter(tokens, k + 1).unit ?? ""))) && k > 0);
+  const tail = tokens.findIndex((tk, k) => (tk.lower === "every" || tk.lower === "each" || tk.lower === "per" || lex.per(tk.lower) !== undefined || ((tk.lower === "a" || tk.lower === "an") && TIME.test(headAfter(tokens, k + 1).unit ?? ""))) && k > 0);
   if (tail >= 0) {
     const p = perAfter(tokens, tail);
     if (p.per && /^(day|week|month|year|hour|minute)$/.test(p.per)) {
@@ -573,7 +562,7 @@ function askedIn(question: string, amounts: readonly Amount[], whole = question)
     const t = amounts.map((a) => Object.keys(a.unit).find((k) => /^(minute|hour|day|week|month|year|second)$/.test(k) && a.unit[k]! > 0)).find(Boolean);
     top = t ?? "hour";
   }
-  if (!top && /\bhow far\b/.test(lower)) top = amounts.map((a) => Object.keys(a.unit).find((k) => /^(mile|kilometer|meter|foot|feet|yard)$/.test(k) && a.unit[k]! > 0)).find(Boolean) ?? "mile";
+  if (!top && /\bhow far\b/.test(lower)) top = amounts.map((a) => Object.keys(a.unit).find((k) => lex.measures(k) === "Length" && a.unit[k]! > 0)).find(Boolean) ?? "mile";
   if (!top && /\bhow old\b/.test(lower)) top = "year";
   // "How much does he need to pay": money is what is asked when the amounts are money.
   if (!top && !count && amounts.some((a) => a.unit[MONEY] === 1 && Object.keys(a.unit).length === 1)) top = MONEY;
@@ -729,7 +718,7 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
   const whole = (w: Worked) => {
     const v = round(w.value);
     const cents = Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
-    const counts = Object.keys(asked.unit).every((k) => k === MONEY || !TIME.test(k)) && !Object.keys(asked.unit).some((k) => /^(mile|kilometer|meter|foot|inch|pound|ounce|gallon|liter|kilogram|gram|cup|centimeter|degree|percent|yard|hour|minute)$/.test(k));
+    const counts = Object.keys(asked.unit).every((k) => k === MONEY || !TIME.test(k)) && !Object.keys(asked.unit).some((k) => !!lex.measures(k) && lex.measures(k) !== "Money" && lex.measures(k) !== "Time");
     return asked.unit[MONEY] ? cents : counts ? Number.isInteger(v) : Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
   };
   const all = masks.flatMap((m) => by.get(m) ?? []).filter((w) => sameUnit(w.unit, asked.unit) && w.value > 0);
@@ -845,6 +834,7 @@ function spans(message: string): string {
 
 /** A message read as a situation and what it asks, or undefined when it is not one. */
 export function situationOf(store: ConceptStore, said: string): Situation | undefined {
+  lex = lexicon(store);
   const message = spans(said);
   const sentences = message
     .replace(/\s+/g, " ")
@@ -1106,16 +1096,13 @@ function resolveRatios(said: readonly Amount[]): Amount[] {
   return list.filter((a) => !replaced.has(a)).map((a) => (a.ratio && a.of?.differs !== undefined ? { ...a, ratio: false } : a));
 }
 
-const SAME_PLURAL = /^(sheep|fish|deer|moose|series|species|aircraft|cattle|salmon|trout|swine)$/;
-const IRREGULAR: Record<string, string> = { person: "people", child: "children", foot: "feet", tooth: "teeth", mouse: "mice", goose: "geese", man: "men", woman: "women", ox: "oxen", leaf: "leaves", loaf: "loaves", knife: "knives", wife: "wives", life: "lives", shelf: "shelves", wolf: "wolves", half: "halves" };
-
 /** An amount said as people say it: 18 dollar/day is "18 dollars a day", 2 dozen "2 dozen". */
 export function sayAmount(value: number, unit: Unit): string {
   const n = show(value);
   const one = Math.abs(round(value)) === 1;
   const top = Object.entries(unit).filter(([, v]) => v > 0).map(([k]) => k);
   const bottom = Object.entries(unit).filter(([, v]) => v < 0).map(([k]) => k);
-  const plural = (w: string) => (one || w === "dozen" || SAME_PLURAL.test(w) ? w : (IRREGULAR[w] ?? (/(s|x|ch|sh)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`)));
+  const plural = (w: string) => (one ? w : (lex.plural(w) ?? (/(s|x|ch|sh)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`)));
   const head = top.length ? `${n} ${top.map((w, i) => (i === top.length - 1 ? plural(w) : w)).join(" ")}` : n;
   return bottom.length ? `${head} ${bottom.map((w) => (/^[aeiou]/.test(w) ? `an ${w}` : `a ${w}`)).join(" ")}` : head;
 }

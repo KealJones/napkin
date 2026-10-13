@@ -141,6 +141,399 @@ Concept(Kid(), SynonymOf(Child()))
 
 Concept(Buck(), SynonymOf(Dollar()))
 
+// What words do to amounts, read by situation/lexicon.ts: a word that compares says one amount is
+// more (Up) or less (Down) than another; a word that changes says a share is added to or taken off
+// what it is a share of. Learned words get the same facts and work the same way.
+Concept(Compares(), IsA(Relation()))
+
+Concept(Changes(), IsA(Relation()))
+
+Concept(CountsAs(), IsA(Relation()))
+
+Concept(Multiplies(), IsA(Relation()))
+
+Concept(DividesBy(), IsA(Relation()))
+
+Concept(Measures(), IsA(Relation()))
+
+Concept(CountsPer(), IsA(Relation()))
+
+Concept(Marks(), IsA(Relation()))
+
+Concept(PluralForm(), IsA(Relation()))
+
+Concept(More(), Compares(Up()))
+
+Concept(Greater(), Compares(Up()))
+
+Concept(Older(), Compares(Up()))
+
+Concept(Taller(), Compares(Up()))
+
+Concept(Longer(), Compares(Up()))
+
+Concept(Higher(), Compares(Up()))
+
+Concept(Bigger(), Compares(Up()))
+
+Concept(Larger(), Compares(Up()))
+
+Concept(Heavier(), Compares(Up()))
+
+Concept(Faster(), Compares(Up()))
+
+Concept(Later(), Compares(Up()))
+
+Concept(Further(), Compares(Up()))
+
+Concept(Farther(), Compares(Up()))
+
+Concept(Extra(), Compares(Up()))
+
+Concept(Additional(), Compares(Up()))
+
+Concept(Fewer(), Compares(Down()))
+
+Concept(Less(), Compares(Down()))
+
+Concept(Younger(), Compares(Down()))
+
+Concept(Shorter(), Compares(Down()))
+
+Concept(Lower(), Compares(Down()))
+
+Concept(Smaller(), Compares(Down()))
+
+Concept(Lighter(), Compares(Down()))
+
+Concept(Slower(), Compares(Down()))
+
+Concept(Earlier(), Compares(Down()))
+
+Concept(Cheaper(), Compares(Down()))
+
+Concept(More(), Changes(Up()))
+
+Concept(Increase(), Changes(Up()))
+
+Concept(Higher(), Changes(Up()))
+
+Concept(Markup(), Changes(Up()))
+
+Concept(Tax(), Changes(Up()))
+
+Concept(Tip(), Changes(Up()))
+
+Concept(Raise(), Changes(Up()))
+
+Concept(Rise(), Changes(Up()))
+
+Concept(Expensive(), Changes(Up()))
+
+Concept(Extra(), Changes(Up()))
+
+Concept(Interest(), Changes(Up()))
+
+Concept(Gain(), Changes(Up()))
+
+Concept(Growth(), Changes(Up()))
+
+Concept(Bigger(), Changes(Up()))
+
+Concept(Larger(), Changes(Up()))
+
+Concept(Discount(), Changes(Down()))
+
+Concept(Off(), Changes(Down()))
+
+Concept(Less(), Changes(Down()))
+
+Concept(Cheaper(), Changes(Down()))
+
+Concept(Fewer(), Changes(Down()))
+
+Concept(Decrease(), Changes(Down()))
+
+Concept(Lower(), Changes(Down()))
+
+Concept(Reduction(), Changes(Down()))
+
+Concept(Smaller(), Changes(Down()))
+
+Concept(Sale(), Changes(Down()))
+
+Concept(Zero(), CountsAs(0))
+
+Concept(One(), CountsAs(1))
+
+Concept(Two(), CountsAs(2))
+
+Concept(Three(), CountsAs(3))
+
+Concept(Four(), CountsAs(4))
+
+Concept(Five(), CountsAs(5))
+
+Concept(Six(), CountsAs(6))
+
+Concept(Seven(), CountsAs(7))
+
+Concept(Eight(), CountsAs(8))
+
+Concept(Nine(), CountsAs(9))
+
+Concept(Ten(), CountsAs(10))
+
+Concept(Eleven(), CountsAs(11))
+
+Concept(Twelve(), CountsAs(12))
+
+Concept(Thirteen(), CountsAs(13))
+
+Concept(Fourteen(), CountsAs(14))
+
+Concept(Fifteen(), CountsAs(15))
+
+Concept(Sixteen(), CountsAs(16))
+
+Concept(Seventeen(), CountsAs(17))
+
+Concept(Eighteen(), CountsAs(18))
+
+Concept(Nineteen(), CountsAs(19))
+
+Concept(Twenty(), CountsAs(20))
+
+Concept(Thirty(), CountsAs(30))
+
+Concept(Forty(), CountsAs(40))
+
+Concept(Fifty(), CountsAs(50))
+
+Concept(Sixty(), CountsAs(60))
+
+Concept(Seventy(), CountsAs(70))
+
+Concept(Eighty(), CountsAs(80))
+
+Concept(Ninety(), CountsAs(90))
+
+Concept(Hundred(), CountsAs(100))
+
+Concept(Thousand(), CountsAs(1000))
+
+Concept(Half(), Multiplies(0.5))
+
+Concept(Twice(), Multiplies(2))
+
+Concept(Double(), Multiplies(2))
+
+Concept(Triple(), Multiplies(3))
+
+Concept(Thrice(), Multiplies(3))
+
+Concept(Half(), DividesBy(2))
+
+Concept(Halves(), DividesBy(2))
+
+Concept(Third(), DividesBy(3))
+
+Concept(Quarter(), DividesBy(4))
+
+Concept(Fourth(), DividesBy(4))
+
+Concept(Fifth(), DividesBy(5))
+
+Concept(Sixth(), DividesBy(6))
+
+Concept(Seventh(), DividesBy(7))
+
+Concept(Eighth(), DividesBy(8))
+
+Concept(Ninth(), DividesBy(9))
+
+Concept(Tenth(), DividesBy(10))
+
+Concept(Second(), Measures(Time()))
+
+Concept(Minute(), Measures(Time()))
+
+Concept(Hour(), Measures(Time()))
+
+Concept(Day(), Measures(Time()))
+
+Concept(Week(), Measures(Time()))
+
+Concept(Month(), Measures(Time()))
+
+Concept(Year(), Measures(Time()))
+
+Concept(Mile(), Measures(Length()))
+
+Concept(Kilometer(), Measures(Length()))
+
+Concept(Meter(), Measures(Length()))
+
+Concept(Foot(), Measures(Length()))
+
+Concept(Inch(), Measures(Length()))
+
+Concept(Yard(), Measures(Length()))
+
+Concept(Centimeter(), Measures(Length()))
+
+Concept(Millimeter(), Measures(Length()))
+
+Concept(Pound(), Measures(Mass()))
+
+Concept(Ounce(), Measures(Mass()))
+
+Concept(Kilogram(), Measures(Mass()))
+
+Concept(Gram(), Measures(Mass()))
+
+Concept(Ton(), Measures(Mass()))
+
+Concept(Gallon(), Measures(Volume()))
+
+Concept(Quart(), Measures(Volume()))
+
+Concept(Pint(), Measures(Volume()))
+
+Concept(Cup(), Measures(Volume()))
+
+Concept(Liter(), Measures(Volume()))
+
+Concept(Milliliter(), Measures(Volume()))
+
+Concept(Dollar(), Measures(Money()))
+
+Concept(Cent(), Measures(Money()))
+
+Concept(Morning(), CountsPer(Day()))
+
+Concept(Evening(), CountsPer(Day()))
+
+Concept(Afternoon(), CountsPer(Day()))
+
+Concept(Night(), CountsPer(Day()))
+
+Concept(Daily(), CountsPer(Day()))
+
+Concept(Weekly(), CountsPer(Week()))
+
+Concept(Monthly(), CountsPer(Month()))
+
+Concept(Yearly(), CountsPer(Year()))
+
+Concept(Annually(), CountsPer(Year()))
+
+Concept(Hourly(), CountsPer(Hour()))
+
+Concept(Original(), Marks(Before()))
+
+Concept(Regular(), Marks(Before()))
+
+Concept(Usual(), Marks(Before()))
+
+Concept(Normal(), Marks(Before()))
+
+Concept(Full(), Marks(Before()))
+
+Concept(Old(), Marks(Before()))
+
+Concept(Initial(), Marks(Before()))
+
+Concept(Starting(), Marks(Before()))
+
+Concept(Left(), Marks(Remaining()))
+
+Concept(Rest(), Marks(Remaining()))
+
+Concept(Remaining(), Marks(Remaining()))
+
+Concept(Remainder(), Marks(Remaining()))
+
+Concept(Price(), Marks(Money()))
+
+Concept(Cost(), Marks(Money()))
+
+Concept(Rate(), Marks(Money()))
+
+Concept(Pay(), Marks(Money()))
+
+Concept(Salary(), Marks(Money()))
+
+Concept(Wage(), Marks(Money()))
+
+Concept(Amount(), Marks(Money()))
+
+Concept(Fee(), Marks(Money()))
+
+Concept(Person(), PluralForm("people"))
+
+Concept(Child(), PluralForm("children"))
+
+Concept(Foot(), PluralForm("feet"))
+
+Concept(Tooth(), PluralForm("teeth"))
+
+Concept(Mouse(), PluralForm("mice"))
+
+Concept(Goose(), PluralForm("geese"))
+
+Concept(Man(), PluralForm("men"))
+
+Concept(Woman(), PluralForm("women"))
+
+Concept(Ox(), PluralForm("oxen"))
+
+Concept(Leaf(), PluralForm("leaves"))
+
+Concept(Loaf(), PluralForm("loaves"))
+
+Concept(Knife(), PluralForm("knives"))
+
+Concept(Wife(), PluralForm("wives"))
+
+Concept(Life(), PluralForm("lives"))
+
+Concept(Shelf(), PluralForm("shelves"))
+
+Concept(Wolf(), PluralForm("wolves"))
+
+Concept(Half(), PluralForm("halves"))
+
+Concept(Sheep(), PluralForm("sheep"))
+
+Concept(Fish(), PluralForm("fish"))
+
+Concept(Deer(), PluralForm("deer"))
+
+Concept(Moose(), PluralForm("moose"))
+
+Concept(Series(), PluralForm("series"))
+
+Concept(Species(), PluralForm("species"))
+
+Concept(Aircraft(), PluralForm("aircraft"))
+
+Concept(Cattle(), PluralForm("cattle"))
+
+Concept(Salmon(), PluralForm("salmon"))
+
+Concept(Trout(), PluralForm("trout"))
+
+Concept(Swine(), PluralForm("swine"))
+
+Concept(Dozen(), PluralForm("dozen"))
+
+Concept(Feet(), SynonymOf(Foot()))
+
+Concept(Dollars(), SynonymOf(Dollar()))
+
+Concept(Bucks(), SynonymOf(Dollar()))
+
 // A situation read but not worked out: what was read, said honestly, instead of a guess.
 Concept(Unworked(),
   Realization(Unworked(Rest($x)),
