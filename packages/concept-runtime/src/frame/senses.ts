@@ -66,7 +66,7 @@ export function called(store: ConceptStore, id: string, head = "Called"): string
 }
 
 /** The Concept a word is a word for, followed through SynonymOf and HeardAs: Divided is Over is Divide. */
-function chain(store: ConceptStore, head: string): string[] {
+export function chain(store: ConceptStore, head: string): string[] {
   const out = [head];
   for (let hop = 0; hop < 4; hop++) {
     const next = [...claimed(store, out[out.length - 1], "SynonymOf"), ...claimed(store, out[out.length - 1], "HeardAs")].find((x) => isCall(x) && !out.includes(x.head));
@@ -185,9 +185,11 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
   const heads = store.has(name) || store.asObject(name).length ? [name] : store.has(base) ? [base] : [];
   for (const head of heads) {
     const kinds = typesOf(store, c(head));
-    if (kinds.includes("Interrogative")) {
-      const asked = chain(store, head).flatMap((h) => claimed(store, h, "Asks")).flatMap((k) => (isCall(k) ? [k.head] : []));
-      out.push({ type: "question", head, asks: asked.flatMap(wordsOf), kinds: asked });
+    // A word for a question word asks what it asks: "calculate" is a word for what.
+    const asking = kinds.includes("Interrogative") ? head : chain(store, head).find((h) => h !== head && typesOf(store, c(h)).includes("Interrogative"));
+    if (asking) {
+      const asked = chain(store, asking).flatMap((h) => claimed(store, h, "Asks")).flatMap((k) => (isCall(k) ? [k.head] : []));
+      out.push({ type: "question", head: asking, asks: asked.flatMap(wordsOf), kinds: asked });
       continue;
     }
     if (kinds.includes("Pointing")) out.push({ type: "pointer", head });

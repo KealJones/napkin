@@ -31,7 +31,7 @@ import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
 import { MONTHS } from "../ears/lift.js";
 import type { Edit } from "../resolve/readings.js";
-import { akin, called, holdsFacts, sensesOf, STRUCTURAL, wordsOf, type Sense } from "./senses.js";
+import { akin, called, chain, holdsFacts, sensesOf, STRUCTURAL, wordsOf, type Sense } from "./senses.js";
 
 export interface Framed {
   /** What was read, as Concepts: for showing, not for running. */
@@ -446,6 +446,27 @@ function facts(store: ConceptStore, words: readonly Word[], question: boolean, p
       }
     }
   }
+  // Asked what only the one talking can tell ("what is my name") and not told yet: not known, said
+  // so. Nothing to look up: no one else holds it.
+  if (!out.length && things.length === 1 && relations.length === 1) {
+    const thing = things[0]!;
+    const rel = relations[0]!;
+    const speaker = words[thing.k]!.senses.some((s) => (s.type === "owner" || s.type === "entity") && s.head === thing.head) && thing.head === "Me";
+    const rest = words.filter((w, k) => k !== thing.k && k !== rel.k && !optional(w));
+    if (speaker && !rest.length && rel.k > thing.k) {
+      const said = c(nameOf(words[thing.k]!.text), c(nameOf(words[rel.k]!.text)));
+      out.push({
+        key: `Unknown ${rel.head}`,
+        features: ["read:unknown", `sense:${words[rel.k]!.text.toLowerCase()}=${rel.head}`],
+        says: c(rel.head),
+        notes: [`Nothing told yet of ${readableName(rel.head)} for the one talking.`],
+        score: 3,
+        display: c("ContextScope", c("Interrogative"), c("Asked", c(rel.head, c(thing.head), c("What")))),
+        chosen: [],
+        run: async () => c("Unknown", said),
+      });
+    }
+  }
   return out;
 }
 
@@ -542,6 +563,57 @@ function describes(store: ConceptStore, words: readonly Word[], question: boolea
     chosen: [],
     notes: [`Everything known of ${thing.replace(/([a-z0-9])([A-Z])/g, "$1 $2")}: ${known.length} fact${known.length === 1 ? "" : "s"}.`],
     run: async () => c("Describes", c(thing), facts),
+  }];
+}
+
+/**
+ * "what time is it", "what is the date": a word that points at the moment (`IsA(Deictic())`) and
+ * works out what it points at with nothing to fill (`Time()` runs), asked about: answered with what
+ * it comes to. "It" said with it points at the same.
+ */
+function deictics(runtime: Runtime, words: readonly Word[], question: boolean): Reading[] {
+  if (!asking(words, question)) return [];
+  const store = runtime.store;
+  const kinds = (w: Word) => typesOf(store, c(nameOf(w.text)));
+  const content = words.filter((w) => !optional(w));
+  const computes = (h: string) => typesOf(store, c(h)).includes("Deictic") && (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && !r.pattern.args.length && r.context !== undefined && isCall(r.context) && r.context.head === "Execution");
+  const pointing = content.filter((w) => /^[a-z]+$/i.test(w.text) && computes(nameOf(w.text)));
+  if (pointing.length !== 1 || content.some((w) => w !== pointing[0] && !kinds(w).some((k) => k === "Pronoun" || k === "Pointing"))) return [];
+  const head = nameOf(pointing[0]!.text);
+  return [{
+    key: `Now ${head}`,
+    features: ["read:deictic"],
+    score: 5,
+    display: c("ContextScope", c("Interrogative"), c(head)),
+    chosen: [],
+    notes: [`"${pointing[0]!.text}" points at the moment, worked out by ${head}.`],
+    run: async () => {
+      const v = await runtime.evaluate(c(head), c("Execution"));
+      return isCall(v) && v.head === "Answer" ? v : c("Answer", v);
+    },
+  }];
+}
+
+/**
+ * "hello", "thanks", "bye": a word that is itself something said, said whole. It is something
+ * said when its Concept (or what it is a word for) is worded in speaking as itself, with nothing
+ * to fill (`Realization(Hello(), context = Speaking(), ...)`): answered with it.
+ */
+function sayings(store: ConceptStore, words: readonly Word[]): Reading[] {
+  const content = words.filter((w) => !optional(w));
+  if (content.length !== 1 || !/^[a-z]+$/i.test(content[0]!.text)) return [];
+  const said = chain(store, nameOf(content[0]!.text)).find((h) =>
+    (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && !r.pattern.args.length && r.context !== undefined && isCall(r.context) && r.context.head === "Speaking"),
+  );
+  if (!said) return [];
+  return [{
+    key: `Says ${said}`,
+    features: ["read:saying"],
+    score: 5,
+    display: c(said),
+    chosen: [],
+    notes: [`"${content[0]!.text}" is something said: ${said}.`],
+    run: async () => c("Answer", c(said)),
   }];
 }
 
@@ -1110,7 +1182,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...doings(runtime, words, question, pointed, message, near)];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

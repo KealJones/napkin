@@ -59,7 +59,7 @@ for (const k of cases) {
     g.turns += 1;
     g.rules += r;
     g.frames += f;
-    if (show || r !== f) {
+    if (show || r !== f || process.env.FALLBACKS && framed[i].by !== "frames") {
       console.log(`${r ? "ok " : "NO "} ${f ? "ok " : "NO "} ${message}`);
       console.log(`        rules:  ${rules[i].spoken}`);
       console.log(`        frames: ${framed[i].spoken}   (${framed[i].by}, ${framed[i].ms.toFixed(0)} ms)`);

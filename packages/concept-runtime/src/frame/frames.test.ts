@@ -74,7 +74,16 @@ test("a word a slip away is read as the word whose senses fit, by its neighbours
 test("a message with a word no reading accounts for is left to the rules hearing", async () => {
   const store = graph(false);
   assert.equal(await read(store, "I bought a florp for my kid"), undefined);
-  assert.equal(await read(store, "hello"), undefined);
+  assert.equal(await read(store, "hello there"), undefined);
+});
+
+test("a word that is itself something said, a word that points at the moment, a word for a question word, and what only the speaker can tell", async () => {
+  const said = await talk(graph(false), ["hello", "what time is it", "calculate 100 minus 1", "what is my name"]);
+  assert.equal(said[0]!.spoken, "Hello!");
+  assert.match(said[1]!.spoken, /^It is \d+:\d\d [AP]M\.$/);
+  assert.equal(said[2]!.spoken, "99.");
+  assert.equal(said[3]!.spoken, "I don't know your name yet.");
+  assert.deepEqual(said.map((s) => s.by), ["frames", "frames", "frames", "frames"]);
 });
 
 test("a hole is asked for in the words said, and filled by the next message", async () => {

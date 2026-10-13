@@ -730,7 +730,7 @@ export function situationOf(store: ConceptStore, message: string): Situation | u
     else for (const [k, part] of clauses.entries()) if (k !== asking) amounts.push(...amountsIn(store, part.replace(/^(if|when|given that)\s+/i, ""), i, last));
   });
   // The question can say amounts too ("her height after 10 years"): past what it asks for, and not owed.
-  const rest = question.replace(/\bhow (much|many|long|far|old)\b(\s+\w+){0,2}/i, "");
+  const rest = question.replace(/\bhow (much|many|long|far|old)\b(\s+[A-Za-z]+){0,2}/i, "");
   amounts.push(...amountsIn(store, rest, q, { ...last }, true).filter((a) => !a.ratio));
   // "Harald's" is Harald.
   const named = amounts.map((a) => ({ ...a, ...(a.holder ? { holder: plain(a.holder) } : {}), ...(a.of?.holder ? { of: { ...a.of, holder: plain(a.of.holder) } } : {}) }));
