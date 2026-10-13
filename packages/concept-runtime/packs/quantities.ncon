@@ -108,6 +108,39 @@ Concept(Meter(), Holds(Centimeter(), 100))
 
 Concept(Dollar(), Holds(Cent(), 100))
 
+// Words for the same unit, as they are written short: "60 ml" is 60 milliliters. Not "min": that
+// is a word for the least of some (Min, in the everyday pack) as well.
+Concept(Ml(), SynonymOf(Milliliter()))
+
+Concept(Km(), SynonymOf(Kilometer()))
+
+Concept(Kg(), SynonymOf(Kilogram()))
+
+Concept(Lb(), SynonymOf(Pound()))
+
+Concept(Lbs(), SynonymOf(Pound()))
+
+Concept(Oz(), SynonymOf(Ounce()))
+
+Concept(Ft(), SynonymOf(Foot()))
+
+Concept(Hr(), SynonymOf(Hour()))
+
+Concept(Hrs(), SynonymOf(Hour()))
+
+Concept(Mins(), SynonymOf(Minute()))
+
+Concept(Sec(), SynonymOf(Second()))
+
+Concept(Cm(), SynonymOf(Centimeter()))
+
+Concept(Mm(), SynonymOf(Millimeter()))
+
+// Words for the same things counted: "4 kids" are 4 children.
+Concept(Kid(), SynonymOf(Child()))
+
+Concept(Buck(), SynonymOf(Dollar()))
+
 // A situation read but not worked out: what was read, said honestly, instead of a guess.
 Concept(Unworked(),
   Realization(Unworked(Rest($x)),

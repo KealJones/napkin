@@ -18,6 +18,7 @@ import { call, isCall, type Expr } from "../concept/expression.js";
 import type { ConceptStore } from "../store/store.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
+import { chain } from "../frame/senses.js";
 
 /** A unit as its base units and their powers: dollar per egg is { dollar: 1, egg: -1 }. */
 export type Unit = Readonly<Record<string, number>>;
@@ -224,7 +225,7 @@ function describer(tokens: readonly Token[], from: number, to: number): string |
 /** "per day", "a week", "each sprint", "every morning", "/minute": what an amount is counted per. */
 function perAfter(tokens: readonly Token[], at: number): { per?: string; end: number } {
   // Past what it is made of ("30 sheets of paper on a pad").
-  if (tokens[at]?.lower === "of" && isNoun(tokens[at + 1]) && /^(on|in|inside|per|each|every|a|an)$/.test(tokens[at + 2]?.lower ?? "")) {
+  if (tokens[at]?.lower === "of" && isNoun(tokens[at + 1]) && /^(on|in|inside|per|each|every|a|an|for)$/.test(tokens[at + 2]?.lower ?? "")) {
     const past = perAfter(tokens, at + 2);
     if (past.per) return past;
   }
@@ -238,7 +239,10 @@ function perAfter(tokens: readonly Token[], at: number): { per?: string; end: nu
     const h = headAfter(tokens, at + 2);
     if (h.unit && !TIME.test(h.unit)) return { per: h.unit, end: h.end };
   }
-  if (/^(on|in|at|for)$/.test(tokens[at]?.lower ?? "") && /^(each|every|per)$/.test(tokens[at + 1]?.lower ?? "")) at++;
+  if (/^(on|in|at|for)$/.test(tokens[at]?.lower ?? "") && /^(each|every|per)$/.test(tokens[at + 1]?.lower ?? "")) {
+    const h = headAfter(tokens, at + 2);
+    if (h.unit) return { per: h.unit, end: h.end };
+  }
   const t = tokens[at];
   if (!t) return { end: at };
   if (t.lower === "per" || t.lower === "a" || t.lower === "an" || t.lower === "each" || t.lower === "every" || t.text === "/") {
@@ -268,6 +272,8 @@ interface Last {
   holder?: string;
   /** Something is priced or counted by the dozen ("$68 per dozen"): "3 dozen" is then 3 of a dozen. */
   dozens?: boolean;
+  /** "3 groups of 200 employees": the next amount is per group. */
+  groupOf?: string;
 }
 
 function holderOf(tokens: readonly Token[], last: { holder?: string }): string | undefined {
@@ -414,6 +420,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     if (!unit && !(next && next.lower === "times")) unit = last.unit;
     if (unit && unit !== MONEY && !TIME.test(unit)) last.unit = unit;
     const priced = t.money && /^(a|an)$/.test(tokens[end]?.lower ?? "") && headAfter(tokens, end + 1).unit;
+    // "3 groups of 200 employees": what follows is per one of them; read as its own amount next.
+    const groupOf = !t.money && unit && tokens[end]?.lower === "of" && tokens[end + 1]?.number !== undefined;
+    if (groupOf) last.groupOf = unit;
     const per = priced
       ? { per: priced, end: headAfter(tokens, end + 1).end }
       : t.money && isNoun(tokens[end]) && /^(per|each|every|a|an)$/.test(tokens[end + 1]?.lower ?? "") && headAfter(tokens, end + 2).unit
@@ -473,6 +482,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     const capacity = /(no more than|up to|at most|maximum of|limit of|capacity of|can (carry|hold|fit)|budget of)$/.test(tokens.slice(Math.max(0, i - 5), i).map((x) => x.lower).join(" "));
     // "if 5 did not grow": not done, so taken away.
     const not = tokens.slice(i + 1, i + 5).some((x) => /^(not|never|didn't|don't|doesn't|won't|can't|couldn't|wasn't|weren't)$/.test(x.lower) || x.lower.endsWith("n't"));
+    const inGroup = tokens[i - 1]?.lower === "of" && last.groupOf ? last.groupOf : undefined;
+    if (inGroup) last.groupOf = undefined;
     // "In June, his expenditure was $60 less", "she slept 2 hours less": more or less than what was
     // said before it.
     const after = tokens[Math.max(per.end, end)];
@@ -483,7 +494,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     }
     out.push({
       value: t.number!,
-      unit: unitOf(unit, per.per ?? (perEach && perEach !== unit ? perEach : undefined)),
+      unit: unitOf(unit, per.per ?? (perEach && perEach !== unit ? perEach : undefined) ?? (inGroup && inGroup !== unit ? inGroup : undefined)),
       said: tokens.slice(i, Math.max(per.end, end) + (eachAfter ? 1 : 0)).map((x) => x.text).join(" "),
       sentence: index,
       sign: not ? -1 : verb,
@@ -511,8 +522,13 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     return one ? [{ at: k, unit: h.unit, end: h.end }] : [];
   });
   const per = out.slice();
+  // A clause ends where another begins: "and" or a comma, then someone or a doing.
+  const clauseEnd = (from: number) => {
+    const k = tokens.findIndex((x, n) => n > from && (/^(and|but|so)$/.test(x.lower) || x.comma) && (tokens[n + (x.comma && !/^(and|but|so)$/.test(x.lower) ? 0 : 1)]?.tags.some((g) => g === "Pronoun" || g === "Verb") ?? false));
+    return k < 0 ? tokens.length : k;
+  };
   starts.forEach((st, n) => {
-    const to = countAt[starts[n + 1]?.at ?? tokens.length] ?? out.length;
+    const to = countAt[Math.min(starts[n + 1]?.at ?? tokens.length, clauseEnd(st.end))] ?? out.length;
     for (let a = countAt[st.end] ?? out.length; a < to; a++) {
       const x = per[a]!;
       if (x.ratio || Object.values(x.unit).some((v) => v < 0) || x.unit[st.unit]) continue;
@@ -548,7 +564,8 @@ function askedIn(question: string, amounts: readonly Amount[], whole = question)
   if (!top && numberOf >= 0) top = headAfter(tokens, numberOf + 2).unit;
   // "how many times can he go": a count, of nothing.
   const count = !top && /\bhow many times\b/.test(lower);
-  if (/\bin dollars\b|\bmoney\b|\bcost|\bpay|\bspend|\bspent|\bearn|\bprofit|\bmake\b|\bmade\b|\bsave|\bcharge|\bworth|\bprice|\bincome|\bsalary|\bbudget/.test(lower) && (!top || top === "money" || top === "profit")) top = MONEY;
+  const moneySaid = amounts.some((a) => (a.unit[MONEY] ?? 0) > 0);
+  if ((/\bin dollars\b|\bmoney\b|\bcost|\bpay|\bspend|\bspent|\bprofit|\bcharge|\bworth|\bprice|\bincome|\bsalary|\bbudget/.test(lower) || (moneySaid && /\bearn|\bmake\b|\bmade\b|\bsave/.test(lower))) && (!top || top === "money" || top === "profit")) top = MONEY;
   if (!top && /\bhow long\b/.test(lower)) {
     const t = amounts.map((a) => Object.keys(a.unit).find((k) => /^(minute|hour|day|week|month|year|second)$/.test(k) && a.unit[k]! > 0)).find(Boolean);
     top = t ?? "hour";
@@ -845,6 +862,17 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
   const held = cap ? named.map((a) => (a === cap ? { ...a, sign: 1 } : top(a) === top(cap) && a.sign === 0 ? { ...a, sign: -1 } : a)) : named;
   const resolved = resolveRatios(held);
   if (resolved.length < 2 && !resolved.some((a) => a.derived)) return undefined;
+  // Each unit by the word the graph has for it: "ml" is milliliter, "kids" are children.
+  const canon = (u: Unit): Unit => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(u)) {
+      const named = chain(store, nameOf(k)).at(-1) ?? nameOf(k);
+      const word = named === nameOf(k) ? k : named.toLowerCase();
+      out[word] = (out[word] ?? 0) + v;
+    }
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== 0));
+  };
+  resolved.splice(0, resolved.length, ...resolved.map((a) => ({ ...a, unit: canon(a.unit) })));
   // A rate per something nothing counts ("A boy has 5 cards", and no boys are counted) is just the amount.
   const counts = new Set(resolved.flatMap((a) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0)));
   const askedText = question.toLowerCase();
@@ -854,8 +882,32 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
     return { ...a, unit: Object.fromEntries(Object.entries(a.unit).filter(([k]) => k !== per[0])) };
   });
   resolved.splice(0, resolved.length, ...usable);
-  const asked = askedIn(question, resolved, sentences[q]!);
-  if (!asked) return undefined;
+  // "He worked for an entire week": a week of it, there to use.
+  sentences.forEach((sentence, i) => {
+    const span = /\b(?:for|during|over|throughout)\s+(?:a|an|one)\s+(?:whole\s+|entire\s+|full\s+)?(second|minute|hour|day|week|month|year)\b/i.exec(sentence);
+    if (span && i !== q) resolved.push({ value: 1, unit: { [base(span[1]!)]: 1 }, said: `1 ${base(span[1]!)}`, sentence: i, sign: 0, optional: true });
+  });
+  const plainAsked = askedIn(question, resolved, sentences[q]!);
+  if (!plainAsked) return undefined;
+  const found = { ...plainAsked, unit: canon(plainAsked.unit) };
+  // "How many animals", "how many people", "how many pieces": a word for all the things counted,
+  // when none is counted by that word. Each count of things is one of them.
+  const askedTop = Object.keys(found.unit).find((k) => found.unit[k]! > 0);
+  const things = (a: Amount) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0 && k !== MONEY && !TIME.test(k));
+  const asked = found;
+  if (askedTop && askedTop !== MONEY && !TIME.test(askedTop) && !resolved.some((a) => (a.unit[askedTop] ?? 0) > 0)) {
+    // Not what holds them: "3 groups" are not people.
+    const holders = new Set(resolved.flatMap((a) => Object.keys(a.unit).filter((k) => a.unit[k]! < 0)));
+    const counted = new Set(resolved.filter((a) => !a.ratio && a.sentence !== -1).flatMap(things).filter((k) => !holders.has(k)));
+    if (counted.size > 1) {
+      for (let k = 0; k < resolved.length; k++) {
+        const a = resolved[k]!;
+        const own = things(a);
+        if (a.ratio || own.length !== 1 || holders.has(own[0]!)) continue;
+        resolved[k] = { ...a, unit: times(times(a.unit, { [own[0]!]: -1 }), { [askedTop]: 1 }) };
+      }
+    }
+  }
   return { amounts: [...resolved, ...conversions(store, resolved, asked, question)], asked };
 }
 
@@ -1028,7 +1080,7 @@ export function sayAmount(value: number, unit: Unit): string {
   const one = Math.abs(round(value)) === 1;
   const top = Object.entries(unit).filter(([, v]) => v > 0).map(([k]) => k);
   const bottom = Object.entries(unit).filter(([, v]) => v < 0).map(([k]) => k);
-  const plural = (w: string) => (one || w === "dozen" || SAME_PLURAL.test(w) ? w : IRREGULAR[w] ?? /(s|x|ch|sh)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`);
+  const plural = (w: string) => (one || w === "dozen" || SAME_PLURAL.test(w) ? w : (IRREGULAR[w] ?? (/(s|x|ch|sh)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`)));
   const head = top.length ? `${n} ${top.map((w, i) => (i === top.length - 1 ? plural(w) : w)).join(" ")}` : n;
   return bottom.length ? `${head} ${bottom.map((w) => (/^[aeiou]/.test(w) ? `an ${w}` : `a ${w}`)).join(" ")}` : head;
 }
