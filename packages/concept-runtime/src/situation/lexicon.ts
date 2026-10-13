@@ -32,7 +32,30 @@ export interface Lexicon {
   plural(word: string): string | undefined;
   /** The word a written form stands for: "feet" foot, "bucks" dollar. */
   synonym(word: string): string | undefined;
+  /** What a doing does to what it is done with: -1 takes away (`Removes()`), +1 adds (`Adds()`). */
+  effect(verb: string): number;
+  /**
+   * Supposes a fact of a word for this reading, over what the graph holds (undefined: supposes it
+   * has none). How a word is learned from worked examples: each way it could act is supposed, and
+   * the one the answer bears out is kept.
+   */
+  suppose(word: string, predicate: string, value: unknown): void;
+  /** Takes back every supposition. */
+  unsuppose(): void;
+  /** Reads the graph without these relations, as if they were never known (to learn them again). */
+  forget(predicates: readonly string[]): void;
 }
+
+/** A word's forms to look it up by: as said, its base, a plural's singular. */
+export const formsOf = (word: string): string[] => {
+  const w = word.toLowerCase().replace(/[^a-z]/g, "");
+  return [...new Set([w, lemma(w), ...(w.length > 4 && /[^s]s$/.test(w) ? [w.slice(0, -1)] : [])].filter((x) => x.length > 0))];
+};
+/** A doing's forms: its base, or the past ending taken off ("used" use, "stopped" stop, "carried" carry). */
+export const doingForms = (verb: string): string[] => {
+  const w = verb.toLowerCase().replace(/[^a-z]/g, "");
+  return [...new Set([w, lemma(w), w.replace(/d$/, ""), w.replace(/ed$/, ""), w.replace(/([b-df-hj-np-tv-z])\1ed$/, "$1"), w.replace(/ied$/, "y")].filter((x) => x.length > 1))];
+};
 
 const lexicons = new WeakMap<ConceptStore, Lexicon>();
 
@@ -40,13 +63,14 @@ export function lexicon(store: ConceptStore): Lexicon {
   const had = lexicons.get(store);
   if (had) return had;
   const cache = new Map<string, readonly { predicate: string; value: unknown }[]>();
+  const supposed = new Map<string, Map<string, unknown>>();
+  let forgotten = new Set<string>();
   // A word's facts, as said and as its base ("increased" increase, "quarters" quarter).
   const facts = (word: string) => {
     const w = word.toLowerCase().replace(/[^a-z]/g, "");
     let got = cache.get(w);
     if (got) return got;
-    const forms = new Set([w, lemma(w), ...(w.length > 4 && /[^s]s$/.test(w) ? [w.slice(0, -1)] : [])].filter((x) => x.length > 0));
-    got = [...forms].flatMap((f) =>
+    got = formsOf(w).flatMap((f) =>
       store.asSubject(nameOf(f)).map((t) => {
         const a = isCall(t.expr) ? t.expr.args[0]?.value : undefined;
         return { predicate: t.predicate, value: a !== undefined && isCall(a) ? a.head : a };
@@ -55,7 +79,14 @@ export function lexicon(store: ConceptStore): Lexicon {
     cache.set(w, got);
     return got;
   };
-  const first = (word: string, predicate: string) => facts(word).find((f) => f.predicate === predicate)?.value;
+  const first = (word: string, predicate: string, forms = formsOf(word)) => {
+    for (const f of forms) {
+      const s = supposed.get(f);
+      if (s?.has(predicate)) return s.get(predicate);
+    }
+    if (forgotten.has(predicate)) return undefined;
+    return forms.flatMap((f) => facts(f)).find((x) => x.predicate === predicate)?.value;
+  };
   const way = (v: unknown) => (v === "Up" ? 1 : v === "Down" ? -1 : 0);
   const num = (v: unknown) => (typeof v === "number" ? v : undefined);
   const lex: Lexicon = {
@@ -81,6 +112,28 @@ export function lexicon(store: ConceptStore): Lexicon {
       const v = store.asSubject(nameOf(w.toLowerCase().replace(/[^a-z]/g, ""))).find((t) => t.predicate === "SynonymOf");
       const to = v && isCall(v.expr) ? v.expr.args[0]?.value : undefined;
       return to !== undefined && isCall(to) ? to.head.toLowerCase() : undefined;
+    },
+    effect: (verb) => {
+      const forms = doingForms(verb);
+      if (forms.some((f) => supposed.get(f)?.has("Effect"))) return way(first(verb, "Effect", forms));
+      if (forgotten.has("Removes")) return 0;
+      for (const f of forms) {
+        const facts = store.asSubject(nameOf(f)).map((t) => t.predicate);
+        if (facts.includes("Removes")) return -1;
+        if (facts.includes("Adds")) return 1;
+      }
+      return 0;
+    },
+    suppose: (word, predicate, value) => {
+      for (const w of predicate === "Effect" ? doingForms(word) : formsOf(word)) {
+        const s = supposed.get(w) ?? new Map<string, unknown>();
+        s.set(predicate, value);
+        supposed.set(w, s);
+      }
+    },
+    unsuppose: () => supposed.clear(),
+    forget: (predicates) => {
+      forgotten = new Set(predicates);
     },
   };
   lexicons.set(store, lex);

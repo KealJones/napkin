@@ -111,6 +111,12 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   quarter of what is left"), "the rest" of a whole split by shares, nested comparisons ("5 less than
   half as many"). Next: amounts as each holder's state through the sentences, "what is left" as that
   state; one unknown solved for by a linear equation.
+- [ ] W8. Words learned from worked examples (situation/learnwords.ts, scripts/learn-words.mjs): the
+  packs' word facts forgotten, each word beside the amounts supposed each way, the answer counting
+  for and against. 1500 train items, 3 passes: 108 facts, 30 as the packs say, 7 otherwise, 71 new
+  (many noise at 2 for, 0 against). Test 0-99: packs 25, none 16, learned only 19. Next: a stricter
+  bar; evidence pooled over a word's neighbors (its lemma, SynonymOf, IsA, antonyms say the opposite);
+  a person's correction ("no, it's 15") counted as evidence too.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

@@ -243,16 +243,8 @@ function perAfter(tokens: readonly Token[], at: number): { per?: string; end: nu
 }
 
 /** What a doing does to what it is done with: `Removes()` or `Adds()` on its Concept. */
-function effect(store: ConceptStore, verb: string): number {
-  const w = verb.toLowerCase();
-  // The doing as its base: the lemma, else the past ending taken off ("used" use, "stopped" stop).
-  for (const form of new Set([lemma(w), w.replace(/d$/, ""), w.replace(/ed$/, ""), w.replace(/([b-df-hj-np-tv-z])\1ed$/, "$1"), w.replace(/ied$/, "y")])) {
-    if (!form) continue;
-    const facts = store.asSubject(nameOf(form)).map((t) => t.predicate);
-    if (facts.includes("Removes")) return -1;
-    if (facts.includes("Adds")) return 1;
-  }
-  return 0;
+function effect(_store: ConceptStore, verb: string): number {
+  return lex.effect(verb);
 }
 
 /** Who a sentence is about: its first name, or the noun before its doing; "she" is the last one. */

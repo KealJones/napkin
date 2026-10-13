@@ -1,0 +1,115 @@
+epoch 1: 122/1500 training situations right before this pass; 24 word facts agreed (354 s)
+epoch 2: 177/1500 training situations right before this pass; 94 word facts agreed (300 s)
+epoch 3: 197/1500 training situations right before this pass; 108 word facts agreed (270 s)
+
+Learned 108: 30 as the packs say, 7 otherwise, 71 the packs say nothing of.
+  all Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  allows Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  ants Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  ate Effect(Up())  for 2, against 0  (the packs say Down)
+  bake Effect(Up())  for 2, against 0  (the packs say Down)
+  baked Effect(Up())  for 2, against 0  (the packs say Down)
+  be Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  been Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  bob Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  bring Compares(Down())  for 2, against 0  (new: the packs say nothing)
+  buckets Compares(Down())  for 2, against 0  (new: the packs say nothing)
+  buy Effect(Down())  for 4, against 0  (the packs say Up)
+  chairs Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  comes Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  contained Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  cooked Effect(Down())  for 2, against 0
+  cost Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  costs Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  create Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  created Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  creating Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  cut Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  day Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  did Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  discount Changes(Down())  for 3, against 0
+  doubled Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  dries Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  drive Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  drop Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  drove Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  eat Effect(Up())  for 3, against 1  (the packs say Down)
+  employees Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  expensive Changes(Up())  for 2, against 0
+  farther Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  fewer Changes(Down())  for 2, against 0
+  fewer Compares(Down())  for 3, against 0
+  find Effect(Up())  for 2, against 0
+  finds Effect(Up())  for 3, against 0
+  for Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  from Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  gave Effect(Down())  for 3, against 1
+  get Effect(Up())  for 2, against 0
+  gives Effect(Down())  for 2, against 0
+  go Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  go Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  going Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  grabs Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  harvested Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  has Effect(Down())  for 13, against 3  (new: the packs say nothing)
+  helped Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  higher Changes(Up())  for 2, against 0
+  his Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  increased Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  landed Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  leaves Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  lose Effect(Down())  for 2, against 0
+  lost Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  makes Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  measuring Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  more Changes(Up())  for 5, against 0
+  more Compares(Up())  for 22, against 0
+  needs Effect(Up())  for 6, against 1  (new: the packs say nothing)
+  off Changes(Down())  for 2, against 0
+  offered Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  older Compares(Up())  for 4, against 0
+  on Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  out Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  over Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  paid Effect(Down())  for 2, against 0
+  paint Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  paints Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  pay Effect(Down())  for 2, against 0
+  people Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  per Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  picked Effect(Up())  for 2, against 0
+  picking Effect(Up())  for 2, against 0
+  pickles Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  picks Effect(Up())  for 2, against 0
+  priced Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  quicker Compares(Down())  for 2, against 0  (new: the packs say nothing)
+  raise Changes(Up())  for 2, against 0
+  read Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  reading Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  reads Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  save Effect(Up())  for 2, against 0
+  saw Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  sell Effect(Up())  for 2, against 0  (the packs say Down)
+  selling Effect(Up())  for 2, against 0  (the packs say Down)
+  shorter Compares(Down())  for 2, against 0
+  slices Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  spends Effect(Down())  for 3, against 0
+  spent Effect(Down())  for 3, against 1
+  takes Effect(Down())  for 2, against 0
+  than Changes(Up())  for 3, against 0  (new: the packs say nothing)
+  them Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  to Effect(Down())  for 3, against 1  (new: the packs say nothing)
+  total Changes(Up())  for 2, against 0  (new: the packs say nothing)
+  travel Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  typically Changes(Down())  for 2, against 0  (new: the packs say nothing)
+  up Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  used Effect(Down())  for 3, against 0
+  using Effect(Down())  for 3, against 0
+  want Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  wants Effect(Up())  for 2, against 0  (new: the packs say nothing)
+  watches Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  working Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  works Effect(Down())  for 2, against 0  (new: the packs say nothing)
+  younger Compares(Down())  for 2, against 0
+
+Test (100): with the packs' word facts 25, with none 16, with only what was learned 19.
