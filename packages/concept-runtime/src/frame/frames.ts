@@ -23,7 +23,7 @@ import { type Expr, c, call, equal, format, isCall, parse, walk } from "../conce
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
-import type { Runtime } from "../runtime/evaluator.js";
+import { Runtime } from "../runtime/evaluator.js";
 import { typesOf } from "../runtime/types.js";
 import { runs, UNIVERSAL } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
@@ -975,9 +975,12 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   const { tokens: typed, question } = tokens(store, message);
   if (!typed.length || typed.length > 24) return { looked: [] };
   const numbers = new Map<string, number | undefined>();
+  // Whether a word is a number word ("seven") is asked of the graph off the record: it is how
+  // a word is looked at, not a step in answering, and every word of every message is asked.
+  const offRecord = new Runtime(store, { traceQuiet: true });
   const number = async (w: string) => {
     if (!numbers.has(w)) {
-      const v = await runtime.evaluate(c("Number", w), c("Execution")).catch(() => undefined);
+      const v = await offRecord.evaluate(c("Number", w), c("Execution")).catch(() => undefined);
       numbers.set(w, typeof v === "number" ? v : undefined);
     }
     return numbers.get(w);
