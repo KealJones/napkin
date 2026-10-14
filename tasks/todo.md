@@ -160,6 +160,12 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   sources/situations and packs/situations.ncon (1,139 weights). Held-out 110 -> 123 of 750; the
   "ask|word|op" features (question words x the operator a working uses) added. Still to measure:
   learned-only and combined against test, chosen on train alone.
+- [ ] W17. CI bench reads 0/50 against 15/50 offline (same code). With network, turn() runs frames()
+  first and frames looks up unknown words (Marie, Gretchen, ...), which answers "I don't know what
+  marie is yet" before the situation reader is tried; offline the lookups fail and the situation
+  reader answers. Fix: let a fully read situation go before frames' lookups for word problems, or
+  keep lookups out of the bench. Also: ncon test "core holds every Concept the host names" fails on
+  Noun/Pronoun/Value (defined in basic/hearing packs, not core); pre-existing, not from W16.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
