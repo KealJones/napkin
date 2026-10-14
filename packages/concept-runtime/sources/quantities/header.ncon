@@ -515,6 +515,30 @@ Concept(Thrice(),
   )
 )
 
+// What "how old", "how tall", "how far" ask for.
+Concept(Old(), Asks(Age()))
+Concept(Tall(), Asks(Height()))
+Concept(Far(), Asks(Distance()))
+
+// A bare number said of someone ("tom is 30") is most likely their age.
+Concept(NumberIs(), IsA(Relation()))
+Concept(Someone(), NumberIs(Age()))
+
+// A number times itself, said after it ("3 squared", "5 cubed").
+Concept(Squared(),
+  Realization(Squared($x),
+    context = Execution(),
+    body = Power($x, 2)
+  )
+)
+
+Concept(Cubed(),
+  Realization(Cubed($x),
+    context = Execution(),
+    body = Power($x, 3)
+  )
+)
+
 Concept(Halves(), SynonymOf(Half()))
 
 // What a unit measures. (Not Measures(Time()), as Wikidata would say it: read as a kind, it makes

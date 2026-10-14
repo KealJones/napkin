@@ -14,6 +14,7 @@ import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/w
 import { ConceptError } from "../runtime/errors.js";
 import { lemma, properNoun } from "../runtime/host.js";
 import { isWord, standsAsNameIn } from "../ears/parser/words.js";
+import { typesOf } from "../runtime/types.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
@@ -323,6 +324,10 @@ async function learnOnce(
       // is missing is exactly the point, so only the former is refused.
       if (runtime.store.has(gap.identity) && gap.kind !== "inert" && gap.kind !== "empty") continue;
       if (attempted.has(gap.identity)) continue;
+      // What a statement says a word is ("Gunter is my friend") is what it is: not looked up as
+      // some other thing the world has that name for (a sailing rig).
+      const first = isCall(gap.input) ? gap.input.args.find((a) => a.name === undefined)?.value : undefined;
+      if (told && first !== undefined && isCall(first) && typesOf(runtime.store, c(first.head)).includes("BeVerb")) continue;
       attempted.add(gap.identity);
 
       // A word Wikidata knows is grounded there, deterministically and with its source:

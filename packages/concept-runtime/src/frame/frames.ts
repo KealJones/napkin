@@ -21,6 +21,7 @@
 import { wikidataItem } from "../research/wikidata.js";
 import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
+import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
@@ -173,6 +174,16 @@ function values(words: readonly Word[]): Map<string, Item[]> {
           for (const X of get(i + 1 + skip, j)) {
             put({ i, j, ops: [...(X.ops ?? []), `op:${op.word}=${op.target}`], expr: c(op.target, X.expr), said: c(op.word, X.said), score: X.score + 1.5 + typedFit(op) - 0.1 * skip, binds: Infinity });
           }
+        }
+      }
+      // Postfix: a value, then an operation of one hole said after what it takes ("3 squared", "5
+      // cubed"), a little less likely than said before it.
+      // Not a word that also marks what follows it ("in", "of"): that takes what comes after.
+      for (const op of words[j - 1].senses.some((s) => s.type === "glue") ? [] : words[j - 1].senses) {
+        if (op.type !== "op" || op.holes.length !== 1 || j - 1 <= i) continue;
+        for (const X of get(i, j - 1)) {
+          if (isCall(X.expr) && X.binds === Infinity && X.ops?.length) continue;
+          put({ i, j, ops: [...(X.ops ?? []), `op:${op.word}=${op.target}`], expr: c(op.target, X.expr), said: c(op.word, X.said), score: X.score + 1.25 + typedFit(op), binds: Infinity });
         }
       }
       // Prefix: the operation, a value, a joining word ("and", or "from", which puts what follows it first), a value.
@@ -821,6 +832,15 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
       const than = right.findIndex((x) => x.text.toLowerCase() === "than" || x.senses.some((s) => s.type === "glue" && s.head === "Than"));
       if (right.length >= 3 && than === 1 && comparing(right[0]) && right.slice(2).every(thingWord)) {
         claim = c(nameOf(`${right[0].text} than`), c(named(right.slice(2))));
+      } else if (right.length === 1 && right[0]!.senses.some((s) => s.type === "value" && Number.isInteger(s.value)) && (said?.type === "entity" || relationsOf(store, named(left)).some((r) => format(r.claim) === "IsA(Name())") || (knownAsName(left[0]!.text) && standsAsNameIn(message, left[0]!.text)))) {
+        // "tom is 30": a bare number said of someone is what the graph says such a number most
+        // likely is (`Someone NumberIs(Age())`), kept as that and said so.
+        const relation = store.asSubject("Someone").find((t) => t.predicate === "NumberIs" && t.object !== undefined && isCall(t.object));
+        const value = right[0]!.senses.find((s) => s.type === "value");
+        if (relation && value?.type === "value" && relation.object !== undefined && isCall(relation.object)) {
+          claim = c(relation.object.head, value.value);
+          replaces = true;
+        }
       } else if (right.every((x) => thingWord(x) && !x.senses.some((s) => s.type === "pointer")) && rightAll.length > right.length && rightAll[0] !== undefined && /^(?:A|An|The)$/.test(rightAll[0].senses.find((s) => s.type === "glue")?.head ?? "")) {
         // "a film": a kind, said with a word that marks it as one of many.
         claim = c("IsA", c(named(right)));

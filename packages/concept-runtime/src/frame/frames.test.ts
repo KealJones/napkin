@@ -325,3 +325,12 @@ test("a word Wikidata knows only as a name (a female given name, a kind of given
   await groundInWikidata(store, "Siobhan", { fetch: get });
   assert.ok(store.get("Siobhan")!.relations.some((r) => format(r.claim) === "IsA(Name())"));
 });
+
+test("postfix operations, and a bare number said of someone kept as their age and read back by how old", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["what is 3 squared", "5 cubed", "tom is 30", "how old is tom", "pi is 3.14159"])).map((x) => x.spoken);
+  assert.deepEqual(said.slice(0, 2), ["9.", "125."]);
+  assert.equal(said[3], "30.");
+  assert.ok(!store.get("Pi")?.relations.some((r) => format(r.claim).startsWith("Age(")));
+});

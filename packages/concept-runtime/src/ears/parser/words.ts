@@ -346,6 +346,8 @@ export interface SlotReading {
 
 const NAME_TAGS = /^(FirstName|MaleName|FemaleName|Person|LastName)$/;
 const isName = (w: string): boolean => tagsOf(w).some((t) => NAME_TAGS.test(t));
+/** A word the tagger's lexicon holds as someone's name ("tom", "maria"). */
+export const knownAsName = (word: string): boolean => isName(word.toLowerCase());
 /** What stands where a name stands: names, and the words that stand in for one ("she", "him"). */
 const standsIn = (w: string): boolean => isName(w) || tagsOf(w).includes("Pronoun");
 let pairs: { left: Map<string, number>; right: Map<string, number>; nameLeft: Map<string, number>; nameRight: Map<string, number>; total: number; names: number; least: number } | undefined;

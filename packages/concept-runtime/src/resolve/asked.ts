@@ -80,8 +80,14 @@ export function askGraph(store: ConceptStore, expression: Expr): Asked | undefin
   }).filter((h) => !folded.has(h));
   // What the question word asks for (Who asks Someone), where it says.
   const asks = heads.flatMap((h) => (store.get(h)?.relations ?? []).flatMap((r) => (isCall(r.claim) && r.claim.head === "Asks" && isCall(r.claim.args[0]?.value) ? wordsOf((r.claim.args[0].value as Call).head) : [])));
+  const asksBy = new Map<string, string[]>();
+  for (const h of heads) {
+    const kinds = (store.get(h)?.relations ?? []).flatMap((r) => (isCall(r.claim) && r.claim.head === "Asks" && isCall(r.claim.args[0]?.value) ? wordsOf((r.claim.args[0].value as Call).head) : []));
+    if (kinds.length) for (const w of wordsOf(h)) asksBy.set(w, kinds);
+  }
   const facts = (id: string) => (store.get(id)?.relations ?? []).filter((r) => isCall(r.claim) && !STRUCTURAL.has(r.claim.head) && r.claim.args.length > 0);
-  const things = [...new Set(heads)].filter((h) => facts(h).length > 0 || store.asObject(h).some((t) => !STRUCTURAL.has(t.predicate)));
+  // A word that asks for something ("old" asks age) is a word of the question, not a thing asked about.
+  const things = [...new Set(heads)].filter((h) => !wordsOf(h).some((w) => asksBy.has(w)) && (facts(h).length > 0 || store.asObject(h).some((t) => !STRUCTURAL.has(t.predicate))));
   let best: (Found & { of: string }) | undefined;
   let second = -Infinity;
   for (const thing of things) {
@@ -99,6 +105,8 @@ export function askGraph(store: ConceptStore, expression: Expr): Asked | undefin
           score += 2;
           answer = part.value;
         } else if (names.some((n) => akin(n, word))) score += 2;
+        // A word that asks for this ("old" asks age): it fits as the relation's own name does.
+        else if ((asksBy.get(word) ?? []).some((a) => names.includes(a) || kinds.includes(a))) score += 2;
         else if (kinds.some((k) => akin(k, word))) score += 2;
         else score -= 1;
       }
