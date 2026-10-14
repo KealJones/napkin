@@ -730,7 +730,8 @@ export async function turn(
   // units, what each doing does to them, what is asked; worked out by combining the amounts until
   // the units come out as asked (situation/situation.ts), each step said. Names the text introduces
   // are people of the text, never looked up.
-  if (options.inputMode !== "expression" && /\?|\bhow (much|many|long|far|old)\b/i.test(message)) {
+  // Any message with an amount in it may tell a situation; situationOf says whether it does.
+  if (options.inputMode !== "expression" && /\d|\?/.test(message)) {
     const situation = situationOf(runtime.store, message);
     const solved = situation && situation.amounts.some((a) => Object.keys(a.unit).length > 0) ? solve(situation.amounts, situation.asked) : undefined;
     // Read as a situation of several sentences but not worked out: said so, with what was read,

@@ -41,7 +41,7 @@ export interface Amount {
    * much", "of the price", "by 30%" the amount said last. `change`: +1 for "increased by", -1 for
    * "reduced by", so the result is (1 ± ratio) of the referent.
    */
-  readonly of?: { readonly holder?: string; readonly last?: boolean; readonly unit?: string; readonly change?: number; readonly differs?: number; readonly left?: boolean; readonly thing?: boolean; readonly named?: string; readonly next?: boolean };
+  readonly of?: { readonly holder?: string; readonly last?: boolean; readonly unit?: string; readonly change?: number; readonly differs?: number; readonly left?: boolean; readonly thing?: boolean; readonly named?: string; readonly next?: boolean; readonly part?: boolean };
   /** Which of its kind it is: "30 more gold coins" gold, "they won 8 more" win. */
   readonly kind?: string;
   /** What can be had at most ("can carry no more than 5000 pounds"): the others are taken from it. */
@@ -54,6 +54,8 @@ export interface Amount {
   readonly consumed?: boolean;
   /** Worked out from a ratio or comparison and what it is of. */
   readonly derived?: boolean;
+  /** A share's whole, as said: "30% of his money" is part of the $1000, so not added to it. */
+  readonly partOf?: string;
   /** The doing of its clause, as its base ("ate" eat): what the steps it is in are weighed by. */
   readonly doing?: string;
 }
@@ -319,7 +321,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     if (whose && /^[A-Z]/.test(whose.text) && !whose.tags.includes("Pronoun")) return { holder: whose.text };
     const priced = rest.slice(of + 1).find((t) => isNoun(t));
     const money = priced && lex.marks(base(priced.text), "Money");
-    return { last: true, ...(money ? { unit: MONEY } : {}), ...(thing ? { thing } : {}) };
+    // Taken "of" it ("30% of his money", "half of it"): a part of it.
+    const part = of >= 0 && rest[of]!.lower === "of";
+    return { last: true, ...(money ? { unit: MONEY } : {}), ...(thing ? { thing } : {}), ...(part ? { part } : {}) };
   };
   for (let i = 0; i < tokens.length; i++) {
     countAt[i] = out.length;
@@ -549,7 +553,6 @@ function askedIn(question: string, amounts: readonly Amount[], whole = question)
   const tokens = tokenize(question);
   const lower = question.toLowerCase();
   const all = whole.toLowerCase();
-  if (!/\bhow (much|many|long|far|old)\b|\bwhat (is|was|will|are)\b/.test(lower)) return undefined;
   let top: string | undefined;
   const many = tokens.findIndex((t, i) => (t.lower === "many" || t.lower === "much") && tokens[i - 1]?.lower === "how");
   if (many >= 0) {
@@ -649,7 +652,7 @@ const KEEP = 24;
  * `Situations` Concept as `Weighs("feature", value)`, read over these.
  */
 export const PRIOR: Readonly<Record<string, number>> = {
-  "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5,
+  "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5, "plus:part": 0,
   "minus:sign": 2, "minus:unsigned": -1, "minus:left": 1.5, "minus:more": 3, "minus:total": -1,
   "times:ratio": 0.5, "times:sums": -1.5, "times:beside": 1.5, "times:kind": 1.5, "times:otherKind": -2,
   divisions: -0.5, depth: -0.05, whole: 1, positive: 1, negative: -5,
@@ -883,7 +886,10 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   if (sameUnit(a.unit, b.unit) && !ratioOf(a) && !ratioOf(b) && !conversion(a) && !conversion(b)) {
     // Added: what is added, or all of it together. Taken away: what is removed from what was had.
     const plusFit = [signOf(b) >= 0 ? "plus:sign" : "plus:against", ...(asked.total ? ["plus:total"] : []), ...(asked.left ? ["plus:left"] : []), ...(asked.more ? ["plus:more"] : []), ...(rate(a.unit) && !askedRate ? ["plus:rates"] : [])];
-    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", [...plusFit, ...lexical("+", a, b)]));
+    // A part added to its own whole counts it twice ("$1000" + "30% of his money").
+    const leaves = (w: Worked) => amounts.filter((_, i) => (w.used & (1 << i)) !== 0);
+    const part = leaves(a).some((x) => x.partOf && leaves(b).some((y) => y.said === x.partOf)) || leaves(b).some((x) => x.partOf && leaves(a).some((y) => y.said === x.partOf));
+    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", [...plusFit, ...lexical("+", a, b), ...(part ? ["plus:part"] : [])]));
     for (const [x, y] of [[a, b], [b, a]] as const) {
       if (x.value - y.value <= 0) continue;
       const minusFit = [signOf(y) < 0 ? "minus:sign" : "minus:unsigned", ...(asked.left ? ["minus:left"] : []), ...(asked.more ? ["minus:more"] : []), ...(asked.total ? ["minus:total"] : [])];
@@ -957,7 +963,13 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
   if (sentences.length < 2 && !/\d/.test(message)) return undefined;
   // The question: the last sentence that asks, or the clause of the last sentence that does.
   let q = sentences.length - 1;
-  while (q >= 0 && !/\?\s*$/.test(sentences[q]!) && !/\bhow (much|many|long|far|old)\b/i.test(sentences[q]!)) q--;
+  // A sentence that asks: one ending in a question mark, one with "how much" or "how many", or one
+  // that tells to do something ("Calculate Allen's age ...": its first word a doing told).
+  const commands = (x: string) => {
+    const first = hostWords(x)[0];
+    return !!first && first.tags.includes("Imperative");
+  };
+  while (q >= 0 && !/\?\s*$/.test(sentences[q]!) && !/\bhow (much|many|long|far|old)\b/i.test(sentences[q]!) && !commands(sentences[q]!)) q--;
   if (q < 0) return undefined;
   const last: Last = { dozens: /\b(per|a|each|the|by the) dozen\b/i.test(message) };
   const amounts: Amount[] = [];
@@ -999,7 +1011,10 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
     for (const a of same) resolved[resolved.indexOf(a)] = { ...a, consumed: true };
     resolved.push({ value: left, unit: had.unit, said: `what was left: ${[had, ...same.slice(1)].map((a) => show(a.value)).join(" - ")} = ${show(left)}`, sentence: at, sign: 0, derived: true });
   });
-  if (resolved.length < 2 && !resolved.some((a) => a.derived)) return undefined;
+  // A situation has at least two amounts, one of them told (or works one out); what the question
+  // only says back ("if it was 5 days ... in 5 days") does not count twice.
+  const distinct = resolved.filter((a, i) => !a.optional || !resolved.some((b, j) => j !== i && !b.optional && b.value === a.value && sameUnit(b.unit, a.unit)));
+  if ((distinct.length < 2 || distinct.every((a) => a.optional)) && !resolved.some((a) => a.derived)) return undefined;
   // Each unit by the word the graph has for it: "ml" is milliliter, "kids" are children.
   const canon = (u: Unit): Unit => {
     const out: Record<string, number> = {};
@@ -1197,6 +1212,7 @@ function resolveRatios(said: readonly Amount[]): Amount[] {
         sentence: r.sentence,
         sign: r.sign,
         ...(r.doing ? { doing: r.doing } : {}),
+        ...(r.of.part && r.value < 1 ? { partOf: ref.said } : {}),
         ...(r.holder ? { holder: r.holder } : {}),
         derived: true,
       };
