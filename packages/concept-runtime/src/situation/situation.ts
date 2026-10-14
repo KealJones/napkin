@@ -651,7 +651,7 @@ const KEEP = 24;
 export const PRIOR: Readonly<Record<string, number>> = {
   "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5,
   "minus:sign": 2, "minus:unsigned": -1, "minus:left": 1.5, "minus:more": 3, "minus:total": -1,
-  "times:ratio": 0.5, "times:beside": 1.5, "times:kind": 1.5, "times:otherKind": -2,
+  "times:ratio": 0.5, "times:sums": -1.5, "times:beside": 1.5, "times:kind": 1.5, "times:otherKind": -2,
   divisions: -0.5, depth: -0.05, whole: 1, positive: 1, negative: -5,
   converts: -0.75, owed: -1.5, again: -1.5, theirs: 3, ratioLeft: -4,
 };
@@ -691,11 +691,15 @@ export interface Solved {
   readonly rivals: number;
   /** What the reading taken agreed and disagreed with, counted. */
   readonly features: Readonly<Record<string, number>>;
+  /** Read again with things counted as things, as nothing came out as asked the first time. */
+  readonly loose?: boolean;
 }
 
 /** A reading of a situation, ranked: its value and what it agreed with. */
 export interface Reading {
   readonly value: number;
+  /** How it was worked out, said. */
+  readonly how?: string;
   readonly features: Readonly<Record<string, number>>;
   readonly score: number;
 }
@@ -712,7 +716,37 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
 }
 
 /** Every reading that comes out as asked, best first, and the one taken. */
-export function readings(amounts: readonly Amount[], asked: Asked): { best?: Solved; ranked: Reading[] } | undefined {
+export function readings(amounts: readonly Amount[], asked: Asked, loose = false): { best?: Solved; ranked: Reading[] } | undefined {
+  const r = readingsAs(amounts, asked);
+  if (r?.ranked.length || loose) return r;
+  // Nothing comes out as what is asked ("48 of her friends" read, clips asked; slices read, pieces
+  // asked): each thing counted is tried as the thing asked, and the reading that fits best is taken.
+  const counted = (u: Unit) => Object.keys(u).filter((k) => u[k]! > 0 && k !== MONEY && !lex.measures(k));
+  const askedThing = counted(asked.unit)[0];
+  let best: { best?: Solved; ranked: Reading[] } | undefined;
+  for (const u of askedThing ? new Set(amounts.flatMap((a) => counted(a.unit))) : []) {
+    if (u === askedThing || !askedThing) continue;
+    const unit = { ...asked.unit, [u]: (asked.unit[u] ?? 0) + asked.unit[askedThing]! };
+    delete (unit as Record<string, number>)[askedThing];
+    const tried = readingsAs(amounts, { ...asked, unit });
+    if (tried?.best && (!best?.best || (tried.ranked[0]?.score ?? -Infinity) > (best.ranked[0]?.score ?? -Infinity))) best = tried;
+  }
+  if (best?.best) return { ...best, best: { ...best.best, loose: true } };
+  // Still nothing: every thing counted read as a thing.
+  const thing = (u: Unit): Unit => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(u)) {
+      const key = k === MONEY || lex.measures(k) ? k : "thing";
+      out[key] = (out[key] ?? 0) + v;
+    }
+    return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== 0));
+  };
+  const merged = readingsAs(amounts.map((a) => ({ ...a, unit: thing(a.unit) })), { ...asked, unit: thing(asked.unit) });
+  if (!merged?.best) return r;
+  return { ...merged, best: { ...merged.best, unit: asked.unit, loose: true } };
+}
+
+function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; ranked: Reading[] } | undefined {
   const n = amounts.length;
   if (!n || n > 8) return undefined;
   // What a doing takes away counts only against something had: an amount taken away beside one
@@ -793,7 +827,7 @@ export function readings(amounts: readonly Amount[], asked: Asked): { best?: Sol
   // None can be: not worked out, rather than said as if it were.
   const pool = all.filter(whole).sort((x, y) => total(y) - total(x));
   const best = pool[0];
-  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w) }));
+  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w), how: w.how }));
   if (best && owed(best.used) <= 2) {
     const next = pool.find((w) => Math.abs(w.value - best.value) > 1e-9);
     const margin = next ? total(best) - total(next) : 99;
@@ -824,6 +858,9 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     const dx = doingOf(x), dy = doingOf(y);
     return op === "+" ? [dx, dy].filter((d): d is string => !!d).map((d) => `plus|${d}`) : op === "-" ? [...(dx ? [`from|${dx}`] : []), ...(dy ? [`minus|${dy}`] : [])] : op === "×" ? [dx, dy].filter((d): d is string => !!d).map((d) => `times|${d}`) : [...(dx ? [`over|${dx}`] : []), ...(dy ? [`by|${dy}`] : [])];
   };
+  // A sum or difference times another: a price multiplies the count it is the price of, not the
+  // difference of counts.
+  const summed = (w: Worked) => /^\(.*[+-].*\)$/.test(w.how);
   const step = (value: number, unit: Unit, how: string, op: string, fit: readonly string[], division = 0): Worked => ({
     value,
     unit,
@@ -867,7 +904,7 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   const kindA = leafAt(a) >= 0 ? amounts[leafAt(a)]!.kind : undefined;
   const kindB = leafAt(b) >= 0 ? amounts[leafAt(b)]!.kind : undefined;
   const kinds = kindA && kindB ? (kindA === kindB ? ["times:kind"] : ["times:otherKind"]) : [];
-  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", [...(ratioOf(a) || ratioOf(b) ? ["times:ratio"] : []), ...(beside ? ["times:beside"] : []), ...kinds, ...lexical("×", a, b)]));
+  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", [...(ratioOf(a) || ratioOf(b) ? ["times:ratio"] : []), ...(beside ? ["times:beside"] : []), ...kinds, ...lexical("×", a, b), ...(summed(a) && summed(b) ? ["times:sums"] : [])]));
   // Divided: units divide; not by a ratio's opposite, nothing by zero.
   for (const [x, y] of [[a, b], [b, a]] as const) {
     if (y.value === 0 || ratioOf(x)) continue;
