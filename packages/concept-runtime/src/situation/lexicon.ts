@@ -140,7 +140,9 @@ export function lexicon(store: ConceptStore): Lexicon {
     factors.set(w, found);
     return found;
   };
-  const first = (word: string, predicate: string, forms = formsOf(word)) => {
+  // A word's forms: as said, its base, a plural's singular, a past's base ("increased" increase).
+  const allForms = (word: string) => [...new Set([...formsOf(word), ...doingForms(word)])];
+  const first = (word: string, predicate: string, forms = allForms(word)) => {
     for (const f of forms) {
       const s = supposed.get(f);
       if (s?.has(predicate)) return s.get(predicate);

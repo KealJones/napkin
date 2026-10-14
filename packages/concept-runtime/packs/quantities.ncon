@@ -580,6 +580,108 @@ Concept(Dollar(), Measures(Money()))
 
 Concept(Cent(), Measures(Money()))
 
+// Told the answer to a situation: the reading that comes to it, said, and what was learned; or
+// that none of the readings does.
+Concept(Corrected(),
+  Realization(Corrected(Rest($x)),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($named,
+              Lambda(List($n),
+                Sequence(
+                  Bind($a, Call(Member($args, "find"), Lambda(List($x), Equals(Member($x, "name"), $n)))),
+                  Return(If($a, Member($a, "value"), Undefined()))
+                )
+              )
+            ),
+            Bind($list,
+              Lambda(List($n),
+                Sequence(
+                  Bind($v, Call($named, $n)),
+                  Return(
+                    If(
+                      And($v, Member($v, "args")),
+                      Map(Member($v, "args"), Lambda(List($a), Call($String, Member($a, "value")))),
+                      List()
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($told, Call($String, Call($named, "told"))),
+            Bind($was, Call($named, "was")),
+            If(
+              Equals($was, $told),
+              Return(Add(Add("Yes, ", $told), ".")),
+              Undefined()
+            ),
+            Bind($learned, Call($list, "learned")),
+            Bind($after,
+              If(
+                Length($learned),
+                Add(Add(" I've learned that ", Call(Member($learned, "join"), " and ")), "."),
+                ""
+              )
+            ),
+            If(
+              NotEquals(Call($named, "found"), true),
+              Return(
+                Add(
+                  Add(Add("Thanks. I couldn't get to ", $told), " from what I read, so I'll keep the telling in mind."),
+                  $after
+                )
+              ),
+              Undefined()
+            ),
+            Bind($steps, Call($list, "steps")),
+            Bind($noted,
+              Filter(
+                Call($list, "noted"),
+                Lambda(List($w),
+                  Not(Call(Member($learned, "some"), Lambda(List($l), Includes($l, Add(Add("\"", $w), "\"")))))
+                )
+              )
+            ),
+            Bind($why,
+              Or(
+                $after,
+                If(
+                  Length($noted),
+                  Add(
+                    Add(" That tells me something about \"", Call(Member($noted, "join"), "\" and \"")),
+                    "\"; once more and I'll know it."
+                  ),
+                  If(
+                    Equals(Call($named, "weighed"), true),
+                    " I'll weigh it that way next time.",
+                    ""
+                  )
+                )
+              )
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(Add("Got it, ", $told), ". Reading it again, I can get there: "),
+                    Call(Member($steps, "join"), "; ")
+                  ),
+                  "."
+                ),
+                $why
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // A situation read but not worked out: what was read, said honestly, instead of a guess.
 Concept(Unworked(),
   Realization(Unworked(Rest($x)),

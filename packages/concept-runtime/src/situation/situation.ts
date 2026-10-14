@@ -673,11 +673,16 @@ export const PRIOR: Readonly<Record<string, number>> = {
 /** The weights in use: the prior, with what has been learned over it. */
 export function weightsOf(store: ConceptStore): Record<string, number> {
   const w: Record<string, number> = { ...PRIOR };
-  for (const t of store.asSubject("Situations")) {
-    if (t.predicate !== "Weighs" || !isCall(t.expr)) continue;
-    const f = t.expr.args[0]?.value;
-    const v = t.expr.args[1]?.value;
-    if (typeof f === "string" && typeof v === "number") w[f] = v;
+  // The newest of each: a weight learned again replaces what was learned before (both kept).
+  const newest = new Map<string, number>();
+  for (const r of store.get("Situations")?.relations ?? []) {
+    if (!isCall(r.claim) || r.claim.head !== "Weighs" || store.retracted("Situations", r.claim)) continue;
+    const f = r.claim.args[0]?.value;
+    const v = r.claim.args[1]?.value;
+    const seq = Math.max(0, ...(r.stamps ?? []).map((st) => st.seq));
+    if (typeof f !== "string" || typeof v !== "number" || (newest.get(f) ?? -1) > seq) continue;
+    newest.set(f, seq);
+    w[f] = v;
   }
   return w;
 }
@@ -714,6 +719,8 @@ export interface Reading {
   readonly value: number;
   /** How it was worked out, said. */
   readonly how?: string;
+  /** Each step, said. */
+  readonly steps?: readonly string[];
   readonly features: Readonly<Record<string, number>>;
   readonly score: number;
 }
@@ -842,7 +849,7 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   // None can be: not worked out, rather than said as if it were.
   const pool = all.filter(whole).sort((x, y) => total(y) - total(x));
   const best = pool[0];
-  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w), how: w.how }));
+  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w), how: w.how, steps: w.steps }));
   if (best && owed(best.used) <= 2) {
     const next = pool.find((w) => Math.abs(w.value - best.value) > 1e-9);
     const margin = next ? total(best) - total(next) : 99;

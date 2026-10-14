@@ -148,6 +148,12 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   7,473 train workings: test 0-399 69 (packs 78, none 52), 78 learned, none against the packs.
 - [ ] W14. A unit known as IsA(UnitOfTime()) (as Wikidata grounding writes it) makes the frames
   hearing misread "waht is 6 tims 7" ("times" becomes a time): units are Measures(Time()) for now.
+- [x] W15. Learning from being told (situation/correct.ts): after a worked answer, a short reply
+  that names one amount and no thing of its own ("no, it's 15") is the answer; the reading that
+  comes to it is said; each word of what was told (not the question's) is tried each way, and the
+  ways that alone bring the answer out are kept as Told(...) evidence on the least known of them
+  ("zorped" before "has"), the meaning itself once two tellings agree and none disagree; only a
+  telling no word explains moves the weights (newest Situations Weighs(...) wins).
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

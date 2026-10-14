@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { c } from "../concept/expression.js";
+import { c, format } from "../concept/expression.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { turn } from "../runtime/turn.js";
 import { seed } from "../seed/seed.js";
@@ -122,4 +122,22 @@ test("what words mean is read from the graph: a number word is a number, a share
   assert.equal(lex.times("in"), undefined);
   assert.equal(lex.measures("minutes"), "Time");
   assert.equal(lex.measures("dollar"), "Money");
+});
+
+test("told the answer, a word never met is learned from what it must mean, put down to it before to the words known", async () => {
+
+  const s = new ConceptStore();
+  seed(s);
+  const history: { message: string; result: string; spoken: string }[] = [];
+  const say = async (m: string) => {
+    const t = await turn(new Runtime(s, {}), m, c("Execution"), { learn: false, history: history.slice(-6) });
+    history.push({ message: m, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
+    return t.spoken;
+  };
+  assert.match(await say("Tom has 20 marbles. He zorped 5 marbles. How many marbles does Tom have now?"), /25 marbles/);
+  assert.match(await say("no, 15"), /20 - 5 = 15 marbles\. That tells me something about "zorp"/);
+  await say("Ana has 30 stickers. She zorped 12 stickers. How many stickers does Ana have now?");
+  assert.match(await say("18"), /I've learned that "zorp" takes away\./);
+  assert.match(await say("Lee has 50 cards. He zorped 8 cards. How many cards does Lee have now?"), /42 cards\.$/);
+  assert.equal(s.asSubject("Have").some((t) => t.predicate === "Removes"), false);
 });
