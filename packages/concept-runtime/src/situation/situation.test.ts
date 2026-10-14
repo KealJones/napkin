@@ -148,10 +148,17 @@ test("a word problem whose thing asked is not told, or that tells to work it out
   assert.ok(situationOf(store, "Darrell and Allen's ages are in the ratio of 7:11. If their total age now is 162, calculate Allen's age 10 years from now."));
 });
 
-test("a word written as a name that nothing is found for is taken as a name, and what is said of it is kept", async () => {
+test("a word nothing is found for, standing where a name stands, is a name however it is written; a misspelling or a doing is not", async () => {
   const s = new ConceptStore();
   seed(s);
   const say = async (m: string) => (await turn(new Runtime(s, {}), m, c("Execution"), { fetch: async () => ({}) })).spoken;
   assert.doesNotMatch(await say("Marie bought 5 apples."), /don't know/);
-  assert.equal(await say("Who is Gunter?"), "Gunter is a name.");
+  assert.doesNotMatch(await say("maria bought 5 apples."), /don't know/);
+  assert.doesNotMatch(await say("I went to the store with gunter."), /don't know/);
+  assert.doesNotMatch(await say("Mishka bought 3 pairs of shorts."), /don't know what mishka/);
+  const { standsAsNameIn } = await import("../ears/parser/words.js");
+  assert.equal(standsAsNameIn("Mishka bought 3 pairs of shorts.", "mishka"), true);
+  assert.equal(standsAsNameIn("He zorped 5 marbles.", "zorped"), false);
+  assert.equal(standsAsNameIn("i bougth 5 aples.", "bougth"), false);
+  assert.equal(standsAsNameIn("the stor is closed", "stor"), false);
 });

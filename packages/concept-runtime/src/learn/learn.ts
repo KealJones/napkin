@@ -13,7 +13,7 @@ import { reachesBehaviour } from "../runtime/select.js";
 import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import { lemma, properNoun } from "../runtime/host.js";
-import { isWord } from "../ears/parser/words.js";
+import { isWord, standsAsNameIn } from "../ears/parser/words.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
 import { collectGaps, learnable, type Gap } from "../runtime/turn.js";
@@ -21,13 +21,6 @@ import { Relations } from "../store/relations.js";
 import { forwardSynonym } from "../seed/seed.js";
 import { nameOf } from "../ears/parser/names.js";
 import { foldPhrases, sayPhrase } from "../ears/phrase.js";
-
-/** A word written capitalized where it was said, and not a common word: a name. */
-export function writtenAsName(message: string, words: string): boolean {
-  if (words.includes(" ")) return false;
-  const at = new RegExp(`\\b${words.replace(/[^a-z0-9]/g, "")}\\b`, "i").exec(message);
-  return !!at && /^[A-Z]/.test(at[0]) && properNoun(words);
-}
 
 export interface LearnStep {
   readonly identity: string;
@@ -403,10 +396,11 @@ async function learnOnce(
         learnedSomething = true;
         continue;
       }
-      // Nothing found anywhere for a word written as a name ("Marie", "Gunter": capitalized where it
-      // was said, and no common word): it is a name, of someone or something the talk is about.
-      // Not knowing more of it is no reason to stop; what is said of it is what is known.
-      if (looked && named && writtenAsName(message, words)) {
+      // Nothing found anywhere for a word that stands where a name stands ("maria bought", "with
+      // Gunter"), better than any word it could be a misspelling of: it is a name, of someone or
+      // something the talk is about. Not knowing more of it is no reason to stop.
+      // Heard applied to something ("Mishka(Bought(...))") or not: where it stands decides.
+      if (looked && standsAsNameIn(message, words)) {
         runtime.store.addRelation(gap.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
         steps.push({ identity: gap.identity, how: "name", detail: "taken as a name: nothing else was found for it" });
         learnedSomething = true;
@@ -483,11 +477,5 @@ export async function lookUpWord(
   };
   const world = async () =>
     (await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)) !== undefined;
-  if (common ? (await dictionary()) || (await world()) : (await world()) || (await dictionary())) return true;
-  // Found nowhere, and written as a name where it was said: a name, so the reading goes on.
-  if (!options.thing && writtenAsName(said, words) && !runtime.store.get(identity)?.relations.length) {
-    runtime.store.addRelation(identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
-    return true;
-  }
-  return false;
+  return common ? (await dictionary()) || (await world()) : (await world()) || (await dictionary());
 }

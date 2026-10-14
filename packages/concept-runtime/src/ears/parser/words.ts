@@ -328,3 +328,121 @@ export function bases(word: string): string[] {
   }
   return out;
 }
+
+/**
+ * What a word nothing knows is, by where it stands: a word people write, misspelled ("bougth" is
+ * bought), or a name ("maria bought 5 apples", however it is capitalised). Each is weighed by how
+ * well it fits beside its neighbours in the bigram counts: a word by its own pairs, a name by the
+ * pairs of every name the tagger's lexicon holds ("with maria", "maria said" are pairs names make;
+ * "he zorped" is not). How it was written (a capital where a sentence does not start, a name the
+ * lexicon has) counts for a name, never decides it alone.
+ */
+export interface SlotReading {
+  readonly as: "name" | "word";
+  /** The word meant: as typed for a name, or the word it is a misspelling of. */
+  readonly text: string;
+  readonly score: number;
+}
+
+const NAME_TAGS = /^(FirstName|MaleName|FemaleName|Person|LastName)$/;
+const isName = (w: string): boolean => tagsOf(w).some((t) => NAME_TAGS.test(t));
+/** What stands where a name stands: names, and the words that stand in for one ("she", "him"). */
+const standsIn = (w: string): boolean => isName(w) || tagsOf(w).includes("Pronoun");
+let pairs: { left: Map<string, number>; right: Map<string, number>; nameLeft: Map<string, number>; nameRight: Map<string, number>; total: number; names: number; least: number } | undefined;
+/** What follows and what goes before each word, and how much of it is a name, from the bigram counts. */
+export function pairCounts() {
+  if (pairs) return pairs;
+  const s = symspell();
+  const left = new Map<string, number>(), right = new Map<string, number>(), nameLeft = new Map<string, number>(), nameRight = new Map<string, number>();
+  for (const [k, n] of s.bigrams as Map<string, number>) {
+    const [a, b] = k.split(" ") as [string, string];
+    left.set(a, (left.get(a) ?? 0) + n);
+    right.set(b, (right.get(b) ?? 0) + n);
+    if (standsIn(b)) nameLeft.set(a, (nameLeft.get(a) ?? 0) + n);
+    if (standsIn(a)) nameRight.set(b, (nameRight.get(b) ?? 0) + n);
+  }
+  let total = 0, names = 0, least = Infinity;
+  for (const n of (s.bigrams as Map<string, number>).values()) if (n < least) least = n;
+  for (const [w, n] of s.words as Map<string, number>) {
+    total += n;
+    if (standsIn(w)) names += n;
+  }
+  pairs = { left, right, nameLeft, nameRight, total, names, least };
+  return pairs;
+}
+
+/**
+ * How much more often than it is written at all a word (or any name) stands beside these
+ * neighbours, as a log ratio over the sides it has (0: no telling either way).
+ */
+function fit(prev: string, next: string, own: { left: (p: string) => number; right: (n: string) => number; share: number }): number {
+  const p = pairCounts();
+  // A pair the list lacks was written fewer times than the least it keeps: about half of that.
+  const missing = p.least / 2;
+  const sides: number[] = [];
+  const side = (seen: number, around: number) => Math.log((seen || missing) / Math.max(missing, around * own.share));
+  if (prev && p.left.has(prev)) sides.push(side(own.left(prev), p.left.get(prev)!));
+  if (next && p.right.has(next)) sides.push(side(own.right(next), p.right.get(next)!));
+  return sides.length ? sides.reduce((a, b) => a + b, 0) / sides.length : 0;
+}
+
+export function slotReadings(word: string, prev = "", next = "", written: { capitalised?: boolean } = {}): SlotReading[] {
+  const w = word.toLowerCase();
+  if (!/^[a-z]+$/.test(w)) return [];
+  const p = pairCounts();
+  const s = symspell();
+  // A number beside it is said as one: "5 aples" is "five aples", which the pairs know.
+  const said = (x: string) => (/^\$?\d/.test(x) ? (Number(x.replace(/[^\d.]/g, "")) === 1 ? "one" : "five") : x.toLowerCase().replace(/[^a-z]/g, ""));
+  const pv = said(prev);
+  const nx = said(next);
+  const out: SlotReading[] = [];
+  const nameFit = fit(pv, nx, { left: (a) => p.nameLeft.get(a) ?? 0, right: (b) => p.nameRight.get(b) ?? 0, share: p.names / p.total });
+  // A name is seldom what an unknown word is with nothing around it to say so.
+  out.push({ as: "name", text: word, score: nameFit - 0.5 + (isName(w) ? 1.5 : 0) + (written.capitalised ? 0.7 : 0) + (isWord(w) ? -0.5 : 0) });
+  const wordFit = (c: string) => fit(pv, nx, { left: (a) => s.bigrams.get(`${a} ${c}`) ?? 0, right: (b) => s.bigrams.get(`${c} ${b}`) ?? 0, share: Math.max(1, frequency(c)) / p.total });
+  // As typed: a word people write, by its own pairs; else a word not known yet, with nothing for
+  // or against it (what looking it up, or being told, is for).
+  out.push({ as: "word", text: w, score: frequency(w) > 0 ? wordFit(w) : 0 });
+  // Misspelled: each word a letter or two away, less for each letter changed.
+  for (const a of alternatives(word, pv, nx)) if (a.kind === "spelling") out.push({ as: "word", text: a.text, score: wordFit(a.text) - a.distance + a.common });
+  return out.sort((a, b) => b.score - a.score);
+}
+
+/** Whether a name fits where the word stands better than any word it could be. */
+export const standsAsName = (word: string, prev = "", next = "", written: { capitalised?: boolean } = {}): boolean => {
+  const best = slotReadings(word, prev, next, written)[0];
+  return best?.as === "name" && best.score > 0;
+};
+
+/**
+ * Whether a word said in a message stands as a name there, at any place it is said: its
+ * neighbours (none past a sentence's or clause's edge) and how it was written.
+ */
+export function standsAsNameIn(message: string, word: string): boolean {
+  const w = word.toLowerCase();
+  const sentences = message.split(/(?<=[.!?;:])\s+/);
+  for (const sentence of sentences) {
+    const t = sentence.match(/[A-Za-z]+(?:['’][a-z]+)?|\$?\d[\d,.]*|[,()]/g) ?? [];
+    for (let i = 0; i < t.length; i++) {
+      const x = t[i]!.replace(/['’]s$/, "");
+      if (x.toLowerCase() !== w) continue;
+      const edge = (y: string | undefined) => (y === undefined || /^[,()]$/.test(y) ? "" : y.replace(/['’]s$/, ""));
+      const capitalised = i > 0 && /^[A-Z][a-z]/.test(x);
+      const best = slotReadings(x, edge(t[i - 1]), edge(t[i + 1]), { capitalised })[0];
+      const name = (k: number) => {
+        const y = edge(t[k]);
+        if (!y || /\d/.test(y)) return 0;
+        const r = slotReadings(y, edge(t[k - 1]), edge(t[k + 1]), { capitalised: k > 0 && /^[A-Z][a-z]/.test(y) });
+        const n = r.find((z) => z.as === "name")?.score ?? 0;
+        return r[0]?.as === "name" ? Math.max(0, n) : 0;
+      };
+      // Joined to another by "and" or "or", it is the same kind of thing: beside a name, a name.
+      const joined = [i - 1, i + 1].filter((k) => tagsOf((t[k] ?? "").toLowerCase()).includes("Conjunction")).map((k) => name(k + (k < i ? -1 : 1)));
+      const own = slotReadings(x, edge(t[i - 1]), edge(t[i + 1]), { capitalised }).find((r) => r.as === "name")?.score ?? -Infinity;
+      const boosted = own + 0.5 * Math.max(0, ...joined);
+      const rival = slotReadings(x, edge(t[i - 1]), edge(t[i + 1]), { capitalised }).find((r) => r.as === "word")?.score ?? 0;
+      if (best && boosted > 0 && boosted > Math.max(0, rival)) return true;
+    }
+  }
+  return false;
+}

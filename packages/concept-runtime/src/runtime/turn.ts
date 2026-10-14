@@ -18,7 +18,8 @@ import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
-import { learn, lookUpWord, unknownAnswer, writtenAsName, type LearnStep } from "../learn/learn.js";
+import { learn, lookUpWord, unknownAnswer, type LearnStep } from "../learn/learn.js";
+import { standsAsNameIn } from "../ears/parser/words.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, pickSense, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
@@ -1059,16 +1060,17 @@ export async function turn(
   // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
   // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",
   // which is the model doing arithmetic the graph refused to do.
-  // A statement kept ("Marie bought 5 boxes.") is kept whatever its names are: a word written as a
-  // name where it was said, that nothing else was found for, is a name (IsA(Name())), not a reason
-  // to say it is not known.
+  // A statement kept ("Marie bought 5 boxes.") is kept whatever its names are: a word that stands
+  // where a name stands, that nothing else was found for, is taken as a name, not a reason to say
+  // it is not known.
   const noted = result !== undefined && isCall(result) && result.head === "Noted";
   const asName = (g: Gap) => {
     const known = runtime.store.get(g.identity)?.relations ?? [];
-    return (g.kind === "unknown" || known.every((r) => format(r.claim) === "IsA(Name())")) && writtenAsName(message, g.identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase());
+    return (g.kind === "unknown" || known.every((r) => format(r.claim) === "IsA(Name())")) && standsAsNameIn(message, g.identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase());
   };
+  // Nothing is written of it here: what the statement says of the word ("pi is 3.14159", "greg is
+  // my coworker") is what it is, and a guess kept beside that would answer before it.
   const names = noted ? gaps.filter(asName) : [];
-  for (const g of names) if (!runtime.store.get(g.identity)?.relations.length) runtime.store.addRelation(g.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
   const unrealized = learnable(runtime, gaps.filter((g) => !names.includes(g))).map((g) => ({ identity: g.identity, kind: g.kind }));
   // An answer still carrying something that never ran is not an answer, whether or not
   // anything about it is learnable. Handing it to the model invites an answer from the
