@@ -144,14 +144,6 @@ Concept(Compares(), IsA(Relation()))
 
 Concept(Changes(), IsA(Relation()))
 
-Concept(CountsAs(), IsA(Relation()))
-
-Concept(Multiplies(), IsA(Relation()))
-
-Concept(DividesBy(), IsA(Relation()))
-
-Concept(Measures(), IsA(Relation()))
-
 Concept(CountsPer(), IsA(Relation()))
 
 Concept(Marks(), IsA(Relation()))
@@ -257,154 +249,6 @@ Concept(Reduction(), Changes(Down()))
 Concept(Smaller(), Changes(Down()))
 
 Concept(Sale(), Changes(Down()))
-
-Concept(Zero(), CountsAs(0))
-
-Concept(One(), CountsAs(1))
-
-Concept(Two(), CountsAs(2))
-
-Concept(Three(), CountsAs(3))
-
-Concept(Four(), CountsAs(4))
-
-Concept(Five(), CountsAs(5))
-
-Concept(Six(), CountsAs(6))
-
-Concept(Seven(), CountsAs(7))
-
-Concept(Eight(), CountsAs(8))
-
-Concept(Nine(), CountsAs(9))
-
-Concept(Ten(), CountsAs(10))
-
-Concept(Eleven(), CountsAs(11))
-
-Concept(Twelve(), CountsAs(12))
-
-Concept(Thirteen(), CountsAs(13))
-
-Concept(Fourteen(), CountsAs(14))
-
-Concept(Fifteen(), CountsAs(15))
-
-Concept(Sixteen(), CountsAs(16))
-
-Concept(Seventeen(), CountsAs(17))
-
-Concept(Eighteen(), CountsAs(18))
-
-Concept(Nineteen(), CountsAs(19))
-
-Concept(Twenty(), CountsAs(20))
-
-Concept(Thirty(), CountsAs(30))
-
-Concept(Forty(), CountsAs(40))
-
-Concept(Fifty(), CountsAs(50))
-
-Concept(Sixty(), CountsAs(60))
-
-Concept(Seventy(), CountsAs(70))
-
-Concept(Eighty(), CountsAs(80))
-
-Concept(Ninety(), CountsAs(90))
-
-Concept(Hundred(), CountsAs(100))
-
-Concept(Thousand(), CountsAs(1000))
-
-Concept(Half(), Multiplies(0.5))
-
-Concept(Twice(), Multiplies(2))
-
-Concept(Double(), Multiplies(2))
-
-Concept(Triple(), Multiplies(3))
-
-Concept(Thrice(), Multiplies(3))
-
-Concept(Half(), DividesBy(2))
-
-Concept(Halves(), DividesBy(2))
-
-Concept(Third(), DividesBy(3))
-
-Concept(Quarter(), DividesBy(4))
-
-Concept(Fourth(), DividesBy(4))
-
-Concept(Fifth(), DividesBy(5))
-
-Concept(Sixth(), DividesBy(6))
-
-Concept(Seventh(), DividesBy(7))
-
-Concept(Eighth(), DividesBy(8))
-
-Concept(Ninth(), DividesBy(9))
-
-Concept(Tenth(), DividesBy(10))
-
-Concept(Second(), Measures(Time()))
-
-Concept(Minute(), Measures(Time()))
-
-Concept(Hour(), Measures(Time()))
-
-Concept(Day(), Measures(Time()))
-
-Concept(Week(), Measures(Time()))
-
-Concept(Month(), Measures(Time()))
-
-Concept(Year(), Measures(Time()))
-
-Concept(Mile(), Measures(Length()))
-
-Concept(Kilometer(), Measures(Length()))
-
-Concept(Meter(), Measures(Length()))
-
-Concept(Foot(), Measures(Length()))
-
-Concept(Inch(), Measures(Length()))
-
-Concept(Yard(), Measures(Length()))
-
-Concept(Centimeter(), Measures(Length()))
-
-Concept(Millimeter(), Measures(Length()))
-
-Concept(Pound(), Measures(Mass()))
-
-Concept(Ounce(), Measures(Mass()))
-
-Concept(Kilogram(), Measures(Mass()))
-
-Concept(Gram(), Measures(Mass()))
-
-Concept(Ton(), Measures(Mass()))
-
-Concept(Gallon(), Measures(Volume()))
-
-Concept(Quart(), Measures(Volume()))
-
-Concept(Pint(), Measures(Volume()))
-
-Concept(Cup(), Measures(Volume()))
-
-Concept(Liter(), Measures(Volume()))
-
-Concept(Milliliter(), Measures(Volume()))
-
-Concept(Dollar(), Measures(Money()))
-
-Concept(Cent(), Measures(Money()))
 
 Concept(Morning(), CountsPer(Day()))
 
@@ -529,3 +373,205 @@ Concept(Feet(), SynonymOf(Foot()))
 Concept(Dollars(), SynonymOf(Dollar()))
 
 Concept(Bucks(), SynonymOf(Dollar()))
+
+// A number said as a word is that number: "eight" is Number(8), as the hearing reads a numeral.
+Concept(Zero(), SynonymOf(Number(0)))
+
+Concept(One(), SynonymOf(Number(1)))
+
+Concept(Two(), SynonymOf(Number(2)))
+
+Concept(Three(), SynonymOf(Number(3)))
+
+Concept(Four(), SynonymOf(Number(4)))
+
+Concept(Five(), SynonymOf(Number(5)))
+
+Concept(Six(), SynonymOf(Number(6)))
+
+Concept(Seven(), SynonymOf(Number(7)))
+
+Concept(Eight(), SynonymOf(Number(8)))
+
+Concept(Nine(), SynonymOf(Number(9)))
+
+Concept(Ten(), SynonymOf(Number(10)))
+
+Concept(Eleven(), SynonymOf(Number(11)))
+
+Concept(Twelve(), SynonymOf(Number(12)))
+
+Concept(Thirteen(), SynonymOf(Number(13)))
+
+Concept(Fourteen(), SynonymOf(Number(14)))
+
+Concept(Fifteen(), SynonymOf(Number(15)))
+
+Concept(Sixteen(), SynonymOf(Number(16)))
+
+Concept(Seventeen(), SynonymOf(Number(17)))
+
+Concept(Eighteen(), SynonymOf(Number(18)))
+
+Concept(Nineteen(), SynonymOf(Number(19)))
+
+Concept(Twenty(), SynonymOf(Number(20)))
+
+Concept(Thirty(), SynonymOf(Number(30)))
+
+Concept(Forty(), SynonymOf(Number(40)))
+
+Concept(Fifty(), SynonymOf(Number(50)))
+
+Concept(Sixty(), SynonymOf(Number(60)))
+
+Concept(Seventy(), SynonymOf(Number(70)))
+
+Concept(Eighty(), SynonymOf(Number(80)))
+
+Concept(Ninety(), SynonymOf(Number(90)))
+
+Concept(Hundred(), SynonymOf(Number(100)))
+
+Concept(Thousand(), SynonymOf(Number(1000)))
+
+// A share or a multiple said as a word is what it does to what it is said of: "a third of 9" is
+// Divide(9, 3), as Half and Double are (everyday.ncon). Read by situations for the factor, and by
+// the arithmetic like any definition.
+Concept(Third(),
+  Realization(Third($x),
+    context = Execution(),
+    body = Divide($x, 3)
+  )
+)
+
+Concept(Quarter(),
+  Realization(Quarter($x),
+    context = Execution(),
+    body = Divide($x, 4)
+  )
+)
+
+Concept(Fourth(),
+  Realization(Fourth($x),
+    context = Execution(),
+    body = Divide($x, 4)
+  )
+)
+
+Concept(Fifth(),
+  Realization(Fifth($x),
+    context = Execution(),
+    body = Divide($x, 5)
+  )
+)
+
+Concept(Sixth(),
+  Realization(Sixth($x),
+    context = Execution(),
+    body = Divide($x, 6)
+  )
+)
+
+Concept(Seventh(),
+  Realization(Seventh($x),
+    context = Execution(),
+    body = Divide($x, 7)
+  )
+)
+
+Concept(Eighth(),
+  Realization(Eighth($x),
+    context = Execution(),
+    body = Divide($x, 8)
+  )
+)
+
+Concept(Ninth(),
+  Realization(Ninth($x),
+    context = Execution(),
+    body = Divide($x, 9)
+  )
+)
+
+Concept(Tenth(),
+  Realization(Tenth($x),
+    context = Execution(),
+    body = Divide($x, 10)
+  )
+)
+
+Concept(Triple(),
+  Realization(Triple($x),
+    context = Execution(),
+    body = Multiply($x, 3)
+  )
+)
+
+Concept(Thrice(),
+  Realization(Thrice($x),
+    context = Execution(),
+    body = Multiply($x, 3)
+  )
+)
+
+Concept(Halves(), SynonymOf(Half()))
+
+// What a unit measures. (Not Measures(Time()), as Wikidata would say it: read as a kind, it makes
+// "times" a time to the frames hearing; see tasks/todo.md.)
+Concept(Measures(), IsA(Relation()))
+Concept(Second(), Measures(Time()))
+
+Concept(Minute(), Measures(Time()))
+
+Concept(Hour(), Measures(Time()))
+
+Concept(Day(), Measures(Time()))
+
+Concept(Week(), Measures(Time()))
+
+Concept(Month(), Measures(Time()))
+
+Concept(Year(), Measures(Time()))
+
+Concept(Mile(), Measures(Length()))
+
+Concept(Kilometer(), Measures(Length()))
+
+Concept(Meter(), Measures(Length()))
+
+Concept(Foot(), Measures(Length()))
+
+Concept(Inch(), Measures(Length()))
+
+Concept(Yard(), Measures(Length()))
+
+Concept(Centimeter(), Measures(Length()))
+
+Concept(Millimeter(), Measures(Length()))
+
+Concept(Pound(), Measures(Mass()))
+
+Concept(Ounce(), Measures(Mass()))
+
+Concept(Kilogram(), Measures(Mass()))
+
+Concept(Gram(), Measures(Mass()))
+
+Concept(Ton(), Measures(Mass()))
+
+Concept(Gallon(), Measures(Volume()))
+
+Concept(Quart(), Measures(Volume()))
+
+Concept(Pint(), Measures(Volume()))
+
+Concept(Cup(), Measures(Volume()))
+
+Concept(Liter(), Measures(Volume()))
+
+Concept(Milliliter(), Measures(Volume()))
+
+Concept(Dollar(), Measures(Money()))
+
+Concept(Cent(), Measures(Money()))

@@ -139,6 +139,15 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   78, none 72). Next: tell counting words from units and shares by where they stand and what the
   working does with the number (x n, / n), so "minute" learns Holds(Second(), 60) and "third"
   DividesBy(3); then every word fact learned at once, the packs' forgotten.
+- [x] W13. Meanings as the graph's own facts: "eight" SynonymOf(Number(8)) (a synonym of a value
+  forwards as that value: Eight() is Number(8), so "six times seven" is 42 anywhere); shares and
+  multiples by definition (Third($x) = Divide($x, 3), read for the factor, as Half and Twice are);
+  doings Removes() / Adds(), money apart (Sell Adds(Money())). Learning is general
+  (learn/associate.ts: Associations by lift, Directions by base rate or majority) and writes those
+  facts (situation/fromworkings.ts). All of the packs' word meanings forgotten and learned from the
+  7,473 train workings: test 0-399 69 (packs 78, none 52), 78 learned, none against the packs.
+- [ ] W14. A unit known as IsA(UnitOfTime()) (as Wikidata grounding writes it) makes the frames
+  hearing misread "waht is 6 tims 7" ("times" becomes a time): units are Measures(Time()) for now.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

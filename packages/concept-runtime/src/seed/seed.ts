@@ -9,7 +9,7 @@
  * Nothing in a pack is stubbed. A Concept that cannot yet be honestly realized is omitted,
  * so that it produces a residual the learning path can act on rather than a wrong answer.
  */
-import { type Expr, c, call, equal, format, isCall, parse } from "../concept/expression.js";
+import { type Call, type Expr, c, call, equal, format, isCall, parse } from "../concept/expression.js";
 import { declares, realization, type ConceptUnit, type Realization } from "../concept/unit.js";
 import type { ConceptStore } from "../store/store.js";
 import { BUILT_IN_PACKS, loadPacks, type Pack, seedPacks } from "../code/ncon.js";
@@ -54,7 +54,14 @@ function reachesRealBehaviour(store: ConceptStore, identity: string, seen = new 
  * Point one name at another's behaviour. Refused when the target has none of its own to
  * lend, because a pointer at a pointer is not a destination.
  */
-export function forwardSynonym(store: ConceptStore, identity: string, target: string): boolean {
+export function forwardSynonym(store: ConceptStore, identity: string, target: string | Call): boolean {
+  // A synonym of a value ("eight" SynonymOf(Number(8))) is that value: Eight() is Number(8).
+  if (typeof target !== "string" && target.args.length) {
+    if (!reachesRealBehaviour(store, target.head, new Set([identity]))) return false;
+    store.addRealization(identity, realization({ pattern: `${identity}()`, evaluateArguments: false, properties: [`${FORWARDING}(${format(target)})`], body: target }));
+    return true;
+  }
+  if (typeof target !== "string") target = target.head;
   if (target === identity) return false;
   if (!reachesRealBehaviour(store, target, new Set([identity]))) return false;
   store.addRealization(
@@ -101,7 +108,7 @@ export function deriveSynonymForwarding(store: ConceptStore): number {
       if (!isCall(r) || r.head !== "SynonymOf" || store.retracted(unit.identity, r)) continue;
       const target = r.args[0]?.value;
       if (target === undefined || !isCall(target)) continue;
-      if (!forwardSynonym(store, unit.identity, target.head)) continue;
+      if (!forwardSynonym(store, unit.identity, target)) continue;
       derived += 1;
       break;
     }

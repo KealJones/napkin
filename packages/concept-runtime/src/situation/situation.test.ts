@@ -111,3 +111,15 @@ test("a situation asked about in conversation is answered with its working; name
   // Not a situation: arithmetic and questions about things are heard as before.
   assert.equal((await turn(new Runtime(store, {}), "what is 3 times 4?", c("Execution"), { learn: false })).spoken, "12.");
 });
+
+test("what words mean is read from the graph: a number word is a number, a share is its definition, a unit is what it is a unit of", async () => {
+  const { lexicon } = await import("./lexicon.js");
+  const lex = lexicon(store);
+  assert.equal(lex.count("eight"), 8);
+  assert.equal(lex.times("twice"), 2);
+  assert.equal(lex.times("half"), 0.5);
+  assert.equal(lex.parts("thirds"), 3);
+  assert.equal(lex.times("in"), undefined);
+  assert.equal(lex.measures("minutes"), "Time");
+  assert.equal(lex.measures("dollar"), "Money");
+});

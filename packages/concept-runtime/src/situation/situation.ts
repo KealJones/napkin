@@ -168,11 +168,18 @@ function tokenize(sentence: string): Token[] {
     const n = lex.count(lower);
     out.push({ text: raw, lower, tags: t, ...(n !== undefined ? { number: n } : {}), ...(comma ? { comma } : {}) });
   }
+  // "percent" after a number makes it a share of a hundred (read as such below, with which way the
+  // words after it change what it is a share of).
+  const marked = out.map((tk, i) => (tk.number !== undefined && (out[i + 1]?.lower === "percent" || out[i + 1]?.lower === "%") ? { ...tk, percent: true } : tk));
   // A share in words: "a third", "two thirds", "one-fifth", "three fourths". Only less than a whole:
   // "20 quarters" are coins.
   const shared: Token[] = [];
-  for (let k = 0; k < out.length; k++) {
-    const tk = out[k]!;
+  for (let k = 0; k < marked.length; k++) {
+    const tk = marked[k]!;
+    if (tk.percent) {
+      shared.push(tk);
+      continue;
+    }
     const hyphen = /^([a-z]+)-([a-z]+)$/.exec(tk.lower);
     const top = hyphen ? (hyphen[1] === "a" || hyphen[1] === "an" ? 1 : lex.count(hyphen[1]!)) : tk.lower === "a" || tk.lower === "an" ? 1 : tk.number;
     const bottom = hyphen ? partOf(hyphen[2]!) : out[k + 1] ? partOf(out[k + 1]!.lower) : undefined;
@@ -183,8 +190,7 @@ function tokenize(sentence: string): Token[] {
     }
     shared.push(tk);
   }
-  // "percent" after a number makes it a share.
-  return shared.map((tk, i) => (tk.number !== undefined && (out[i + 1]?.lower === "percent" || out[i + 1]?.lower === "%") ? { ...tk, percent: true } : tk));
+  return shared;
 }
 
 const isNoun = (t: Token | undefined) => !!t && t.number === undefined && (t.tags.includes("Noun") || t.tags.includes("Plural") || t.tags.includes("Singular")) && !t.tags.includes("Pronoun") && !t.tags.includes("Possessive");
@@ -343,7 +349,10 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       }
     }
     // A ratio: "twice as many", "half that much", "3 times as many", "1.2 times her rate".
-    const ratioWord = lex.times(t.lower);
+    // A word that multiplies what it is said of ("twice", "half"), not as an order ("the third
+    // time") or the unit of the number before it ("20 percent").
+    const prior = tokens[i - 1];
+    const ratioWord = prior?.tags.includes("Determiner") || prior?.number !== undefined ? undefined : lex.times(t.lower);
     if (ratioWord !== undefined && t.number === undefined) {
       const wasInner = inner;
       inner = false;
@@ -377,7 +386,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       // "45% discount", "50% more expensive", "20% off": which way the words after it say.
       const way = tokens.slice(i + 1, i + 4).map((x) => x.lower);
       const said = way.some((w) => lex.changes(w) < 0) ? -1 : way.some((w) => lex.changes(w) > 0) ? 1 : undefined;
-      const change = said ?? (by ? (verb !== 0 ? verb : /increase|rais|grow|gain|rose|up/.test(tokens.slice(0, i).map((x) => x.lower).join(" ")) ? 1 : -1) : undefined);
+      // "increased by 30%", "reduced by 30%": the doing says which way, or a word before it that changes.
+      const before = tokens.slice(0, i).map((x) => lex.changes(x.lower) || lex.effect(x.lower)).filter((x) => x !== 0);
+      const change = said ?? (by ? (verb !== 0 ? verb : (before.at(-1) ?? -1)) : undefined);
       out.push({ value: t.number / 100, unit: {}, said: t.text + (t.text.endsWith("%") ? "" : "%"), sentence: index, ratio: true, sign: 0, ...(holder ? { holder } : {}), of: { ...ratioOf(i + 1), ...(change !== undefined ? { change } : {}) } });
       continue;
     }

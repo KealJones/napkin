@@ -6,7 +6,7 @@
  * person (packs/quantities.ncon). A word the graph holds nothing of does nothing, and once its
  * facts are learned it works in every situation, like any other Concept.
  */
-import { isCall } from "../concept/expression.js";
+import { isCall, type Expr } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma } from "../runtime/host.js";
 import type { ConceptStore } from "../store/store.js";
@@ -81,6 +81,65 @@ export function lexicon(store: ConceptStore): Lexicon {
     cache.set(w, got);
     return got;
   };
+  // A number said as a word: SynonymOf(Number(n)) on its Concept.
+  const valueOf = (word: string): number | undefined => {
+    for (const f of formsOf(word)) {
+      for (const t of store.asSubject(nameOf(f))) {
+        if (t.predicate !== "SynonymOf" || !isCall(t.expr)) continue;
+        const v = t.expr.args[0]?.value;
+        if (v !== undefined && isCall(v) && v.head === "Number" && typeof v.args[0]?.value === "number") return v.args[0].value;
+      }
+    }
+    return undefined;
+  };
+  // What a word does to what it is said of, from its definition: Half($x) is Divide($x, 2), so it
+  // takes 0.5 of it; Twice is MultiplyValues(x, 2). A synonym's definition counts (Halves, Half).
+  const factors = new Map<string, number | undefined>();
+  const factorOf = (word: string): number | undefined => {
+    const w = word.toLowerCase().replace(/[^a-z]/g, "");
+    if (factors.has(w)) return factors.get(w);
+    let found: number | undefined;
+    // The factor is what multiplies or divides the word's own argument, or a value bound straight
+    // from it (Twice binds x2 to AsNumber(x)); arithmetic deeper in, on other values, is not it.
+    const variable = (e: unknown): string | undefined => (e && typeof e === "object" && "variable" in (e as object) ? String((e as { variable: unknown }).variable) : undefined);
+    const look = (e: Expr | undefined, own: Set<string>, depth: number): number | undefined => {
+      if (e === undefined || !isCall(e) || depth > 6) return undefined;
+      if (e.head === "Bind" && e.args.length >= 3) {
+        const name = variable(e.args[0]?.value);
+        const from = e.args[1]?.value;
+        const fromOwn = from !== undefined && isCall(from) && from.args.length === 1 && own.has(variable(from.args[0]?.value) ?? "");
+        return look(e.args[2]?.value as Expr, name && fromOwn ? new Set([...own, name]) : own, depth + 1);
+      }
+      if (e.args.length === 2) {
+        const [a, b] = e.args.map((x) => x.value);
+        const literal = typeof b === "number" && own.has(variable(a) ?? "") ? b : undefined;
+        if (literal !== undefined && /^Multiply/.test(e.head)) return literal;
+        if (literal !== undefined && /^Divide/.test(e.head) && literal !== 0) return 1 / literal;
+      }
+      for (const a of e.args) {
+        const got = look(a.value as Expr, own, depth + 1);
+        if (got !== undefined) return got;
+      }
+      return undefined;
+    };
+    for (const f of formsOf(w)) {
+      const id = nameOf(f);
+      const targets = [id, ...store.asSubject(id).filter((t) => t.predicate === "SynonymOf" && isCall(t.expr)).map((t) => (isCall(t.expr) ? t.expr.args[0]?.value : undefined)).filter((v): v is Expr => v !== undefined && isCall(v) && !v.args.length).map((v) => (isCall(v) ? v.head : ""))];
+      for (const t of targets) {
+        for (const r of store.get(t)?.realizations ?? []) {
+          if (r.retired || !isCall(r.pattern) || r.pattern.args.length !== 1) continue;
+          const arg = variable(r.pattern.args[0]?.value);
+          if (!arg) continue;
+          found = look(r.body, new Set([arg]), 0);
+          if (found !== undefined) break;
+        }
+        if (found !== undefined) break;
+      }
+      if (found !== undefined) break;
+    }
+    factors.set(w, found);
+    return found;
+  };
   const first = (word: string, predicate: string, forms = formsOf(word)) => {
     for (const f of forms) {
       const s = supposed.get(f);
@@ -94,12 +153,27 @@ export function lexicon(store: ConceptStore): Lexicon {
   const lex: Lexicon = {
     compares: (w) => way(first(w, "Compares")),
     changes: (w) => way(first(w, "Changes")),
-    count: (w) => num(first(w, "CountsAs")),
-    times: (w) => num(first(w, "Multiplies")),
-    parts: (w) => num(first(w, "DividesBy")),
+    count: (w) => {
+      // "eight" SynonymOf(Number(8)), or supposed so while learning.
+      for (const f of formsOf(w)) {
+        const s = supposed.get(f);
+        if (s?.has("Number")) return num(s.get("Number"));
+      }
+      if (forgotten.has("Number")) return undefined;
+      return valueOf(w);
+    },
+    times: (w) => factorOf(w),
+    parts: (w) => {
+      const f = factorOf(w);
+      return f !== undefined && f > 0 && f < 1 ? Math.round(1 / f) : undefined;
+    },
     measures: (u) => {
-      const v = first(u, "Measures");
-      return typeof v === "string" ? v : undefined;
+      // What it measures: Measures(Time()); a unit known by what it is a unit of (IsA(UnitOfTime()),
+      // as Wikidata says it, IsA(Currency())) the same.
+      const m = first(u, "Measures");
+      if (typeof m === "string") return m;
+      const kind = facts(u).find((x) => x.predicate === "IsA" && typeof x.value === "string" && (/^UnitOf/.test(x.value) || x.value === "Currency"))?.value as string | undefined;
+      return kind === "Currency" ? "Money" : kind?.replace(/^UnitOf/, "");
     },
     per: (w) => {
       const v = first(w, "CountsPer");
@@ -119,8 +193,9 @@ export function lexicon(store: ConceptStore): Lexicon {
       const forms = doingForms(verb);
       if (forms.some((f) => supposed.get(f)?.has("Effect"))) return way(first(verb, "Effect", forms));
       if (forgotten.has("Removes")) return 0;
+      // Removes() / Adds(): what it does to what it is done with (Adds(Money()) is to money, apart).
       for (const f of forms) {
-        const facts = store.asSubject(nameOf(f)).map((t) => t.predicate);
+        const facts = store.asSubject(nameOf(f)).filter((t) => isCall(t.expr) && !t.expr.args.length).map((t) => t.predicate);
         if (facts.includes("Removes")) return -1;
         if (facts.includes("Adds")) return 1;
       }
@@ -129,7 +204,18 @@ export function lexicon(store: ConceptStore): Lexicon {
     effectOnMoney: (verb) => {
       const forms = doingForms(verb);
       const v = forms.map((f) => supposed.get(f)?.get("EffectOnMoney")).find((x) => x !== undefined);
-      return v === undefined ? undefined : way(v);
+      if (v !== undefined) return way(v);
+      if (forgotten.has("Removes")) return undefined;
+      // Adds(Money()): selling brings money in, whatever it does to what is sold.
+      for (const f of forms) {
+        for (const t of store.asSubject(nameOf(f))) {
+          const a = isCall(t.expr) ? t.expr.args[0]?.value : undefined;
+          if (a === undefined || !isCall(a) || a.head !== "Money") continue;
+          if (t.predicate === "Removes") return -1;
+          if (t.predicate === "Adds") return 1;
+        }
+      }
+      return undefined;
     },
     suppose: (word, predicate, value) => {
       for (const w of predicate.startsWith("Effect") ? doingForms(word) : formsOf(word)) {
