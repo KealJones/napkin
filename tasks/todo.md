@@ -70,6 +70,10 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [ ] 24. code-hearing (10.5k lines) is off the live path (code blocks are read by tree-sitter and the
   TypeScript reader). Kept: it is the design's direction (code heard word by word, as concepts).
   Next: run it beside readCode on the coding tests and switch over where it reads the same.
+  Run beside (scripts/compare-code-hearing.mjs, 2026-10-14): of 87 programs the readers read whole,
+  hearing reads 47 the same, 36 differently (nearly all type annotations, which hearing does not
+  hear yet; one Python `and`/`not`), 4 not at all (a generic arrow `<T,>`). Next: type annotations
+  heard as Claims (tasks/typescript-claims.md), then switch.
 - [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
   DailyDialog; ConceptNet has little for "my car broke down".
 - [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
