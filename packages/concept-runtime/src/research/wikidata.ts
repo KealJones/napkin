@@ -97,6 +97,19 @@ async function entities(ids: readonly string[], props: string, get: Fetch): Prom
   return body.entities ?? {};
 }
 
+/**
+ * The Wikidata classes an answer of these kinds must be of: each kind's own (`Someone
+ * WikidataClass("Q215627")`), and those of what it is known by (`Someone KnownBy(Name())`).
+ */
+export function classesOf(store: ConceptStore, kinds: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const k of kinds) {
+    const known = store.asSubject(k).filter((t) => t.predicate === "KnownBy" && t.object !== undefined && typeof t.object === "object" && t.object !== null && "head" in t.object).map((t) => (t.object as { head: string }).head);
+    for (const id of [k, ...known]) for (const t of store.asSubject(id)) if (t.predicate === "WikidataClass" && typeof t.object === "string") out.add(t.object);
+  }
+  return [...out];
+}
+
 /** The item a Concept was already tied to, if it was. */
 export function wikidataItem(store: ConceptStore, identity: string): string | undefined {
   for (const t of store.asSubject(identity)) {
@@ -210,12 +223,20 @@ const SENSES = 3;
 export async function groundInWikidata(
   store: ConceptStore,
   identity: string,
-  options: { fetch?: Fetch; cause?: number; said?: string } = {},
+  options: { fetch?: Fetch; cause?: number; said?: string; kinds?: readonly string[] } = {},
 ): Promise<Grounded | undefined> {
   if (/_\d+$/.test(identity)) return undefined;
   const get = options.fetch ?? defaultFetch;
   const tied = wikidataItem(store, identity);
-  const senses = tied ? [{ id: tied, description: "", sitelinks: 0, kinds: [] }] : fitting(await findSenses(readable(identity), get), readable(identity), options.said ?? "");
+  let senses = tied ? [{ id: tied, description: "", sitelinks: 0, kinds: [] }] : fitting(await findSenses(readable(identity), get), readable(identity), options.said ?? "");
+  // What the question asks for (who: someone; where: a place), as Wikidata classes: only a sense
+  // of one of those is meant.
+  if (options.kinds?.length && !tied) {
+    const found = await entities(senses.map((x) => x.id), "claims", get);
+    const kept: Sense[] = [];
+    for (const sense of senses) if (found[sense.id] && (await reaches(found[sense.id]!, options.kinds, get))) kept.push(sense);
+    senses = kept;
+  }
   if (!senses.length) return undefined;
   // One sense the world writes about far more than any other is the one meant when nothing said
   // picks one ("pi" is the number, not the family name; France the country, not the battleship).
@@ -235,14 +256,20 @@ export async function groundInWikidata(
 }
 
 /** Whether an item is an instance of a kind of name, by Wikidata's own classes (P31, then P279 up). */
-async function aName(entity: Entity, get: Fetch): Promise<boolean> {
+const aName = (entity: Entity, get: Fetch): Promise<boolean> => reaches(entity, ["name"], get);
+
+/**
+ * Whether an item is an instance of one of these classes (by Q-id, or by label), by its classes
+ * (P31, then P279 up, three levels).
+ */
+async function reaches(entity: Entity, labels: readonly string[], get: Fetch): Promise<boolean> {
   const ids = (e: Entity, p: string) => (e.claims?.[p] ?? []).map((s) => s.mainsnak?.datavalue?.value?.id).filter((q): q is string => !!q);
   let frontier = ids(entity, "P31").slice(0, 5);
   const seen = new Set<string>();
   for (let depth = 0; depth < 3 && frontier.length; depth++) {
     const found = await entities(frontier.filter((q) => !seen.has(q)), "claims|labels", get).catch(() => ({}) as Record<string, Entity>);
     frontier.forEach((q) => seen.add(q));
-    if (Object.values(found).some((e) => e.labels?.en?.value.toLowerCase() === "name")) return true;
+    if (Object.values(found).some((e) => labels.includes(e.id) || labels.includes(e.labels?.en?.value.toLowerCase() ?? ""))) return true;
     frontier = [...new Set(Object.values(found).flatMap((e) => ids(e, "P279")))].slice(0, 8);
   }
   return false;

@@ -358,3 +358,28 @@ test("doings kept for later: remember to, need to, have to; asked back by the do
   const said = (await talk(store, ["remember to buy milk", "i need to buy eggs", "what do i need to buy", "i have to call mom", "what do i have to call"])).map((x) => x.spoken);
   assert.deepEqual([said[2], said[4]], ["Milk and eggs.", "Mom."]);
 });
+
+test("what a question word asks for constrains what is looked up: who is someone (or a name), never a thing the word also means", async () => {
+  const { groundInWikidata, classesOf } = await import("../research/wikidata.js");
+  const items: Record<string, Record<string, unknown>> = {
+    Q10: { id: "Q10", labels: { en: { value: "Gunter" } }, descriptions: { en: { value: "sailing rig" } }, sitelinks: {}, claims: { P31: [item("Q11")] } },
+    Q11: { id: "Q11", labels: { en: { value: "rig" } }, claims: { P279: [item("Q12")] } },
+    Q12: { id: "Q12", labels: { en: { value: "device" } }, claims: {} },
+    Q20: { id: "Q20", labels: { en: { value: "Ada" } }, descriptions: { en: { value: "mathematician" } }, sitelinks: {}, claims: { P31: [item("Q5")] } },
+    Q5: { id: "Q5", labels: { en: { value: "human" } }, claims: { P279: [item("Q215627")] } },
+    Q215627: { id: "Q215627", labels: { en: { value: "person" } }, claims: {} },
+  };
+  const get = async (url: string): Promise<unknown> => {
+    const u = new URL(url);
+    if (u.hostname.endsWith("wikipedia.org")) return { query: { pages: {} } };
+    if (u.searchParams.get("action") === "wbsearchentities") return { search: Object.values(items).filter((e) => (e.labels as { en: { value: string } }).en.value.toLowerCase() === (u.searchParams.get("search") ?? "").toLowerCase()).map((e) => ({ id: e.id, label: (e.labels as { en: { value: string } }).en.value })) };
+    const ids = (u.searchParams.get("ids") ?? "").split("|").filter((id) => items[id]);
+    return { entities: Object.fromEntries(ids.map((id) => [id, items[id]])) };
+  };
+  const store = new ConceptStore();
+  seed(store);
+  const kinds = classesOf(store, ["Someone"]);
+  assert.ok(kinds.includes("Q215627"));
+  assert.equal(await groundInWikidata(store, "Gunter", { fetch: get, kinds }).then((g) => g?.relations.length ?? 0), 0, "a sailing rig is not someone");
+  assert.ok(((await groundInWikidata(store, "Ada", { fetch: get, kinds }))?.relations.length ?? 0) > 0, "a person is");
+});

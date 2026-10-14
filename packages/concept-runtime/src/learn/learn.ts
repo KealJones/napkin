@@ -10,7 +10,7 @@
  */
 import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
 import { reachesBehaviour } from "../runtime/select.js";
-import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
+import { classesOf, groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import { lemma, properNoun, words as hostWords } from "../runtime/host.js";
 import { isWord, standsAsNameIn } from "../ears/parser/words.js";
@@ -22,6 +22,24 @@ import { Relations } from "../store/relations.js";
 import { forwardSynonym } from "../seed/seed.js";
 import { nameOf } from "../ears/parser/names.js";
 import { foldPhrases, sayPhrase } from "../ears/phrase.js";
+
+/**
+ * What the question asks a word to be: the kinds its question word asks for (`Who Asks(Someone())`,
+ * `Where Asks(Place())`), when it asks what the word is, over a form of "be" holding it ("who is
+ * gunter", Who(Is(Gunter()))). Nothing, for any other word of a question ("who directed jaws").
+ */
+export function askedOfIt(runtime: Runtime, expression: Expr, identity: string): string[] {
+  const store = runtime.store;
+  const asks = (head: string) => store.asSubject(head).filter((t) => t.predicate === "Asks" && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head);
+  for (const n of walk(expression)) {
+    if (!isCall(n) || !asks(n.head).length) continue;
+    for (const a of n.args) {
+      const be = a.value;
+      if (isCall(be) && typesOf(store, c(be.head)).includes("BeVerb") && be.args.some((x) => isCall(x.value) && x.value.head === identity)) return asks(n.head);
+    }
+  }
+  return [];
+}
 
 /** What was said in this turn's conversation, as kept (`Said(speaker, content, text=)`). */
 function saidIn(runtime: Runtime): { message: string }[] {
@@ -399,6 +417,29 @@ async function learnOnce(
         return false;
       };
       const common = !words.includes(" ") && isWord(words) && !properNoun(words);
+      // Asked who it is ("who is gunter?"): it is someone. What the dictionary says a gunter is (a
+      // sailing rig) is no answer, nor a thing Wikidata has by that name that is not someone.
+      const asks = askedOfIt(runtime, expression, gap.identity);
+      const classes = classesOf(runtime.store, asks);
+      if (classes.length && looked && options.research !== false) {
+        try {
+          const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+          const grounded = await groundInWikidata(runtime.store, gap.identity, { cause: runtime.trace.cause, said, kinds: classes });
+          if (grounded?.relations.length) {
+            steps.push({ identity: gap.identity, how: "wikidata", detail: `${grounded.item}: ${grounded.relations.map(format).join(", ")}` });
+            learnedSomething = true;
+            continue;
+          }
+        } catch {
+          // Unreachable: taken as a name below.
+        }
+        if (asks.includes("Someone") && !runtime.store.get(gap.identity)?.relations.length) {
+          runtime.store.addRelation(gap.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
+          steps.push({ identity: gap.identity, how: "name", detail: "asked who it is: someone, of whom nothing is known yet" });
+          learnedSomething = true;
+        }
+        continue;
+      }
       if (looked && common && options.research !== false && (await meaningOf())) {
         learnedSomething = true;
         continue;
@@ -493,8 +534,18 @@ export async function lookUpWord(
   runtime: Runtime,
   identity: string,
   said: string,
-  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean } = {},
+  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean; asks?: readonly string[] } = {},
 ): Promise<boolean> {
+  // Asked as one of a kind ("who is X": someone; "where is X": a place): only a sense of that kind,
+  // never a thing the word also means; asked who, and nothing found, a name.
+  const classes = classesOf(runtime.store, options.asks ?? []);
+  if (classes.length) {
+    const grounded = await groundInWikidata(runtime.store, identity, { cause: runtime.trace.cause, said, kinds: classes, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined);
+    if (grounded?.relations.length) return true;
+    if (!(options.asks ?? []).includes("Someone")) return false;
+    if (!runtime.store.get(identity)?.relations.length) runtime.store.addRelation(identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
+    return true;
+  }
   const words = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
   // A fact asked of it ("who directed jaws") makes it a thing in the world, whatever the word.
   const common = !options.thing && !words.includes(" ") && isWord(words) && !properNoun(words);

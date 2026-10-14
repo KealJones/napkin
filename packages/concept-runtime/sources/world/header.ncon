@@ -17,3 +17,12 @@ Concept(Weather(), IsA(Result()))
 Concept(TakesValue(), IsA(Relation()))
 Concept(DateOfBirth(), IsA(Relation()), SameAs(Wikidata("P569")), Called(Born()), Called(Birth(Date())), TakesValue(Date()))
 Concept(PlaceOfBirth(), IsA(Relation()), SameAs(Wikidata("P19")), Called(Born(In())), Called(Birthplace()), TakesValue(Place()))
+
+// What a question word asks for, as the world's classes: an answer looked up for "who is X" must be
+// a person (or a name), for "where is X" a place. A sense of another kind is not what was asked.
+// (Not SameAs: that would make the kind a thing in the world; it is what answers are of.)
+Concept(WikidataClass(), IsA(Relation()))
+Concept(Someone(), WikidataClass("Q215627"))
+Concept(Place(), WikidataClass("Q2221906"))
+// A name is how someone is known: a word Wikidata has only as a name fits "who".
+Concept(Someone(), WikidataClass("Q82799"))

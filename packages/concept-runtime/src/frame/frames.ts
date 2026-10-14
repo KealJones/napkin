@@ -1190,7 +1190,7 @@ export interface FrameOptions {
    * Answers whether anything was learned. Absent, nothing is looked up.
    */
   /** `thing`: a word beside it asks a fact of it ("directed"), so it is a thing in the world, not a word to define. */
-  readonly lookup?: (identity: string, said: string, thing?: boolean) => Promise<boolean>;
+  readonly lookup?: (identity: string, said: string, thing?: boolean, asks?: readonly string[]) => Promise<boolean>;
   /** Most lookups in one turn. */
   readonly lookups?: number;
   /** Reading one part of a message joined by "and": not split again. */
@@ -1445,7 +1445,11 @@ export async function frames(runtime: Runtime, message: string, history: readonl
         if (left <= 0 || looked.some((l) => l.identity === identity)) continue;
         left -= 1;
         const asksFact = asTyped.some((w) => w.senses.some((x) => x.type === "relation"));
-        const learned = await options.lookup(identity, message, asksFact).catch(() => false);
+        // "who is gunter": asked what it is as a kind (who asks someone, where a place), so an
+        // answer of that kind; never a gunter rig. Only when the question is what it is.
+        const copula = asTyped.some((w) => w.senses.some((x) => x.type === "glue" && x.copula));
+        const asks = copula ? asTyped.flatMap((w) => w.senses.flatMap((x) => (x.type === "question" ? x.kinds : []))) : [];
+        const learned = await options.lookup(identity, message, asksFact, asks).catch(() => false);
         looked.push({ identity, learned });
         found ||= learned;
       }

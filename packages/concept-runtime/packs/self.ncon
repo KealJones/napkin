@@ -93,6 +93,13 @@ Concept(How(),
     evaluateArguments = false,
     properties = List(Program()),
     body = MakeCall("Answer", List(MakeCall("DoingWell", List())))
+  ),
+  // "how you doing": the same, said without its "are", as people often say it.
+  Realization(How(You($doing)),
+    context = Context(Execution(), Interrogative()),
+    evaluateArguments = false,
+    properties = List(Program()),
+    body = MakeCall("Answer", List(MakeCall("DoingWell", List())))
   )
 )
 

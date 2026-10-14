@@ -96,7 +96,12 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   told is asked after as "how are you feeling now?".
 - [x] 35. Explanations past one link (why the cause is so, from its own page); still to do: follow HasCause of the cause (and Wikidata "has cause",
   P828) for a second "because"; "how does X work" by the same chain over HasPart/UsedFor.
-- [ ] 30. "how you doing?" is How(You(Doing())): should reach self's "how are you".
+- [x] 30. "how you doing?" is How(You(Doing())): self.ncon answers it as "how are you", said
+  without its "are".
+- [x] 38. What a question word asks for constrains what is looked up for the word it asks about:
+  "who is gunter?" takes only a Wikidata sense that is a person or a name (`Someone
+  WikidataClass("Q215627")`, Q82799), "where is X" a place; never the dictionary's gunter rig. Asked
+  who and nothing found: a name. Still to do: the same constraint on answers already held.
 
 # Understanding word problems and lists (GSM8K 0/50, 2026-10-13: scripts/bench.mjs, live-probe workflow)
 
