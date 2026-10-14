@@ -130,6 +130,15 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   L2 to the prior on 4,000 train, 71 -> 76 (held-out 106 -> 107: not yet clearly real, not kept).
   The ceiling: on test 0-399 a right answer is among the ~29 readings in 163, ranked first in 71,
   and many of the 163 hit it by chance. The reading is the bottleneck: 237 have no right reading.
+- [x] W11. Read again when nothing comes out as asked (each thing counted tried as the thing asked,
+  then all as things); questions by their mark or a doing told ("Calculate ..."), not openings.
+  Test 0-399: 71 -> 78; read 351 -> 380; a right answer among the readings 163 -> 187.
+- [ ] W12. Numbers words carry, learned from workings by lift (scripts/learn-carried.mjs): "fifteen"
+  15, "dozen" 12, "dime" 0.1, "minute" 60, "week" 7, "percent" 100, "leg" 4, from the numbers a
+  working uses that its question never says. As counting words in place of the packs': 75 (packs
+  78, none 72). Next: tell counting words from units and shares by where they stand and what the
+  working does with the number (x n, / n), so "minute" learns Holds(Second(), 60) and "third"
+  DividesBy(3); then every word fact learned at once, the packs' forgotten.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
