@@ -1,0 +1,2283 @@
+// How situations are weighed, learned: each Weighs("feature", value) replaces the prior weight of
+// that feature (src/situation/situation.ts PRIOR). A softmax over each GSM8K train situation's readings (3,000), the right ones pulled up, L2 to the prior: held-out 110 -> 123 of 750, test 0-399 78 -> 84. Written by scripts/keep-weights.mjs.
+Requires(Core(), Basic())
+
+Concept(Weighs(), IsA(Relation()))
+
+Concept(Situations(), Weighs("again", -1.175))
+
+Concept(Situations(), Weighs("ask|a's|×", -0.08))
+
+Concept(Situations(), Weighs("ask|absence|-", 0.059))
+
+Concept(Situations(), Weighs("ask|accepted|-", 0.052))
+
+Concept(Situations(), Weighs("ask|accident|-", 0.072))
+
+Concept(Situations(), Weighs("ask|account|-", -0.1))
+
+Concept(Situations(), Weighs("ask|account|+", 0.124))
+
+Concept(Situations(), Weighs("ask|adam|+", 0.066))
+
+Concept(Situations(), Weighs("ask|add|×", 0.057))
+
+Concept(Situations(), Weighs("ask|age|-", 0.113))
+
+Concept(Situations(), Weighs("ask|age|×", -0.118))
+
+Concept(Situations(), Weighs("ask|all|+", 0.171))
+
+Concept(Situations(), Weighs("ask|alma's|×", 0.058))
+
+Concept(Situations(), Weighs("ask|alma|×", 0.058))
+
+Concept(Situations(), Weighs("ask|amelia|+", -0.054))
+
+Concept(Situations(), Weighs("ask|amount|×", 0.065))
+
+Concept(Situations(), Weighs("ask|animal|-", 0.095))
+
+Concept(Situations(), Weighs("ask|animal|+", -0.076))
+
+Concept(Situations(), Weighs("ask|annie|-", 0.072))
+
+Concept(Situations(), Weighs("ask|apple|+", 0.056))
+
+Concept(Situations(), Weighs("ask|aquarium|×", 0.073))
+
+Concept(Situations(), Weighs("ask|area|÷", 0.051))
+
+Concept(Situations(), Weighs("ask|arevalo|+", -0.053))
+
+Concept(Situations(), Weighs("ask|arevalo|×", 0.063))
+
+Concept(Situations(), Weighs("ask|ashley|×", 0.075))
+
+Concept(Situations(), Weighs("ask|assumed|+", 0.058))
+
+Concept(Situations(), Weighs("ask|at|-", -0.144))
+
+Concept(Situations(), Weighs("ask|at|+", 0.104))
+
+Concept(Situations(), Weighs("ask|average|-", 0.178))
+
+Concept(Situations(), Weighs("ask|average|+", -0.209))
+
+Concept(Situations(), Weighs("ask|average|÷", 0.116))
+
+Concept(Situations(), Weighs("ask|away|×", 0.072))
+
+Concept(Situations(), Weighs("ask|b's|×", -0.08))
+
+Concept(Situations(), Weighs("ask|back|×", -0.058))
+
+Concept(Situations(), Weighs("ask|bacon|-", -0.052))
+
+Concept(Situations(), Weighs("ask|bacon|+", -0.054))
+
+Concept(Situations(), Weighs("ask|bacon|×", 0.11))
+
+Concept(Situations(), Weighs("ask|baez|×", 0.08))
+
+Concept(Situations(), Weighs("ask|bag|-", 0.099))
+
+Concept(Situations(), Weighs("ask|bag|×", -0.077))
+
+Concept(Situations(), Weighs("ask|ball|×", 0.067))
+
+Concept(Situations(), Weighs("ask|balloon|-", -0.069))
+
+Concept(Situations(), Weighs("ask|balloon|×", 0.051))
+
+Concept(Situations(), Weighs("ask|banana|-", 0.065))
+
+Concept(Situations(), Weighs("ask|bandage|+", 0.062))
+
+Concept(Situations(), Weighs("ask|barbara|-", 0.061))
+
+Concept(Situations(), Weighs("ask|base|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|baseball|+", -0.068))
+
+Concept(Situations(), Weighs("ask|baseball|×", 0.124))
+
+Concept(Situations(), Weighs("ask|be|-", 0.203))
+
+Concept(Situations(), Weighs("ask|be|+", -0.152))
+
+Concept(Situations(), Weighs("ask|be|÷", 0.169))
+
+Concept(Situations(), Weighs("ask|be|×", -0.107))
+
+Concept(Situations(), Weighs("ask|beach|-", -0.08))
+
+Concept(Situations(), Weighs("ask|beach|+", 0.078))
+
+Concept(Situations(), Weighs("ask|begin|+", 0.071))
+
+Concept(Situations(), Weighs("ask|beth|+", 0.053))
+
+Concept(Situations(), Weighs("ask|bike|-", 0.051))
+
+Concept(Situations(), Weighs("ask|billy|+", -0.054))
+
+Concept(Situations(), Weighs("ask|black|-", 0.072))
+
+Concept(Situations(), Weighs("ask|blue|-", -0.05))
+
+Concept(Situations(), Weighs("ask|blue|÷", 0.059))
+
+Concept(Situations(), Weighs("ask|book|+", 0.059))
+
+Concept(Situations(), Weighs("ask|bookstore|+", 0.065))
+
+Concept(Situations(), Weighs("ask|boot|-", 0.061))
+
+Concept(Situations(), Weighs("ask|bottle|-", -0.109))
+
+Concept(Situations(), Weighs("ask|bouquet|+", 0.068))
+
+Concept(Situations(), Weighs("ask|bouquet|×", -0.058))
+
+Concept(Situations(), Weighs("ask|box|-", -0.135))
+
+Concept(Situations(), Weighs("ask|box|×", 0.078))
+
+Concept(Situations(), Weighs("ask|boy|+", 0.104))
+
+Concept(Situations(), Weighs("ask|boy|×", -0.054))
+
+Concept(Situations(), Weighs("ask|bracelet|+", 0.052))
+
+Concept(Situations(), Weighs("ask|bracelet|÷", -0.052))
+
+Concept(Situations(), Weighs("ask|brand|+", -0.054))
+
+Concept(Situations(), Weighs("ask|bring|÷", 0.078))
+
+Concept(Situations(), Weighs("ask|bring|×", -0.116))
+
+Concept(Situations(), Weighs("ask|broken|+", 0.055))
+
+Concept(Situations(), Weighs("ask|buy|-", 0.176))
+
+Concept(Situations(), Weighs("ask|buy|+", -0.192))
+
+Concept(Situations(), Weighs("ask|buy|÷", 0.092))
+
+Concept(Situations(), Weighs("ask|cake|-", -0.05))
+
+Concept(Situations(), Weighs("ask|cake|+", -0.053))
+
+Concept(Situations(), Weighs("ask|cake|×", 0.164))
+
+Concept(Situations(), Weighs("ask|calculate|-", 0.271))
+
+Concept(Situations(), Weighs("ask|calculate|+", -0.336))
+
+Concept(Situations(), Weighs("ask|calculate|×", 0.213))
+
+Concept(Situations(), Weighs("ask|caleb|-", 0.061))
+
+Concept(Situations(), Weighs("ask|calorie|+", 0.062))
+
+Concept(Situations(), Weighs("ask|can|-", -0.235))
+
+Concept(Situations(), Weighs("ask|can|+", 0.051))
+
+Concept(Situations(), Weighs("ask|can|÷", 0.099))
+
+Concept(Situations(), Weighs("ask|candle|÷", 0.059))
+
+Concept(Situations(), Weighs("ask|car|+", 0.052))
+
+Concept(Situations(), Weighs("ask|card|+", -0.076))
+
+Concept(Situations(), Weighs("ask|carl|×", 0.075))
+
+Concept(Situations(), Weighs("ask|caroline|+", -0.075))
+
+Concept(Situations(), Weighs("ask|caroline|×", 0.082))
+
+Concept(Situations(), Weighs("ask|carpenter|×", -0.061))
+
+Concept(Situations(), Weighs("ask|carry|+", 0.064))
+
+Concept(Situations(), Weighs("ask|cash|-", 0.071))
+
+Concept(Situations(), Weighs("ask|cash|+", -0.062))
+
+Concept(Situations(), Weighs("ask|cash|×", -0.057))
+
+Concept(Situations(), Weighs("ask|cds|-", -0.051))
+
+Concept(Situations(), Weighs("ask|cds|+", 0.065))
+
+Concept(Situations(), Weighs("ask|cellar|-", -0.065))
+
+Concept(Situations(), Weighs("ask|central|×", 0.059))
+
+Concept(Situations(), Weighs("ask|chair|×", -0.051))
+
+Concept(Situations(), Weighs("ask|chance|-", 0.146))
+
+Concept(Situations(), Weighs("ask|chance|+", -0.073))
+
+Concept(Situations(), Weighs("ask|change|+", 0.063))
+
+Concept(Situations(), Weighs("ask|charlotte|-", 0.055))
+
+Concept(Situations(), Weighs("ask|cheaper|+", -0.054))
+
+Concept(Situations(), Weighs("ask|cheaper|×", -0.065))
+
+Concept(Situations(), Weighs("ask|chip|×", -0.066))
+
+Concept(Situations(), Weighs("ask|chocolate|×", 0.063))
+
+Concept(Situations(), Weighs("ask|chop|×", 0.053))
+
+Concept(Situations(), Weighs("ask|christian|+", 0.052))
+
+Concept(Situations(), Weighs("ask|class|-", -0.114))
+
+Concept(Situations(), Weighs("ask|class|+", 0.088))
+
+Concept(Situations(), Weighs("ask|client|÷", 0.067))
+
+Concept(Situations(), Weighs("ask|cm|-", 0.064))
+
+Concept(Situations(), Weighs("ask|co-worker|-", -0.054))
+
+Concept(Situations(), Weighs("ask|co-worker|×", 0.055))
+
+Concept(Situations(), Weighs("ask|coffee|+", -0.061))
+
+Concept(Situations(), Weighs("ask|coffee|×", 0.071))
+
+Concept(Situations(), Weighs("ask|collect|+", -0.07))
+
+Concept(Situations(), Weighs("ask|collect|×", 0.07))
+
+Concept(Situations(), Weighs("ask|combined|-", -0.13))
+
+Concept(Situations(), Weighs("ask|combined|+", 0.206))
+
+Concept(Situations(), Weighs("ask|combined|×", -0.067))
+
+Concept(Situations(), Weighs("ask|compare|×", 0.067))
+
+Concept(Situations(), Weighs("ask|compartment|×", 0.055))
+
+Concept(Situations(), Weighs("ask|competition|-", 0.052))
+
+Concept(Situations(), Weighs("ask|cook|×", 0.085))
+
+Concept(Situations(), Weighs("ask|cookie|-", 0.109))
+
+Concept(Situations(), Weighs("ask|cookie|+", -0.104))
+
+Concept(Situations(), Weighs("ask|cookie|÷", -0.098))
+
+Concept(Situations(), Weighs("ask|cost|-", -0.066))
+
+Concept(Situations(), Weighs("ask|count|-", -0.055))
+
+Concept(Situations(), Weighs("ask|count|+", 0.101))
+
+Concept(Situations(), Weighs("ask|country|-", 0.084))
+
+Concept(Situations(), Weighs("ask|country|+", -0.083))
+
+Concept(Situations(), Weighs("ask|cow|×", 0.078))
+
+Concept(Situations(), Weighs("ask|crayon|-", -0.083))
+
+Concept(Situations(), Weighs("ask|create|-", -0.053))
+
+Concept(Situations(), Weighs("ask|create|+", 0.079))
+
+Concept(Situations(), Weighs("ask|crystal|+", 0.063))
+
+Concept(Situations(), Weighs("ask|cup|-", 0.108))
+
+Concept(Situations(), Weighs("ask|cupcake|+", 0.065))
+
+Concept(Situations(), Weighs("ask|daily|+", -0.057))
+
+Concept(Situations(), Weighs("ask|daily|×", 0.059))
+
+Concept(Situations(), Weighs("ask|danielle|÷", 0.071))
+
+Concept(Situations(), Weighs("ask|daughter|-", 0.053))
+
+Concept(Situations(), Weighs("ask|david|×", -0.07))
+
+Concept(Situations(), Weighs("ask|day|-", -0.128))
+
+Concept(Situations(), Weighs("ask|day|÷", -0.074))
+
+Concept(Situations(), Weighs("ask|day|×", 0.099))
+
+Concept(Situations(), Weighs("ask|deep|-", 0.058))
+
+Concept(Situations(), Weighs("ask|degree|-", 0.072))
+
+Concept(Situations(), Weighs("ask|delete|-", 0.072))
+
+Concept(Situations(), Weighs("ask|deliver|+", -0.051))
+
+Concept(Situations(), Weighs("ask|deposit|-", -0.075))
+
+Concept(Situations(), Weighs("ask|deposit|+", 0.075))
+
+Concept(Situations(), Weighs("ask|determine|-", 0.058))
+
+Concept(Situations(), Weighs("ask|devastate|-", -0.071))
+
+Concept(Situations(), Weighs("ask|devastate|×", 0.072))
+
+Concept(Situations(), Weighs("ask|diana|×", 0.052))
+
+Concept(Situations(), Weighs("ask|different|+", 0.057))
+
+Concept(Situations(), Weighs("ask|different|×", -0.05))
+
+Concept(Situations(), Weighs("ask|disagree|-", 0.054))
+
+Concept(Situations(), Weighs("ask|display|×", 0.057))
+
+Concept(Situations(), Weighs("ask|dive|×", 0.074))
+
+Concept(Situations(), Weighs("ask|do|-", 0.172))
+
+Concept(Situations(), Weighs("ask|do|+", 0.102))
+
+Concept(Situations(), Weighs("ask|do|÷", 0.174))
+
+Concept(Situations(), Weighs("ask|do|×", -0.194))
+
+Concept(Situations(), Weighs("ask|dog|+", 0.07))
+
+Concept(Situations(), Weighs("ask|dollar|×", -0.083))
+
+Concept(Situations(), Weighs("ask|donate|×", 0.075))
+
+Concept(Situations(), Weighs("ask|donna|-", 0.06))
+
+Concept(Situations(), Weighs("ask|drink|+", 0.054))
+
+Concept(Situations(), Weighs("ask|drive|-", 0.105))
+
+Concept(Situations(), Weighs("ask|duck|-", -0.104))
+
+Concept(Situations(), Weighs("ask|duck|×", 0.112))
+
+Concept(Situations(), Weighs("ask|earn|+", 0.131))
+
+Concept(Situations(), Weighs("ask|earring|+", 0.099))
+
+Concept(Situations(), Weighs("ask|eastern|×", 0.059))
+
+Concept(Situations(), Weighs("ask|eat|+", 0.072))
+
+Concept(Situations(), Weighs("ask|eat|÷", -0.051))
+
+Concept(Situations(), Weighs("ask|ed|+", -0.065))
+
+Concept(Situations(), Weighs("ask|ed|×", 0.071))
+
+Concept(Situations(), Weighs("ask|eligible|-", -0.062))
+
+Concept(Situations(), Weighs("ask|eligible|×", 0.062))
+
+Concept(Situations(), Weighs("ask|emma|-", -0.053))
+
+Concept(Situations(), Weighs("ask|end|-", -0.055))
+
+Concept(Situations(), Weighs("ask|eraser|-", 0.092))
+
+Concept(Situations(), Weighs("ask|essay|+", -0.055))
+
+Concept(Situations(), Weighs("ask|essay|÷", 0.058))
+
+Concept(Situations(), Weighs("ask|everyone|-", -0.051))
+
+Concept(Situations(), Weighs("ask|everything|+", 0.061))
+
+Concept(Situations(), Weighs("ask|everything|×", -0.054))
+
+Concept(Situations(), Weighs("ask|excursion|×", 0.067))
+
+Concept(Situations(), Weighs("ask|exercise|+", 0.05))
+
+Concept(Situations(), Weighs("ask|exercise|×", -0.05))
+
+Concept(Situations(), Weighs("ask|far|×", 0.079))
+
+Concept(Situations(), Weighs("ask|farmer|-", -0.134))
+
+Concept(Situations(), Weighs("ask|farmer|×", 0.137))
+
+Concept(Situations(), Weighs("ask|fast|+", -0.057))
+
+Concept(Situations(), Weighs("ask|fast|×", 0.123))
+
+Concept(Situations(), Weighs("ask|fee|-", 0.054))
+
+Concept(Situations(), Weighs("ask|felix|×", 0.051))
+
+Concept(Situations(), Weighs("ask|female|-", -0.074))
+
+Concept(Situations(), Weighs("ask|female|+", -0.077))
+
+Concept(Situations(), Weighs("ask|female|×", 0.21))
+
+Concept(Situations(), Weighs("ask|fewer|-", 0.054))
+
+Concept(Situations(), Weighs("ask|fill|+", -0.092))
+
+Concept(Situations(), Weighs("ask|fill|÷", 0.057))
+
+Concept(Situations(), Weighs("ask|final|+", -0.054))
+
+Concept(Situations(), Weighs("ask|finish|-", 0.066))
+
+Concept(Situations(), Weighs("ask|finished|×", 0.058))
+
+Concept(Situations(), Weighs("ask|fish|-", -0.091))
+
+Concept(Situations(), Weighs("ask|fish|+", 0.11))
+
+Concept(Situations(), Weighs("ask|flock|-", -0.056))
+
+Concept(Situations(), Weighs("ask|flour|÷", 0.06))
+
+Concept(Situations(), Weighs("ask|flour|×", -0.06))
+
+Concept(Situations(), Weighs("ask|flower|+", -0.073))
+
+Concept(Situations(), Weighs("ask|food|-", -0.056))
+
+Concept(Situations(), Weighs("ask|foot|+", -0.095))
+
+Concept(Situations(), Weighs("ask|foot|×", 0.148))
+
+Concept(Situations(), Weighs("ask|for|+", 0.112))
+
+Concept(Situations(), Weighs("ask|foreign|+", 0.069))
+
+Concept(Situations(), Weighs("ask|forester|-", 0.084))
+
+Concept(Situations(), Weighs("ask|francie|×", 0.064))
+
+Concept(Situations(), Weighs("ask|free|-", -0.062))
+
+Concept(Situations(), Weighs("ask|free|×", 0.062))
+
+Concept(Situations(), Weighs("ask|fruit|+", 0.065))
+
+Concept(Situations(), Weighs("ask|fruit|×", -0.053))
+
+Concept(Situations(), Weighs("ask|fry|×", 0.069))
+
+Concept(Situations(), Weighs("ask|full|-", 0.054))
+
+Concept(Situations(), Weighs("ask|gallon|-", 0.062))
+
+Concept(Situations(), Weighs("ask|game|-", -0.099))
+
+Concept(Situations(), Weighs("ask|garden|-", -0.054))
+
+Concept(Situations(), Weighs("ask|garden|+", -0.06))
+
+Concept(Situations(), Weighs("ask|garden|×", 0.119))
+
+Concept(Situations(), Weighs("ask|gargamel|+", 0.059))
+
+Concept(Situations(), Weighs("ask|get|-", 0.088))
+
+Concept(Situations(), Weighs("ask|get|+", -0.123))
+
+Concept(Situations(), Weighs("ask|get|÷", -0.107))
+
+Concept(Situations(), Weighs("ask|get|×", 0.058))
+
+Concept(Situations(), Weighs("ask|gift|-", -0.057))
+
+Concept(Situations(), Weighs("ask|gift|+", -0.06))
+
+Concept(Situations(), Weighs("ask|gift|×", 0.054))
+
+Concept(Situations(), Weighs("ask|give|-", -0.155))
+
+Concept(Situations(), Weighs("ask|give|+", 0.079))
+
+Concept(Situations(), Weighs("ask|give|×", 0.113))
+
+Concept(Situations(), Weighs("ask|glass|-", -0.069))
+
+Concept(Situations(), Weighs("ask|glass|×", 0.057))
+
+Concept(Situations(), Weighs("ask|go|-", 0.095))
+
+Concept(Situations(), Weighs("ask|go|+", -0.067))
+
+Concept(Situations(), Weighs("ask|go|÷", 0.074))
+
+Concept(Situations(), Weighs("ask|go|×", 0.052))
+
+Concept(Situations(), Weighs("ask|goal|-", -0.065))
+
+Concept(Situations(), Weighs("ask|goal|×", 0.115))
+
+Concept(Situations(), Weighs("ask|goody|×", 0.071))
+
+Concept(Situations(), Weighs("ask|green|×", -0.064))
+
+Concept(Situations(), Weighs("ask|guest|-", 0.051))
+
+Concept(Situations(), Weighs("ask|guy|×", -0.067))
+
+Concept(Situations(), Weighs("ask|half|-", -0.09))
+
+Concept(Situations(), Weighs("ask|half|+", 0.1))
+
+Concept(Situations(), Weighs("ask|hanna|-", 0.059))
+
+Concept(Situations(), Weighs("ask|hannah|+", 0.052))
+
+Concept(Situations(), Weighs("ask|have|-", 0.08))
+
+Concept(Situations(), Weighs("ask|have|+", 0.128))
+
+Concept(Situations(), Weighs("ask|have|÷", -0.065))
+
+Concept(Situations(), Weighs("ask|have|×", 0.154))
+
+Concept(Situations(), Weighs("ask|he|-", 0.071))
+
+Concept(Situations(), Weighs("ask|height|+", 0.085))
+
+Concept(Situations(), Weighs("ask|height|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|henry|+", 0.051))
+
+Concept(Situations(), Weighs("ask|her|+", 0.086))
+
+Concept(Situations(), Weighs("ask|hillary|-", -0.075))
+
+Concept(Situations(), Weighs("ask|hillary|+", 0.075))
+
+Concept(Situations(), Weighs("ask|hit|-", 0.056))
+
+Concept(Situations(), Weighs("ask|hole|+", 0.053))
+
+Concept(Situations(), Weighs("ask|home|÷", 0.065))
+
+Concept(Situations(), Weighs("ask|home|×", -0.116))
+
+Concept(Situations(), Weighs("ask|hop|×", 0.055))
+
+Concept(Situations(), Weighs("ask|hour|-", -0.12))
+
+Concept(Situations(), Weighs("ask|hour|×", 0.281))
+
+Concept(Situations(), Weighs("ask|house|÷", 0.075))
+
+Concept(Situations(), Weighs("ask|house|×", -0.085))
+
+Concept(Situations(), Weighs("ask|hover|×", 0.059))
+
+Concept(Situations(), Weighs("ask|in|+", 0.087))
+
+Concept(Situations(), Weighs("ask|include|+", 0.053))
+
+Concept(Situations(), Weighs("ask|increase|-", 0.06))
+
+Concept(Situations(), Weighs("ask|individual|+", 0.055))
+
+Concept(Situations(), Weighs("ask|insect|-", -0.075))
+
+Concept(Situations(), Weighs("ask|insect|+", 0.11))
+
+Concept(Situations(), Weighs("ask|install|-", 0.055))
+
+Concept(Situations(), Weighs("ask|insurance|-", 0.054))
+
+Concept(Situations(), Weighs("ask|irene|×", 0.08))
+
+Concept(Situations(), Weighs("ask|it|×", 0.083))
+
+Concept(Situations(), Weighs("ask|item|+", 0.064))
+
+Concept(Situations(), Weighs("ask|jackie|-", -0.062))
+
+Concept(Situations(), Weighs("ask|jackie|×", 0.062))
+
+Concept(Situations(), Weighs("ask|jaco|-", 0.05))
+
+Concept(Situations(), Weighs("ask|james|-", -0.062))
+
+Concept(Situations(), Weighs("ask|james|+", 0.093))
+
+Concept(Situations(), Weighs("ask|jana|+", -0.061))
+
+Concept(Situations(), Weighs("ask|janet|-", -0.064))
+
+Concept(Situations(), Weighs("ask|janet|×", 0.096))
+
+Concept(Situations(), Weighs("ask|jar|+", 0.113))
+
+Concept(Situations(), Weighs("ask|javier|+", 0.05))
+
+Concept(Situations(), Weighs("ask|javier|×", -0.05))
+
+Concept(Situations(), Weighs("ask|jeans|-", -0.058))
+
+Concept(Situations(), Weighs("ask|jeans|+", 0.09))
+
+Concept(Situations(), Weighs("ask|jennifer|+", 0.064))
+
+Concept(Situations(), Weighs("ask|jerome|-", 0.058))
+
+Concept(Situations(), Weighs("ask|jerry|+", 0.054))
+
+Concept(Situations(), Weighs("ask|jess|+", -0.077))
+
+Concept(Situations(), Weighs("ask|jessica|-", 0.088))
+
+Concept(Situations(), Weighs("ask|john’s|-", 0.051))
+
+Concept(Situations(), Weighs("ask|john's|+", 0.082))
+
+Concept(Situations(), Weighs("ask|johnny|+", -0.055))
+
+Concept(Situations(), Weighs("ask|johnny|÷", 0.058))
+
+Concept(Situations(), Weighs("ask|joined|×", 0.067))
+
+Concept(Situations(), Weighs("ask|jolyn|-", -0.082))
+
+Concept(Situations(), Weighs("ask|jolyn|+", 0.082))
+
+Concept(Situations(), Weighs("ask|jose|+", -0.071))
+
+Concept(Situations(), Weighs("ask|jose|×", 0.11))
+
+Concept(Situations(), Weighs("ask|josh|-", -0.063))
+
+Concept(Situations(), Weighs("ask|josh|+", 0.078))
+
+Concept(Situations(), Weighs("ask|july|×", 0.051))
+
+Concept(Situations(), Weighs("ask|justin|+", -0.053))
+
+Concept(Situations(), Weighs("ask|keep|-", 0.135))
+
+Concept(Situations(), Weighs("ask|keep|+", -0.203))
+
+Concept(Situations(), Weighs("ask|ken|×", 0.062))
+
+Concept(Situations(), Weighs("ask|ketchup|×", 0.075))
+
+Concept(Situations(), Weighs("ask|kid|÷", -0.077))
+
+Concept(Situations(), Weighs("ask|kid|×", 0.113))
+
+Concept(Situations(), Weighs("ask|kilo|×", 0.075))
+
+Concept(Situations(), Weighs("ask|kilometer|+", -0.05))
+
+Concept(Situations(), Weighs("ask|kilometer|÷", 0.065))
+
+Concept(Situations(), Weighs("ask|kimiko|-", 0.075))
+
+Concept(Situations(), Weighs("ask|kitchen|-", 0.052))
+
+Concept(Situations(), Weighs("ask|knee|+", 0.062))
+
+Concept(Situations(), Weighs("ask|kylie|+", 0.051))
+
+Concept(Situations(), Weighs("ask|lamb|+", 0.075))
+
+Concept(Situations(), Weighs("ask|last|-", -0.117))
+
+Concept(Situations(), Weighs("ask|laundry|×", 0.068))
+
+Concept(Situations(), Weighs("ask|lavinia’s|-", 0.053))
+
+Concept(Situations(), Weighs("ask|left|÷", 0.063))
+
+Concept(Situations(), Weighs("ask|leg|-", 0.071))
+
+Concept(Situations(), Weighs("ask|leg|+", -0.061))
+
+Concept(Situations(), Weighs("ask|lego|-", 0.093))
+
+Concept(Situations(), Weighs("ask|lego|+", -0.055))
+
+Concept(Situations(), Weighs("ask|leila|+", 0.05))
+
+Concept(Situations(), Weighs("ask|lemon|-", 0.071))
+
+Concept(Situations(), Weighs("ask|lemonade|-", 0.062))
+
+Concept(Situations(), Weighs("ask|length|-", 0.052))
+
+Concept(Situations(), Weighs("ask|length|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|leon|-", -0.082))
+
+Concept(Situations(), Weighs("ask|leon|+", 0.082))
+
+Concept(Situations(), Weighs("ask|library|×", 0.065))
+
+Concept(Situations(), Weighs("ask|linda|×", 0.061))
+
+Concept(Situations(), Weighs("ask|lion|+", 0.065))
+
+Concept(Situations(), Weighs("ask|lion|×", -0.054))
+
+Concept(Situations(), Weighs("ask|lisa|-", -0.051))
+
+Concept(Situations(), Weighs("ask|lisa|×", 0.06))
+
+Concept(Situations(), Weighs("ask|liter|-", -0.091))
+
+Concept(Situations(), Weighs("ask|liter|×", 0.066))
+
+Concept(Situations(), Weighs("ask|liza's|-", -0.086))
+
+Concept(Situations(), Weighs("ask|liza's|+", 0.086))
+
+Concept(Situations(), Weighs("ask|load|×", 0.068))
+
+Concept(Situations(), Weighs("ask|log|×", -0.061))
+
+Concept(Situations(), Weighs("ask|lollipop|×", 0.072))
+
+Concept(Situations(), Weighs("ask|londolozi|+", 0.067))
+
+Concept(Situations(), Weighs("ask|long|-", -0.104))
+
+Concept(Situations(), Weighs("ask|long|+", 0.157))
+
+Concept(Situations(), Weighs("ask|long|÷", 0.064))
+
+Concept(Situations(), Weighs("ask|long|×", -0.067))
+
+Concept(Situations(), Weighs("ask|lose|×", 0.053))
+
+Concept(Situations(), Weighs("ask|lot|+", 0.052))
+
+Concept(Situations(), Weighs("ask|madeline|+", -0.055))
+
+Concept(Situations(), Weighs("ask|madeline|÷", 0.058))
+
+Concept(Situations(), Weighs("ask|magazine|-", 0.05))
+
+Concept(Situations(), Weighs("ask|make|-", -0.09))
+
+Concept(Situations(), Weighs("ask|make|×", 0.166))
+
+Concept(Situations(), Weighs("ask|man|+", 0.051))
+
+Concept(Situations(), Weighs("ask|mandy|-", 0.052))
+
+Concept(Situations(), Weighs("ask|many|-", 0.243))
+
+Concept(Situations(), Weighs("ask|many|+", -0.143))
+
+Concept(Situations(), Weighs("ask|many|×", 0.288))
+
+Concept(Situations(), Weighs("ask|marble|-", -0.099))
+
+Concept(Situations(), Weighs("ask|marble|+", 0.087))
+
+Concept(Situations(), Weighs("ask|march|-", 0.064))
+
+Concept(Situations(), Weighs("ask|marcy|×", 0.066))
+
+Concept(Situations(), Weighs("ask|maria|-", 0.051))
+
+Concept(Situations(), Weighs("ask|marion|-", 0.052))
+
+Concept(Situations(), Weighs("ask|marla|-", 0.065))
+
+Concept(Situations(), Weighs("ask|marnie|×", -0.056))
+
+Concept(Situations(), Weighs("ask|mary|×", 0.053))
+
+Concept(Situations(), Weighs("ask|max|+", -0.055))
+
+Concept(Situations(), Weighs("ask|max|÷", 0.07))
+
+Concept(Situations(), Weighs("ask|maximum|+", 0.058))
+
+Concept(Situations(), Weighs("ask|meal|+", -0.058))
+
+Concept(Situations(), Weighs("ask|meatball|+", -0.052))
+
+Concept(Situations(), Weighs("ask|medicine|-", 0.079))
+
+Concept(Situations(), Weighs("ask|medicine|×", -0.054))
+
+Concept(Situations(), Weighs("ask|melina|×", 0.058))
+
+Concept(Situations(), Weighs("ask|mile|-", 0.105))
+
+Concept(Situations(), Weighs("ask|mile|+", -0.083))
+
+Concept(Situations(), Weighs("ask|mile|×", 0.062))
+
+Concept(Situations(), Weighs("ask|milk|+", 0.06))
+
+Concept(Situations(), Weighs("ask|milk|×", -0.056))
+
+Concept(Situations(), Weighs("ask|minute|+", -0.138))
+
+Concept(Situations(), Weighs("ask|minute|×", 0.165))
+
+Concept(Situations(), Weighs("ask|money|-", -0.074))
+
+Concept(Situations(), Weighs("ask|money|+", -0.108))
+
+Concept(Situations(), Weighs("ask|money|÷", -0.092))
+
+Concept(Situations(), Weighs("ask|money|×", 0.149))
+
+Concept(Situations(), Weighs("ask|month|-", -0.196))
+
+Concept(Situations(), Weighs("ask|month|+", 0.067))
+
+Concept(Situations(), Weighs("ask|month|÷", 0.052))
+
+Concept(Situations(), Weighs("ask|month|×", 0.124))
+
+Concept(Situations(), Weighs("ask|more|÷", -0.059))
+
+Concept(Situations(), Weighs("ask|more|×", 0.096))
+
+Concept(Situations(), Weighs("ask|morning|-", -0.062))
+
+Concept(Situations(), Weighs("ask|morning|+", 0.077))
+
+Concept(Situations(), Weighs("ask|movie|-", -0.059))
+
+Concept(Situations(), Weighs("ask|moving|-", 0.053))
+
+Concept(Situations(), Weighs("ask|muscovy|+", -0.055))
+
+Concept(Situations(), Weighs("ask|muscovy|×", 0.05))
+
+Concept(Situations(), Weighs("ask|must|-", 0.132))
+
+Concept(Situations(), Weighs("ask|must|+", -0.086))
+
+Concept(Situations(), Weighs("ask|nail|-", -0.066))
+
+Concept(Situations(), Weighs("ask|nancy|÷", -0.052))
+
+Concept(Situations(), Weighs("ask|nap|-", -0.063))
+
+Concept(Situations(), Weighs("ask|nap|+", 0.066))
+
+Concept(Situations(), Weighs("ask|need|-", 0.194))
+
+Concept(Situations(), Weighs("ask|need|+", -0.177))
+
+Concept(Situations(), Weighs("ask|need|÷", 0.054))
+
+Concept(Situations(), Weighs("ask|neil|×", 0.062))
+
+Concept(Situations(), Weighs("ask|newborn|×", 0.052))
+
+Concept(Situations(), Weighs("ask|night|×", 0.069))
+
+Concept(Situations(), Weighs("ask|number|-", 0.101))
+
+Concept(Situations(), Weighs("ask|number|+", -0.056))
+
+Concept(Situations(), Weighs("ask|object|+", 0.072))
+
+Concept(Situations(), Weighs("ask|offer|-", 0.09))
+
+Concept(Situations(), Weighs("ask|offer|×", -0.066))
+
+Concept(Situations(), Weighs("ask|old|+", -0.135))
+
+Concept(Situations(), Weighs("ask|old|×", -0.067))
+
+Concept(Situations(), Weighs("ask|older|+", 0.058))
+
+Concept(Situations(), Weighs("ask|oli|×", -0.068))
+
+Concept(Situations(), Weighs("ask|oliver|+", -0.078))
+
+Concept(Situations(), Weighs("ask|one|+", 0.09))
+
+Concept(Situations(), Weighs("ask|open|×", 0.057))
+
+Concept(Situations(), Weighs("ask|operate|-", 0.052))
+
+Concept(Situations(), Weighs("ask|ophelia|-", 0.056))
+
+Concept(Situations(), Weighs("ask|option|-", 0.051))
+
+Concept(Situations(), Weighs("ask|orange|-", 0.062))
+
+Concept(Situations(), Weighs("ask|orange|+", -0.185))
+
+Concept(Situations(), Weighs("ask|order|-", 0.058))
+
+Concept(Situations(), Weighs("ask|order|+", -0.088))
+
+Concept(Situations(), Weighs("ask|original|-", -0.086))
+
+Concept(Situations(), Weighs("ask|original|+", 0.162))
+
+Concept(Situations(), Weighs("ask|out|+", -0.137))
+
+Concept(Situations(), Weighs("ask|out|×", 0.112))
+
+Concept(Situations(), Weighs("ask|outfit|+", 0.082))
+
+Concept(Situations(), Weighs("ask|over|-", 0.099))
+
+Concept(Situations(), Weighs("ask|over|+", -0.094))
+
+Concept(Situations(), Weighs("ask|owe|+", -0.089))
+
+Concept(Situations(), Weighs("ask|owe|÷", 0.074))
+
+Concept(Situations(), Weighs("ask|pack|+", -0.088))
+
+Concept(Situations(), Weighs("ask|pack|×", 0.073))
+
+Concept(Situations(), Weighs("ask|packed|-", -0.083))
+
+Concept(Situations(), Weighs("ask|packed|+", 0.087))
+
+Concept(Situations(), Weighs("ask|pad|-", 0.063))
+
+Concept(Situations(), Weighs("ask|page|-", 0.152))
+
+Concept(Situations(), Weighs("ask|page|+", -0.2))
+
+Concept(Situations(), Weighs("ask|pair|×", 0.06))
+
+Concept(Situations(), Weighs("ask|panel|-", 0.055))
+
+Concept(Situations(), Weighs("ask|paper|-", 0.071))
+
+Concept(Situations(), Weighs("ask|paper|+", -0.063))
+
+Concept(Situations(), Weighs("ask|paperclip|-", 0.052))
+
+Concept(Situations(), Weighs("ask|park|-", -0.067))
+
+Concept(Situations(), Weighs("ask|park|+", 0.103))
+
+Concept(Situations(), Weighs("ask|parrot|+", -0.057))
+
+Concept(Situations(), Weighs("ask|participate|-", 0.052))
+
+Concept(Situations(), Weighs("ask|party|+", -0.054))
+
+Concept(Situations(), Weighs("ask|pass|+", 0.063))
+
+Concept(Situations(), Weighs("ask|patricia|×", 0.05))
+
+Concept(Situations(), Weighs("ask|paula|+", 0.055))
+
+Concept(Situations(), Weighs("ask|pauline|+", 0.053))
+
+Concept(Situations(), Weighs("ask|pay|÷", 0.059))
+
+Concept(Situations(), Weighs("ask|paying|+", -0.061))
+
+Concept(Situations(), Weighs("ask|pearl|×", 0.074))
+
+Concept(Situations(), Weighs("ask|peggy|+", 0.062))
+
+Concept(Situations(), Weighs("ask|pen|-", -0.064))
+
+Concept(Situations(), Weighs("ask|pen|×", 0.082))
+
+Concept(Situations(), Weighs("ask|penny|+", -0.073))
+
+Concept(Situations(), Weighs("ask|penny|×", 0.051))
+
+Concept(Situations(), Weighs("ask|percentage|+", -0.239))
+
+Concept(Situations(), Weighs("ask|percentage|×", 0.161))
+
+Concept(Situations(), Weighs("ask|person|-", -0.126))
+
+Concept(Situations(), Weighs("ask|person|+", 0.124))
+
+Concept(Situations(), Weighs("ask|person|÷", 0.066))
+
+Concept(Situations(), Weighs("ask|pet|-", -0.062))
+
+Concept(Situations(), Weighs("ask|pick|-", 0.172))
+
+Concept(Situations(), Weighs("ask|pick|+", -0.098))
+
+Concept(Situations(), Weighs("ask|picture|-", 0.058))
+
+Concept(Situations(), Weighs("ask|piece|-", 0.078))
+
+Concept(Situations(), Weighs("ask|pine|-", 0.061))
+
+Concept(Situations(), Weighs("ask|pizza|÷", 0.087))
+
+Concept(Situations(), Weighs("ask|pizza|×", -0.089))
+
+Concept(Situations(), Weighs("ask|plane|×", 0.059))
+
+Concept(Situations(), Weighs("ask|plant|+", -0.058))
+
+Concept(Situations(), Weighs("ask|plant|×", 0.059))
+
+Concept(Situations(), Weighs("ask|play|-", -0.142))
+
+Concept(Situations(), Weighs("ask|player|+", -0.054))
+
+Concept(Situations(), Weighs("ask|player|×", 0.055))
+
+Concept(Situations(), Weighs("ask|playground|-", -0.056))
+
+Concept(Situations(), Weighs("ask|playground|+", 0.07))
+
+Concept(Situations(), Weighs("ask|pocket|-", 0.104))
+
+Concept(Situations(), Weighs("ask|pocket|+", -0.051))
+
+Concept(Situations(), Weighs("ask|pocket|×", -0.079))
+
+Concept(Situations(), Weighs("ask|point|-", 0.065))
+
+Concept(Situations(), Weighs("ask|pool|-", 0.058))
+
+Concept(Situations(), Weighs("ask|pregnant|×", 0.078))
+
+Concept(Situations(), Weighs("ask|prepare|+", 0.052))
+
+Concept(Situations(), Weighs("ask|present|-", -0.119))
+
+Concept(Situations(), Weighs("ask|present|+", 0.131))
+
+Concept(Situations(), Weighs("ask|price|+", 0.13))
+
+Concept(Situations(), Weighs("ask|profit|-", 0.091))
+
+Concept(Situations(), Weighs("ask|profit|×", -0.081))
+
+Concept(Situations(), Weighs("ask|puppy|+", -0.057))
+
+Concept(Situations(), Weighs("ask|purchase|÷", 0.065))
+
+Concept(Situations(), Weighs("ask|purchase|×", -0.099))
+
+Concept(Situations(), Weighs("ask|push-ups|-", 0.078))
+
+Concept(Situations(), Weighs("ask|push-ups|+", -0.062))
+
+Concept(Situations(), Weighs("ask|put|-", -0.102))
+
+Concept(Situations(), Weighs("ask|put|+", 0.132))
+
+Concept(Situations(), Weighs("ask|question|×", 0.064))
+
+Concept(Situations(), Weighs("ask|race|+", 0.053))
+
+Concept(Situations(), Weighs("ask|racket|-", 0.057))
+
+Concept(Situations(), Weighs("ask|raft|×", 0.067))
+
+Concept(Situations(), Weighs("ask|rain|×", 0.059))
+
+Concept(Situations(), Weighs("ask|ralph|-", 0.056))
+
+Concept(Situations(), Weighs("ask|rate|×", -0.066))
+
+Concept(Situations(), Weighs("ask|raven|+", 0.06))
+
+Concept(Situations(), Weighs("ask|reach|×", 0.05))
+
+Concept(Situations(), Weighs("ask|read|-", 0.11))
+
+Concept(Situations(), Weighs("ask|read|+", -0.182))
+
+Concept(Situations(), Weighs("ask|read|×", 0.065))
+
+Concept(Situations(), Weighs("ask|rebate|-", 0.079))
+
+Concept(Situations(), Weighs("ask|rebate|×", -0.054))
+
+Concept(Situations(), Weighs("ask|red|+", -0.109))
+
+Concept(Situations(), Weighs("ask|red|×", 0.076))
+
+Concept(Situations(), Weighs("ask|relax|-", -0.053))
+
+Concept(Situations(), Weighs("ask|relax|+", 0.064))
+
+Concept(Situations(), Weighs("ask|remain|+", -0.12))
+
+Concept(Situations(), Weighs("ask|remaining|+", -0.066))
+
+Concept(Situations(), Weighs("ask|respond|-", 0.051))
+
+Concept(Situations(), Weighs("ask|restaurant|×", 0.063))
+
+Concept(Situations(), Weighs("ask|riku|+", 0.08))
+
+Concept(Situations(), Weighs("ask|ring|+", -0.05))
+
+Concept(Situations(), Weighs("ask|river|-", -0.051))
+
+Concept(Situations(), Weighs("ask|river|+", 0.054))
+
+Concept(Situations(), Weighs("ask|rose|÷", -0.052))
+
+Concept(Situations(), Weighs("ask|roselyn|-", -0.052))
+
+Concept(Situations(), Weighs("ask|roselyn|+", 0.07))
+
+Concept(Situations(), Weighs("ask|roshesmina's|×", 0.055))
+
+Concept(Situations(), Weighs("ask|round|-", 0.065))
+
+Concept(Situations(), Weighs("ask|run|+", -0.086))
+
+Concept(Situations(), Weighs("ask|run|×", 0.147))
+
+Concept(Situations(), Weighs("ask|sale|+", 0.066))
+
+Concept(Situations(), Weighs("ask|salon|÷", 0.067))
+
+Concept(Situations(), Weighs("ask|same|×", 0.057))
+
+Concept(Situations(), Weighs("ask|sammy|+", 0.062))
+
+Concept(Situations(), Weighs("ask|samuel|-", -0.074))
+
+Concept(Situations(), Weighs("ask|samuel|+", 0.078))
+
+Concept(Situations(), Weighs("ask|sanda|+", 0.05))
+
+Concept(Situations(), Weighs("ask|sanda|×", -0.05))
+
+Concept(Situations(), Weighs("ask|sandwich|×", 0.086))
+
+Concept(Situations(), Weighs("ask|sarah’s|-", 0.058))
+
+Concept(Situations(), Weighs("ask|save|-", 0.072))
+
+Concept(Situations(), Weighs("ask|save|×", -0.085))
+
+Concept(Situations(), Weighs("ask|scoop|×", -0.068))
+
+Concept(Situations(), Weighs("ask|score|×", 0.12))
+
+Concept(Situations(), Weighs("ask|see|-", -0.064))
+
+Concept(Situations(), Weighs("ask|see|+", 0.071))
+
+Concept(Situations(), Weighs("ask|sell|+", 0.105))
+
+Concept(Situations(), Weighs("ask|sell|÷", 0.065))
+
+Concept(Situations(), Weighs("ask|sell|×", 0.059))
+
+Concept(Situations(), Weighs("ask|serious|-", 0.072))
+
+Concept(Situations(), Weighs("ask|set|-", 0.069))
+
+Concept(Situations(), Weighs("ask|set|+", -0.098))
+
+Concept(Situations(), Weighs("ask|shared|+", 0.06))
+
+Concept(Situations(), Weighs("ask|she|+", 0.055))
+
+Concept(Situations(), Weighs("ask|shell|+", 0.071))
+
+Concept(Situations(), Weighs("ask|ship|-", -0.071))
+
+Concept(Situations(), Weighs("ask|ship|×", 0.058))
+
+Concept(Situations(), Weighs("ask|should|-", 0.109))
+
+Concept(Situations(), Weighs("ask|side|-", 0.064))
+
+Concept(Situations(), Weighs("ask|sit-ups|×", 0.07))
+
+Concept(Situations(), Weighs("ask|smartphone|×", -0.08))
+
+Concept(Situations(), Weighs("ask|snowflake|-", 0.053))
+
+Concept(Situations(), Weighs("ask|sock|+", -0.073))
+
+Concept(Situations(), Weighs("ask|sock|×", 0.062))
+
+Concept(Situations(), Weighs("ask|son|-", 0.053))
+
+Concept(Situations(), Weighs("ask|space|-", 0.081))
+
+Concept(Situations(), Weighs("ask|spaceship|-", 0.053))
+
+Concept(Situations(), Weighs("ask|speed|×", 0.055))
+
+Concept(Situations(), Weighs("ask|spend|-", -0.171))
+
+Concept(Situations(), Weighs("ask|spend|÷", 0.073))
+
+Concept(Situations(), Weighs("ask|spend|×", 0.066))
+
+Concept(Situations(), Weighs("ask|square|+", -0.053))
+
+Concept(Situations(), Weighs("ask|square|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|stamp|+", 0.059))
+
+Concept(Situations(), Weighs("ask|stamp|×", -0.052))
+
+Concept(Situations(), Weighs("ask|start|-", 0.051))
+
+Concept(Situations(), Weighs("ask|start|×", -0.073))
+
+Concept(Situations(), Weighs("ask|station|-", 0.052))
+
+Concept(Situations(), Weighs("ask|stationery|-", 0.074))
+
+Concept(Situations(), Weighs("ask|steak|÷", 0.058))
+
+Concept(Situations(), Weighs("ask|steak|×", -0.058))
+
+Concept(Situations(), Weighs("ask|steve|-", 0.065))
+
+Concept(Situations(), Weighs("ask|sticker|-", -0.067))
+
+Concept(Situations(), Weighs("ask|sticker|+", 0.111))
+
+Concept(Situations(), Weighs("ask|still|-", 0.082))
+
+Concept(Situations(), Weighs("ask|still|+", -0.075))
+
+Concept(Situations(), Weighs("ask|still|×", -0.058))
+
+Concept(Situations(), Weighs("ask|stock|-", -0.058))
+
+Concept(Situations(), Weighs("ask|store|-", 0.074))
+
+Concept(Situations(), Weighs("ask|store|×", -0.144))
+
+Concept(Situations(), Weighs("ask|strawberry|-", 0.053))
+
+Concept(Situations(), Weighs("ask|strawberry|+", -0.077))
+
+Concept(Situations(), Weighs("ask|street|-", 0.108))
+
+Concept(Situations(), Weighs("ask|street|+", -0.094))
+
+Concept(Situations(), Weighs("ask|strip|×", 0.069))
+
+Concept(Situations(), Weighs("ask|student|-", 0.126))
+
+Concept(Situations(), Weighs("ask|student|+", -0.139))
+
+Concept(Situations(), Weighs("ask|student|×", -0.086))
+
+Concept(Situations(), Weighs("ask|study|+", 0.069))
+
+Concept(Situations(), Weighs("ask|stuffed|-", 0.081))
+
+Concept(Situations(), Weighs("ask|stuffed|+", -0.056))
+
+Concept(Situations(), Weighs("ask|stuffy|×", 0.077))
+
+Concept(Situations(), Weighs("ask|sum|+", 0.052))
+
+Concept(Situations(), Weighs("ask|supply|-", -0.06))
+
+Concept(Situations(), Weighs("ask|supply|+", 0.07))
+
+Concept(Situations(), Weighs("ask|take|-", -0.091))
+
+Concept(Situations(), Weighs("ask|take|+", -0.056))
+
+Concept(Situations(), Weighs("ask|take|×", 0.184))
+
+Concept(Situations(), Weighs("ask|tall|+", -0.139))
+
+Concept(Situations(), Weighs("ask|tamika|-", 0.059))
+
+Concept(Situations(), Weighs("ask|tax|+", 0.064))
+
+Concept(Situations(), Weighs("ask|teach|+", 0.057))
+
+Concept(Situations(), Weighs("ask|teacher|×", 0.072))
+
+Concept(Situations(), Weighs("ask|team|×", 0.082))
+
+Concept(Situations(), Weighs("ask|teammate|-", 0.052))
+
+Concept(Situations(), Weighs("ask|tee|+", 0.053))
+
+Concept(Situations(), Weighs("ask|temperature|-", 0.143))
+
+Concept(Situations(), Weighs("ask|temperature|+", -0.075))
+
+Concept(Situations(), Weighs("ask|temperature|×", -0.066))
+
+Concept(Situations(), Weighs("ask|terese|-", 0.058))
+
+Concept(Situations(), Weighs("ask|terez|×", 0.078))
+
+Concept(Situations(), Weighs("ask|terry|-", 0.053))
+
+Concept(Situations(), Weighs("ask|test|+", -0.108))
+
+Concept(Situations(), Weighs("ask|test|×", 0.13))
+
+Concept(Situations(), Weighs("ask|there|+", -0.195))
+
+Concept(Situations(), Weighs("ask|there|×", 0.157))
+
+Concept(Situations(), Weighs("ask|they|+", -0.052))
+
+Concept(Situations(), Weighs("ask|they|÷", 0.08))
+
+Concept(Situations(), Weighs("ask|throw|-", 0.051))
+
+Concept(Situations(), Weighs("ask|thursday|×", 0.067))
+
+Concept(Situations(), Weighs("ask|ticket|-", -0.062))
+
+Concept(Situations(), Weighs("ask|ticket|÷", 0.148))
+
+Concept(Situations(), Weighs("ask|ticket|×", -0.075))
+
+Concept(Situations(), Weighs("ask|tie|-", 0.123))
+
+Concept(Situations(), Weighs("ask|tie|+", -0.073))
+
+Concept(Situations(), Weighs("ask|time|-", -0.071))
+
+Concept(Situations(), Weighs("ask|time|+", -0.171))
+
+Concept(Situations(), Weighs("ask|time|÷", 0.117))
+
+Concept(Situations(), Weighs("ask|time|×", 0.151))
+
+Concept(Situations(), Weighs("ask|timothy's|+", -0.055))
+
+Concept(Situations(), Weighs("ask|timothy's|÷", 0.058))
+
+Concept(Situations(), Weighs("ask|tina|+", 0.059))
+
+Concept(Situations(), Weighs("ask|to|×", 0.181))
+
+Concept(Situations(), Weighs("ask|together|+", 0.19))
+
+Concept(Situations(), Weighs("ask|tom|+", 0.054))
+
+Concept(Situations(), Weighs("ask|tomato|+", -0.139))
+
+Concept(Situations(), Weighs("ask|tomato|×", 0.197))
+
+Concept(Situations(), Weighs("ask|tommy|×", 0.06))
+
+Concept(Situations(), Weighs("ask|toss|+", 0.072))
+
+Concept(Situations(), Weighs("ask|total|+", 0.358))
+
+Concept(Situations(), Weighs("ask|total|×", 0.175))
+
+Concept(Situations(), Weighs("ask|trash|+", 0.067))
+
+Concept(Situations(), Weighs("ask|tree|-", 0.146))
+
+Concept(Situations(), Weighs("ask|tree|+", -0.055))
+
+Concept(Situations(), Weighs("ask|triangle|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|trip|+", 0.075))
+
+Concept(Situations(), Weighs("ask|truck|-", 0.09))
+
+Concept(Situations(), Weighs("ask|truck|×", -0.056))
+
+Concept(Situations(), Weighs("ask|try|-", 0.056))
+
+Concept(Situations(), Weighs("ask|tube|×", 0.067))
+
+Concept(Situations(), Weighs("ask|tuition|-", 0.054))
+
+Concept(Situations(), Weighs("ask|tully|+", 0.05))
+
+Concept(Situations(), Weighs("ask|turtle|+", 0.051))
+
+Concept(Situations(), Weighs("ask|tyler|+", 0.051))
+
+Concept(Situations(), Weighs("ask|type|+", -0.057))
+
+Concept(Situations(), Weighs("ask|uneat|-", -0.06))
+
+Concept(Situations(), Weighs("ask|uneat|×", 0.053))
+
+Concept(Situations(), Weighs("ask|unit|÷", 0.05))
+
+Concept(Situations(), Weighs("ask|university|+", 0.069))
+
+Concept(Situations(), Weighs("ask|up|+", -0.066))
+
+Concept(Situations(), Weighs("ask|use|-", 0.051))
+
+Concept(Situations(), Weighs("ask|used|×", 0.064))
+
+Concept(Situations(), Weighs("ask|vaccinate|-", 0.068))
+
+Concept(Situations(), Weighs("ask|vegetable|-", -0.055))
+
+Concept(Situations(), Weighs("ask|vessel|×", 0.062))
+
+Concept(Situations(), Weighs("ask|victoria|×", -0.075))
+
+Concept(Situations(), Weighs("ask|video|×", 0.064))
+
+Concept(Situations(), Weighs("ask|visitor|+", -0.054))
+
+Concept(Situations(), Weighs("ask|visitor|×", 0.072))
+
+Concept(Situations(), Weighs("ask|walk|×", 0.098))
+
+Concept(Situations(), Weighs("ask|want|-", 0.071))
+
+Concept(Situations(), Weighs("ask|wardrobe|+", 0.055))
+
+Concept(Situations(), Weighs("ask|wash|-", -0.061))
+
+Concept(Situations(), Weighs("ask|wash|×", 0.111))
+
+Concept(Situations(), Weighs("ask|washer|×", -0.058))
+
+Concept(Situations(), Weighs("ask|water|×", 0.083))
+
+Concept(Situations(), Weighs("ask|wednesday|+", 0.088))
+
+Concept(Situations(), Weighs("ask|wednesday|×", -0.063))
+
+Concept(Situations(), Weighs("ask|week|+", -0.106))
+
+Concept(Situations(), Weighs("ask|week|×", 0.124))
+
+Concept(Situations(), Weighs("ask|weekly|-", 0.075))
+
+Concept(Situations(), Weighs("ask|weigh|-", 0.078))
+
+Concept(Situations(), Weighs("ask|weight|+", -0.053))
+
+Concept(Situations(), Weighs("ask|weight|×", 0.05))
+
+Concept(Situations(), Weighs("ask|whole|+", 0.12))
+
+Concept(Situations(), Weighs("ask|whole|÷", -0.074))
+
+Concept(Situations(), Weighs("ask|whole|×", -0.088))
+
+Concept(Situations(), Weighs("ask|will|÷", 0.1))
+
+Concept(Situations(), Weighs("ask|wilma|-", 0.056))
+
+Concept(Situations(), Weighs("ask|wilsborough|-", 0.052))
+
+Concept(Situations(), Weighs("ask|win|-", -0.06))
+
+Concept(Situations(), Weighs("ask|win|÷", 0.07))
+
+Concept(Situations(), Weighs("ask|work|+", -0.114))
+
+Concept(Situations(), Weighs("ask|work|×", 0.087))
+
+Concept(Situations(), Weighs("ask|worker|×", 0.064))
+
+Concept(Situations(), Weighs("ask|worth|-", 0.055))
+
+Concept(Situations(), Weighs("ask|would|-", -0.077))
+
+Concept(Situations(), Weighs("ask|would|+", 0.184))
+
+Concept(Situations(), Weighs("ask|wrong|+", -0.071))
+
+Concept(Situations(), Weighs("ask|wrong|×", 0.072))
+
+Concept(Situations(), Weighs("ask|yasna|-", 0.065))
+
+Concept(Situations(), Weighs("ask|yasna|×", -0.053))
+
+Concept(Situations(), Weighs("ask|year|+", 0.131))
+
+Concept(Situations(), Weighs("ask|year|×", -0.125))
+
+Concept(Situations(), Weighs("ask|yellow|+", -0.05))
+
+Concept(Situations(), Weighs("ask|yola|-", 0.069))
+
+Concept(Situations(), Weighs("by|across", 0.072))
+
+Concept(Situations(), Weighs("by|add", 0.134))
+
+Concept(Situations(), Weighs("by|be", 0.446))
+
+Concept(Situations(), Weighs("by|birth", 0.051))
+
+Concept(Situations(), Weighs("by|book", 0.067))
+
+Concept(Situations(), Weighs("by|break", 0.072))
+
+Concept(Situations(), Weighs("by|buy", -0.076))
+
+Concept(Situations(), Weighs("by|can", 0.081))
+
+Concept(Situations(), Weighs("by|collect", 0.054))
+
+Concept(Situations(), Weighs("by|complete", 0.124))
+
+Concept(Situations(), Weighs("by|contain", 0.08))
+
+Concept(Situations(), Weighs("by|cost", -0.058))
+
+Concept(Situations(), Weighs("by|cover", 0.148))
+
+Concept(Situations(), Weighs("by|create", 0.055))
+
+Concept(Situations(), Weighs("by|divide", 0.095))
+
+Concept(Situations(), Weighs("by|double", -0.056))
+
+Concept(Situations(), Weighs("by|drive", -0.067))
+
+Concept(Situations(), Weighs("by|eat", -0.052))
+
+Concept(Situations(), Weighs("by|exercise", -0.051))
+
+Concept(Situations(), Weighs("by|find", -0.053))
+
+Concept(Situations(), Weighs("by|give", -0.079))
+
+Concept(Situations(), Weighs("by|hold", 0.068))
+
+Concept(Situations(), Weighs("by|hop", 0.068))
+
+Concept(Situations(), Weighs("by|keep", 0.118))
+
+Concept(Situations(), Weighs("by|left", 0.085))
+
+Concept(Situations(), Weighs("by|lift", 0.058))
+
+Concept(Situations(), Weighs("by|lose", 0.244))
+
+Concept(Situations(), Weighs("by|need", -0.075))
+
+Concept(Situations(), Weighs("by|out", -0.067))
+
+Concept(Situations(), Weighs("by|place", 0.069))
+
+Concept(Situations(), Weighs("by|plant", -0.064))
+
+Concept(Situations(), Weighs("by|price", 0.073))
+
+Concept(Situations(), Weighs("by|rained", 0.088))
+
+Concept(Situations(), Weighs("by|read", 0.1))
+
+Concept(Situations(), Weighs("by|retail", 0.083))
+
+Concept(Situations(), Weighs("by|run", 0.131))
+
+Concept(Situations(), Weighs("by|save", -0.099))
+
+Concept(Situations(), Weighs("by|sell", 0.089))
+
+Concept(Situations(), Weighs("by|send", 0.067))
+
+Concept(Situations(), Weighs("by|spend", -0.156))
+
+Concept(Situations(), Weighs("by|spiked", 0.056))
+
+Concept(Situations(), Weighs("by|stop", -0.053))
+
+Concept(Situations(), Weighs("by|swim", -0.061))
+
+Concept(Situations(), Weighs("by|take", 0.086))
+
+Concept(Situations(), Weighs("by|toss", 0.054))
+
+Concept(Situations(), Weighs("by|use", -0.081))
+
+Concept(Situations(), Weighs("by|watch", -0.052))
+
+Concept(Situations(), Weighs("by|work", -0.103))
+
+Concept(Situations(), Weighs("converts", -0.897))
+
+Concept(Situations(), Weighs("depth", 0.211))
+
+Concept(Situations(), Weighs("divisions", -0.009))
+
+Concept(Situations(), Weighs("from|administer", 0.068))
+
+Concept(Situations(), Weighs("from|be", 0.134))
+
+Concept(Situations(), Weighs("from|birth", -0.064))
+
+Concept(Situations(), Weighs("from|born", 0.078))
+
+Concept(Situations(), Weighs("from|buy", 0.342))
+
+Concept(Situations(), Weighs("from|catch", 0.082))
+
+Concept(Situations(), Weighs("from|chop", 0.057))
+
+Concept(Situations(), Weighs("from|complete", -0.056))
+
+Concept(Situations(), Weighs("from|consume", -0.057))
+
+Concept(Situations(), Weighs("from|cost", -0.088))
+
+Concept(Situations(), Weighs("from|count", 0.066))
+
+Concept(Situations(), Weighs("from|deposit", -0.062))
+
+Concept(Situations(), Weighs("from|deviled", 0.1))
+
+Concept(Situations(), Weighs("from|donate", 0.092))
+
+Concept(Situations(), Weighs("from|double", -0.064))
+
+Concept(Situations(), Weighs("from|drew", 0.056))
+
+Concept(Situations(), Weighs("from|drop", 0.082))
+
+Concept(Situations(), Weighs("from|eat", -0.193))
+
+Concept(Situations(), Weighs("from|expect", 0.06))
+
+Concept(Situations(), Weighs("from|feed", -0.067))
+
+Concept(Situations(), Weighs("from|fill", 0.083))
+
+Concept(Situations(), Weighs("from|get", -0.088))
+
+Concept(Situations(), Weighs("from|harvest", 0.063))
+
+Concept(Situations(), Weighs("from|have", -0.172))
+
+Concept(Situations(), Weighs("from|hold", -0.186))
+
+Concept(Situations(), Weighs("from|hope", -0.063))
+
+Concept(Situations(), Weighs("from|in", 0.13))
+
+Concept(Situations(), Weighs("from|invited", 0.131))
+
+Concept(Situations(), Weighs("from|jump", 0.063))
+
+Concept(Situations(), Weighs("from|know", -0.077))
+
+Concept(Situations(), Weighs("from|left", -0.059))
+
+Concept(Situations(), Weighs("from|lost", 0.052))
+
+Concept(Situations(), Weighs("from|offer", 0.058))
+
+Concept(Situations(), Weighs("from|order", 0.05))
+
+Concept(Situations(), Weighs("from|organized", 0.056))
+
+Concept(Situations(), Weighs("from|pay", -0.211))
+
+Concept(Situations(), Weighs("from|pick", -0.064))
+
+Concept(Situations(), Weighs("from|quit", 0.072))
+
+Concept(Situations(), Weighs("from|receive", 0.118))
+
+Concept(Situations(), Weighs("from|received", 0.053))
+
+Concept(Situations(), Weighs("from|require", 0.067))
+
+Concept(Situations(), Weighs("from|ride", -0.129))
+
+Concept(Situations(), Weighs("from|sell", -0.217))
+
+Concept(Situations(), Weighs("from|show", 0.054))
+
+Concept(Situations(), Weighs("from|spend", -0.159))
+
+Concept(Situations(), Weighs("from|trade", 0.148))
+
+Concept(Situations(), Weighs("from|travel", 0.153))
+
+Concept(Situations(), Weighs("from|triple", 0.083))
+
+Concept(Situations(), Weighs("from|up", -0.068))
+
+Concept(Situations(), Weighs("from|wait", 0.067))
+
+Concept(Situations(), Weighs("from|win", 0.056))
+
+Concept(Situations(), Weighs("from|work", 0.057))
+
+Concept(Situations(), Weighs("minus:left", 0.915))
+
+Concept(Situations(), Weighs("minus:more", 1.731))
+
+Concept(Situations(), Weighs("minus:sign", 1.058))
+
+Concept(Situations(), Weighs("minus:unsigned", -0.142))
+
+Concept(Situations(), Weighs("minus|add", -0.157))
+
+Concept(Situations(), Weighs("minus|be", -0.216))
+
+Concept(Situations(), Weighs("minus|birth", -0.14))
+
+Concept(Situations(), Weighs("minus|break", -0.078))
+
+Concept(Situations(), Weighs("minus|canvass", 0.086))
+
+Concept(Situations(), Weighs("minus|catch", 0.061))
+
+Concept(Situations(), Weighs("minus|celebrate", 0.056))
+
+Concept(Situations(), Weighs("minus|changing", 0.073))
+
+Concept(Situations(), Weighs("minus|charge", -0.086))
+
+Concept(Situations(), Weighs("minus|collect", 0.103))
+
+Concept(Situations(), Weighs("minus|coloring", 0.083))
+
+Concept(Situations(), Weighs("minus|consume", 0.065))
+
+Concept(Situations(), Weighs("minus|cost", -0.087))
+
+Concept(Situations(), Weighs("minus|create", -0.057))
+
+Concept(Situations(), Weighs("minus|deviled", -0.067))
+
+Concept(Situations(), Weighs("minus|die", 0.078))
+
+Concept(Situations(), Weighs("minus|double", -0.057))
+
+Concept(Situations(), Weighs("minus|drink", -0.143))
+
+Concept(Situations(), Weighs("minus|drive", -0.095))
+
+Concept(Situations(), Weighs("minus|earn", 0.1))
+
+Concept(Situations(), Weighs("minus|eat", -0.258))
+
+Concept(Situations(), Weighs("minus|feed", 0.059))
+
+Concept(Situations(), Weighs("minus|fill", -0.084))
+
+Concept(Situations(), Weighs("minus|find", 0.11))
+
+Concept(Situations(), Weighs("minus|finished", 0.091))
+
+Concept(Situations(), Weighs("minus|fried", 0.059))
+
+Concept(Situations(), Weighs("minus|give", 0.162))
+
+Concept(Situations(), Weighs("minus|grow", 0.052))
+
+Concept(Situations(), Weighs("minus|have", 0.184))
+
+Concept(Situations(), Weighs("minus|hold", -0.059))
+
+Concept(Situations(), Weighs("minus|juice", 0.056))
+
+Concept(Situations(), Weighs("minus|jump", -0.055))
+
+Concept(Situations(), Weighs("minus|land", 0.079))
+
+Concept(Situations(), Weighs("minus|leave", 0.054))
+
+Concept(Situations(), Weighs("minus|lift", -0.05))
+
+Concept(Situations(), Weighs("minus|lost", -0.073))
+
+Concept(Situations(), Weighs("minus|need", -0.062))
+
+Concept(Situations(), Weighs("minus|net", 0.071))
+
+Concept(Situations(), Weighs("minus|offer", 0.057))
+
+Concept(Situations(), Weighs("minus|out", 0.06))
+
+Concept(Situations(), Weighs("minus|pay", -0.113))
+
+Concept(Situations(), Weighs("minus|play", -0.053))
+
+Concept(Situations(), Weighs("minus|purchase", 0.052))
+
+Concept(Situations(), Weighs("minus|receive", 0.071))
+
+Concept(Situations(), Weighs("minus|received", -0.065))
+
+Concept(Situations(), Weighs("minus|remain", -0.058))
+
+Concept(Situations(), Weighs("minus|ride", -0.077))
+
+Concept(Situations(), Weighs("minus|save", -0.076))
+
+Concept(Situations(), Weighs("minus|score", 0.104))
+
+Concept(Situations(), Weighs("minus|shred", 0.053))
+
+Concept(Situations(), Weighs("minus|spend", 0.228))
+
+Concept(Situations(), Weighs("minus|start", -0.071))
+
+Concept(Situations(), Weighs("minus|stop", 0.094))
+
+Concept(Situations(), Weighs("minus|travel", -0.086))
+
+Concept(Situations(), Weighs("minus|use", -0.158))
+
+Concept(Situations(), Weighs("minus|wait", 0.077))
+
+Concept(Situations(), Weighs("minus|watch", 0.128))
+
+Concept(Situations(), Weighs("minus|write", 0.083))
+
+Concept(Situations(), Weighs("over|across", 0.072))
+
+Concept(Situations(), Weighs("over|be", -0.226))
+
+Concept(Situations(), Weighs("over|birth", 0.078))
+
+Concept(Situations(), Weighs("over|buy", -0.106))
+
+Concept(Situations(), Weighs("over|calculate", -0.068))
+
+Concept(Situations(), Weighs("over|capture", -0.053))
+
+Concept(Situations(), Weighs("over|climb", 0.069))
+
+Concept(Situations(), Weighs("over|contain", 0.075))
+
+Concept(Situations(), Weighs("over|cost", -0.172))
+
+Concept(Situations(), Weighs("over|cover", -0.059))
+
+Concept(Situations(), Weighs("over|decide", 0.053))
+
+Concept(Situations(), Weighs("over|discover", 0.063))
+
+Concept(Situations(), Weighs("over|divide", -0.105))
+
+Concept(Situations(), Weighs("over|do", 0.134))
+
+Concept(Situations(), Weighs("over|double", 0.157))
+
+Concept(Situations(), Weighs("over|drive", 0.076))
+
+Concept(Situations(), Weighs("over|eat", -0.117))
+
+Concept(Situations(), Weighs("over|feed", -0.06))
+
+Concept(Situations(), Weighs("over|fried", -0.061))
+
+Concept(Situations(), Weighs("over|get", 0.087))
+
+Concept(Situations(), Weighs("over|go", -0.088))
+
+Concept(Situations(), Weighs("over|have", -0.223))
+
+Concept(Situations(), Weighs("over|hop", 0.068))
+
+Concept(Situations(), Weighs("over|in", -0.062))
+
+Concept(Situations(), Weighs("over|left", 0.076))
+
+Concept(Situations(), Weighs("over|lift", 0.059))
+
+Concept(Situations(), Weighs("over|need", -0.097))
+
+Concept(Situations(), Weighs("over|order", -0.091))
+
+Concept(Situations(), Weighs("over|out", 0.092))
+
+Concept(Situations(), Weighs("over|owe", 0.082))
+
+Concept(Situations(), Weighs("over|plant", 0.064))
+
+Concept(Situations(), Weighs("over|read", 0.168))
+
+Concept(Situations(), Weighs("over|reduce", -0.052))
+
+Concept(Situations(), Weighs("over|run", -0.066))
+
+Concept(Situations(), Weighs("over|sell", 0.116))
+
+Concept(Situations(), Weighs("over|start", 0.075))
+
+Concept(Situations(), Weighs("over|toss", 0.078))
+
+Concept(Situations(), Weighs("over|tube", 0.072))
+
+Concept(Situations(), Weighs("over|up", 0.05))
+
+Concept(Situations(), Weighs("over|use", 0.1))
+
+Concept(Situations(), Weighs("over|walk", 0.067))
+
+Concept(Situations(), Weighs("owed", -0.35))
+
+Concept(Situations(), Weighs("plus:again", 0.168))
+
+Concept(Situations(), Weighs("plus:against", -1.045))
+
+Concept(Situations(), Weighs("plus:left", -0.248))
+
+Concept(Situations(), Weighs("plus:more", -1.869))
+
+Concept(Situations(), Weighs("plus:part", -0.227))
+
+Concept(Situations(), Weighs("plus:rates", -0.926))
+
+Concept(Situations(), Weighs("plus:sign", 0.385))
+
+Concept(Situations(), Weighs("plus:total", 0.756))
+
+Concept(Situations(), Weighs("plus|add", 0.098))
+
+Concept(Situations(), Weighs("plus|ahead", 0.055))
+
+Concept(Situations(), Weighs("plus|applied", 0.085))
+
+Concept(Situations(), Weighs("plus|assemble", 0.066))
+
+Concept(Situations(), Weighs("plus|attend", 0.059))
+
+Concept(Situations(), Weighs("plus|away", 0.053))
+
+Concept(Situations(), Weighs("plus|bake", -0.064))
+
+Concept(Situations(), Weighs("plus|bark", 0.129))
+
+Concept(Situations(), Weighs("plus|break", 0.103))
+
+Concept(Situations(), Weighs("plus|buy", 0.158))
+
+Concept(Situations(), Weighs("plus|catch", -0.077))
+
+Concept(Situations(), Weighs("plus|closing", 0.068))
+
+Concept(Situations(), Weighs("plus|collect", -0.108))
+
+Concept(Situations(), Weighs("plus|color", -0.057))
+
+Concept(Situations(), Weighs("plus|coloring", -0.067))
+
+Concept(Situations(), Weighs("plus|complete", -0.058))
+
+Concept(Situations(), Weighs("plus|contain", -0.138))
+
+Concept(Situations(), Weighs("plus|cost", 0.183))
+
+Concept(Situations(), Weighs("plus|cough", 0.146))
+
+Concept(Situations(), Weighs("plus|crawl", -0.056))
+
+Concept(Situations(), Weighs("plus|credit", -0.141))
+
+Concept(Situations(), Weighs("plus|cut", -0.057))
+
+Concept(Situations(), Weighs("plus|decorate", 0.069))
+
+Concept(Situations(), Weighs("plus|deny", -0.133))
+
+Concept(Situations(), Weighs("plus|deposit", 0.075))
+
+Concept(Situations(), Weighs("plus|divide", 0.116))
+
+Concept(Situations(), Weighs("plus|do", -0.229))
+
+Concept(Situations(), Weighs("plus|donate", -0.151))
+
+Concept(Situations(), Weighs("plus|drink", 0.101))
+
+Concept(Situations(), Weighs("plus|drive", 0.18))
+
+Concept(Situations(), Weighs("plus|earn", 0.061))
+
+Concept(Situations(), Weighs("plus|eat", 0.14))
+
+Concept(Situations(), Weighs("plus|exercise", -0.052))
+
+Concept(Situations(), Weighs("plus|feed", -0.111))
+
+Concept(Situations(), Weighs("plus|finished", 0.05))
+
+Concept(Situations(), Weighs("plus|fold", -0.114))
+
+Concept(Situations(), Weighs("plus|give", 0.3))
+
+Concept(Situations(), Weighs("plus|grow", -0.093))
+
+Concept(Situations(), Weighs("plus|harvest", -0.086))
+
+Concept(Situations(), Weighs("plus|hold", 0.143))
+
+Concept(Situations(), Weighs("plus|hop", -0.058))
+
+Concept(Situations(), Weighs("plus|hope", 0.088))
+
+Concept(Situations(), Weighs("plus|hover", -0.074))
+
+Concept(Situations(), Weighs("plus|increased", -0.051))
+
+Concept(Situations(), Weighs("plus|insulting", -0.056))
+
+Concept(Situations(), Weighs("plus|invited", -0.063))
+
+Concept(Situations(), Weighs("plus|jog", 0.061))
+
+Concept(Situations(), Weighs("plus|keep", -0.071))
+
+Concept(Situations(), Weighs("plus|last", 0.068))
+
+Concept(Situations(), Weighs("plus|lay", 0.087))
+
+Concept(Situations(), Weighs("plus|lift", -0.112))
+
+Concept(Situations(), Weighs("plus|like", 0.056))
+
+Concept(Situations(), Weighs("plus|lose", -0.052))
+
+Concept(Situations(), Weighs("plus|lost", 0.231))
+
+Concept(Situations(), Weighs("plus|occupied", 0.063))
+
+Concept(Situations(), Weighs("plus|off", 0.078))
+
+Concept(Situations(), Weighs("plus|offer", -0.076))
+
+Concept(Situations(), Weighs("plus|order", -0.098))
+
+Concept(Situations(), Weighs("plus|organize", 0.062))
+
+Concept(Situations(), Weighs("plus|owe", -0.148))
+
+Concept(Situations(), Weighs("plus|pack", 0.093))
+
+Concept(Situations(), Weighs("plus|paint", 0.14))
+
+Concept(Situations(), Weighs("plus|pass", 0.064))
+
+Concept(Situations(), Weighs("plus|pay", 0.156))
+
+Concept(Situations(), Weighs("plus|pick", 0.108))
+
+Concept(Situations(), Weighs("plus|picked", 0.075))
+
+Concept(Situations(), Weighs("plus|plant", 0.178))
+
+Concept(Situations(), Weighs("plus|practice", 0.082))
+
+Concept(Situations(), Weighs("plus|prepared", 0.069))
+
+Concept(Situations(), Weighs("plus|pull", 0.056))
+
+Concept(Situations(), Weighs("plus|purchase", 0.063))
+
+Concept(Situations(), Weighs("plus|quit", -0.071))
+
+Concept(Situations(), Weighs("plus|read", -0.115))
+
+Concept(Situations(), Weighs("plus|recorded", 0.089))
+
+Concept(Situations(), Weighs("plus|ride", 0.17))
+
+Concept(Situations(), Weighs("plus|run", 0.106))
+
+Concept(Situations(), Weighs("plus|save", 0.116))
+
+Concept(Situations(), Weighs("plus|see", 0.139))
+
+Concept(Situations(), Weighs("plus|sell", 0.236))
+
+Concept(Situations(), Weighs("plus|skip", 0.085))
+
+Concept(Situations(), Weighs("plus|spend", 0.122))
+
+Concept(Situations(), Weighs("plus|spiked", -0.084))
+
+Concept(Situations(), Weighs("plus|spit", 0.066))
+
+Concept(Situations(), Weighs("plus|split", -0.075))
+
+Concept(Situations(), Weighs("plus|spotted", 0.053))
+
+Concept(Situations(), Weighs("plus|sprinkle", 0.059))
+
+Concept(Situations(), Weighs("plus|start", 0.116))
+
+Concept(Situations(), Weighs("plus|stay", 0.058))
+
+Concept(Situations(), Weighs("plus|stop", -0.059))
+
+Concept(Situations(), Weighs("plus|take", 0.128))
+
+Concept(Situations(), Weighs("plus|teach", 0.22))
+
+Concept(Situations(), Weighs("plus|toss", -0.059))
+
+Concept(Situations(), Weighs("plus|trade", -0.187))
+
+Concept(Situations(), Weighs("plus|transfer", 0.091))
+
+Concept(Situations(), Weighs("plus|travel", -0.065))
+
+Concept(Situations(), Weighs("plus|triple", -0.063))
+
+Concept(Situations(), Weighs("plus|up", 0.207))
+
+Concept(Situations(), Weighs("plus|wait", -0.117))
+
+Concept(Situations(), Weighs("plus|walk", 0.139))
+
+Concept(Situations(), Weighs("plus|win", 0.058))
+
+Concept(Situations(), Weighs("plus|work", 0.28))
+
+Concept(Situations(), Weighs("plus|write", -0.084))
+
+Concept(Situations(), Weighs("ratioLeft", -3.658))
+
+Concept(Situations(), Weighs("theirs", 2.041))
+
+Concept(Situations(), Weighs("times:beside", 0.672))
+
+Concept(Situations(), Weighs("times:kind", 1.574))
+
+Concept(Situations(), Weighs("times:ratio", 0.185))
+
+Concept(Situations(), Weighs("times:sums", -1.309))
+
+Concept(Situations(), Weighs("times|add", -0.158))
+
+Concept(Situations(), Weighs("times|be", -0.089))
+
+Concept(Situations(), Weighs("times|buy", 0.361))
+
+Concept(Situations(), Weighs("times|calculate", -0.079))
+
+Concept(Situations(), Weighs("times|canvass", 0.075))
+
+Concept(Situations(), Weighs("times|charge", 0.126))
+
+Concept(Situations(), Weighs("times|climb", -0.052))
+
+Concept(Situations(), Weighs("times|closing", -0.056))
+
+Concept(Situations(), Weighs("times|collect", -0.101))
+
+Concept(Situations(), Weighs("times|color", 0.089))
+
+Concept(Situations(), Weighs("times|coloring", -0.123))
+
+Concept(Situations(), Weighs("times|complete", -0.075))
+
+Concept(Situations(), Weighs("times|cost", 0.185))
+
+Concept(Situations(), Weighs("times|cough", -0.054))
+
+Concept(Situations(), Weighs("times|do", 0.121))
+
+Concept(Situations(), Weighs("times|double", 0.056))
+
+Concept(Situations(), Weighs("times|down", 0.096))
+
+Concept(Situations(), Weighs("times|drive", 0.103))
+
+Concept(Situations(), Weighs("times|drop", -0.087))
+
+Concept(Situations(), Weighs("times|eat", -0.111))
+
+Concept(Situations(), Weighs("times|exercise", 0.101))
+
+Concept(Situations(), Weighs("times|feed", 0.065))
+
+Concept(Situations(), Weighs("times|fill", -0.06))
+
+Concept(Situations(), Weighs("times|get", -0.191))
+
+Concept(Situations(), Weighs("times|have", 0.226))
+
+Concept(Situations(), Weighs("times|hover", 0.064))
+
+Concept(Situations(), Weighs("times|in", -0.062))
+
+Concept(Situations(), Weighs("times|inhale", 0.067))
+
+Concept(Situations(), Weighs("times|jump", -0.111))
+
+Concept(Situations(), Weighs("times|kill", -0.059))
+
+Concept(Situations(), Weighs("times|lift", 0.076))
+
+Concept(Situations(), Weighs("times|make", -0.065))
+
+Concept(Situations(), Weighs("times|mow", 0.097))
+
+Concept(Situations(), Weighs("times|needed", 0.085))
+
+Concept(Situations(), Weighs("times|pack", -0.085))
+
+Concept(Situations(), Weighs("times|play", -0.089))
+
+Concept(Situations(), Weighs("times|provide", -0.061))
+
+Concept(Situations(), Weighs("times|pull", 0.154))
+
+Concept(Situations(), Weighs("times|purchase", 0.069))
+
+Concept(Situations(), Weighs("times|read", -0.065))
+
+Concept(Situations(), Weighs("times|receive", -0.102))
+
+Concept(Situations(), Weighs("times|ride", 0.076))
+
+Concept(Situations(), Weighs("times|run", -0.098))
+
+Concept(Situations(), Weighs("times|sell", 0.211))
+
+Concept(Situations(), Weighs("times|skip", -0.089))
+
+Concept(Situations(), Weighs("times|spend", 0.064))
+
+Concept(Situations(), Weighs("times|stop", -0.073))
+
+Concept(Situations(), Weighs("times|take", -0.068))
+
+Concept(Situations(), Weighs("times|toss", -0.076))
+
+Concept(Situations(), Weighs("times|transport", 0.05))
+
+Concept(Situations(), Weighs("times|type", 0.051))
+
+Concept(Situations(), Weighs("times|use", 0.132))
+
+Concept(Situations(), Weighs("times|work", 0.079))
+
+Concept(Situations(), Weighs("whole", 2.095))

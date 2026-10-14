@@ -154,6 +154,12 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   ways that alone bring the answer out are kept as Told(...) evidence on the least known of them
   ("zorped" before "has"), the meaning itself once two tellings agree and none disagree; only a
   telling no word explains moves the weights (newest Situations Weighs(...) wins).
+- [x] W16. Learned reading weights kept as graph facts: rank-weights.mjs (softmax, L2 to PRIOR,
+  3,000 train / 750 held out / 400 test) learned weights, keep-weights.mjs writes each weight
+  differing from PRIOR by more than 0.05 as Concept(Situations(), Weighs("feature", v)) into
+  sources/situations and packs/situations.ncon (1,139 weights). Held-out 110 -> 123 of 750; the
+  "ask|word|op" features (question words x the operator a working uses) added. Still to measure:
+  learned-only and combined against test, chosen on train alone.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

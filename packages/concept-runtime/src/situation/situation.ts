@@ -30,6 +30,8 @@ export interface Amount {
   /** As it was written, for saying the working. */
   readonly said: string;
   readonly sentence: number;
+  /** The things said around it in its clause ("buys a house for $80,000": house), as their bases. */
+  readonly near?: readonly string[];
   /** A ratio or a share ("twice", "60%"): only ever multiplies. */
   readonly ratio?: boolean;
   /** +1 when what the sentence's doing does adds it, -1 when it takes it away, 0 when nothing says. */
@@ -41,7 +43,7 @@ export interface Amount {
    * much", "of the price", "by 30%" the amount said last. `change`: +1 for "increased by", -1 for
    * "reduced by", so the result is (1 ± ratio) of the referent.
    */
-  readonly of?: { readonly holder?: string; readonly last?: boolean; readonly unit?: string; readonly change?: number; readonly differs?: number; readonly left?: boolean; readonly thing?: boolean; readonly named?: string; readonly next?: boolean; readonly part?: boolean };
+  readonly of?: { readonly holder?: string; readonly last?: boolean; readonly unit?: string; readonly change?: number; readonly differs?: number; readonly left?: boolean; readonly thing?: boolean; readonly named?: string; readonly next?: boolean; readonly part?: boolean; readonly about?: readonly string[] };
   /** Which of its kind it is: "30 more gold coins" gold, "they won 8 more" win. */
   readonly kind?: string;
   /** What can be had at most ("can carry no more than 5000 pounds"): the others are taken from it. */
@@ -287,6 +289,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   const out: Amount[] = [];
   let verb = 0;
   let doing: string | undefined;
+  // The things said around a place in the sentence, as their bases: what an amount there is told with.
+  const thingsAround = (from: number, to: number) => tokens.slice(Math.max(0, from), Math.max(0, to)).filter((x) => isNoun(x) || counted(x)).map((x) => base(x.text));
   // The doing of the clause so far, whatever it does ("has", "buys", "costs").
   let said: string | undefined;
   // How many amounts were read before each word: what a clause says is out[countAt[from] .. countAt[to]).
@@ -389,7 +393,10 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       // "increased by 30%", "reduced by 30%": the doing says which way, or a word before it that changes.
       const before = tokens.slice(0, i).map((x) => lex.changes(x.lower) || lex.effect(x.lower)).filter((x) => x !== 0);
       const change = said ?? (by ? (verb !== 0 ? verb : (before.at(-1) ?? -1)) : undefined);
-      out.push({ value: t.number / 100, unit: {}, said: t.text + (t.text.endsWith("%") ? "" : "%"), sentence: index, ratio: true, sign: 0, ...(holder ? { holder } : {}), of: { ...ratioOf(i + 1), ...(change !== undefined ? { change } : {}) } });
+      // "increased the value of the house by 150%": what is changed is what is named before "by".
+      const doingAt = [...tokens.slice(0, i)].map((x, k) => (x.tags.includes("Verb") ? k : -1)).filter((k) => k >= 0).at(-1) ?? -1;
+      const about = by ? thingsAround(doingAt + 1, i - 1) : [];
+      out.push({ value: t.number / 100, unit: {}, said: t.text + (t.text.endsWith("%") ? "" : "%"), sentence: index, ratio: true, sign: 0, ...(holder ? { holder } : {}), of: { ...ratioOf(i + 1), ...(change !== undefined ? { change } : {}), ...(about.length ? { about } : {}) } });
       continue;
     }
     // "a third", "two-fifths": a share of what it is said of.
@@ -511,6 +518,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       sign: not ? -1 : unit === MONEY && doing !== undefined ? (lex.effectOnMoney(doing) ?? verb) : verb,
       ...(said ? { doing: said } : {}),
       ...(capacity ? { capacity } : {}),
+      near: [...thingsAround(i - 5, i), ...thingsAround(Math.max(per.end, end), Math.max(per.end, end) + 4)],
       ...(holder ? { holder } : {}),
       ...(optional ? { optional } : {}),
       ...(describer(tokens, i + 1, end) ? { kind: describer(tokens, i + 1, end)! } : perKind ? { kind: perKind } : {}),
@@ -652,6 +660,8 @@ interface Worked {
   readonly depth: number;
   /** What its doing does to it: kept through what it is multiplied by ("3 kg lost a month" × 4 months). */
   readonly sign: number;
+  /** The last step's operation: what the answer comes to by. */
+  readonly op?: string;
 }
 
 /** How many readings of each set of amounts are kept while searching. */
@@ -663,7 +673,7 @@ const KEEP = 24;
  * `Situations` Concept as `Weighs("feature", value)`, read over these.
  */
 export const PRIOR: Readonly<Record<string, number>> = {
-  "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5, "plus:part": 0,
+  "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5, "plus:part": 0, "plus:again": 0,
   "minus:sign": 2, "minus:unsigned": -1, "minus:left": 1.5, "minus:more": 3, "minus:total": -1,
   "times:ratio": 0.5, "times:sums": -1.5, "times:beside": 1.5, "times:kind": 1.5, "times:otherKind": -2,
   divisions: -0.5, depth: -0.05, whole: 1, positive: 1, negative: -5,
@@ -826,6 +836,7 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   // What was stated is owed; what was worked out from it is there to use, not owed.
   const owed = (m: number) => amounts.filter((a, i) => !a.optional && !a.consumed && !a.derived && (m & (1 << i)) === 0).length;
   // Counting again what another amount was worked out from, unless all of them are asked for.
+  // Counting again what another amount was worked out from, unless all of them are asked for.
   const again = (m: number) => (asked.total || asked.more ? 0 : amounts.filter((a, i) => a.consumed && (m & (1 << i)) !== 0).length);
   const usesRatios = (w: Worked) => amounts.every((a, i) => !a.ratio || (w.used & (1 << i)) !== 0);
   const theirs = (w: Worked) =>
@@ -834,8 +845,10 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
       (!!asked.holder && !asked.kind && amounts.every((a, i) => (w.used & (1 << i)) === 0 || a.optional || (a.holder === asked.holder && !a.consumed))));
   // A conversion is used only when it is needed.
   const converts = (m: number) => amounts.filter((a, i) => a.sentence === -1 && (m & (1 << i)) !== 0).length;
+  // The question's own words with how the answer comes out ("ask|profit|-"): learned, unweighed until then.
+  const asking = hostWords(asked.said).filter((t) => (t.tags.includes("Noun") || t.tags.includes("Verb") || t.tags.includes("Adjective")) && !t.tags.includes("Pronoun")).map((t) => lemma(t.text.toLowerCase()));
   const answerFeatures = (w: Worked): Record<string, number> =>
-    plus(plus(w.features, own(w)), { converts: converts(w.used), owed: owed(w.used), again: again(w.used), ...(theirs(w) ? { theirs: 1 } : {}), ...(usesRatios(w) ? {} : { ratioLeft: 1 }) });
+    plus(plus(plus(w.features, own(w)), Object.fromEntries(w.op ? asking.map((q) => [`ask|${q}|${w.op}`, 1]) : [])), { converts: converts(w.used), owed: owed(w.used), again: again(w.used), ...(theirs(w) ? { theirs: 1 } : {}), ...(usesRatios(w) ? {} : { ratioLeft: 1 }) });
   const total = (w: Worked) => dot(answerFeatures(w));
   // What can be: things counted come whole, money in cents; a reading that comes to 7.5 lollipops
   // is not one, when another can be.
@@ -893,6 +906,7 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     divisions: a.divisions + b.divisions + division,
     depth,
     sign: op === "×" || op === "÷" ? a.sign || b.sign : 0,
+    op,
   });
   // A rate is not added to a rate unless a rate is asked: prices are multiplied by what they price.
   const rate = (u: Unit) => Object.values(u).some((v) => v < 0);
@@ -908,7 +922,11 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     // A part added to its own whole counts it twice ("$1000" + "30% of his money").
     const leaves = (w: Worked) => amounts.filter((_, i) => (w.used & (1 << i)) !== 0);
     const part = leaves(a).some((x) => x.partOf && leaves(b).some((y) => y.said === x.partOf)) || leaves(b).some((x) => x.partOf && leaves(a).some((y) => y.said === x.partOf));
-    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", [...plusFit, ...lexical("+", a, b), ...(part ? ["plus:part"] : [])]));
+    // Adding back what another amount was worked out from counts it twice, unless all are asked for;
+    // taking a cost from a value worked from it does not ("$80,000 plus 150%" less the $80,000).
+    const consumedLeaf = (w: Worked) => bits(w.used) === 1 && amounts[Math.log2(w.used)]!.consumed === true;
+    const twice = !asked.total && !asked.more && (consumedLeaf(a) || consumedLeaf(b));
+    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", [...plusFit, ...lexical("+", a, b), ...(part ? ["plus:part"] : []), ...(twice ? ["plus:again"] : [])]));
     for (const [x, y] of [[a, b], [b, a]] as const) {
       if (x.value - y.value <= 0) continue;
       const minusFit = [signOf(y) < 0 ? "minus:sign" : "minus:unsigned", ...(asked.left ? ["minus:left"] : []), ...(asked.more ? ["minus:more"] : []), ...(asked.total ? ["minus:total"] : [])];
@@ -1209,7 +1227,14 @@ function resolveRatios(said: readonly Amount[]): Amount[] {
       } else if (r.of.holder) ref = [...list].reverse().find((a) => fits(a) && same(a.holder, r.of!.holder));
       // What was said before it, else what is said after ("50% more ... if he paid $18").
       else if (r.of.last && r.of.thing) ref = list.slice(0, i).reverse().find((a) => fits(a) && !a.derived) ?? list.slice(i + 1).find(fits);
-      else if (r.of.last) ref = list.slice(0, i).reverse().find(fits) ?? list.slice(i + 1).find(fits) ?? (named ? undefined : list.slice(0, i).reverse().find((a) => !a.ratio && !a.whole));
+      else if (r.of.last) {
+        // What the share or change is said of ("the value of the house") is the amount told with the
+        // same things ("buys a house for $80,000"), when one was; else the one said last.
+        const about = new Set(r.of.about ?? []);
+        const shared = (a: Amount) => (a.near ?? []).filter((w) => about.has(w)).length;
+        const told = about.size ? list.filter((a, k) => k !== i && fits(a) && shared(a) > 0).sort((a, b) => shared(b) - shared(a))[0] : undefined;
+        ref = told ?? list.slice(0, i).reverse().find(fits) ?? list.slice(i + 1).find(fits) ?? (named ? undefined : list.slice(0, i).reverse().find((a) => !a.ratio && !a.whole));
+      }
       if (!ref) continue;
       const value = r.of.differs !== undefined ? ref.value + r.of.differs * r.value : r.of.change !== undefined ? ref.value * (1 + r.of.change * r.value) : ref.value * r.value;
       const of = ref.derived ? show(ref.value) : ref.said;
