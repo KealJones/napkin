@@ -298,3 +298,10 @@ test("\"bday means birthday\" teaches a reading; a word after \"my\" is never lo
   // Told outside a conversation here, so known by the fact itself (in a conversation: "You told me ...").
   assert.match(knownFrom(store, asked.result, asked.expression)[0] ?? "", /Me Birthday\(Date\(year=1991/);
 });
+
+test("a doing said of someone not named yet, or of a count of things, is kept: he is not she, and a count is said back as told", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["He bought a car.", "She bought 5 apples.", "What did she buy?", "What did he buy?", "Mishka bought 3 pairs of shorts.", "What did Mishka buy?"])).map((x) => x.spoken);
+  assert.deepEqual([said[2], said[3], said[5]], ["5 apples.", "Car.", "3 pairs of shorts."]);
+});

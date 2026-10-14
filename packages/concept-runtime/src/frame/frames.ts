@@ -687,7 +687,10 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
     const owned = who.length === 2 && who[0].senses.some((s) => s.type === "owner") && thingWord(who[1]) ? named([who[1]]) : undefined;
     // Or one pointed at ("she has the flu", after "my mom is sick").
     const pointer = who.length === 1 && pointed && who[0].senses.some((s) => s.type === "pointer") ? pointed : undefined;
-    const subject = self && self.type === "entity" ? self.head : owned ?? pointer ?? (who.length === 1 && thingWord(who[0]) && !deictic(who[0]) ? named(who) : undefined);
+    // Nobody to point at yet ("He bought a car.", the first thing said): the one it points at,
+    // kept as the pointing word itself until it is named.
+    const unpointed = who.length === 1 && !pointed && who[0].senses.some((s) => s.type === "pointer") ? nameOf(`${who[0].text} meant`) : undefined;
+    const subject = self && self.type === "entity" ? self.head : owned ?? pointer ?? unpointed ?? (who.length === 1 && thingWord(who[0]) && !deictic(who[0]) ? named(who) : undefined);
     if (!subject) return;
     // What it takes: past one word that marks it ("in"), and the words that only help say it ("an").
     let at = v + 1;
@@ -697,7 +700,14 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
     while (at < words.length && only(words[at], "glue") && !words[at].senses.some((s) => s.type === "glue" && /^Month\d+$/.test(s.head))) at += 1;
     const object = words.slice(at);
     if (!object.length) return;
-    const value = values(object).get(`0,${object.length}`)?.find((x) => !isCall(x.expr) || x.expr.head === "Date");
+    const said = values(object).get(`0,${object.length}`)?.find((x) => !isCall(x.expr) || x.expr.head === "Date");
+    // A count of things ("5 apples", "3 pairs of shorts"): how many, of what, kept as a quantity,
+    // its unit as it was said (units/SpeakingQuantity.js says one in its base form).
+    const count = !said && object.length >= 2 ? object[0]!.senses.find((s) => s.type === "value" && typeof s.value === "number") : undefined;
+    const counted = count ? object.slice(1) : [];
+    const value = said ?? (count && counted.length && counted.filter((x) => !only(x, "glue")).every((x) => thingWord(x) && !deictic(x)) && !only(counted[0]!, "glue") && count.type === "value"
+      ? { expr: call("Quantity", [{ value: count.value }, { name: "unit", value: c(nameOf(counted.map((x) => x.text).join(" "))) }]) }
+      : undefined);
     const things = object.every((x) => thingWord(x) && !deictic(x));
     if (!value && !things) {
       misses.push({ reading: c("Statement", c(subject), c(nameOf(lemma(w.text.toLowerCase())))), left: object.map((x) => x.text), kind: "fit" });
@@ -715,6 +725,12 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
       chosen: [],
       notes: [`"${w.text}" is a doing, kept as ${relation.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase()}; what was said of it before is replaced.`],
       run: async () => {
+        // Someone not named yet: one of what the word points at ("she": a person, female), so a
+        // later "she" finds them and a later "he" does not.
+        if (unpointed && !store.get(unpointed)?.relations.length) {
+          store.addRelation(unpointed, c("IsA", c("Person")), undefined, runtime.trace.cause);
+          for (const t of store.asSubject(nameOf(who[0]!.text))) if (t.predicate === "PointsAt" && t.object !== undefined && isCall(t.object) && t.object.head !== "Someone") store.addRelation(unpointed, c("SexOrGender", t.object), undefined, runtime.trace.cause);
+        }
         for (const r of relationsOf(store, subject)) {
           if (r.context !== undefined || !isCall(r.claim) || r.claim.head !== relation || equal(r.claim, fact) || store.retracted(subject, r.claim)) continue;
           for (const st of r.stamps ?? []) store.addRelation(subject, c("Retracts", st.seq), undefined, runtime.trace.cause);
@@ -851,7 +867,9 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
 function pointedAt(store: ConceptStore, history: readonly { result: string }[], kinds: readonly string[] = []): string | undefined {
   const fits = (head: string): boolean => {
     const types = typesOf(store, c(head));
-    if (types.includes("Deictic")) return false;
+    // Not the ones talking, and not a pointing word kept as the one it points at ("She ate an apple"
+    // with nobody before it): its own PointsAt facts are what it points at, not what it is.
+    if (types.includes("Deictic") || types.includes("Pointing")) return false;
     return kinds.every((k) => types.includes(k) || store.asSubject(head).some((t) => t.context === undefined && t.object !== undefined && isCall(t.object) && (t.object as { head: string }).head === k));
   };
   // What some pointing word points at ("Male" for "he"): a thing that is one of those, and not what
@@ -860,6 +878,13 @@ function pointedAt(store: ConceptStore, history: readonly { result: string }[], 
   const contradicts = (head: string): boolean =>
     typesOf(store, c(head)).includes("Deictic") ||
     [...typesOf(store, c(head)), ...store.asSubject(head).filter((t) => t.context === undefined && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head)].some((k) => pointable.has(k) && !kinds.includes(k));
+  // A word that points at someone ("she") means someone: a name, a kind of person, one with a sex
+  // or gender, a thing in the world (looked up), not a thing said only by its kind ("a car").
+  const couldBeSomeone = (head: string): boolean => {
+    const types = typesOf(store, c(head));
+    if (types.includes("Pointing") || types.includes("Deictic")) return false;
+    return types.some((k) => k === "Someone" || k === "Person" || k === "Name" || k === "Relative") || wikidataItem(store, head) !== undefined || store.asSubject(head).some((t) => t.predicate === "Named" || t.predicate === "SexOrGender");
+  };
   const results = [...history].reverse().flatMap((h) => {
     try {
       return [parse(h.result)];
@@ -872,7 +897,7 @@ function pointedAt(store: ConceptStore, history: readonly { result: string }[], 
     try {
       // A thing known only by name, tied to its item ("Steven Spielberg", answered from Jaws), is
       // meant too: what it holds is looked up when it is asked about.
-      for (const n of walk(parse(h.result))) if (isCall(n) && (holdsFacts(store, n.head) || wikidataItem(store, n.head) !== undefined || store.asSubject(n.head).some((t) => t.predicate === "Named")) && !contradicts(n.head)) return n.head;
+      for (const n of walk(parse(h.result))) if (isCall(n) && (holdsFacts(store, n.head) || wikidataItem(store, n.head) !== undefined || store.asSubject(n.head).some((t) => t.predicate === "Named")) && !contradicts(n.head) && (!kinds.includes("Someone") || couldBeSomeone(n.head))) return n.head;
     } catch {
       // A result that does not read as Concepts points at nothing.
     }
