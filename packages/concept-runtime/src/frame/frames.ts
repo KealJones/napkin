@@ -22,6 +22,7 @@ import { wikidataItem } from "../research/wikidata.js";
 import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
+import { findNamed } from "../runtime/individuals.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
@@ -557,6 +558,26 @@ function describes(store: ConceptStore, words: readonly Word[], question: boolea
   const sense = content[0].senses.find((s) => s.type === "entity");
   // A thing known only by what it is in words ("web app" Means ...) is described by that.
   const named = nameOf(content[0].text);
+  // Someone met in talk (Gunter_1, Named "Gunter"): who they are to whoever holds them ("your
+  // friend", "Tom's coworker"), from the facts that hold them.
+  const met = findNamed(store, named);
+  if (met.length === 1) {
+    const held = store.asObject(met[0]!).filter((t) => t.context === undefined && !STRUCTURAL.has(t.predicate) && !store.retracted(t.subject, t.expr));
+    const speaker = store.asSubject("I").find((t) => t.predicate === "HeardAs" && t.object !== undefined && isCall(t.object));
+    const me = speaker?.object !== undefined && isCall(speaker.object) ? speaker.object.head : "Me";
+    const whose = held.map((t) => (t.subject === me ? c("My", c(t.predicate)) : c("Whose", c(t.subject), c(t.predicate))));
+    if (whose.length) {
+      return [{
+        key: `Who ${met[0]}`,
+        features: ["read:who-met"],
+        score: 6,
+        display: c("ContextScope", c("Interrogative"), c("Describe", c(met[0]!))),
+        chosen: [],
+        notes: [`${content[0].text} is someone met in talk; who they are is what holds them.`],
+        run: async () => c("Answer", whose.length === 1 ? whose[0]! : call("List", whose.map((value) => ({ value })))),
+      }];
+    }
+  }
   const thing = sense && sense.type === "entity" ? sense.head : relationsOf(store, named).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "Means") ? named : undefined;
   if (!thing || typesOf(store, c(named)).some((k) => k === "Deictic" || k === "Pronoun")) return [];
   // What it is (IsA, Means), then every fact it holds, as said: none taken back, none held only in a context.
@@ -754,6 +775,72 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
   return out;
 }
 
+/**
+ * Doings kept for later: a word the graph says keeps what follows it (`Remember KeepsAs(ToDo())`,
+ * "need", "have"), "to", a doing and what it is done to: "remember to buy milk", "i need to buy
+ * eggs" keep ToDo(Buy(Milk())) of whoever is to do it (the one talking when no one is said). Asked
+ * "what do i need to buy": what is kept so, of that doing.
+ */
+function todos(runtime: Runtime, words: readonly Word[], question: boolean, message: string): Reading[] {
+  const store = runtime.store;
+  const out: Reading[] = [];
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase(), w.tags]));
+  const verb = (w: Word | undefined) => !!w && (tags.get(w.text.toLowerCase()) ?? []).some((t) => t === "Verb" || t === "Infinitive" || t === "Imperative");
+  const keeps = (w: Word) => store.asSubject(nameOf(lemma(w.text.toLowerCase()))).find((t) => t.predicate === "KeepsAs" && t.object !== undefined && isCall(t.object));
+  const isTo = (w: Word | undefined) => !!w && w.senses.some((s) => s.type === "glue" && s.head === "To");
+  const speaker = (() => {
+    const heard = store.asSubject("I").find((t) => t.predicate === "HeardAs" && t.object !== undefined && isCall(t.object));
+    return heard?.object !== undefined && isCall(heard.object) ? heard.object.head : "Me";
+  })();
+  const k = words.findIndex((w, i) => i > 0 && isTo(w) && verb(words[i + 1]) && !!keeps(words[i - 1]!));
+  if (k < 1) return out;
+  const keeper = keeps(words[k - 1]!)!;
+  const relation = keeper.object !== undefined && isCall(keeper.object) ? keeper.object.head : "ToDo";
+  const doing = nameOf(lemma(words[k + 1]!.text.toLowerCase()));
+  const who = words.slice(0, k - 1).filter((w) => !only(w, "glue") && !w.senses.some((s) => s.type === "question"));
+  const self = who.length === 1 ? who[0]!.senses.find((s) => s.type === "entity") : undefined;
+  const subject = who.length === 0 ? speaker : self?.type === "entity" ? self.head : who.length === 1 && thingWord(who[0]!) ? named(who) : undefined;
+  if (!subject) return out;
+  const object = words.slice(k + 2).filter((w) => !only(w, "glue"));
+  if (asking(words, question)) {
+    if (object.length) return out;
+    // What is kept to do of that doing, newest first.
+    const kept = relationsOf(store, subject).filter((r) => isCall(r.claim) && r.claim.head === relation && isCall(r.claim.args[0]?.value) && (r.claim.args[0]!.value as { head: string }).head === doing && !store.retracted(subject, r.claim));
+    const what = kept.flatMap((r) => {
+      const inner = isCall(r.claim) ? r.claim.args[0]?.value : undefined;
+      return inner !== undefined && isCall(inner) ? inner.args.map((a) => a.value) : [];
+    });
+    if (!what.length) return out;
+    out.push({
+      key: format(c("Kept", c(subject), c(relation), c(doing))),
+      features: ["read:todo-asked"],
+      score: 4 + 0.5 * words.length,
+      display: c("ContextScope", c("Interrogative"), c(relation, c(subject), c(doing))),
+      chosen: [],
+      notes: [`Kept to do: what ${doing.toLowerCase()} was said of.`],
+      run: async () => c("Answer", what.length === 1 ? what[0]! : call("List", what.map((value) => ({ value })))),
+    });
+    return out;
+  }
+  if (!object.length || !object.every((w) => thingWord(w) || w.senses.some((s) => s.type === "value"))) return out;
+  const thing = values(object).get(`0,${object.length}`)?.find((x) => !isCall(x.expr))?.expr ?? c(named(object));
+  const fact = c(relation, c(doing, thing));
+  out.push({
+    writes: true,
+    key: format(c(subject, fact)),
+    features: ["read:todo"],
+    score: 4 + 0.5 * words.length,
+    display: c("ContextScope", c("Declarative"), c("Stated", c(subject), fact)),
+    chosen: [],
+    notes: [`"${words[k - 1]!.text} to" keeps what follows it to be done.`],
+    run: async () => {
+      store.addRelation(subject, fact, undefined, runtime.trace.cause);
+      return c("Noted", fact, c(subject));
+    },
+  });
+  return out;
+}
+
 /** The words as one name: "favorite color" is FavoriteColor. */
 const named = (ws: readonly Word[]) => nameOf(ws.map((w) => w.text).join(" "));
 /** A word that names a thing: a thing the graph holds, a pointing word, or a word it has no sense for yet (a name it is told). */
@@ -789,6 +876,9 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
     let subject: string | undefined;
     let claim: Expr | undefined;
     let replaces = false;
+    // A name the fact holds that is someone: made an individual (Greg_1, Named "Greg") when kept.
+    let someone: string | undefined;
+    const nameLike = (x: Word) => !x.senses.some((s) => s.type === "pointer" || s.type === "owner" || s.type === "relation" || s.type === "kind") && (knownAsName(x.text) || relationsOf(store, nameOf(x.text)).some((r) => format(r.claim) === "IsA(Name())") || standsAsNameIn(message, x.text) || findNamed(store, nameOf(x.text)).length > 0);
     // Whose: a possessive ("my", "tom's"), or a pointing word before what is owned ("his name": the one pointed at).
     // "the capital of france": which, "of", whose. What is before "of" names the relation, what is after it the owner.
     const said = body.slice(0, k);
@@ -825,6 +915,19 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
         subject = owner.head;
         claim = c(named(relationWords), spanning ? spanning.expr : c(named(right)));
         replaces = true;
+        // "my coworker is greg": someone, kept as an individual of their own, Named "Greg".
+        // Not a name held as a name ("my name is Sam": Sam is what I am called, not someone).
+        const naming = typesOf(store, c(named(relationWords))).includes("Name");
+        if (!spanning && !naming && right.length === 1 && nameLike(right[0]!)) someone = named(right);
+      }
+    } else if (left.length === 1 && thingWord(left[0]) && right.length >= 2 && right[0]!.senses.some((s) => s.type === "owner") && right.slice(1).every((x) => thingWord(x) || x.senses.some((s) => s.type === "relation"))) {
+      // "greg is my friend": whose (mine) and which (friend) said after who it is, a fact of the
+      // owner holding them, someone kept as an individual of their own.
+      const whose = right[0]!.senses.find((s) => s.type === "owner");
+      if (whose?.type === "owner") {
+        subject = whose.head;
+        claim = c(named(right.slice(1)), c(named(left)));
+        if (nameLike(left[0]!)) someone = named(left);
       }
     } else if (left.length === 1 && thingWord(left[0])) {
       const said = left[0].senses.find((s) => s.type === "entity" || s.type === "pointer");
@@ -870,16 +973,26 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
       misses.push({ reading: c("Statement", c(named(whole)), c(named(right))), left: [unread.map((x) => x.text).join(" ")], kind: "thing" });
       return;
     }
-    const fact = claim;
+    const told = claim;
     const holder = subject;
+    const whom = someone;
     out.push({
       writes: true,
-      key: format(c(holder, fact)),
+      key: format(c(holder, told)),
       features: ["read:statement"],
       score: 3 + 0.5 * body.length,
-      display: c("ContextScope", c("Declarative"), c("Stated", c(holder), fact)),
+      display: c("ContextScope", c("Declarative"), c("Stated", c(holder), told)),
       chosen: [],
       run: async () => {
+        // Someone named, as an individual: the one already Named so, or one made now.
+        const id = whom === undefined ? undefined : (findNamed(store, whom)[0] ?? (() => {
+          const made = store.mint(whom);
+          store.addRelation(made, c("Named", whom), undefined, runtime.trace.cause);
+          store.addRelation(made, c("IsA", c("Person")), undefined, runtime.trace.cause);
+          return made;
+        })());
+        const swap = (e: Expr): Expr => (isCall(e) ? (e.head === whom && !e.args.length && id ? c(id) : call(e.head, e.args.map((a) => ({ ...a, value: swap(a.value) })))) : e);
+        const fact = swap(told);
         // What is said now of whose and which takes back what was said of it before.
         if (replaces && isCall(fact)) {
           for (const r of relationsOf(store, holder)) {
@@ -1266,7 +1379,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near)];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

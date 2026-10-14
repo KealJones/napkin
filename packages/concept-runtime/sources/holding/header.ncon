@@ -12,3 +12,15 @@ Concept(Made(), IsA(Result()))
 Concept(Added(), IsA(Result()))
 
 Concept(Removed(), IsA(Result()))
+
+// What is to be done: "remember to buy milk", "i need to buy eggs", "i have to call mom". A doing
+// said after a word that keeps it for later is kept as ToDo(...) of whoever is to do it, and "what
+// do i need to buy" is what is kept so (frames/frames.ts, todos).
+Concept(KeepsAs(), IsA(Relation()))
+Concept(ToDo(), IsA(Relation()))
+Concept(Remember(), KeepsAs(ToDo()))
+Concept(Need(), KeepsAs(ToDo()))
+Concept(Have(), KeepsAs(ToDo()))
+
+// Who someone is to another: Whose(Tom(), Brother()), said "Tom's brother".
+Concept(Whose(), IsA(Result()))

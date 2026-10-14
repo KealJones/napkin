@@ -341,3 +341,20 @@ test("being born is told and asked by the relation that takes what was said: a y
   const said = (await talk(store, ["i was born in 1990", "what year was i born", "tom was born in paris", "where was tom born"])).map((x) => x.spoken);
   assert.deepEqual([said[1], said[3]], ["1990.", "Paris."]);
 });
+
+test("someone named in a fact told is an individual of their own, and who they are is what holds them", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["Gunter is my friend.", "who is gunter?", "who is my friend?", "tom's brother is sam", "who is sam", "my name is Bob"])).map((x) => x.spoken);
+  assert.deepEqual(said.slice(1, 3), ["Your friend.", "Gunter."]);
+  assert.equal(said[4], "Tom's brother.");
+  assert.ok(store.get("Gunter_1")?.relations.some((r) => format(r.claim) === 'Named("Gunter")'));
+  assert.ok(store.get("Me")?.relations.some((r) => format(r.claim) === "Name(Bob())"), "a name told as a name is not someone");
+});
+
+test("doings kept for later: remember to, need to, have to; asked back by the doing", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["remember to buy milk", "i need to buy eggs", "what do i need to buy", "i have to call mom", "what do i have to call"])).map((x) => x.spoken);
+  assert.deepEqual([said[2], said[4]], ["Milk and eggs.", "Mom."]);
+});

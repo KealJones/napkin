@@ -13,6 +13,18 @@ Concept(Added(), IsA(Result()))
 
 Concept(Removed(), IsA(Result()))
 
+// What is to be done: "remember to buy milk", "i need to buy eggs", "i have to call mom". A doing
+// said after a word that keeps it for later is kept as ToDo(...) of whoever is to do it, and "what
+// do i need to buy" is what is kept so (frames/frames.ts, todos).
+Concept(KeepsAs(), IsA(Relation()))
+Concept(ToDo(), IsA(Relation()))
+Concept(Remember(), KeepsAs(ToDo()))
+Concept(Need(), KeepsAs(ToDo()))
+Concept(Have(), KeepsAs(ToDo()))
+
+// Who someone is to another: Whose(Tom(), Brother()), said "Tom's brother".
+Concept(Whose(), IsA(Result()))
+
 // "can you add cheetos to my list?": asked for, so done. Asked, not worked out, so hearing still reads Add as taking two.
 Concept(Add(),
   Realization(Add($said),
@@ -1239,6 +1251,81 @@ Concept(Remove(),
                 $done
               )
             )
+          )
+        )
+      )
+    )
+  )
+)
+
+// Who someone is to another, said with whose it is: Whose(Tom(), Brother()) is "Tom's brother".
+// An individual is said by the name it holds (Sam_1 Named "Sam").
+Concept(Whose(),
+  Realization(Whose($owner, $what),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($words,
+              Lambda(List($e),
+                Sequence(
+                  If(
+                    Not(Call($isCall, $e)),
+                    Return(Call($String, $e)),
+                    Undefined()
+                  ),
+                  Bind($named,
+                    Call(
+                      Member(
+                        Map(
+                          Otherwise(
+                            OptionalMember(Call(Member(Member($api, "store"), "get"), Member($e, "head")), "relations"),
+                            List()
+                          ),
+                          Lambda(List($r), Member($r, "claim"))
+                        ),
+                        "find"
+                      ),
+                      Lambda(List($x), And(Call($isCall, $x), Equals(Member($x, "head"), "Named")))
+                    )
+                  ),
+                  If(
+                    And($named, Equals(TypeOf(OptionalMember(Index(Member($named, "args"), 0), "value")), "string")),
+                    Return(Member(Index(Member($named, "args"), 0), "value")),
+                    Undefined()
+                  ),
+                  Return(
+                    Call(
+                      Member(Member($e, "head"), "replace"),
+                      Regex("([a-z0-9])([A-Z])", "g"),
+                      "$1 $2"
+                    )
+                  )
+                )
+              )
+            ),
+            Bind($owner, Call($words, Call(Member($bindings, "get"), "owner"))),
+            Bind($what, Call(Member(Call($words, Call(Member($bindings, "get"), "what")), "toLowerCase"))),
+            Bind($text,
+              Add(
+                Add(
+                  Add(
+                    Add("", $owner),
+                    If(
+                      Call(Member(Regex("s$", "i"), "test"), $owner),
+                      "'",
+                      "'s"
+                    )
+                  ),
+                  " "
+                ),
+                $what
+              )
+            ),
+            Return(Add(Add(Call(Member(Index($text, 0), "toUpperCase")), Call(Member($text, "slice"), 1)), "."))
           )
         )
       )

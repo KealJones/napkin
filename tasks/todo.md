@@ -50,8 +50,13 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 18. "was born in 1990": DateOfBirth and PlaceOfBirth are in the world pack as Wikidata has them
   (P569, P19, Called(Born()), TakesValue(Date()/Place())); a declared Wikidata property is a relation
   sense before anything holds it; "X was born in Y" keeps the one that takes Y (a year is a date).
-- [ ] 19. Reminders and tasks ("remember to buy milk", "what do i need to buy"): a doing to do, kept
-  as a task, not a fact.
+- [x] 19. Reminders and tasks: a word the graph says keeps what follows (`Remember KeepsAs(ToDo())`,
+  need, have) + "to" + a doing keeps ToDo(Buy(Milk())) of whoever is to do it; "what do i need to
+  buy" is what is kept of that doing ("Milk and eggs.").
+- [x] 19b. Someone named in a fact told ("Gunter is my friend", "my coworker is greg", "tom's
+  brother is sam") is an individual of their own (Gunter_1, Named "Gunter", IsA Person), held by the
+  owner (Me Friend(Gunter_1())); "who is gunter?" is who holds them ("Your friend.", "Tom's
+  brother."). A name held as a name ("my name is Bob") is not someone.
 
 # Packs and replies (audit 2026-10-12, research/pack-audit.md)
 

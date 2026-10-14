@@ -68,7 +68,8 @@ test("said in another shape: the question's words are in the statement, and the 
   await say("my sister lives in denver");
   assert.equal((await say("where do i live?")).rendered, "Answer(Phoenix())");
   assert.equal((await say("what did i eat?")).rendered, "Answer(Apple())", "ate is eat");
-  assert.equal((await say("who is my coworker?")).rendered, "Answer(Greg())");
+  // Greg is someone met here, an individual of his own (Greg_1, Named "Greg"), said "Greg".
+  assert.equal((await say("who is my coworker?")).rendered, "Answer(Greg_1())");
   assert.equal((await say("where does my sister live?")).rendered, "Answer(Denver())");
   assert.equal((await say("who is greg?")).rendered, "Answer(My(Coworker()))");
 });
