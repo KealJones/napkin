@@ -12,7 +12,7 @@ import { type Expr, c, call, format, isCall, walk } from "../concept/expression.
 import { reachesBehaviour } from "../runtime/select.js";
 import { groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
-import { lemma, properNoun } from "../runtime/host.js";
+import { lemma, properNoun, words as hostWords } from "../runtime/host.js";
 import { isWord, standsAsNameIn } from "../ears/parser/words.js";
 import { typesOf } from "../runtime/types.js";
 import type { Runtime } from "../runtime/evaluator.js";
@@ -22,6 +22,26 @@ import { Relations } from "../store/relations.js";
 import { forwardSynonym } from "../seed/seed.js";
 import { nameOf } from "../ears/parser/names.js";
 import { foldPhrases, sayPhrase } from "../ears/phrase.js";
+
+/** What was said in this turn's conversation, as kept (`Said(speaker, content, text=)`). */
+function saidIn(runtime: Runtime): { message: string }[] {
+  const id = runtime.context.get("conversation");
+  if (typeof id !== "string") return [];
+  return (runtime.store.get(id)?.relations ?? []).flatMap((r) => {
+    const text = isCall(r.claim) && r.claim.head === "Said" ? r.claim.args.find((a) => a.name === "text")?.value : undefined;
+    return typeof text === "string" ? [{ message: text }] : [];
+  });
+}
+
+/** Whether a word was said before, in the conversation, as what something is said of ("Gunter is ..."). */
+function toldBefore(identity: string, history: readonly { message: string }[]): boolean {
+  const w = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  if (w.includes(" ")) return false;
+  return history.some((h) => {
+    const t = hostWords(h.message);
+    return t.some((x, i) => x.text.toLowerCase().replace(/[^a-z]/g, "") === w && !!t[i + 1]?.tags.includes("Copula"));
+  });
+}
 
 export interface LearnStep {
   readonly identity: string;
@@ -328,6 +348,9 @@ async function learnOnce(
       // some other thing the world has that name for (a sailing rig).
       const first = isCall(gap.input) ? gap.input.args.find((a) => a.name === undefined)?.value : undefined;
       if (told && first !== undefined && isCall(first) && typesOf(runtime.store, c(first.head)).includes("BeVerb")) continue;
+      // Nor a word told of before in the conversation ("Gunter is my friend", then "who is
+      // gunter?"): what was said of it answers, not a gunter rig.
+      if (toldBefore(gap.identity, [...(options.history ?? []), ...saidIn(runtime)])) continue;
       attempted.add(gap.identity);
 
       // A word Wikidata knows is grounded there, deterministically and with its source:
