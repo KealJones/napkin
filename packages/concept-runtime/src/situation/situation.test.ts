@@ -141,3 +141,17 @@ test("told the answer, a word never met is learned from what it must mean, put d
   assert.match(await say("Lee has 50 cards. He zorped 8 cards. How many cards does Lee have now?"), /42 cards\.$/);
   assert.equal(s.asSubject("Have").some((t) => t.predicate === "Removes"), false);
 });
+
+test("a word problem whose thing asked is not told, or that tells to work it out after a comma, is still read as one", async () => {
+  const say = async (m: string) => (await turn(new Runtime(store, {}), m, c("Execution"), { learn: false })).spoken;
+  assert.match(await say("Tom says 80. Ann says 20. What is their total guess?"), /100/);
+  assert.ok(situationOf(store, "Darrell and Allen's ages are in the ratio of 7:11. If their total age now is 162, calculate Allen's age 10 years from now."));
+});
+
+test("a word written as a name that nothing is found for is taken as a name, and what is said of it is kept", async () => {
+  const s = new ConceptStore();
+  seed(s);
+  const say = async (m: string) => (await turn(new Runtime(s, {}), m, c("Execution"), { fetch: async () => ({}) })).spoken;
+  assert.doesNotMatch(await say("Marie bought 5 apples."), /don't know/);
+  assert.equal(await say("Who is Gunter?"), "Gunter is a name.");
+});

@@ -18,7 +18,7 @@ import { typesOf } from "./types.js";
 import type { ConceptStore } from "../store/store.js";
 import { say } from "../ears/say.js";
 import { foldPhrases } from "../ears/phrase.js";
-import { learn, lookUpWord, unknownAnswer, type LearnStep } from "../learn/learn.js";
+import { learn, lookUpWord, unknownAnswer, writtenAsName, type LearnStep } from "../learn/learn.js";
 import { resolveReferences } from "./references.js";
 import { forSaying } from "./individuals.js";
 import { answerToConflict, answerToWhich, pickSense, resolveNames, resolvePronouns, whichOf, type NameResolution } from "./individuals.js";
@@ -773,11 +773,16 @@ export async function turn(
   }
   // Any message with an amount in it may tell a situation; situationOf says whether it does.
   if (options.inputMode !== "expression" && /\d|\?/.test(message)) {
-    const situation = situationOf(runtime.store, message);
-    const solved = situation && situation.amounts.some((a) => Object.keys(a.unit).length > 0) ? solve(situation.amounts, situation.asked) : undefined;
+    // Told in several sentences, a situation whose thing asked is not told is still one: read
+    // loosely, as asking a plain number, rather than its words looked up a sentence at a time.
+    const strict = situationOf(runtime.store, message);
+    const several = (s: typeof strict) => !!s && s.amounts.length >= 2 && new Set(s.amounts.map((a) => a.sentence)).size >= 2;
+    const loose = strict ? undefined : situationOf(runtime.store, message, { loose: true });
+    const situation = strict ?? (several(loose) ? loose : undefined);
+    const solved = situation && (situation === loose || situation.amounts.some((a) => Object.keys(a.unit).length > 0)) ? solve(situation.amounts, situation.asked) : undefined;
     // Read as a situation of several sentences but not worked out: said so, with what was read,
     // rather than heard a sentence at a time.
-    const unsolved = !solved && situation && situation.amounts.length >= 2 && new Set(situation.amounts.map((a) => a.sentence)).size >= 2;
+    const unsolved = !solved && several(situation);
     if (solved || unsolved) {
       const result = solved ? worked(solved) : unworked(situation!);
       const rendered = format(result);
@@ -1054,11 +1059,23 @@ export async function turn(
   // Restricting this to `unknown` let the Mouth narrate a residual it had not computed:
   // ShiftHours(Timestamp(...), 5) came back as "the time becomes three thirty-six PM",
   // which is the model doing arithmetic the graph refused to do.
-  const unrealized = learnable(runtime, gaps).map((g) => ({ identity: g.identity, kind: g.kind }));
+  // A statement kept ("Marie bought 5 boxes.") is kept whatever its names are: a word written as a
+  // name where it was said, that nothing else was found for, is a name (IsA(Name())), not a reason
+  // to say it is not known.
+  const noted = result !== undefined && isCall(result) && result.head === "Noted";
+  const asName = (g: Gap) => {
+    const known = runtime.store.get(g.identity)?.relations ?? [];
+    return (g.kind === "unknown" || known.every((r) => format(r.claim) === "IsA(Name())")) && writtenAsName(message, g.identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase());
+  };
+  const names = noted ? gaps.filter(asName) : [];
+  for (const g of names) if (!runtime.store.get(g.identity)?.relations.length) runtime.store.addRelation(g.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
+  const unrealized = learnable(runtime, gaps.filter((g) => !names.includes(g))).map((g) => ({ identity: g.identity, kind: g.kind }));
   // An answer still carrying something that never ran is not an answer, whether or not
   // anything about it is learnable. Handing it to the model invites an answer from the
   // model, which is the one thing this system exists not to do.
-  const uncomputed = holdsResidual(runtime, result);
+  // A statement noted whose only missing pieces were names is noted as said: what was told of
+  // Marie is not work left undone.
+  const uncomputed = holdsResidual(runtime, result) && !(names.length && !unrealized.length);
   const graphSpoken = options.speak !== false && result !== undefined && !uncomputed && !unrealized.length
     ? await graphText(runtime, "RenderResponse", result)
     : undefined;

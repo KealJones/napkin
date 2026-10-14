@@ -987,8 +987,12 @@ function spans(message: string): string {
   });
 }
 
-/** A message read as a situation and what it asks, or undefined when it is not one. */
-export function situationOf(store: ConceptStore, said: string): Situation | undefined {
+/**
+ * A message read as a situation and what it asks, or undefined when it is not one. Loose, a question
+ * whose thing asked cannot be told ("What is their average guess?") asks for a plain number, so a
+ * word problem is still read as one rather than heard a sentence at a time.
+ */
+export function situationOf(store: ConceptStore, said: string, options: { loose?: boolean } = {}): Situation | undefined {
   lex = lexicon(store);
   weights = weightsOf(store);
   const message = spans(said);
@@ -1002,18 +1006,27 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
   let q = sentences.length - 1;
   // A sentence that asks: one ending in a question mark, one with "how much" or "how many", or one
   // that tells to do something ("Calculate Allen's age ...": its first word a doing told).
-  const commands = (x: string) => {
+  // The doing told may lead the sentence or a clause of it ("If their total age is 162, calculate ...").
+  const commanding = (x: string) => {
     const first = hostWords(x)[0];
     return !!first && first.tags.includes("Imperative");
   };
+  const commands = (x: string) => x.split(/,\s*/).some(commanding);
   while (q >= 0 && !/\?\s*$/.test(sentences[q]!) && !/\bhow (much|many|long|far|old)\b/i.test(sentences[q]!) && !commands(sentences[q]!)) q--;
   if (q < 0) return undefined;
   const last: Last = { dozens: /\b(per|a|each|the|by the) dozen\b/i.test(message) };
   const amounts: Amount[] = [];
   // The question's clause is the one that asks ("how many ..."); a condition said beside it ("if
   // Seattle has 20 sheep") states amounts like any sentence.
-  const clauses = sentences[q]!.split(/\s*,?\s*\b(?=if\b|when\b|given that\b|how (?:much|many|long|far|old)\b)/i).map((x) => x.replace(/,\s*$/, "")).filter((x) => x.trim());
-  const asking = clauses.findIndex((x) => /\bhow (much|many|long|far|old)\b|\bwhat (is|was|will|are)\b/i.test(x));
+  const clauses = sentences[q]!.split(/\s*,?\s*\b(?=if\b|when\b|given that\b|how (?:much|many|long|far|old)\b)/i).map((x) => x.replace(/,\s*$/, "")).filter((x) => x.trim())
+    // A clause after a comma that tells to work something out is a clause of its own.
+    .flatMap((x) => {
+      const parts = x.split(/,\s*/);
+      const k = parts.findIndex((part, i) => i > 0 && commanding(part));
+      return k > 0 ? [parts.slice(0, k).join(", "), parts.slice(k).join(", ")] : [x];
+    });
+  const asked0 = clauses.findIndex((x) => /\bhow (much|many|long|far|old)\b|\bwhat (is|was|will|are)\b/i.test(x));
+  const asking = asked0 >= 0 ? asked0 : clauses.findIndex((x, i) => i > 0 && commanding(x));
   const question = asking >= 0 ? clauses[asking]! : sentences[q]!;
   sentences.forEach((s, i) => {
     if (i !== q) amounts.push(...amountsIn(store, s, i, last));
@@ -1077,7 +1090,7 @@ export function situationOf(store: ConceptStore, said: string): Situation | unde
     const span = /\b(?:for|during|over|throughout)\s+(?:a|an|one)\s+(?:whole\s+|entire\s+|full\s+)?(second|minute|hour|day|week|month|year)\b/i.exec(sentence);
     if (span && i !== q) resolved.push({ value: 1, unit: { [base(span[1]!)]: 1 }, said: `1 ${base(span[1]!)}`, sentence: i, sign: 0, optional: true });
   });
-  const plainAsked = askedIn(question, resolved, sentences[q]!);
+  const plainAsked = askedIn(question, resolved, sentences[q]!) ?? (options.loose ? { unit: {}, left: false, total: false, more: false, said: question } : undefined);
   if (!plainAsked) return undefined;
   const found = { ...plainAsked, unit: canon(plainAsked.unit) };
   // "How many animals", "how many people", "how many pieces": a word for all the things counted,

@@ -160,12 +160,16 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   sources/situations and packs/situations.ncon (1,139 weights). Held-out 110 -> 123 of 750; the
   "ask|word|op" features (question words x the operator a working uses) added. Still to measure:
   learned-only and combined against test, chosen on train alone.
-- [ ] W17. CI bench reads 0/50 against 15/50 offline (same code). With network, turn() runs frames()
-  first and frames looks up unknown words (Marie, Gretchen, ...), which answers "I don't know what
-  marie is yet" before the situation reader is tried; offline the lookups fail and the situation
-  reader answers. Fix: let a fully read situation go before frames' lookups for word problems, or
-  keep lookups out of the bench. Also: ncon test "core holds every Concept the host names" fails on
-  Noun/Pronoun/Value (defined in basic/hearing packs, not core); pre-existing, not from W16.
+- [x] W17. Word problems and names go on instead of stopping. (The 0/50 CI number was a stale
+  live-probe ref read locally; CI really read 15/50, as offline.) A word problem in several
+  sentences whose thing asked is not told ("What is their average guess?") is read loosely, as
+  asking a plain number; a doing told after a comma ("If ..., calculate ...") asks. A word written
+  as a name where it was said, found nowhere, is IsA(Name()): looked up while reading, after the
+  gaps' research, and in a statement noted ("Marie bought 5 apples." is kept, not "I don't know
+  what marie is"). Still open: "Gunter is my friend" then "who is Gunter?" says only "a name"
+  (recall left the seed); a name Wikidata finds only as a given name is not yet taken as a name.
+  Pre-existing failures: ncon "core holds every Concept the host names" (Noun/Pronoun/Value),
+  write "every source file reads back", pursue "what a line leaves undone".
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
