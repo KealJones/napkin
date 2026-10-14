@@ -734,7 +734,8 @@ export function readings(amounts: readonly Amount[], asked: Asked, loose = false
     const tried = readingsAs(amounts, { ...asked, unit });
     if (tried?.best && (!best?.best || (tried.ranked[0]?.score ?? -Infinity) > (best.ranked[0]?.score ?? -Infinity))) best = tried;
   }
-  if (best?.best) return { ...best, best: { ...best.best, loose: true } };
+  // Said as what was asked: 72 clips, not 72 friends.
+  if (best?.best) return { ...best, best: { ...best.best, unit: asked.unit, loose: true } };
   // Still nothing: every thing counted read as a thing.
   const thing = (u: Unit): Unit => {
     const out: Record<string, number> = {};
