@@ -234,6 +234,20 @@ export async function groundInWikidata(
   return { item: chosen.map((x) => x.id).join(", "), relations };
 }
 
+/** Whether an item is an instance of a kind of name, by Wikidata's own classes (P31, then P279 up). */
+async function aName(entity: Entity, get: Fetch): Promise<boolean> {
+  const ids = (e: Entity, p: string) => (e.claims?.[p] ?? []).map((s) => s.mainsnak?.datavalue?.value?.id).filter((q): q is string => !!q);
+  let frontier = ids(entity, "P31").slice(0, 5);
+  const seen = new Set<string>();
+  for (let depth = 0; depth < 3 && frontier.length; depth++) {
+    const found = await entities(frontier.filter((q) => !seen.has(q)), "claims|labels", get).catch(() => ({}) as Record<string, Entity>);
+    frontier.forEach((q) => seen.add(q));
+    if (Object.values(found).some((e) => e.labels?.en?.value.toLowerCase() === "name")) return true;
+    frontier = [...new Set(Object.values(found).flatMap((e) => ids(e, "P279")))].slice(0, 8);
+  }
+  return false;
+}
+
 async function groundSense(
   store: ConceptStore,
   identity: string,
@@ -280,6 +294,9 @@ async function groundSense(
     const kind = kindOfDescription(sense.description);
     if (kind && kind !== identity) keep(call("IsA", [{ value: c(kind) }]));
   }
+  // An item about a name itself ("Siobhan": a female given name, a kind of given name, a kind of
+  // name): the word is a name, someone's or something's, and is kept as one.
+  if (context === undefined && (await aName(entity, get))) keep(call("IsA", [{ value: c("Name") }]));
   await everyClaim(store, identity, entity, keep, sameAs, get);
   // What else it is called ("USA", "Spielberg"), so the words find it.
   if (context === undefined) await keepAliases(store, identity, entity.aliases?.en ?? [], imported.seq);

@@ -305,3 +305,23 @@ test("a doing said of someone not named yet, or of a count of things, is kept: h
   const said = (await talk(store, ["He bought a car.", "She bought 5 apples.", "What did she buy?", "What did he buy?", "Mishka bought 3 pairs of shorts.", "What did Mishka buy?"])).map((x) => x.spoken);
   assert.deepEqual([said[2], said[3], said[5]], ["5 apples.", "Car.", "3 pairs of shorts."]);
 });
+
+test("a word Wikidata knows only as a name (a female given name, a kind of given name, a kind of name) is kept as a name", async () => {
+  const { groundInWikidata } = await import("../research/wikidata.js");
+  const items: Record<string, Record<string, unknown>> = {
+    Q1: { id: "Q1", labels: { en: { value: "Siobhan" } }, descriptions: { en: { value: "female given name" } }, sitelinks: {}, claims: { P31: [item("Q2")] } },
+    Q2: { id: "Q2", labels: { en: { value: "female given name" } }, claims: { P279: [item("Q3")] } },
+    Q3: { id: "Q3", labels: { en: { value: "given name" } }, claims: { P279: [item("Q4")] } },
+    Q4: { id: "Q4", labels: { en: { value: "name" } }, claims: {} },
+  };
+  const get = async (url: string): Promise<unknown> => {
+    const u = new URL(url);
+    if (u.hostname.endsWith("wikipedia.org")) return { query: { pages: {} } };
+    if (u.searchParams.get("action") === "wbsearchentities") return { search: Object.values(items).filter((e) => (e.labels as { en: { value: string } }).en.value.toLowerCase() === (u.searchParams.get("search") ?? "").toLowerCase()).map((e) => ({ id: e.id, label: (e.labels as { en: { value: string } }).en.value })) };
+    const ids = (u.searchParams.get("ids") ?? "").split("|").filter((id) => items[id]);
+    return { entities: Object.fromEntries(ids.map((id) => [id, items[id]])) };
+  };
+  const store = graph(false);
+  await groundInWikidata(store, "Siobhan", { fetch: get });
+  assert.ok(store.get("Siobhan")!.relations.some((r) => format(r.claim) === "IsA(Name())"));
+});
