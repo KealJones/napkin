@@ -124,8 +124,12 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   train workings, the packs' word facts forgotten: 61 facts, 23 as the packs say, none otherwise.
   Test 0-399: packs 71, none 48, learned only 65, both 69. Company (situation/company.ts) finds a
   word's role but not its way: opposites keep the same company ("older"/"younger" 0.94).
-- [ ] W10. The solver's weights (signs, beside, rates, owed, theirs) are hand-set: learn them from
-  the train workings, as frames' scoring is learned from picks.
+- [ ] W10. The solver's weights as features (situation.ts PRIOR, `Situations Weighs(...)` over it),
+  with each step's doings as features too ("minus|eat"). Learned from train: a perceptron shrank
+  them (test 71 -> 65); hill-climbing on cached readings, held out, 71 -> 70; a softmax ranking with
+  L2 to the prior on 4,000 train, 71 -> 76 (held-out 106 -> 107: not yet clearly real, not kept).
+  The ceiling: on test 0-399 a right answer is among the ~29 readings in 163, ranked first in 71,
+  and many of the 163 hit it by chance. The reading is the bottleneck: 237 have no right reading.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

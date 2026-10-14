@@ -54,6 +54,8 @@ export interface Amount {
   readonly consumed?: boolean;
   /** Worked out from a ratio or comparison and what it is of. */
   readonly derived?: boolean;
+  /** The doing of its clause, as its base ("ate" eat): what the steps it is in are weighed by. */
+  readonly doing?: string;
 }
 
 export interface Asked {
@@ -277,6 +279,8 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   const out: Amount[] = [];
   let verb = 0;
   let doing: string | undefined;
+  // The doing of the clause so far, whatever it does ("has", "buys", "costs").
+  let said: string | undefined;
   // How many amounts were read before each word: what a clause says is out[countAt[from] .. countAt[to]).
   const countAt: number[] = [];
   // After "5 more than", the ratio said next is a step in that amount, no one's own.
@@ -324,7 +328,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       holder = t.text;
       last.holder = holder;
       verb = 0;
+      said = undefined;
     }
+    if (t.tags.includes("Verb") && t.number === undefined && !t.tags.includes("Auxiliary")) said = lemma(t.lower);
     if (t.tags.includes("Verb") && t.number === undefined) {
       const e = effect(store, t.text);
       if (e !== 0 || lex.effectOnMoney(t.text) !== undefined) {
@@ -338,10 +344,10 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       const wasInner = inner;
       inner = false;
       if (wasInner) {
-        out.push({ value: ratioWord, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, of: ratioOf(i + 1) });
+        out.push({ value: ratioWord, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, ...(said ? { doing: said } : {}), of: ratioOf(i + 1) });
         continue;
       }
-      out.push({ value: ratioWord, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 1) });
+      out.push({ value: ratioWord, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, ...(said ? { doing: said } : {}), ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 1) });
       continue;
     }
     if (t.number === undefined) continue;
@@ -357,7 +363,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     }
     const next = tokens[i + 1];
     if (next && next.lower === "times" && tokens[i + 2] && (/^(as|more|the|her|his|their|its|that|what)$/.test(tokens[i + 2]!.lower) || comparesUp(tokens[i + 2]!.lower))) {
-      out.push({ value: t.number, unit: {}, said: `${t.text} times`, sentence: index, ratio: true, sign: verb, ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 2) });
+      out.push({ value: t.number, unit: {}, said: `${t.text} times`, sentence: index, ratio: true, sign: verb, ...(said ? { doing: said } : {}), ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 2) });
       i += 1;
       continue;
     }
@@ -373,7 +379,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     }
     // "a third", "two-fifths": a share of what it is said of.
     if (t.share) {
-      out.push({ value: t.number, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 1) });
+      out.push({ value: t.number, unit: {}, said: t.text, sentence: index, ratio: true, sign: verb, ...(said ? { doing: said } : {}), ...(holder && !inner ? { holder } : {}), of: ratioOf(i + 1) });
       continue;
     }
     let unit: string | undefined;
@@ -476,7 +482,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     // said before it.
     const after = tokens[Math.max(per.end, end)];
     if (after && (comparesUp(after.lower) || comparesDown(after.lower)) && after.lower !== "extra" && after.lower !== "additional" && !tokens.slice(Math.max(per.end, end), Math.max(per.end, end) + 4).some((x) => x.lower === "than")) {
-      out.push({ value: t.number!, unit: unitOf(unit, per.per), said: tokens.slice(i, Math.max(per.end, end) + 1).map((x) => x.text).join(" "), sentence: index, ratio: true, sign: verb, ...(holder ? { holder } : {}), of: { last: true, differs: comparesUp(after.lower) ? 1 : -1, ...(unit ? { unit } : {}) } });
+      out.push({ value: t.number!, unit: unitOf(unit, per.per), said: tokens.slice(i, Math.max(per.end, end) + 1).map((x) => x.text).join(" "), sentence: index, ratio: true, sign: verb, ...(said ? { doing: said } : {}), ...(holder ? { holder } : {}), of: { last: true, differs: comparesUp(after.lower) ? 1 : -1, ...(unit ? { unit } : {}) } });
       i = Math.max(per.end, end);
       continue;
     }
@@ -488,6 +494,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       // A doing can do one thing to what is done and another to money: selling takes away what is
       // sold and brings money in.
       sign: not ? -1 : unit === MONEY && doing !== undefined ? (lex.effectOnMoney(doing) ?? verb) : verb,
+      ...(said ? { doing: said } : {}),
       ...(capacity ? { capacity } : {}),
       ...(holder ? { holder } : {}),
       ...(optional ? { optional } : {}),
@@ -625,8 +632,8 @@ interface Worked {
   /** How it was worked out, said. */
   readonly how: string;
   readonly steps: readonly string[];
-  /** How well its additions and takings-away agree with what the words say. */
-  readonly fit: number;
+  /** What its steps agree or disagree with in the words, counted ("plus:total", "times:beside"). */
+  readonly features: Readonly<Record<string, number>>;
   readonly divisions: number;
   readonly depth: number;
   /** What its doing does to it: kept through what it is multiplied by ("3 kg lost a month" × 4 months). */
@@ -635,6 +642,38 @@ interface Worked {
 
 /** How many readings of each set of amounts are kept while searching. */
 const KEEP = 24;
+
+/**
+ * What each thing a reading agrees or disagrees with counts for. These are where weighing starts;
+ * what worked examples show (`learnWeights`) moves them, and what is learned is kept on the
+ * `Situations` Concept as `Weighs("feature", value)`, read over these.
+ */
+export const PRIOR: Readonly<Record<string, number>> = {
+  "plus:sign": 1, "plus:against": -2, "plus:total": 1, "plus:left": -0.5, "plus:more": -2, "plus:rates": -1.5,
+  "minus:sign": 2, "minus:unsigned": -1, "minus:left": 1.5, "minus:more": 3, "minus:total": -1,
+  "times:ratio": 0.5, "times:beside": 1.5, "times:kind": 1.5, "times:otherKind": -2,
+  divisions: -0.5, depth: -0.05, whole: 1, positive: 1, negative: -5,
+  converts: -0.75, owed: -1.5, again: -1.5, theirs: 3, ratioLeft: -4,
+};
+
+/** The weights in use: the prior, with what has been learned over it. */
+export function weightsOf(store: ConceptStore): Record<string, number> {
+  const w: Record<string, number> = { ...PRIOR };
+  for (const t of store.asSubject("Situations")) {
+    if (t.predicate !== "Weighs" || !isCall(t.expr)) continue;
+    const f = t.expr.args[0]?.value;
+    const v = t.expr.args[1]?.value;
+    if (typeof f === "string" && typeof v === "number") w[f] = v;
+  }
+  return w;
+}
+
+const plus = (a: Readonly<Record<string, number>>, b: Readonly<Record<string, number>>, extra: readonly string[] = []): Record<string, number> => {
+  const out: Record<string, number> = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = (out[k] ?? 0) + v;
+  for (const k of extra) out[k] = (out[k] ?? 0) + 1;
+  return out;
+};
 
 const round = (n: number) => Math.round(n * 1e9) / 1e9;
 const show = (n: number) => (Number.isInteger(round(n)) ? String(round(n)) : String(round(n)));
@@ -650,9 +689,30 @@ export interface Solved {
   readonly margin: number;
   /** How many readings of the same unit came out at all. */
   readonly rivals: number;
+  /** What the reading taken agreed and disagreed with, counted. */
+  readonly features: Readonly<Record<string, number>>;
+}
+
+/** A reading of a situation, ranked: its value and what it agreed with. */
+export interface Reading {
+  readonly value: number;
+  readonly features: Readonly<Record<string, number>>;
+  readonly score: number;
+}
+
+/** The weights the next solve weighs by (set by situationOf from the store, or by learning). */
+let weights: Record<string, number> = { ...PRIOR };
+export function weighWith(w: Record<string, number>): void {
+  weights = w;
 }
 
 export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefined {
+  const r = readings(amounts, asked);
+  return r?.best;
+}
+
+/** Every reading that comes out as asked, best first, and the one taken. */
+export function readings(amounts: readonly Amount[], asked: Asked): { best?: Solved; ranked: Reading[] } | undefined {
   const n = amounts.length;
   if (!n || n > 8) return undefined;
   // What a doing takes away counts only against something had: an amount taken away beside one
@@ -663,7 +723,15 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
   const signs = asked.left || amounts.some((a) => told(a) && a.sign < 0 && amounts.some((b) => told(b) && b.sign >= 0 && b.sentence !== a.sentence && tops(a.unit) === tops(b.unit)));
   const by = new Map<number, Worked[]>();
   const keyed = new Map<number, Map<string, Worked>>();
-  const score = (w: Worked) => w.fit * 2 - w.divisions * 0.5 - w.depth * 0.05 + (Number.isInteger(round(w.value)) ? 1 : 0) + (w.value > 0 ? 1 : -5);
+  const W = weights;
+  const dot = (f: Readonly<Record<string, number>>) => {
+    let s = 0;
+    for (const k in f) s += (W[k] ?? 0) * f[k]!;
+    return s;
+  };
+  // What a reading is, beyond its steps: how deep, whole or not, more than nothing.
+  const own = (w: Worked): Record<string, number> => ({ depth: w.depth, ...(Number.isInteger(round(w.value)) ? { whole: 1 } : {}), ...(w.value > 0 ? { positive: 1 } : { negative: 1 }) });
+  const score = (w: Worked) => dot(w.features) + dot(own(w));
   const add = (w: Worked) => {
     // One per value and unit: the one that fits the words best.
     const list = keyed.get(w.used) ?? new Map<string, Worked>();
@@ -679,7 +747,7 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
     keyed.delete(m);
   };
   amounts.forEach((a, i) => {
-    add({ value: a.value, unit: a.unit, used: 1 << i, how: show(a.value), steps: [], fit: 0, divisions: 0, depth: 0, sign: a.sign });
+    add({ value: a.value, unit: a.unit, used: 1 << i, how: show(a.value), steps: [], features: {}, divisions: 0, depth: 0, sign: a.sign });
     settle(1 << i);
   });
   // Subsets in order of size: each made of two smaller disjoint ones.
@@ -710,7 +778,9 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
       (!!asked.holder && !asked.kind && amounts.every((a, i) => (w.used & (1 << i)) === 0 || a.optional || (a.holder === asked.holder && !a.consumed))));
   // A conversion is used only when it is needed.
   const converts = (m: number) => amounts.filter((a, i) => a.sentence === -1 && (m & (1 << i)) !== 0).length;
-  const total = (w: Worked) => score(w) - 0.75 * converts(w.used) - 1.5 * owed(w.used) - 1.5 * again(w.used) + (theirs(w) ? 3 : 0) - (usesRatios(w) ? 0 : 4);
+  const answerFeatures = (w: Worked): Record<string, number> =>
+    plus(plus(w.features, own(w)), { converts: converts(w.used), owed: owed(w.used), again: again(w.used), ...(theirs(w) ? { theirs: 1 } : {}), ...(usesRatios(w) ? {} : { ratioLeft: 1 }) });
+  const total = (w: Worked) => dot(answerFeatures(w));
   // What can be: things counted come whole, money in cents; a reading that comes to 7.5 lollipops
   // is not one, when another can be.
   const whole = (w: Worked) => {
@@ -723,12 +793,13 @@ export function solve(amounts: readonly Amount[], asked: Asked): Solved | undefi
   // None can be: not worked out, rather than said as if it were.
   const pool = all.filter(whole).sort((x, y) => total(y) - total(x));
   const best = pool[0];
+  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w) }));
   if (best && owed(best.used) <= 2) {
     const next = pool.find((w) => Math.abs(w.value - best.value) > 1e-9);
     const margin = next ? total(best) - total(next) : 99;
-    return { value: round(best.value), unit: best.unit, how: best.how, steps: best.steps, amounts, asked, margin, rivals: pool.length };
+    return { best: { value: round(best.value), unit: best.unit, how: best.how, steps: best.steps, amounts, asked, margin, rivals: pool.length, features: answerFeatures(best) }, ranked };
   }
-  return undefined;
+  return { ranked };
 }
 
 const bits = (m: number) => {
@@ -747,13 +818,19 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     return signs ? w.sign : 0;
   };
   const ratioOf = (w: Worked) => bits(w.used) === 1 && amounts[Math.log2(w.used)]!.ratio === true;
-  const step = (value: number, unit: Unit, how: string, op: string, fit: number, division = 0): Worked => ({
+  // What the doings of the amounts put together are: "minus|eat" is something eaten taken away.
+  const doingOf = (w: Worked) => (bits(w.used) === 1 ? amounts[Math.log2(w.used)]!.doing : undefined);
+  const lexical = (op: string, x: Worked, y: Worked): string[] => {
+    const dx = doingOf(x), dy = doingOf(y);
+    return op === "+" ? [dx, dy].filter((d): d is string => !!d).map((d) => `plus|${d}`) : op === "-" ? [...(dx ? [`from|${dx}`] : []), ...(dy ? [`minus|${dy}`] : [])] : op === "×" ? [dx, dy].filter((d): d is string => !!d).map((d) => `times|${d}`) : [...(dx ? [`over|${dx}`] : []), ...(dy ? [`by|${dy}`] : [])];
+  };
+  const step = (value: number, unit: Unit, how: string, op: string, fit: readonly string[], division = 0): Worked => ({
     value,
     unit,
     used,
     how,
     steps: [...a.steps, ...b.steps, `${show(a.value)} ${op} ${show(b.value)} = ${sayAmount(value, unit)}`],
-    fit: a.fit + b.fit + fit,
+    features: plus(plus(a.features, b.features), division ? { divisions: division } : {}, fit),
     divisions: a.divisions + b.divisions + division,
     depth,
     sign: op === "×" || op === "÷" ? a.sign || b.sign : 0,
@@ -768,13 +845,13 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   const conversion = (w: Worked) => amounts.every((x, i) => (w.used & (1 << i)) === 0 || x.sentence === -1);
   if (sameUnit(a.unit, b.unit) && !ratioOf(a) && !ratioOf(b) && !conversion(a) && !conversion(b)) {
     // Added: what is added, or all of it together. Taken away: what is removed from what was had.
-    const plusFit = (signOf(b) >= 0 ? 0.5 : -1) + (asked.total ? 0.5 : 0) + (asked.left ? -0.25 : 0) + (asked.more ? -1 : 0) + (rate(a.unit) && !askedRate ? -0.75 : 0);
-    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", plusFit));
+    const plusFit = [signOf(b) >= 0 ? "plus:sign" : "plus:against", ...(asked.total ? ["plus:total"] : []), ...(asked.left ? ["plus:left"] : []), ...(asked.more ? ["plus:more"] : []), ...(rate(a.unit) && !askedRate ? ["plus:rates"] : [])];
+    out.push(step(a.value + b.value, a.unit, `(${a.how} + ${b.how})`, "+", [...plusFit, ...lexical("+", a, b)]));
     for (const [x, y] of [[a, b], [b, a]] as const) {
       if (x.value - y.value <= 0) continue;
-      const minusFit = (signOf(y) < 0 ? 1 : -0.5) + (asked.left ? 0.75 : 0) + (asked.more ? 1.5 : 0) + (asked.total ? -0.5 : 0);
+      const minusFit = [signOf(y) < 0 ? "minus:sign" : "minus:unsigned", ...(asked.left ? ["minus:left"] : []), ...(asked.more ? ["minus:more"] : []), ...(asked.total ? ["minus:total"] : [])];
       out.push({
-        ...step(x.value - y.value, a.unit, `(${x.how} - ${y.how})`, "-", minusFit),
+        ...step(x.value - y.value, a.unit, `(${x.how} - ${y.how})`, "-", [...minusFit, ...lexical("-", x, y)]),
         steps: [...a.steps, ...b.steps, `${show(x.value)} - ${show(y.value)} = ${sayAmount(x.value - y.value, a.unit)}`],
       });
     }
@@ -789,14 +866,14 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   // Of the same kind, they go together ("30 small holes" × "3 minutes a small hole"); of different kinds, not.
   const kindA = leafAt(a) >= 0 ? amounts[leafAt(a)]!.kind : undefined;
   const kindB = leafAt(b) >= 0 ? amounts[leafAt(b)]!.kind : undefined;
-  const kinds = kindA && kindB ? (kindA === kindB ? 0.75 : -1) : 0;
-  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", (ratioOf(a) || ratioOf(b) ? 0.25 : 0) + (beside ? 0.75 : 0) + kinds));
+  const kinds = kindA && kindB ? (kindA === kindB ? ["times:kind"] : ["times:otherKind"]) : [];
+  if (meaningful) out.push(step(a.value * b.value, product, `${a.how} × ${b.how}`, "×", [...(ratioOf(a) || ratioOf(b) ? ["times:ratio"] : []), ...(beside ? ["times:beside"] : []), ...kinds, ...lexical("×", a, b)]));
   // Divided: units divide; not by a ratio's opposite, nothing by zero.
   for (const [x, y] of [[a, b], [b, a]] as const) {
     if (y.value === 0 || ratioOf(x)) continue;
     const q = times(x.unit, y.unit, -1);
     if (!Object.values(q).every((v) => Math.abs(v) <= 1)) continue;
-    const w = step(x.value / y.value, q, `${x.how} ÷ ${y.how}`, "÷", 0, 1);
+    const w = step(x.value / y.value, q, `${x.how} ÷ ${y.how}`, "÷", lexical("÷", x, y), 1);
     out.push({ ...w, steps: [...a.steps, ...b.steps, `${show(x.value)} ÷ ${show(y.value)} = ${sayAmount(x.value / y.value, q)}`] });
   }
   return out;
@@ -833,6 +910,7 @@ function spans(message: string): string {
 /** A message read as a situation and what it asks, or undefined when it is not one. */
 export function situationOf(store: ConceptStore, said: string): Situation | undefined {
   lex = lexicon(store);
+  weights = weightsOf(store);
   const message = spans(said);
   const sentences = message
     .replace(/\s+/g, " ")
@@ -1081,6 +1159,7 @@ function resolveRatios(said: readonly Amount[]): Amount[] {
         said: `${how} = ${show(value)}`,
         sentence: r.sentence,
         sign: r.sign,
+        ...(r.doing ? { doing: r.doing } : {}),
         ...(r.holder ? { holder: r.holder } : {}),
         derived: true,
       };
