@@ -757,8 +757,7 @@ export function readings(amounts: readonly Amount[], asked: Asked, loose = false
   let best: { best?: Solved; ranked: Reading[] } | undefined;
   for (const u of askedThing ? new Set(amounts.flatMap((a) => counted(a.unit))) : []) {
     if (u === askedThing || !askedThing) continue;
-    const unit = { ...asked.unit, [u]: (asked.unit[u] ?? 0) + asked.unit[askedThing]! };
-    delete (unit as Record<string, number>)[askedThing];
+    const unit = Object.fromEntries(Object.entries({ ...asked.unit, [u]: (asked.unit[u] ?? 0) + asked.unit[askedThing]! }).filter(([k]) => k !== askedThing));
     const tried = readingsAs(amounts, { ...asked, unit });
     if (tried?.best && (!best?.best || (tried.ranked[0]?.score ?? -Infinity) > (best.ranked[0]?.score ?? -Infinity))) best = tried;
   }
@@ -792,7 +791,7 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   const W = weights;
   const dot = (f: Readonly<Record<string, number>>) => {
     let s = 0;
-    for (const k in f) s += (W[k] ?? 0) * f[k]!;
+    for (const [k, v] of Object.entries(f)) s += (W[k] ?? 0) * v;
     return s;
   };
   // What a reading is, beyond its steps: how deep, whole or not, more than nothing.

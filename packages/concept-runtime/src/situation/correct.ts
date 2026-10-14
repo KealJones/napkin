@@ -8,6 +8,7 @@
  */
 import { c, call, format, isCall, type Call, type Expr } from "../concept/expression.js";
 import { nameOf } from "../ears/parser/names.js";
+import { lemma, words as hostWords } from "../runtime/host.js";
 import type { ConceptStore } from "../store/store.js";
 import { candidates, type Relation } from "./learnwords.js";
 import { lexicon } from "./lexicon.js";
@@ -88,6 +89,20 @@ export function correct(store: ConceptStore, message: string, told: number, caus
 }
 
 /** The correction as a Concept to say: Corrected(told, was, steps=List(...), learned=List(...)). */
+/**
+ * The answer told to a situation just worked out, or undefined when the message is not one: a short
+ * reply after a worked answer with one amount and no thing of its own ("15", "no, it's 15 marbles";
+ * "I have 2 kids" brings kids, so it is something new said).
+ */
+export function tellingOf(message: string, before: string): number | undefined {
+  if (!before.startsWith("Worked(")) return undefined;
+  const amounts = message.replace(/,(\d{3})/g, "$1").match(/-?\$?\d*\.?\d+/g) ?? [];
+  if (amounts.length !== 1 || message.trim().split(/\s+/).length > 8) return undefined;
+  const answered = /answer="[\d.,-]+ ([^"]*)"/.exec(before)?.[1]?.toLowerCase() ?? "";
+  const own = hostWords(message).filter((w) => w.tags.includes("Noun") && !w.tags.includes("Pronoun") && !w.tags.includes("Value") && !answered.includes(lemma(w.text.toLowerCase())) && !answered.includes(w.text.toLowerCase()));
+  return own.length ? undefined : Number(amounts[0]!.replace("$", ""));
+}
+
 export function corrected(x: Correction, told: number, unitSaid: (n: number) => string): Expr {
   return call("Corrected", [
     { name: "told", value: unitSaid(told) },

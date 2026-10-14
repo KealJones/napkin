@@ -32,8 +32,7 @@ import { whatFollows } from "../research/conceptnet.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
-import { correct, corrected } from "../situation/correct.js";
-import { lemma, words as hostWords } from "./host.js";
+import { correct, corrected, tellingOf } from "../situation/correct.js";
 import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
@@ -736,13 +735,8 @@ export async function turn(
   // Told the answer to the situation just worked out ("no, it's 15", "15"): a short reply with one
   // amount after a worked answer is learned from (situation/correct.ts).
   const before = options.history?.at(-1);
-  const toldAmounts = message.replace(/,(\d{3})/g, "$1").match(/-?\$?\d*\.?\d+/g) ?? [];
-  // A telling names nothing but what was answered ("15", "no, it's 15 marbles"); "I have 2 kids"
-  // brings a thing of its own, so it is something new said.
-  const answeredUnit = /answer="[\d.,-]+ ([^"]*)"/.exec(before?.result ?? "")?.[1]?.toLowerCase() ?? "";
-  const ownThings = hostWords(message).filter((w) => w.tags.includes("Noun") && !w.tags.includes("Pronoun") && !w.tags.includes("Value") && !answeredUnit.includes(lemma(w.text.toLowerCase())) && !answeredUnit.includes(w.text.toLowerCase()));
-  if (options.inputMode !== "expression" && before?.result.startsWith("Worked(") && toldAmounts.length === 1 && message.trim().split(/\s+/).length <= 8 && !ownThings.length) {
-    const told = Number(toldAmounts[0]!.replace("$", ""));
+  const told = options.inputMode !== "expression" && before ? tellingOf(message, before.result) : undefined;
+  if (before && told !== undefined) {
     const x = correct(runtime.store, before.message, told, runtime.trace.cause);
     const unit = /answer="[\d.,-]+ ([^"]*)"/.exec(before.result)?.[1];
     const result = corrected(x, told, (n) => (unit ? `${n} ${unit}` : String(n)));
