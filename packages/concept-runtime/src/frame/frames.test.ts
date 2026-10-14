@@ -383,3 +383,10 @@ test("what a question word asks for constrains what is looked up: who is someone
   assert.equal(await groundInWikidata(store, "Gunter", { fetch: get, kinds }).then((g) => g?.relations.length ?? 0), 0, "a sailing rig is not someone");
   assert.ok(((await groundInWikidata(store, "Ada", { fetch: get, kinds }))?.relations.length ?? 0) > 0, "a person is");
 });
+
+test("a kind is found by its whole name or the word it is a kind of: with units of time known, \"tims\" is still times", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  for (const u of ["Second", "Minute", "Hour", "Day", "Week", "Time"]) store.addRelation(u, parse("IsA(UnitOfTime())"));
+  assert.deepEqual((await talk(store, ["waht is 6 tims 7"])).map((x) => x.spoken), ["42."]);
+});

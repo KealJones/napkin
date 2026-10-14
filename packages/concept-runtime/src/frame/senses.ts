@@ -154,7 +154,14 @@ function index(store: ConceptStore): Index {
     return m;
   };
   const named = (id: string) => [...wordsOf(id), ...called(store, id)];
-  const built = { version: store.version, relations: by(predicates, named), inverses: by(predicates, (id) => called(store, id, "InverseCalled")), kinds: by(kindsHeld, named), predicates };
+  // A kind is found by its whole name, or by the word it is a kind of ("unit" in "unit of time",
+  // "film" in "feature film"), never by another word of it: "time" is not a unit of time.
+  const kindWords = (id: string) => {
+    const ws = wordsOf(id);
+    const of = ws.indexOf("of");
+    return [...new Set([ws.join(" "), of > 0 ? ws[of - 1]! : ws[ws.length - 1]!, ...called(store, id)])];
+  };
+  const built = { version: store.version, relations: by(predicates, named), inverses: by(predicates, (id) => called(store, id, "InverseCalled")), kinds: by(kindsHeld, kindWords), predicates };
   indexes.set(store, built);
   return built;
 }

@@ -130,7 +130,7 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   quarter of what is left"), "the rest" of a whole split by shares, nested comparisons ("5 less than
   half as many"). Next: amounts as each holder's state through the sentences, "what is left" as that
   state; one unknown solved for by a linear equation.
-- [ ] W8. Words learned from worked examples (situation/learnwords.ts, scripts/learn-words.mjs): the
+- [x] W8. (Superseded by W9, W13 and W15.) Words learned from worked examples (situation/learnwords.ts, scripts/learn-words.mjs): the
   packs' word facts forgotten, each word beside the amounts supposed each way, the answer counting
   for and against. 1500 train items, 3 passes: 108 facts, 30 as the packs say, 7 otherwise, 71 new
   (many noise at 2 for, 0 against). Test 0-99: packs 25, none 16, learned only 19. Next: a stricter
@@ -143,7 +143,7 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   train workings, the packs' word facts forgotten: 61 facts, 23 as the packs say, none otherwise.
   Test 0-399: packs 71, none 48, learned only 65, both 69. Company (situation/company.ts) finds a
   word's role but not its way: opposites keep the same company ("older"/"younger" 0.94).
-- [ ] W10. The solver's weights as features (situation.ts PRIOR, `Situations Weighs(...)` over it),
+- [x] W10. (Done as W16: learned weights kept in packs/situations.ncon.) The solver's weights as features (situation.ts PRIOR, `Situations Weighs(...)` over it),
   with each step's doings as features too ("minus|eat"). Learned from train: a perceptron shrank
   them (test 71 -> 65); hill-climbing on cached readings, held out, 71 -> 70; a softmax ranking with
   L2 to the prior on 4,000 train, 71 -> 76 (held-out 106 -> 107: not yet clearly real, not kept).
@@ -165,8 +165,9 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   (learn/associate.ts: Associations by lift, Directions by base rate or majority) and writes those
   facts (situation/fromworkings.ts). All of the packs' word meanings forgotten and learned from the
   7,473 train workings: test 0-399 69 (packs 78, none 52), 78 learned, none against the packs.
-- [ ] W14. A unit known as IsA(UnitOfTime()) (as Wikidata grounding writes it) makes the frames
-  hearing misread "waht is 6 tims 7" ("times" becomes a time): units are Measures(Time()) for now.
+- [x] W14. A unit known as IsA(UnitOfTime()) (as Wikidata grounding writes it) made the frames
+  hearing misread "waht is 6 tims 7": a kind was found by every word of its name ("time" for unit of
+  time). Now by its whole name or the word it is a kind of ("unit").
 - [x] W15. Learning from being told (situation/correct.ts): after a worked answer, a short reply
   that names one amount and no thing of its own ("no, it's 15") is the answer; the reading that
   comes to it is said; each word of what was told (not the question's) is tried each way, and the
