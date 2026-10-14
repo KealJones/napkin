@@ -260,17 +260,17 @@ const aName = (entity: Entity, get: Fetch): Promise<boolean> => reaches(entity, 
 
 /**
  * Whether an item is an instance of one of these classes (by Q-id, or by label), by its classes
- * (P31, then P279 up, three levels).
+ * (P31, then P279 up, five levels).
  */
 async function reaches(entity: Entity, labels: readonly string[], get: Fetch): Promise<boolean> {
   const ids = (e: Entity, p: string) => (e.claims?.[p] ?? []).map((s) => s.mainsnak?.datavalue?.value?.id).filter((q): q is string => !!q);
   let frontier = ids(entity, "P31").slice(0, 5);
   const seen = new Set<string>();
-  for (let depth = 0; depth < 3 && frontier.length; depth++) {
+  for (let depth = 0; depth < 5 && frontier.length; depth++) {
     const found = await entities(frontier.filter((q) => !seen.has(q)), "claims|labels", get).catch(() => ({}) as Record<string, Entity>);
     frontier.forEach((q) => seen.add(q));
     if (Object.values(found).some((e) => labels.includes(e.id) || labels.includes(e.labels?.en?.value.toLowerCase() ?? ""))) return true;
-    frontier = [...new Set(Object.values(found).flatMap((e) => ids(e, "P279")))].slice(0, 8);
+    frontier = [...new Set(Object.values(found).flatMap((e) => ids(e, "P279")))].filter((q) => !seen.has(q)).slice(0, 12);
   }
   return false;
 }
