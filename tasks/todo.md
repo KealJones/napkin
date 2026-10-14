@@ -190,8 +190,8 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   (recall left the seed); a name Wikidata finds only as a given name is not yet taken as a name.
   Pre-existing failures: ncon "core holds every Concept the host names" (Noun/Pronoun/Value),
   write "every source file reads back", pursue "what a line leaves undone".
-- [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
-  ("eggs, milk and bread"), taken whole by a word whose hole takes many.
+- [x] W5. Lists of things: a run joined by commas and "and" ("apples, pears and plums") is a List in
+  doings told ("Tom bought ..."), to-dos (each kept apart) and lists held (holding pack, already).
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
 
 # Concept games and chess

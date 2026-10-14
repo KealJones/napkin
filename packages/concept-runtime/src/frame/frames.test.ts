@@ -390,3 +390,10 @@ test("a kind is found by its whole name or the word it is a kind of: with units 
   for (const u of ["Second", "Minute", "Hour", "Day", "Week", "Time"]) store.addRelation(u, parse("IsA(UnitOfTime())"));
   assert.deepEqual((await talk(store, ["waht is 6 tims 7"])).map((x) => x.spoken), ["42."]);
 });
+
+test("a run of things joined by commas and and is a list, told and asked back", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["Tom bought apples, pears and plums.", "What did Tom buy?", "remember to buy eggs and milk", "what do i need to buy"])).map((x) => x.spoken);
+  assert.deepEqual([said[1], said[3]], ["Apples, pears and plums.", "Eggs and milk."]);
+});

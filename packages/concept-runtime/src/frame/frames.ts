@@ -740,14 +740,16 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
     const value = said ?? (count && counted.length && counted.filter((x) => !only(x, "glue")).every((x) => thingWord(x) && !deictic(x)) && !only(counted[0]!, "glue") && count.type === "value"
       ? { expr: call("Quantity", [{ value: count.value }, { name: "unit", value: c(nameOf(counted.map((x) => x.text).join(" "))) }]) }
       : undefined);
-    const things = object.every((x) => thingWord(x) && !deictic(x));
+    const things = object.every((x) => x.text === "," || x.senses.some((z) => z.type === "glue" && z.head === "And") || (thingWord(x) && !deictic(x)));
     if (!value && !things) {
       misses.push({ reading: c("Statement", c(subject), c(nameOf(lemma(w.text.toLowerCase())))), left: object.map((x) => x.text), kind: "fit" });
       return;
     }
     const relation = nameOf(`${lemma(w.text.toLowerCase())}${mark ? ` ${mark.text}` : ""}`);
     if (!/^[A-Z]/.test(relation)) return;
-    const fact = c(relation, value ? value.expr : c(named(object)));
+    // A run of things ("apples, pears and plums") is a list of them, not one thing so named.
+    const run = separated(words.slice(at));
+    const fact = c(relation, value ? value.expr : run.length > 1 ? call("List", run.map((p) => ({ value: c(named(p)) }))) : c(named(object)));
     out.push({
       writes: true,
       key: format(c(subject, fact)),
@@ -823,8 +825,10 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
     return out;
   }
   if (!object.length || !object.every((w) => thingWord(w) || w.senses.some((s) => s.type === "value"))) return out;
-  const thing = values(object).get(`0,${object.length}`)?.find((x) => !isCall(x.expr))?.expr ?? c(named(object));
-  const fact = c(relation, c(doing, thing));
+  // A run of things ("apples, pears and plums"): each one to be done of, kept apart.
+  const items = separated(words.slice(k + 2)).map((p) => values(p).get(`0,${p.length}`)?.find((x) => !isCall(x.expr))?.expr ?? c(named(p)));
+  const facts = items.map((thing) => c(relation, c(doing, thing)));
+  const fact = facts.length === 1 ? facts[0]! : call("List", facts.map((value) => ({ value })));
   out.push({
     writes: true,
     key: format(c(subject, fact)),
@@ -834,11 +838,21 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
     chosen: [],
     notes: [`"${words[k - 1]!.text} to" keeps what follows it to be done.`],
     run: async () => {
-      store.addRelation(subject, fact, undefined, runtime.trace.cause);
+      for (const f of facts) store.addRelation(subject, f, undefined, runtime.trace.cause);
       return c("Noted", fact, c(subject));
     },
   });
   return out;
+}
+
+/** Words parted by commas and "and", each part without the words that only help say it. */
+function separated(ws: readonly Word[]): Word[][] {
+  const parts: Word[][] = [[]];
+  for (const w of ws) {
+    if (w.text === "," || w.senses.some((x) => x.type === "glue" && x.head === "And")) parts.push([]);
+    else if (!only(w, "glue")) parts[parts.length - 1]!.push(w);
+  }
+  return parts.filter((p) => p.length);
 }
 
 /** The words as one name: "favorite color" is FavoriteColor. */
