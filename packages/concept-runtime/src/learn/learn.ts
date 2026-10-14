@@ -184,6 +184,7 @@ async function learnOnce(
   /** Whether that research looked for what was asked and did not find it. */
   let notFound = false;
 
+  const told = isCall(expression) && expression.head === "ContextScope" && isCall(expression.args[0]?.value) && (expression.args[0]!.value as { head: string }).head === "Declarative";
   for (let pass = 0; pass < maxPasses; pass += 1) {
     passes = pass + 1;
     runtime.reset();
@@ -399,8 +400,10 @@ async function learnOnce(
       // Nothing found anywhere for a word that stands where a name stands ("maria bought", "with
       // Gunter"), better than any word it could be a misspelling of: it is a name, of someone or
       // something the talk is about. Not knowing more of it is no reason to stop.
-      // Heard applied to something ("Mishka(Bought(...))") or not: where it stands decides.
-      if (looked && standsAsNameIn(message, words)) {
+      // Heard applied to something ("Mishka(Bought(...))") or not: where it stands decides. Only
+      // when asked: told something of it ("Gunter is my friend"), what was told is what it is, and
+      // a guess kept beside it would answer before it.
+      if (looked && !told && standsAsNameIn(message, words)) {
         runtime.store.addRelation(gap.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
         steps.push({ identity: gap.identity, how: "name", detail: "taken as a name: nothing else was found for it" });
         learnedSomething = true;

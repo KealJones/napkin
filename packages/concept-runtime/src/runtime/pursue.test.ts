@@ -97,3 +97,20 @@ test("a command is not answered with a fact found for its words", async () => {
   const { say } = conversation();
   assert.doesNotMatch((await say('make a function that console logs "Hi Keal"')).rendered, /^Answer\(/);
 });
+
+test("told something of a word never met, with learning on, what was told answers who it is, not a guess that it is a name", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const conversations = new ConversationRepository(store);
+  const { id } = conversations.create();
+  const say = async (text: string) => {
+    const runtime = new Runtime(store);
+    const heard = conversations.receive();
+    runtime.trace.said(heard.seq);
+    const r = await turn(runtime, text, c("Execution"), { conversation: id, fetch: async () => ({}) });
+    conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, heard });
+    return r.spoken;
+  };
+  await say("Gunter is my friend.");
+  assert.equal(await say("who is gunter?"), "Your friend.");
+});
