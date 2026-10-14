@@ -15,6 +15,7 @@ async (args, bindings, api) => {
       .replace(/\.mw-parser-output[^}]*\}/g, "")
       .replace(/\s+/g, " ")
       .trim();
-  const senses = entries.flatMap((e) => (e.definitions || []).map((x) => plain(x.definition))).filter((d) => d.length > 2);
+  const senses = entries.flatMap((e) => (e.definitions || []).map((x) => plain(x.definition))).filter((d) => d.length > 0);
+  // "OK" is a whole definition
   return { head: "Senses", args: [{ value: word }, { value: api.call("List", ...senses) }, { name: "from", value: api.call("Wiktionary", url) }] };
 };

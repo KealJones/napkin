@@ -31,3 +31,6 @@ Concept(Contrary(), SynonymOf(Opposite()))
 // The value going, running or placed in a direction is the value traversed that way. Kept as the
 // recipe it is (Quote), not run: grounding finds what a word does, not one result of it.
 Concept(In(), Realization(In(Direction($a, $b)), context = Grounding($x), body = Quote(Traverse($x, Direction($a, $b)))))
+
+// What a word can be (hearing asks it where a word's place calls for a class the tagger missed).
+Concept(CanBe(), IsA(Relation()))

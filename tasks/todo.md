@@ -76,8 +76,9 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 27. Chat ("when you say hello?") and focus ("supplies list") fixed; pursue's "cake recipe" reads Wikibooks, so it passes only with the network: run it in CI with the live-probe workflow's `test` input (passes, 3aedfc0).
   "cake recipe").
 - [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
-- [ ] 29. sources/grounding no longer regenerates packs/grounding.ncon as committed (the pack was
-  edited by hand); bring the sources back in line.
+- [x] 29. sources/grounding regenerates packs/grounding.ncon again: the hand edits (a one-letter
+  definition kept, PartsOfSpeech and CanBe) are in the sources; the rebuilt pack holds the same
+  Concepts as the committed one.
 - [x] 31. What was told is said back to whom it happened ("Sorry to hear your car broke down."), by
   what "my"/"I" and "your"/"you" Refer to; a kept statement that felt strongly is answered as it felt
   ("my mom is sick"); what an event leads to counts for how it feels; said of Napkin ("you're
