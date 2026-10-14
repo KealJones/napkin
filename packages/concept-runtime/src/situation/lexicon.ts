@@ -34,6 +34,8 @@ export interface Lexicon {
   synonym(word: string): string | undefined;
   /** What a doing does to what it is done with: -1 takes away (`Removes()`), +1 adds (`Adds()`). */
   effect(verb: string): number;
+  /** What a doing does to money it is done with, when known apart from things ("sells" adds money). */
+  effectOnMoney(verb: string): number | undefined;
   /**
    * Supposes a fact of a word for this reading, over what the graph holds (undefined: supposes it
    * has none). How a word is learned from worked examples: each way it could act is supposed, and
@@ -124,8 +126,13 @@ export function lexicon(store: ConceptStore): Lexicon {
       }
       return 0;
     },
+    effectOnMoney: (verb) => {
+      const forms = doingForms(verb);
+      const v = forms.map((f) => supposed.get(f)?.get("EffectOnMoney")).find((x) => x !== undefined);
+      return v === undefined ? undefined : way(v);
+    },
     suppose: (word, predicate, value) => {
-      for (const w of predicate === "Effect" ? doingForms(word) : formsOf(word)) {
+      for (const w of predicate.startsWith("Effect") ? doingForms(word) : formsOf(word)) {
         const s = supposed.get(w) ?? new Map<string, unknown>();
         s.set(predicate, value);
         supposed.set(w, s);

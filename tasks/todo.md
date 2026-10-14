@@ -117,6 +117,15 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   (many noise at 2 for, 0 against). Test 0-99: packs 25, none 16, learned only 19. Next: a stricter
   bar; evidence pooled over a word's neighbors (its lemma, SynonymOf, IsA, antonyms say the opposite);
   a person's correction ("no, it's 15") counted as evidence too.
+- [x] W9. Words learned from worked solutions (situation/worked.ts, scripts/learn-workings.mjs): each
+  amount the question says is found in its working's steps; how the working uses it (taken away,
+  added, carried through what it is multiplied into) votes for the words beside it, against how often
+  words are taken away at all; doings learned apart for money and things ("sell"). From the 7,473
+  train workings, the packs' word facts forgotten: 61 facts, 23 as the packs say, none otherwise.
+  Test 0-399: packs 71, none 48, learned only 65, both 69. Company (situation/company.ts) finds a
+  word's role but not its way: opposites keep the same company ("older"/"younger" 0.94).
+- [ ] W10. The solver's weights (signs, beside, rates, owed, theirs) are hand-set: learn them from
+  the train workings, as frames' scoring is learned from picks.
 - [ ] W5. Lists of things, not only numbers: a run of the same kind joined by commas and "and"
   ("eggs, milk and bread"), taken whole by a word whose hole takes many.
 - [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.

@@ -276,6 +276,7 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
   if (holder) last.holder = holder;
   const out: Amount[] = [];
   let verb = 0;
+  let doing: string | undefined;
   // How many amounts were read before each word: what a clause says is out[countAt[from] .. countAt[to]).
   const countAt: number[] = [];
   // After "5 more than", the ratio said next is a step in that amount, no one's own.
@@ -326,7 +327,10 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
     }
     if (t.tags.includes("Verb") && t.number === undefined) {
       const e = effect(store, t.text);
-      if (e !== 0) verb = e;
+      if (e !== 0 || lex.effectOnMoney(t.text) !== undefined) {
+        verb = e;
+        doing = t.text;
+      }
     }
     // A ratio: "twice as many", "half that much", "3 times as many", "1.2 times her rate".
     const ratioWord = lex.times(t.lower);
@@ -481,7 +485,9 @@ function amountsIn(store: ConceptStore, sentence: string, index: number, last: L
       unit: unitOf(unit, per.per ?? (perEach && perEach !== unit ? perEach : undefined) ?? (inGroup && inGroup !== unit ? inGroup : undefined)),
       said: tokens.slice(i, Math.max(per.end, end) + (eachAfter ? 1 : 0)).map((x) => x.text).join(" "),
       sentence: index,
-      sign: not ? -1 : verb,
+      // A doing can do one thing to what is done and another to money: selling takes away what is
+      // sold and brings money in.
+      sign: not ? -1 : unit === MONEY && doing !== undefined ? (lex.effectOnMoney(doing) ?? verb) : verb,
       ...(capacity ? { capacity } : {}),
       ...(holder ? { holder } : {}),
       ...(optional ? { optional } : {}),
