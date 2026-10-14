@@ -141,6 +141,9 @@ function index(store: ConceptStore): Index {
     // A relation held only in a context (GlobalName in Code(Python())) is not a word's sense in talk.
     if (!STRUCTURAL.has(t.predicate) && t.context === undefined) predicates.add(t.predicate);
     if ((t.predicate === "IsA" || t.predicate === "SubclassOf") && isCall(t.object ?? null)) kindsHeld.add((t.object as Call).head);
+    // A relation the world has (a Wikidata property, "date of birth"), held of nothing yet.
+    const q = t.predicate === "SameAs" && isCall(t.object ?? null) && (t.object as Call).head === "Wikidata" ? (t.object as Call).args[0]?.value : undefined;
+    if (typeof q === "string" && /^P\d+$/.test(q) && t.context === undefined) predicates.add(t.subject);
   }
   // A word that only helps say a name ("by" in "directed by") does not name it.
   const glue = (w: string) => typesOf(store, c(nameOf(w))).some((k) => GLUE.includes(k));

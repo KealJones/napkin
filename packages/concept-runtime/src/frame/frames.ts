@@ -832,6 +832,23 @@ function statements(runtime: Runtime, words: readonly Word[], question: boolean,
       const than = right.findIndex((x) => x.text.toLowerCase() === "than" || x.senses.some((s) => s.type === "glue" && s.head === "Than"));
       if (right.length >= 3 && than === 1 && comparing(right[0]) && right.slice(2).every(thingWord)) {
         claim = c(nameOf(`${right[0].text} than`), c(named(right.slice(2))));
+      } else if (right[0]?.senses.some((s) => s.type === "relation" && !s.inverse) && right.length >= 2) {
+        // "i was born in 1990", "tom was born in paris": a word for a relation, then what it holds;
+        // of the relations the word is for, the one that takes what was said (a year is a date).
+        // Past the words that mark what it holds ("in", "on"), whatever else they can be.
+        const after = rightAll.slice(rightAll.indexOf(right[0]!) + 1);
+        const rest = after.slice(after.findIndex((x) => !x.senses.some((z) => z.type === "glue"))).filter((x) => !glue(x));
+        const v = values(rest).get(`0,${rest.length}`)?.find((x) => !isCall(x.expr) || x.expr.head === "Date");
+        const year = v && typeof v.expr === "number" && Number.isInteger(v.expr) && v.expr >= 1000 && v.expr <= 2999 ? call("Date", [{ name: "year", value: v.expr }]) : undefined;
+        const held = year ?? v?.expr ?? (rest.length && rest.every(thingWord) ? c(named(rest)) : undefined);
+        const kind = held === undefined ? undefined : isCall(held) && held.head === "Date" ? "Date" : typeof held === "number" ? "Number" : "Place";
+        const takes = (r: string) => store.asSubject(r).filter((t) => t.predicate === "TakesValue" && t.object !== undefined && isCall(t.object)).map((t) => (t.object as { head: string }).head);
+        const relations = right[0]!.senses.flatMap((s) => (s.type === "relation" && !s.inverse ? [s.head] : []));
+        const relation = relations.find((r) => kind !== undefined && takes(r).includes(kind)) ?? (relations.length === 1 ? relations[0] : undefined);
+        if (relation && held !== undefined) {
+          claim = c(relation, held);
+          replaces = true;
+        }
       } else if (right.length === 1 && right[0]!.senses.some((s) => s.type === "value" && Number.isInteger(s.value)) && (said?.type === "entity" || relationsOf(store, named(left)).some((r) => format(r.claim) === "IsA(Name())") || (knownAsName(left[0]!.text) && standsAsNameIn(message, left[0]!.text)))) {
         // "tom is 30": a bare number said of someone is what the graph says such a number most
         // likely is (`Someone NumberIs(Age())`), kept as that and said so.

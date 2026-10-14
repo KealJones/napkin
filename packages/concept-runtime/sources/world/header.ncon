@@ -9,3 +9,11 @@ Concept(Frankfurter(), IsA(Source()), IsA(LearningSource()), License("European C
 Concept(OpenMeteo(), IsA(Source()), IsA(LearningSource()), License("CC BY 4.0"))
 
 Concept(Weather(), IsA(Result()))
+
+// Being born, as Wikidata says it: when (date of birth, P569) and where (place of birth, P19),
+// each by what it is called, so "i was born in 1990" and "when was i born" find them.
+// What each takes, as Wikidata's datatype says (a time; an item, a place): which one a year or a
+// city said after "born" is.
+Concept(TakesValue(), IsA(Relation()))
+Concept(DateOfBirth(), IsA(Relation()), SameAs(Wikidata("P569")), Called(Born()), Called(Birth(Date())), TakesValue(Date()))
+Concept(PlaceOfBirth(), IsA(Relation()), SameAs(Wikidata("P19")), Called(Born(In())), Called(Birthplace()), TakesValue(Place()))

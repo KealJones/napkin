@@ -47,8 +47,9 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
 - [x] 17. A number said of a person ("tom is 30") kept as what it most likely is
   (`Someone NumberIs(Age())`), read back by "how old is tom" (`Old Asks(Age())`, which the
   asked-fact reader counts as naming the relation). Still to do: asking when it is unclear.
-- [ ] 18. "was born in 1990" and other passives: "born" to the relation it is Called by, the year as
-  a date; "when was i born".
+- [x] 18. "was born in 1990": DateOfBirth and PlaceOfBirth are in the world pack as Wikidata has them
+  (P569, P19, Called(Born()), TakesValue(Date()/Place())); a declared Wikidata property is a relation
+  sense before anything holds it; "X was born in Y" keeps the one that takes Y (a year is a date).
 - [ ] 19. Reminders and tasks ("remember to buy milk", "what do i need to buy"): a doing to do, kept
   as a task, not a fact.
 

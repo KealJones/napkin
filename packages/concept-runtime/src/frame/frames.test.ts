@@ -334,3 +334,10 @@ test("postfix operations, and a bare number said of someone kept as their age an
   assert.equal(said[3], "30.");
   assert.ok(!store.get("Pi")?.relations.some((r) => format(r.claim).startsWith("Age(")));
 });
+
+test("being born is told and asked by the relation that takes what was said: a year is a date of birth, a city a place", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["i was born in 1990", "what year was i born", "tom was born in paris", "where was tom born"])).map((x) => x.spoken);
+  assert.deepEqual([said[1], said[3]], ["1990.", "Paris."]);
+});
