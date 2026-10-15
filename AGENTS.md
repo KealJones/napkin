@@ -39,10 +39,22 @@ what a particular question means, are answer paths even when they look general.
   If you are about to write fifty similar lines, write the derivation.
 - **Where answers come from, in order:** what the graph holds, what the user said (matched
   by shape and by base form), behaviour the question names, then the world (Wikidata,
-  Wiktionary, the DailyDialog corpus, pages of the Wikimedia sister projects). Whatever a line
-  leaves undone is looked for there (`Unworked`), never only reported. No model hears, speaks or teaches, and none should be
-  added back: a message is heard by `Hear()` (`packs/hearing.ncon`), and what nothing sourced
-  can answer stays a residual.
+  Wiktionary, ATOMIC 2020 and ConceptNet for what follows from an event, pages of the
+  Wikimedia sister projects), and last a teacher model (`research/teacher.ts`, Gemini through
+  a worker) for a word or an event no source has. Whatever a line leaves undone is looked for
+  there (`Unworked`), never only reported.
+- **A model may teach, never answer.** The teacher is asked only when every source has
+  failed; what it says is kept as facts in relations the graph already has (anything else is
+  dropped), stamped `Teacher Taught(term)`, and Napkin answers from what it then holds. The
+  model's own words are never the reply, and no model hears or speaks.
+- **One reader, no shapes.** A message is read by the words' holes (`src/frame/compose.ts`,
+  holes as graph facts in `packs/reading.ncon`): each word's senses say what it can be and
+  what it takes, and neighbouring pieces join where one fills a hole the other leaves open.
+  No sentence shapes, no grammars, no capitalization rules. A hole the words leave open is
+  filled by the context lookup (`src/frame/context.ts`: the conversation, memory, then more
+  sources as they are added) or asked. The old hearing (the situation reader, the fixed
+  frames readers, `Hear()` and the rules parser) is off the chat path; `hearing: "old"` keeps
+  it only to compare with. Plan: `tasks/todo.md`, "One reader".
 - **Pick the sense that makes the question make sense,** never the first label: the sense
   that has the property asked for (Dune the novel has an author), the senses that share a
   kind (python the language beside javascript), the part of speech the word's use calls
@@ -74,6 +86,14 @@ what a particular question means, are answer paths even when they look general.
 - When the user names a conversation id, find it in `~/.napkin/store.ncon`, work out why
   each turn failed, and fix the cause, not the one prompt.
 - Behaviour removed on purpose keeps its tests as `{ todo }` targets, not deleted.
+- While the one reader takes over, failing tests are the progress meter, not a gate: record
+  tests passed, `node scripts/compare-hearing.mjs` (the one reader against the old rules on
+  `eval/frames/cases.json`), GSM8K (`live-probe` workflow, `bench=gsm8k 50`) and SODA coverage
+  (`test=scripts/frames-coverage.mjs`) at each step. Don't add fallbacks to old code to make a
+  test pass.
+- Network-only checks (Wikidata, Hugging Face, the teacher) run in CI through the
+  `live-probe` workflow (inputs `bench`, `say`, `test`); results land on the `live-probe`
+  branch: `git fetch origin +refs/heads/live-probe:refs/remotes/origin/live-probe`.
 
 ## The graph
 

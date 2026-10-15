@@ -303,7 +303,7 @@ if (expr) {
     conversation: conversationId,
     learn: !flag("--no-learn"),
     ...(flag("--no-teacher") || flag("--no-learn") ? {} : { teacher: geminiTeacher() }),
-    hearing: value("--hear") === "rules" ? "rules" : "frames",
+    hearing: value("--hear") === "rules" ? "rules" : value("--hear") === "old" ? "old" : "frames",
   });
   show("message", t.heard.message);
   show(`heard (${t.hearingUsed ?? "rules"})`, t.heard.raw.trim());

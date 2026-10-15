@@ -7,6 +7,11 @@ point of this file is that a reader should never have to guess whether a claim i
 implementation and has drifted from them in both directions — sometimes the code is wrong
 and sometimes the spec is. Every known divergence is listed below.
 
+**2026-10-15:** messages are no longer heard by the Ears/rules path or `Hear()`. The one reader
+composes words by their holes (`src/frame/compose.ts`); see `frames.md` (status) and
+`tasks/todo.md` ("One reader"). Documents below about hearing (`reading-spec.md`, `ir-spec.md`
+Parts 7-9, `prompt-hearing.md`) describe the old path.
+
 Rules for what may and may not go in the Ears prompt:
 `packages/concept-runtime/src/ears/AGENTS.md`.
 

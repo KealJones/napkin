@@ -6,20 +6,19 @@ one kind of unit, and it grows by adding more of them.
 ```
 $ napkin "What is 5 times three?"
 
-heard    What(Multiply(5, Number("three")))
+heard    Value(Multiply(5, 3))
 result   Answer(15)
+said     15.
 
-trace
-  What(Multiply(5, Number("three")))   [Execution()]
-    => Answer(15)
-    Multiply(5, Number("three"))       [Execution()]
-      => 15
-      Number("three")                  [Execution()]
-        => 3
+why
+  Worked out by its words' holes: Multiply(5, 3).
+  multiply took 5 and 3.
 ```
 
-`three` stays a word until a realization converts it. Nothing normalized it on the way in,
-because the representation is supposed to keep what you actually said.
+No grammar read that. "times" is a Concept with two holes (it takes two numbers), "three" is
+a number the graph knows, and "what is" asks for what the rest comes to: the words fill each
+other's holes, and the reading that fills the most, from the sides they are usually filled
+from, wins.
 
 ## The idea
 
@@ -68,10 +67,15 @@ result   Describes(Chess(), List(IsA(BoardGame()), ...))
 ```
 
 Realize, collect what came back residual, try the graph, then what the world says (Wikidata,
-the dictionary), save, re-answer. Everything learned is sourced and stamped. The graph
-persists to `~/.napkin/store.ncon`, a journal over the packs. No model hears, speaks or
-teaches: a gap that nothing sourced can close stays a residual. It is not filled in with a
-guess.
+the dictionary, ATOMIC 2020 and ConceptNet for what follows from an event), save, re-answer.
+Everything learned is sourced and stamped. The graph persists to `~/.napkin/store.ncon`, a
+journal over the packs.
+
+Last of all, a teacher model (Gemini, `research/teacher.ts`) is asked about a word or an event
+no source has: whether a word is a word, a misspelling or a name, and what it is; how one feels
+and what one wants after an event. What it says is kept as facts in the graph's own relations,
+stamped as taught, and asked once. Napkin answers from what it holds; the model's text is
+never the reply, and no model hears or speaks. `--no-teacher` turns it off.
 
 ### It works without being asked
 
@@ -140,6 +144,7 @@ pnpm install && pnpm build
 pnpm napkin "What is 5 times three?"       # a turn, end to end
 pnpm napkin --expr 'Add(2, 3)'             # realize an expression directly
 pnpm napkin --learn "what is chess?"       # close gaps before answering
+pnpm napkin --hear old "..."               # the old hearing, to compare
 pnpm napkin --agenda                       # what it would work on next, unprompted
 pnpm napkin --exist                        # work on that agenda
 pnpm napkin --forget                       # what would be collected
@@ -148,8 +153,10 @@ pnpm studio                                 # browse the graph at :4317
 pnpm test
 ```
 
-Nothing needs a model. A message is heard by the graph itself (`Hear()` in
-`packs/hearing.ncon`): each word is its own Concept and the words find each other.
+Nothing needs a model to hear or speak. A message is read by its words' holes
+(`src/frame/compose.ts`, the holes themselves graph facts in `packs/reading.ncon`): each word
+brings what it can be and what it takes, and the words find each other. A hole they leave open
+is filled from the conversation or memory (`src/frame/context.ts`), or asked.
 
 ## Layout
 
@@ -158,9 +165,11 @@ packages/concept-runtime/src/
   concept/     the expression language, matching, the unit
   store/       the graph, the two-directional relation index, cells, persistence
   runtime/     facet contexts, selection, evaluation, the trace, one turn, Exist
-  ears/        message -> Concepts: the prompt, line lifting, repair, checks
+  frame/       the one reader: senses, holes, composition, the context lookup
+  ears/        the old rules hearing (off the chat path), names, spelling
   learn/       the learning loop and study
-  research/    Wikidata and web search, as Concepts
+  research/    Wikidata, ATOMIC, ConceptNet, why-chains, the teacher
+  situation/   the old word-problem reader (off the chat path) and learned meanings
   seed/        the Concepts the network starts with
 apps/studio/   browse the graph and watch a turn happen
 ```

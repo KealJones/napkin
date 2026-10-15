@@ -1,5 +1,12 @@
 # Frames: reading by senses and holes
 
+**Status (2026-10-15): superseded in part.** The fixed readers described here (computations,
+facts, statements, reports, …) are off the chat path. Every message is read by one reader that
+composes words by their holes (`src/frame/compose.ts`, holes as graph facts in
+`packs/reading.ncon`), with the context lookup (`src/frame/context.ts`) for holes the words
+leave open. The senses table below is still how a word's senses are found. Plan and progress:
+`tasks/todo.md`, "One reader".
+
 Status (2026-10-12): built beside `Hear()` for arithmetic, claims, holes and fact questions
 (`src/frame/`). Frames read first; a message frames cannot account for word by word goes to
 `Hear()` as before. `napkin --hear rules` turns frames off. Measured with
