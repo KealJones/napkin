@@ -907,14 +907,10 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // get a nice tree?", "I got a car") is talk of the doing, read here.
   const doer = root.role === "ReadDoing" ? filled(root, "Doer")[0] : undefined;
   const toBeDone = root.role !== "ReadDoing" || !doer || (/^you$/i.test(doer.text) && filled(root, "Aspect").some((a) => /^(can|could|would|will|wo|should|please)$/i.test(a.text)));
-  if (toBeDone && acts(root, (h) => reachesBehaviour(store, h))) return [];
-  // A doing the graph says where what it takes is kept ("I need socks": `Need KeepsAs(ToDo())`)
-  // is kept there, by whoever says it.
-  if (acts(root, (h) => store.asSubject(h).some((t) => t.predicate === "KeepsAs"))) return [];
   // A message that starts with what can be done, not read as a doing, is told to be done ("take
   // 10, double it"), however its other words fall.
   const first = row[0]!;
-  if (first.some(doing) && !(doing(root) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
+  if (first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
   const asked = asking(words, question) || asksIn(root);
@@ -926,6 +922,33 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     if (!also.length) return thingOf(p);
     const own = thingOf({ ...p, fills: p.fills.filter((f) => f.hole !== "Also") });
     return call("List", [own, ...also.map((x) => who(x)!)].map((value) => ({ value })));
+  };
+  // A thing as a doing's realization takes it: its head, with what describes or names it inside
+  // ("shopping list" List(Shopping())), whose it is around it ("my" My(...)).
+  const asTaken = (p: Piece): Expr => {
+    if (p.value !== undefined) return p.value;
+    if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }]);
+    const inner = [...filled(p, "Describer"), ...filled(p, "Name")].map((d) => c(nameOf(d.text)));
+    const items = filled(p, "Also").flatMap((j) => filled(j, "With"));
+    let e: Expr = c(p.head, ...inner);
+    for (const o of filled(p, "Whose")) e = o.head === "Me" ? c("My", e) : c("Whose", c(o.head), e);
+    return items.length ? c("And", e, ...items.map(asTaken)) : e;
+  };
+  // Where a link says it goes, it is said with what it carries ("put eggs on my list":
+  // Put(Eggs(On(My(List()))))), as what the doing takes.
+  const carrying = (done: Expr[], links: Expr[]): Expr[] => {
+    const last = done.at(-1);
+    if (!links.length || last === undefined || !isCall(last)) return [...done, ...links];
+    return [...done.slice(0, -1), call(last.head, [...last.args, ...links.map((value) => ({ value }))])];
+  };
+  const linksOf = (p: Piece) => filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map(asTaken)));
+  const doingCall = (p: Piece): Expr => {
+    if (p.op) return c(p.op.target, ...carrying(operandsOf(p).filter((o) => !o.link).map((o) => asTaken(o.piece)), linksOf(p)));
+    const done = filled(p, "Done").map(asTaken);
+    const links = linksOf(p);
+    const particles = filled(p, "Particle").map((x) => x.text);
+    const head = particles.length ? nameOf([lemma(p.text.toLowerCase()) || p.text, ...particles].join(" ")) : p.head;
+    return c(store.has(head) ? head : p.head, ...carrying(done, links));
   };
   const doingName = (p: Piece) => nameOf([lemma(p.text.toLowerCase()) || p.text, ...filled(p, "Particle").map((x) => x.text)].join(" "));
   const mods = (p: Piece) => [
@@ -940,6 +963,24 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const notes = [`Read by its words' holes: ${shapeSaid(root)}.`];
   // What was read says itself whether it was told or asked (Stated, Whether, a What in it): no wrapper says it again.
   const display = (e: Expr) => e;
+  // Asked to be done, or a doing the graph says where what it takes is kept ("I need socks":
+  // `Need KeepsAs(ToDo())`): the doing runs, its realization given what the words put in its holes.
+  const keeps = (h: string) => store.asSubject(h).some((t) => t.predicate === "KeepsAs");
+  const can = (h: string) => reachesBehaviour(store, h) || (store.get(h)?.realizations ?? []).some((r) => !r.retired);
+  if ((toBeDone && acts(root, can)) || acts(root, keeps) || (root.op && root.word === 0 && !asked)) {
+    if (root.role !== "ReadDoing" && !root.op) return [];
+    // Told to do it, or told it is done: the mood the words say is the context it runs in.
+    const expr = c("ContextScope", c(toBeDone && !asked ? "Imperative" : asked ? "Interrogative" : "Declarative"), doingCall(root));
+    return [{
+      key: format(expr),
+      features: ["read:composed-done", ...best.features],
+      score: base,
+      display: expr,
+      chosen: [],
+      notes: [...notes, `Done: ${format(expr)}.`],
+      run: async () => runtime.evaluate(expr, c("Execution")),
+    }];
+  }
   if (root.role === "ReadDoing") {
     const doer = filled(root, "Doer")[0];
     const done = filled(root, "Done")[0];
@@ -1169,6 +1210,9 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   }
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
   if (!op?.op) return undefined;
+  // What it takes are things, not values ("add milk to my list"): a doing, not a computation.
+  const plainThing = (p: Piece): boolean => !p.op && p.value === undefined && !p.ask && !filled(p, "Also").length;
+  if (operandsOf(op).some((o) => plainThing(o.piece))) return undefined;
   const asked = question || asksWhat;
   const given = operandsOf(op);
   const operands = given.length === 1 && op.op.arity > 1 && items(given[0]!.piece).length === op.op.arity ? items(given[0]!.piece).map((piece) => ({ piece, at: piece.word })) : given;

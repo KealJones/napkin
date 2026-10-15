@@ -158,6 +158,48 @@ Concept(Add(),
   )
 )
 
+// "add milk to my shopping list", what is added carrying where it goes (Milk(To(My(List())))):
+// put in the thing it names; naming none, it stays to be worked out.
+Concept(Add(),
+  Realization(Add($said),
+    context = Imperative(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($done,
+              Await(
+                Call(
+                  Member($api, "evaluate"),
+                  Call(
+                    Member($api, "call"),
+                    "Change",
+                    Call(Member($api, "call"), "Add"),
+                    Call(Member($bindings, "get"), "said")
+                  ),
+                  Member($api, "context")
+                )
+              )
+            ),
+            Return(
+              If(
+                And($done, Equals(Member($done, "head"), "Change")),
+                Call(
+                  Member($api, "call"),
+                  "Add",
+                  Call(Member($bindings, "get"), "said")
+                ),
+                $done
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // "add cheetos to my shopping list": put in the thing it names; naming none, Add's next realization adds.
 Concept(Add(),
   Realization(Add(Ref(Rest($r)), $said),
