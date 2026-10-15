@@ -225,6 +225,16 @@ played by the general machinery that works out what follows from what is held.
 - [ ] A session in conversation: what is in play takes what is said to it first (any activity, not
   one game), moves heard, answered from what is held, taken back, a rule changed with consent.
 
+# One reader (asked 2026-10-15, in the user's words)
+
+> I want 1 general reader that can identify all those fixed frames by the concepts collective decided sense, it should be able to break up large prompts retain references in earlier parts back fill from later references and look for prior conversation messages or memory  or file/system references to fill possibly missing holes or ask if it cannot determine/infer them. All the like backfill lookup should probably be like one "context lookup" that we can add more lookup sources to later. Then finally refs that require results from execution should be done in the order that the holes that require them are not in said order. Then additionally it would be great if there could also be a layer that tries to identify "goals"/"intent"/"objectives" and creating steps to achieve that goal that were not in the prompt. Like napkin should pursue its own learning by looking through its own learning sources until it gets one that is the best fit. It should persue the the goal by looking shit up, creating steps for itself to achieve that goal. How that happens maybe it has a conversation with itself where it' asks itself questions (the same path a normal user would) and uses its own responses to create the plan or execute different steps (sub goals?) or something. And this can happen back and forth till it achieves. Like it can look up snippets do all its normal learning and piecing together.
+
+- [ ] One reader: the hole-driven composer reads every message; the fixed frames readers, the situation reader and the rules parser become what the words' senses decide, then are removed. Measured: GSM8K with frames alone ≥ the situation reader's 15/50; SODA coverage; all tests.
+- [ ] Long messages: broken into parts, read in order, one reading across them: a reference fills from earlier parts, and a hole left open fills from a later part.
+- [ ] One context lookup for open holes, its sources pluggable: this message, earlier messages, memory (the graph), files/system, then the learning sources; asked of the person when none can say.
+- [ ] Holes needing a result run when that result exists: the order is what each hole needs, not the order the words came in.
+- [ ] Goals: what is wanted, and the steps to it the message did not say; pursued by asking itself, the same path a message takes, using its own answers to plan and do sub-goals, back and forth until done or stuck (then ask). Builds on packs/pursue.ncon.
+
 # A teacher for what Napkin is missing
 
 - [x] Wired (research/teacher.ts): Gemini via the worker, asked last for a word (word / misspelling / name, in Means, IsA, PartOf, UsedFor, HasProperty) or an event (ATOMIC relations), stamped `Teacher Taught(term)`, asked once; on in the studio and CLI (`--no-teacher`), off in tests. Live probe: ~1-2 s per lesson; "my sourdough starter died" answered from what it taught; a made-up word taught as unknown, not guessed.
