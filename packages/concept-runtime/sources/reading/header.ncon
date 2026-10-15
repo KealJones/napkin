@@ -1,0 +1,117 @@
+// Reading by holes (src/frame/compose.ts): what each kind of word takes, as the graph's own facts.
+// No sentence shapes: a word takes the words beside it that fit its holes, either side, and every
+// way the holes fill is weighed. Which side a hole is usually filled from is a weight (Reading
+// Weighs), learned when a reading is confirmed or corrected, not a rule. Written by
+// scripts/pack.mjs from sources/reading (edit those, not this).
+Requires(Core(), Basic())
+
+Concept(HasHole(), IsA(Relation()))
+Concept(Repeats(), IsA(Relation()))
+
+// The kinds of word, by what they do in what is said.
+Concept(WordRole(), IsA(Category()))
+
+// Something: a thing, a person, a value, what a question word asks for.
+Concept(ReadThing(), IsA(WordRole()),
+  HasHole("Describer", ReadQuality()),
+  HasHole("Whose", ReadOwning()),
+  HasHole("Determiner", ReadDetermining()),
+  HasHole("Count", ReadCount()),
+  HasHole("Name", ReadThing()),
+  HasHole("Where", ReadLink()),
+  HasHole("Also", ReadJoining()),
+  Repeats("Describer"), Repeats("Where"), Repeats("Also"))
+
+// A doing: who does it, what it is done to, where and how and when, whether it is not.
+Concept(ReadDoing(), IsA(WordRole()),
+  HasHole("Doer", ReadThing()),
+  HasHole("Done", ReadThing()),
+  HasHole("Where", ReadLink()),
+  HasHole("How", ReadDegree()),
+  HasHole("Not", ReadNegation()),
+  HasHole("Aspect", ReadAspect()),
+  HasHole("Then", ReadDoing()),
+  HasHole("When", ReadTime()),
+  HasHole("Particle", ReadParticle()),
+  Repeats("When"),
+  HasHole("Mood", ReadMarker()),
+  Repeats("Where"), Repeats("How"), Repeats("Aspect"), Repeats("Mood"))
+
+// How something is: of what, at what ("good at chess"), how much.
+Concept(ReadQuality(), IsA(WordRole()),
+  HasHole("Of", ReadThing()),
+  HasHole("Where", ReadLink()),
+  HasHole("How", ReadDegree()),
+  HasHole("Not", ReadNegation()),
+  Repeats("Where"), Repeats("How"))
+
+// A word that puts something with what it is said of ("at", "in", "for"): what it puts.
+Concept(ReadLink(), IsA(WordRole()), HasHole("What", ReadThing()), HasHole("What", ReadDoing()))
+
+// A word that says what something is ("is", "am"): of what, and what it is said to be.
+Concept(ReadSame(), IsA(WordRole()),
+  HasHole("Subject", ReadThing()),
+  HasHole("Said", ReadThing()),
+  HasHole("Said", ReadQuality()),
+  HasHole("Said", ReadDoing()),
+  HasHole("Where", ReadLink()),
+  HasHole("How", ReadDegree()),
+  HasHole("Not", ReadNegation()),
+  HasHole("Mood", ReadMarker()),
+  Repeats("Where"), Repeats("How"), Repeats("Mood"))
+
+// Whose ("my", "tom's"), which one ("the", "a"), how much ("so", "very"), not, when and
+// whether ("will", "did", "can"), how it is said ("lol", "well"), and what joins ("and").
+Concept(ReadOwning(), IsA(WordRole()))
+Concept(ReadDetermining(), IsA(WordRole()))
+Concept(ReadDegree(), IsA(WordRole()), HasHole("How", ReadDegree()))
+Concept(ReadNegation(), IsA(WordRole()))
+Concept(ReadAspect(), IsA(WordRole()))
+Concept(ReadMarker(), IsA(WordRole()))
+// How many ("3 apples"), when ("yesterday"), and the word that finishes a doing ("broke down").
+Concept(ReadCount(), IsA(WordRole()))
+Concept(ReadTime(), IsA(WordRole()))
+Concept(ReadParticle(), IsA(WordRole()))
+Concept(ReadJoining(), IsA(WordRole()), HasHole("With", ReadThing()))
+
+// What usually fills each hole from which side, to start with: a weight, not a rule. The doer
+// stands before its doing in most of what is said, what is done to after; a describer before
+// what it describes; what a link puts, after it.
+Concept(ReadingByHoles(), IsA(Category()))
+Concept(ReadingByHoles(),
+  Weighs("ReadDoing.Doer:before", 1),
+  Weighs("ReadDoing.Doer:after", -0.5),
+  Weighs("ReadDoing.Done:after", 0.8),
+  Weighs("ReadDoing.Done:before", -0.6),
+  Weighs("ReadSame.Subject:before", 1),
+  Weighs("ReadSame.Said:after", 1),
+  Weighs("ReadSame.Subject:after", -0.3),
+  Weighs("ReadSame.Said:before", -0.8),
+  Weighs("ReadThing.Describer:before", 0.6),
+  Weighs("ReadThing.Whose:before", 0.8),
+  Weighs("ReadThing.Determiner:before", 0.8),
+  Weighs("ReadThing.Determiner:after", -2),
+  Weighs("ReadThing.Whose:after", -2),
+  Weighs("ReadThing.Count:before", 0.5),
+  Weighs("ReadLink.What:after", 1),
+  Weighs("ReadLink.What:before", -2),
+  Weighs("ReadQuality.How:before", 0.5),
+  Weighs("ReadDoing.How:before", 0.3),
+  Weighs("ReadDoing.Aspect:before", 0.6),
+  Weighs("ReadSame.Not:after", 0.4),
+  Weighs("ReadDoing.Not:before", 0.4),
+  Weighs("ReadQuality.Of:before", -0.5),
+  Weighs("ReadDoing.Mood:before", 0.2),
+  Weighs("ReadSame.Mood:before", 0.2),
+  Weighs("ReadThing.Name:before", 0.3),
+  Weighs("ReadThing.Name:after", -1),
+  Weighs("ReadDoing.Particle:after", 1),
+  Weighs("ReadDoing.Particle:before", -2),
+  Weighs("ReadDoing.When:after", 0.2),
+  Weighs("ReadDoing.Done:before:ask", 1.8),
+  Weighs("ReadDoing.Doer:before:ask", 0.3),
+  Weighs("ReadSame.Said:before:ask", 1.6),
+  Weighs("ReadJoining.With:after", 0.8),
+  Weighs("ReadJoining.With:before", -0.5),
+  Weighs("ReadThing.Also:after", 0.5),
+  Weighs("ReadThing.Also:before", -0.5))

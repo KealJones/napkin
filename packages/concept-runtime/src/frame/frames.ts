@@ -23,12 +23,13 @@ import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { findNamed } from "../runtime/individuals.js";
+import { asks as asksIn, compose, filled, piecesOf, thingOf, type Piece } from "./compose.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
 import { Runtime } from "../runtime/evaluator.js";
 import { typesOf } from "../runtime/types.js";
-import { runs, UNIVERSAL } from "../runtime/select.js";
+import { reachesBehaviour, runs, UNIVERSAL } from "../runtime/select.js";
 import type { ConceptStore } from "../store/store.js";
 import { learnedReadings } from "../resolve/learned.js";
 import { MONTHS } from "../ears/lift.js";
@@ -846,6 +847,142 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
   return out;
 }
 
+/**
+ * Any row read by its words' holes (frame/compose.ts), with no shape of sentence assumed: what
+ * the best way of filling the holes says is kept when told ("my car broke down": Car
+ * BreakDown()), and answered when asked ("what did you buy", "who bought the car") from what is
+ * held. Weighed under the readings made for one kind of message, which say more when they fit.
+ */
+function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined): Reading[] {
+  const store = runtime.store;
+  if (words.length < 2 || words.length > 16) return [];
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
+  const row = words.map((w, i) => piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed));
+  const best = compose(store, row)[0];
+  if (!best) return [];
+  const root = best.piece;
+  // A word that does something here (save, make, subtract, post) is done, not kept as said: its
+  // own realization reads it, as the rules hearing hands it on.
+  // So is a doing the graph says where what it takes is kept ("I need socks": `Need KeepsAs(ToDo())`).
+  const doesSomething = (head: string) => reachesBehaviour(store, head) || store.asSubject(head).some((t) => t.predicate === "KeepsAs");
+  const acts = (p: Piece): boolean => ((p.role === "ReadDoing" || p.role === "ReadAspect") && (doesSomething(p.head) || doesSomething(nameOf(p.text)))) || p.fills.some((f) => acts(f.piece));
+  if (acts(root)) return [];
+  // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
+  const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
+  const asked = question || asksIn(root);
+  // Who or what a piece is, as the graph holds it: the one a word points at, the speaker, a thing.
+  // Things joined ("socks and a charger") are a List of each.
+  const who = (p: Piece | undefined): Expr | undefined => {
+    if (p === undefined) return undefined;
+    const also = filled(p, "Also").flatMap((j) => filled(j, "With"));
+    if (!also.length) return thingOf(p);
+    const own = thingOf({ ...p, fills: p.fills.filter((f) => f.hole !== "Also") });
+    return call("List", [own, ...also.map((x) => who(x)!)].map((value) => ({ value })));
+  };
+  const doingName = (p: Piece) => nameOf([lemma(p.text.toLowerCase()) || p.text, ...filled(p, "Particle").map((x) => x.text)].join(" "));
+  const mods = (p: Piece) => [
+    ...filled(p, "Where").map((l) => {
+      const what = filled(l, "What")[0];
+      return { name: l.text.toLowerCase(), value: what ? (who(what) as Expr) : c(nameOf(l.text)) };
+    }),
+    ...filled(p, "When").map((t) => ({ name: "when", value: c(nameOf(t.text)) })),
+  ];
+  const negated = (p: Piece) => filled(p, "Not").length > 0;
+  const base = 2 + 0.3 * words.length + 0.05 * best.score;
+  const notes = [`Read by its words' holes: ${shapeSaid(root)}.`];
+  // What was read says itself whether it was told or asked (Stated, Whether, a What in it): no wrapper says it again.
+  const display = (e: Expr) => e;
+  if (root.role === "ReadDoing") {
+    const doer = filled(root, "Doer")[0];
+    const done = filled(root, "Done")[0];
+    const relation = doingName(root);
+    if (!asked) {
+      if (!doer || doer.ask || unpointed(doer)) return [];
+      const subject = who(doer);
+      if (!subject || !isCall(subject) || subject.args.length) return [];
+      const claim = call(relation, [...(done ? [{ value: who(done)! }] : []), ...mods(root)]);
+      const fact = negated(root) ? c("Not", claim) : claim;
+      return [{
+        writes: true,
+        key: format(c(subject.head, fact)),
+        features: ["read:composed", ...best.features],
+        score: base,
+        display: display(c("Stated", subject, fact)),
+        chosen: [],
+        notes,
+        run: async () => {
+          store.addRelation(subject.head, fact, undefined, runtime.trace.cause);
+          return c("Noted", fact, subject);
+        },
+      }];
+    }
+    // Asked what was done: of the doer, what the doing was done to.
+    if (done?.ask && doer && !doer.ask) {
+      const subject = who(doer);
+      if (!subject || !isCall(subject)) return [];
+      const found = relationsOf(store, subject.head).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && !store.retracted(subject.head, r.claim)).flatMap((r) => (isCall(r.claim) && r.claim.args[0] ? [r.claim.args[0].value] : []));
+      if (!found.length) return [];
+      return [{ key: `Composed ${relation} of ${subject.head}`, features: ["read:composed-asked", ...best.features], score: base, display: display(c(relation, subject, c("What"))), chosen: [], notes, run: async () => c("Answer", found.length === 1 ? found[0]! : call("List", found.map((value) => ({ value })))) }];
+    }
+    // Asked who did it: whoever holds the doing done to that.
+    if (doer?.ask && done && !done.ask) {
+      const object = who(done);
+      const found = store.triples().filter((t) => t.predicate === relation && t.context === undefined && (object === undefined || (isCall(t.expr) && t.expr.args[0] && equal(t.expr.args[0].value, object))) && !store.retracted(t.subject, t.expr)).map((t) => c(t.subject));
+      if (!found.length) return [];
+      return [{ key: `Composed who ${relation}`, features: ["read:composed-asked", ...best.features], score: base, display: display(c(relation, c("Who"), object ?? c("What"))), chosen: [], notes, run: async () => c("Answer", found.length === 1 ? found[0]! : call("List", found.map((value) => ({ value })))) }];
+    }
+    // Asked whether it was done ("did you get a nice tree?"): held, yes; else not known.
+    if (doer && !doer.ask && !(done?.ask)) {
+      const subject = who(doer);
+      if (!subject || !isCall(subject)) return [];
+      const object = done ? who(done) : undefined;
+      const held = relationsOf(store, subject.head).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && (object === undefined || (r.claim.args[0] !== undefined && equal(r.claim.args[0].value, object))) && !store.retracted(subject.head, r.claim));
+      return [{ key: `Composed whether ${relation}`, features: ["read:composed-whether", ...best.features], score: base - 0.5, display: display(c("Whether", call(relation, [{ value: subject }, ...(object ? [{ value: object }] : [])]))), chosen: [], notes, run: async () => c("Answer", held ? c("True") : c("UnknownTruth")) }];
+    }
+    return [];
+  }
+  if (root.role === "ReadSame" && !asked) {
+    const subjectPiece = filled(root, "Subject")[0];
+    const said = filled(root, "Said")[0];
+    if (!subjectPiece || !said || subjectPiece.ask || said.ask || unpointed(subjectPiece)) return [];
+    const subject = who(subjectPiece);
+    if (!subject || !isCall(subject) || subject.args.length) return [];
+    let claim: Expr;
+    if (said.role === "ReadQuality") claim = c("HasProperty", c(nameOf(said.text)));
+    else if (said.role === "ReadDoing") claim = call(doingName(said), [...filled(said, "Done").map((d) => ({ value: who(d)! })), ...mods(said)]);
+    else if (filled(said, "Determiner").some((d) => /^(a|an)$/i.test(d.text))) claim = c("IsA", who(said)!);
+    else return [];
+    const fact = negated(root) ? c("Not", claim) : claim;
+    return [{
+      writes: true,
+      key: format(c(subject.head, fact)),
+      features: ["read:composed", ...best.features],
+      score: base,
+      display: display(c("Stated", subject, fact)),
+      chosen: [],
+      notes,
+      run: async () => {
+        store.addRelation(subject.head, fact, undefined, runtime.trace.cause);
+        return c("Noted", fact, subject);
+      },
+    }];
+  }
+  return [];
+}
+
+/** Readings that may fail on a row they cannot take: none, rather than none of the others either. */
+function safely(read: () => Reading[]): Reading[] {
+  try {
+    return read();
+  } catch (e) {
+    if (process.env.NAPKIN_FRAMES_DEBUG) console.error("reading failed:", e);
+    return [];
+  }
+}
+
+/** A reading by holes, said: what took what. */
+const shapeSaid = (p: Piece): string => `${p.text}${p.fills.length ? " (" + p.fills.map((f) => `${f.hole.toLowerCase()}: ${shapeSaid(f.piece)}`).join("; ") + ")" : ""}`;
+
 /** Words parted by commas and "and", each part without the words that only help say it. */
 function separated(ws: readonly Word[]): Word[][] {
   const parts: Word[][] = [[]];
@@ -1394,7 +1531,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)];
+      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message), ...safely(() => composed(runtime, words, question, message, pointed))];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

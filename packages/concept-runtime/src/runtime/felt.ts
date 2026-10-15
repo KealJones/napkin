@@ -40,7 +40,10 @@ export async function feltReply(
   if (follows === undefined || !isCall(follows) || follows.head !== "Follows") return undefined;
   const v = follows.args.find((a) => a.name === "valence")?.value;
   const led = follows.args.some((a) => a.name === "causes" || a.name === "wants");
-  if (!led && (typeof v !== "number" || Math.abs(v) < least)) return undefined;
+  // Said of Napkin itself ("you are useless"), any feeling in it is answered: it was said to it.
+  const about = follows.args.find((a) => a.name === "about")?.value;
+  const floor = about !== undefined && isCall(about) && about.head === "Self" ? 0.1 : least;
+  if (!led && (typeof v !== "number" || Math.abs(v) < floor)) return undefined;
   const text = await word(runtime, "RenderResponse", follows).catch(() => undefined);
   return text?.trim() || undefined;
 }
