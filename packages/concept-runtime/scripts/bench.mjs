@@ -9,9 +9,18 @@ import { Runtime } from "../dist/runtime/evaluator.js";
 import { turn } from "../dist/runtime/turn.js";
 import { seed } from "../dist/seed/seed.js";
 import { c } from "../dist/concept/expression.js";
+import { geminiTeacher } from "../dist/research/teacher.js";
 
 const which = process.argv[2] ?? "gsm8k";
 const n = Number(process.argv[3] ?? 50);
+// "teacher": Gemini asked last for what no source has (research/teacher.ts). "shared": one graph
+// for every item, so what one item learned or was taught is there for the next.
+const flags = new Set(process.argv.slice(4));
+const gemini = flags.has("teacher") ? geminiTeacher() : undefined;
+let taught = 0;
+const teacher = gemini && (async (p) => { taught++; return gemini(p); });
+const shared = flags.has("shared") ? new ConceptStore() : undefined;
+if (shared) seed(shared);
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timed out")), ms))]);
 
 async function gsm8k() {
@@ -24,11 +33,12 @@ let right = 0;
 let answered = 0;
 const lines = [];
 for (const [i, item] of items.entries()) {
-  const store = new ConceptStore();
-  seed(store);
+  const store = shared ?? new ConceptStore();
+  if (!shared) seed(store);
+  const before = taught;
   let said = "";
   try {
-    said = (await withTimeout(turn(new Runtime(store, {}), item.q, c("Execution"), {}), 60_000)).spoken;
+    said = (await withTimeout(turn(new Runtime(store, {}), item.q, c("Execution"), teacher ? { teacher } : {}), teacher ? 180_000 : 60_000)).spoken;
   } catch (e) {
     said = `(${e.message})`;
   }
@@ -37,7 +47,7 @@ for (const [i, item] of items.entries()) {
   const ok = got !== undefined && Number(got) === Number(item.want);
   if (ok) right += 1;
   if (!/don't know|couldn't|can't|put it another way/i.test(said)) answered += 1;
-  lines.push(`${ok ? "RIGHT" : "wrong"} #${i + 1} want ${item.want}, said: ${said.slice(0, 160).replace(/\n/g, " ")}`);
+  lines.push(`${ok ? "RIGHT" : "wrong"} #${i + 1}${taught > before ? ` (taught ${taught - before})` : ""} want ${item.want}, said: ${said.slice(0, 160).replace(/\n/g, " ")}`);
 }
-console.log(`\n${which}: ${right}/${items.length} right (${((100 * right) / Math.max(1, items.length)).toFixed(1)}%); answered (not "I don't know") ${answered}/${items.length}\n`);
+console.log(`\n${which}: ${right}/${items.length} right (${((100 * right) / Math.max(1, items.length)).toFixed(1)}%); answered (not "I don't know") ${answered}/${items.length}${teacher ? `; teacher asked ${taught} times` : ""}${shared ? "; one graph for all" : ""}\n`);
 for (const l of lines) console.log(l);
