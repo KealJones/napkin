@@ -687,7 +687,7 @@ export async function turn(
     const lookup = options.learn !== false && options.research !== false;
     const term = atomicTermOf(message);
     const atomic = term && (lookup || heldOf(runtime.store, nameOf(term)).length)
-      ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
+      ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, wait: 6_000, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
       : undefined;
     const followed = atomic?.relations.length
       ? { identity: atomic.identity, term: term!, relations: atomic.relations, looked: [] }

@@ -32,9 +32,9 @@ const HEADS: ReadonlySet<string> = new Set(Object.values(ATOMIC));
 const PER_RELATION = 3;
 
 const defaultFetch: Fetch = async (url) => {
-  // The first search of the dataset builds its index and can take long; a lookup that times out
-  // is tried again another time, not kept as nothing found.
-  const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+  // The first search of the dataset builds its index and can take a minute; a lookup that times
+  // out is tried again another time, not kept as nothing found.
+  const response = await fetch(url, { signal: AbortSignal.timeout(90_000) });
   if (!response.ok) throw new Error(`ATOMIC ${response.status}`);
   return response.json();
 };
@@ -96,16 +96,30 @@ export function atomicTermOf(message: string): string | undefined {
  * Look an event up in ATOMIC and keep what follows from it, on the event's Concept (named as
  * its words are: CarBreakDown). What was kept; empty when nothing matched.
  */
-export async function groundInAtomic(store: ConceptStore, term: string, options: { fetch?: Fetch; cause?: number } = {}): Promise<{ identity: string; relations: Expr[] }> {
+export async function groundInAtomic(store: ConceptStore, term: string, options: { fetch?: Fetch; cause?: number; wait?: number } = {}): Promise<{ identity: string; relations: Expr[] }> {
   const identity = nameOf(term);
   if (!identity) return { identity: "", relations: [] };
   const held = heldOf(store, identity);
-  if (held.length || lookedUpInAtomic(store, term)) return { identity, relations: held };
+  if (held.length || lookedUpInAtomic(store, term) || pending.has(term)) return { identity, relations: held };
+  // Not waited on past `wait`: what comes later is kept for the next time the event is told.
+  pending.add(term);
+  const work = lookUp(store, identity, term, options).finally(() => pending.delete(term));
+  if (options.wait === undefined) return work;
+  return Promise.race([work, new Promise<{ identity: string; relations: Expr[] }>((done) => setTimeout(() => done({ identity, relations: [] }), options.wait))]);
+}
+
+/** Events being looked up now, so a second telling does not ask again while the first is out. */
+const pending = new Set<string>();
+
+async function lookUp(store: ConceptStore, identity: string, term: string, options: { fetch?: Fetch; cause?: number }): Promise<{ identity: string; relations: Expr[] }> {
   const get = options.fetch ?? defaultFetch;
-  const body = (await get(SERVER + new URLSearchParams({ dataset: DATASET, config: "default", split: "train", query: term, length: "100" }))) as { rows?: { row?: Row }[] };
+  // Asked as ATOMIC writes its events ("PersonX ..."), so rows about the event come before rows
+  // that only mention its words; two pages of them.
+  const page = (offset: number) => get(SERVER + new URLSearchParams({ dataset: DATASET, config: "default", split: "train", query: `PersonX ${term}`, offset: String(offset), length: "100" })) as Promise<{ rows?: { row?: Row }[] }>;
+  const pages = await Promise.all([page(0), page(100).catch(() => ({ rows: [] }))]);
   const wanted = new Set(term.split(" "));
   // The rows whose event is the one told: every word of the telling in it, and little else.
-  const rows = (body.rows ?? []).map((r) => r.row ?? {}).filter((r) => {
+  const rows = pages.flatMap((body) => body.rows ?? []).map((r) => r.row ?? {}).filter((r) => {
     if (typeof r.event !== "string") return false;
     const event = new Set(said(r.event));
     return [...wanted].every((w) => event.has(w)) && event.size <= wanted.size + 2;

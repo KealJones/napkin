@@ -720,9 +720,7 @@ Concept(Follows(),
                     Entails = "causes",
                     XReact = "feels",
                     XWant = "wants",
-                    XEffect = "causes",
-                    XNeed = "needs",
-                    XIntent = "for"
+                    XEffect = "causes"
                   )
                 ),
                 Bind($lists, Object()),

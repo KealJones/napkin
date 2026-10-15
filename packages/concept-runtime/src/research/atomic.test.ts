@@ -39,7 +39,8 @@ test("ATOMIC rows are kept only for the event told, the most said first, and the
   const got = await groundInAtomic(store, "car break down", { fetch: server });
   assert.deepEqual(got.relations.map(format).sort(), ["XReact(Annoyed())", "XReact(Frustrated())", "XReact(Stressed())", "XWant(CallAMechanic())", "XWant(GetARide())"]);
   await groundInAtomic(store, "car break down", { fetch: server });
-  assert.equal(asked.filter((q) => q === "car break down").length, 1);
+  // Two pages, once: asked as ATOMIC writes its events.
+  assert.equal(asked.filter((q) => q === "PersonX car break down").length, 2);
 });
 
 test("told an everyday event, Napkin answers from what ATOMIC says follows: how one feels, what one wants", async () => {

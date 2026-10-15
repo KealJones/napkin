@@ -123,7 +123,7 @@ async (args, bindings, api) => {
       if (!target || typeof target !== "object" || !target.head) continue;
       (by[claim.head] = by[claim.head] || []).push(api.call(target.head));
     }
-    const names = { Causes: "causes", CausesDesire: "wants", HasSubevent: "involves", HasFirstSubevent: "involves", HasLastSubevent: "involves", HasPrerequisite: "needs", MotivatedByGoal: "for", Entails: "causes", XReact: "feels", XWant: "wants", XEffect: "causes", XNeed: "needs", XIntent: "for" };
+    const names = { Causes: "causes", CausesDesire: "wants", HasSubevent: "involves", HasFirstSubevent: "involves", HasLastSubevent: "involves", HasPrerequisite: "needs", MotivatedByGoal: "for", Entails: "causes", XReact: "feels", XWant: "wants", XEffect: "causes" };
     const lists = {};
     for (const [head, items] of Object.entries(by)) {
       const name = names[head];
