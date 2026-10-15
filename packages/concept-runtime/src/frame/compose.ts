@@ -118,7 +118,9 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   if ((has("Noun") || has("Pronoun") || has("Value") || has("ProperNoun")) && !has("Possessive") && !out.some((p) => p.role === "ReadThing")) add("ReadThing", has("Plural") ? said : base);
   // Nothing known of it, and the tagger says nothing: something, not looked up yet.
   if (!out.length) add("ReadThing", said);
-  return known ? out.map((p, i) => (i < known ? p : { ...p, guessed: true })) : out;
+  // A guess of the same Concept a sense names ("live", a relation the graph holds, guessed a doing) is no guess.
+  const heads = new Set(out.slice(0, known).filter((p) => !p.op).map((p) => p.head));
+  return known ? out.map((p, i) => (i < known || heads.has(p.head) ? p : { ...p, guessed: true })) : out;
 }
 
 /** Every way a row of words joins into one, best first. */

@@ -1076,7 +1076,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
  */
 function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: { score: number; features: readonly string[] }, question: boolean, message: string, history: readonly { result: string }[]): Reading[] | undefined {
   const context = { runtime, message, history };
-  const score = 3 + 0.3 * words.length + 0.05 * best.score;
+  const score = 2 + 0.3 * words.length + 0.05 * best.score;
   // A value said alone just after a hole was asked of ("9 minus what?" "4"): it fills that hole.
   const hole = askedHole(history);
   if (hole && isCall(hole) && !root.op && !root.fills.length && root.value !== undefined) {
