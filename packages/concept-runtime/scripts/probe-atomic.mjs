@@ -1,28 +1,14 @@
 // What the Hugging Face dataset server answers for ATOMIC 2020: run in CI (live-probe,
-// test=scripts/probe-atomic.mjs), where it can be reached. A search is slow the first time a
-// dataset is searched (its index is built), then fast.
+// test=scripts/probe-atomic.mjs), where it can be reached. The events of the rows a search finds.
 const get = async (url) => {
   const t0 = Date.now();
-  const r = await fetch(url, { signal: AbortSignal.timeout(120000) }).catch((e) => ({ status: String(e), text: async () => "" }));
-  const text = await r.text();
-  return { status: r.status, ms: Date.now() - t0, text };
+  const r = await fetch(url, { signal: AbortSignal.timeout(120000) }).catch((e) => ({ status: String(e), json: async () => ({}) }));
+  return { status: r.status, ms: Date.now() - t0, body: await r.json().catch(() => ({})) };
 };
-for (const dataset of ["Estwld/atomic2020-origin", "Estwld/atomic2020-origin-drop_duplicates"]) {
-  const splits = JSON.parse((await get(`https://datasets-server.huggingface.co/splits?dataset=${dataset}`)).text || "{}").splits ?? [];
-  console.log(dataset, "splits:", JSON.stringify(splits));
-  const s = splits.find((x) => x.split === "train") ?? splits[0];
-  if (!s) continue;
-  const rows = await get("https://datasets-server.huggingface.co/rows?" + new URLSearchParams({ dataset, config: s.config, split: s.split, offset: "0", length: "3" }));
-  console.log("rows", rows.status, rows.ms, "ms", rows.text.slice(0, 900));
-  for (const query of ["car breaks down", "car breaks down", "loses job", "gets promoted", "PersonX eats"]) {
-    const r = await get("https://datasets-server.huggingface.co/search?" + new URLSearchParams({ dataset, config: s.config, split: s.split, query, length: "5" }));
-    console.log(`\n== "${query}" -> ${r.status} in ${r.ms} ms`);
-    try {
-      const data = JSON.parse(r.text);
-      console.log("total:", data.num_rows_total);
-      for (const row of (data.rows ?? []).slice(0, 5)) console.log(JSON.stringify(row.row).slice(0, 300));
-    } catch {
-      console.log(r.text.slice(0, 200));
-    }
-  }
+const dataset = "Estwld/atomic2020-origin";
+for (const query of ["PersonX car break down", "car breaks down", "PersonX dog die", "dog dies", "PersonX promote", "gets promoted"]) {
+  const r = await get("https://datasets-server.huggingface.co/search?" + new URLSearchParams({ dataset, config: "default", split: "train", query, length: "100" }));
+  const events = new Map();
+  for (const row of r.body.rows ?? []) events.set(row.row.event, (events.get(row.row.event) ?? 0) + 1);
+  console.log(`\n== "${query}" -> ${r.status} in ${r.ms} ms, ${r.body.num_rows_total} rows; events:`, [...events].slice(0, 25).map(([e, n]) => `${e} (${n})`).join(" | "));
 }
