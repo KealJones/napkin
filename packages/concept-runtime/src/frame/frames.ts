@@ -890,6 +890,12 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   function fromRoot(root: Piece): Reading[] {
   const computed = computing(runtime, words, root, best, question, message, history);
   if (computed) return computed;
+  // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
+  // things and the words for relations the reading names are looked up between, each way.
+  if (asksIn(root) || question) {
+    const known = facts(store, words, true, pointed).map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
+    if (known.length) return known;
+  }
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
   // own realization reads it, as the rules hearing hands it on.
   const doing = (p: Piece) => p.role === "ReadDoing" || p.role === "ReadAspect";
