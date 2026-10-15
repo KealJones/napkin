@@ -55,6 +55,8 @@ Concept(ReadOp(), IsA(WordRole()),
   HasHole("Operand", ReadThing()),
   HasHole("Operand", ReadOp()),
   HasHole("Where", ReadLink()),
+  HasHole("Also", ReadJoining()),
+  HasHole("Mood", ReadMarker()),
   Repeats("Operand"), Repeats("Where"))
 
 // A word that says what something is ("is", "am"): of what, and what it is said to be.

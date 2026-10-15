@@ -23,6 +23,7 @@ import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { findNamed } from "../runtime/individuals.js";
+import { askedHole, fillFromContext } from "./context.js";
 import { asks as asksIn, compose, filled, operandsOf, piecesOf, thingOf, type Piece } from "./compose.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
@@ -853,7 +854,7 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
  * BreakDown()), and answered when asked ("what did you buy", "who bought the car") from what is
  * held. Weighed under the readings made for one kind of message, which say more when they fit.
  */
-function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined): Reading[] {
+function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined, history: readonly { result: string }[] = []): Reading[] {
   const store = runtime.store;
   if (words.length < 2 || words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
@@ -865,7 +866,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const best = all[0];
   if (!best) return [];
   const root = best.piece;
-  const computed = computing(runtime, words, root, best, question, message);
+  const computed = computing(runtime, words, root, best, question, message, history);
   if (computed) return computed;
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
   // own realization reads it, as the rules hearing hands it on.
@@ -1045,8 +1046,18 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
  * is 9 squared"): its operands, in the order said, a word that puts what follows it first
  * ("from") putting it first; worked out by the runtime, as any realization is.
  */
-function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: { score: number; features: readonly string[] }, question: boolean, message: string): Reading[] | undefined {
-  const store = runtime.store;
+function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: { score: number; features: readonly string[] }, question: boolean, message: string, history: readonly { result: string }[]): Reading[] | undefined {
+  const context = { runtime, message, history };
+  const score = 3 + 0.3 * words.length + 0.05 * best.score;
+  // A value said alone just after a hole was asked of ("9 minus what?" "4"): it fills that hole.
+  const hole = askedHole(history);
+  if (hole && isCall(hole) && !root.op && !root.fills.length && root.value !== undefined) {
+    const open = hole.args[0]?.value;
+    if (isCall(open)) {
+      const expr = c(open.head, ...open.args.map((a) => a.value), root.value);
+      return [{ key: format(expr), features: ["read:composed-filled"], score, display: c("Value", expr), chosen: [], notes: [`Filled the hole asked of before: ${format(expr)}.`], run: async () => c("Answer", await runtime.evaluate(expr, c("Execution"))) }];
+    }
+  }
   const marksFirst = (p: Piece) => words[p.word]?.senses.some((s) => s.type === "glue" && s.marksFirst) ?? false;
   const valueOf = (p: Piece): Expr | undefined => {
     if (p.op) {
@@ -1066,14 +1077,51 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   // Asked what it comes to ("what is 2 plus 3"), or said alone ("2 plus 3", "subtract 3 from 10").
   const asksWhat = root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask);
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
-  if (!op) return undefined;
+  if (!op?.op) return undefined;
+  const asked = question || asksWhat;
+  const operands = operandsOf(op);
+  // Short of what it takes. Nothing said before it ("plus 3", "and plus 3?"): it goes on from what
+  // came before, found by the context lookup. Nothing after it ("what is 9 minus"): asked.
+  if (operands.length < op.op.arity) {
+    if (operands.length !== op.op.arity - 1) return [];
+    const said = operands.map((o) => valueOf(o.piece));
+    if (said.some((x) => x === undefined)) return [];
+    const leads = operands.every((o) => o.at > op.word);
+    if (leads) {
+      const target = op.op.target;
+      return [{
+        key: `${target} going on`,
+        features: ["read:composed-goes-on", ...best.features],
+        score,
+        display: c(target, c("Before"), ...(said as Expr[])),
+        chosen: [],
+        notes: [`"${op.text}" takes one more than was said: what came before.`],
+        run: async () => {
+          const found = await fillFromContext(context, { kind: "number" });
+          if (!found) return c("Unfilled", c(target), c("Number"));
+          const expr = c(target, found.value, ...(said as Expr[]));
+          return c("Answer", await runtime.evaluate(expr, c("Execution")));
+        },
+      }];
+    }
+    const open = c(op.op.target, ...(said as Expr[]));
+    const saidWords = words.slice(Math.min(...operands.map((o) => o.at), op.word), op.word + 1).map((w) => w.text).join(" ");
+    return [{
+      key: `${format(open)} open`,
+      features: ["read:composed-open", ...best.features],
+      score,
+      display: c("Unfilled", open, c("Number")),
+      chosen: [],
+      notes: [`"${op.text}" takes one more than was said: asked.`],
+      run: async () => call("Unfilled", [{ value: open }, { value: c("Number") }, { name: "said", value: saidWords }]),
+    }];
+  }
   const expr = valueOf(op);
   if (!expr) return [];
-  const asked = question || asksWhat;
   return [{
     key: format(expr),
     features: ["read:composed-value", ...best.features],
-    score: 3 + 0.3 * words.length + 0.05 * best.score,
+    score,
     display: c("Value", expr),
     chosen: [],
     notes: [`Worked out by its words' holes: ${format(expr)}.`],
@@ -1652,7 +1700,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // The one reader: what the words make of each other by their holes (frame/compose.ts). The
       // fixed readers only when asked for, to compare with the old hearing.
       const fixed = options.fixed ? [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)] : [];
-      const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed))];
+      const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed, history))];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

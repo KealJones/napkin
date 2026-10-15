@@ -73,6 +73,8 @@ Concept(ReadOp(),
   HasHole("Operand", ReadThing()),
   HasHole("Operand", ReadOp()),
   HasHole("Where", ReadLink()),
+  HasHole("Also", ReadJoining()),
+  HasHole("Mood", ReadMarker()),
   Repeats("Operand"),
   Repeats("Where")
 )
