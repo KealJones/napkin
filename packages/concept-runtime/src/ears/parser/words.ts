@@ -346,6 +346,17 @@ export interface SlotReading {
 
 const NAME_TAGS = /^(FirstName|MaleName|FemaleName|Person|LastName)$/;
 const isName = (w: string): boolean => tagsOf(w).some((t) => NAME_TAGS.test(t));
+/** A regular form of a word English has: "promoted" is promote done, "cats" more than one cat. */
+const formOfAWord = (w: string): boolean => {
+  for (const end of ["ed", "d", "ing", "es", "s"]) {
+    if (!w.endsWith(end)) continue;
+    const stem = w.slice(0, -end.length);
+    const known = (x: string) => ENGLISH.has(x) || frequency(x) > 0;
+    if (stem.length > 2 && (known(stem) || known(stem + "e") || (stem.length > 3 && stem[stem.length - 1] === stem[stem.length - 2] && known(stem.slice(0, -1))))) return true;
+  }
+  return false;
+};
+
 /** A word the tagger's lexicon holds as someone's name ("tom", "maria"). */
 export const knownAsName = (word: string): boolean => isName(word.toLowerCase());
 /** What stands where a name stands: names, and the words that stand in for one ("she", "him"). */
@@ -365,7 +376,9 @@ export function pairCounts() {
   }
   let total = 0, names = 0, least = Infinity;
   for (const n of (s.bigrams as Map<string, number>).values()) if (n < least) least = n;
+  // The words as English writes them: not the graph's own names, put in at a count of their own.
   for (const [w, n] of s.words as Map<string, number>) {
+    if (n >= 1e9 && known.has(w)) continue;
     total += n;
     if (standsIn(w)) names += n;
   }
@@ -401,7 +414,7 @@ export function slotReadings(word: string, prev = "", next = "", written: { capi
   const nameFit = fit(pv, nx, { left: (a) => p.nameLeft.get(a) ?? 0, right: (b) => p.nameRight.get(b) ?? 0, share: p.names / p.total });
   // A name is seldom what an unknown word is with nothing around it to say so.
   // A name is not a form of another word: "promoted" is promote, done.
-  out.push({ as: "name", text: word, score: nameFit - 0.5 + (isName(w) ? 1.5 : 0) + (written.capitalised ? 0.7 : 0) + (isWord(w) ? -0.5 : 0) + (!isName(w) && inflects(w) ? -1 : 0) });
+  out.push({ as: "name", text: word, score: nameFit - 0.5 + (isName(w) ? 1.5 : 0) + (written.capitalised ? 0.7 : 0) + (isWord(w) ? -0.5 : 0) + (!isName(w) && formOfAWord(w) ? -1 : 0) });
   const wordFit = (c: string) => fit(pv, nx, { left: (a) => s.bigrams.get(`${a} ${c}`) ?? 0, right: (b) => s.bigrams.get(`${c} ${b}`) ?? 0, share: Math.max(1, frequency(c)) / p.total });
   // As typed: a word people write, by its own pairs; else a word not known yet, with nothing for
   // or against it (what looking it up, or being told, is for).

@@ -282,5 +282,15 @@ export async function say(
   // out, never handed to a model to put in words the graph did not choose (packs/english.ncon
   // is where a wording goes).
   if (typeof result === "number" || typeof result === "string") return String(result);
-  return `I worked that out, but I don't know how to say it yet: ${format(result)}`;
+  // Several answers, some with a wording: those are said, and what has none is left out, not
+  // shown as an expression; the whole expression is in what the turn kept, for whoever looks.
+  if (isCall(result) && result.head === "Sequence") {
+    const said: string[] = [];
+    for (const a of result.args) {
+      const plain = plainly(a.value, options);
+      if (plain) said.push(plain);
+    }
+    if (said.length) return said.join(" ");
+  }
+  return "I worked something out but can't put it into words yet.";
 }

@@ -2,7 +2,7 @@
  * A told message answered as it felt (packs/follows.ncon): what it felt like, said back, and what
  * it leads to. Kept apart from the turn, which names only core's Concepts.
  */
-import { c, call, isCall, type Expr } from "../concept/expression.js";
+import { c, call, isCall, walk, type Expr } from "../concept/expression.js";
 import type { Runtime } from "./evaluator.js";
 import { typesOf } from "./types.js";
 import { words } from "./host.js";
@@ -166,4 +166,19 @@ export function askedOfNapkin(store: Runtime["store"], heard: Expr | undefined):
     return e.args.some((a) => walk(a.value));
   };
   return walk(heard);
+}
+
+/**
+ * A thing named in passing ("hey so guess what", "you're kinda bad at talking") was not asked
+ * about: what the graph holds of it is not said unasked (Guess the clothing brand, Kinda the
+ * Doctor Who serial). Asked is a question or a telling to do something ("tell me about yourself").
+ */
+export function unaskedLeftOut(result: Expr | undefined, expression: Expr | undefined): Expr | undefined {
+  const asked = expression !== undefined && [...walk(expression)].some((n) => isCall(n) && (n.head === "Interrogative" || n.head === "Imperative"));
+  if (asked || result === undefined || !isCall(result)) return result;
+  if (result.head === "Describes") return call("Unknown", [{ value: result.args[0]!.value }]);
+  if (result.head !== "Sequence") return result;
+  const kept = result.args.filter((a) => !(isCall(a.value) && a.value.head === "Describes"));
+  if (kept.length === result.args.length) return result;
+  return kept.length === 0 ? call("Unknown", []) : kept.length === 1 ? kept[0]!.value : call("Sequence", kept);
 }

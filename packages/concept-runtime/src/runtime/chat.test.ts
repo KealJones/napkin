@@ -227,3 +227,16 @@ test("what a doing is done to, said with of, and a number with the doing said af
   assert.equal(await ask("subtract 3 from 10"), "7");
   assert.equal(await ask("divide 100 by 4"), "25");
 });
+
+test("sentences no reading takes whole are each heard on their own and each answered; a thing named in passing is not described", async () => {
+  const s = new ConceptStore();
+  seed(s);
+  const spoken = async (text: string) => (await turn(new Runtime(s), text, c("Execution"), { learn: false })).spoken;
+  const said = await spoken("lol. You're kinda bad at talking. What time is it?");
+  assert.match(said, /^Ha!/);
+  assert.match(said, /It is \d+:\d\d [AP]M\.$/);
+  // Guess the clothing brand, known to the graph, is not what "guess what" asks about.
+  s.addRelation("Guess", c("IsA", c("Brand")));
+  s.addRelation("Guess", c("Means", "American clothing line brand"));
+  assert.doesNotMatch(await spoken("Hey so guess what"), /clothing|brand/);
+});

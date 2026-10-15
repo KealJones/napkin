@@ -35,7 +35,7 @@ import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
 import { correct, corrected, tellingOf } from "../situation/correct.js";
-import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember } from "./felt.js";
+import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember, unaskedLeftOut } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -319,6 +319,8 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 }
 
 export interface TurnOptions extends HearOptions {
+  /** A sentence of a longer message, heard on its own: not split again. */
+  oneSentence?: boolean;
   /** How the world is reached when learning (Wikidata); tests pass a fake. */
   fetch?: (url: string) => Promise<unknown>;
   /**
@@ -869,6 +871,31 @@ export async function turn(
       };
     }
   }
+  // Several sentences no reading took whole ("lol. You're kinda bad at talking. What time is it?"):
+  // each is heard on its own, as if said one after another, and each answered; the rules never
+  // see them run together.
+  const sentences = options.inputMode === "expression" || options.oneSentence ? [] : message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean);
+  if (sentences.length > 1) {
+    const parts: TurnResult[] = [];
+    let history = [...(options.history ?? [])];
+    for (const sentence of sentences) {
+      const t = await turn(runtime, sentence, given, { ...options, history, oneSentence: true });
+      parts.push(t);
+      history = [...history, { message: sentence, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken }];
+    }
+    const last = parts[parts.length - 1]!;
+    const results = parts.flatMap((t) => (t.result === undefined ? [] : [t.result]));
+    const result = results.length > 1 ? call("Sequence", results.map((value) => ({ value }))) : results[0];
+    return {
+      ...last,
+      result,
+      rendered: result === undefined ? last.rendered : format(result),
+      spoken: parts.map((t) => t.spoken.trim()).filter(Boolean).join(" "),
+      gaps: parts.flatMap((t) => t.gaps),
+      learned: parts.flatMap((t) => t.learned),
+      why: parts.flatMap((t, i) => [`Sentence ${i + 1}, heard on its own: "${sentences[i]}".`, ...(t.why ?? [])]),
+    };
+  }
   // Deixis reads ambient state: Self() needs to know which message it is inside.
   runtime.context.set("message", message);
   if (options.conversation === undefined) runtime.context.delete("conversation");
@@ -1039,6 +1066,8 @@ export async function turn(
     const kept = result.args.filter((a) => !(isCall(a.value) && a.value.head === "Noted" && [...walk(a.value)].some((n) => isCall(n) && unknown.has(n.head))));
     if (kept.length && kept.length < result.args.length) result = kept.length === 1 ? kept[0].value : call("Sequence", kept);
   }
+  // A thing named in passing ("hey so guess what") was not asked about (felt.ts).
+  result = unaskedLeftOut(result, expression);
   // Which fact was asked for is chosen by every word of the question together
   // (resolve/asked.ts). It answers what nothing else did, and replaces an answer read from
   // another fact of the same thing that fits fewer of the words asked ("what year was he born"

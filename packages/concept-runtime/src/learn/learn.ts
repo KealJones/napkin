@@ -13,7 +13,7 @@ import { reachesBehaviour } from "../runtime/select.js";
 import { classesOf, groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
 import { ConceptError } from "../runtime/errors.js";
 import { lemma, properNoun, words as hostWords } from "../runtime/host.js";
-import { isWord, standsAsNameIn } from "../ears/parser/words.js";
+import { commonness, isWord, standsAsNameIn } from "../ears/parser/words.js";
 import { typesOf } from "../runtime/types.js";
 import type { Runtime } from "../runtime/evaluator.js";
 
@@ -548,7 +548,10 @@ export async function lookUpWord(
   }
   const words = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
   // A fact asked of it ("who directed jaws") makes it a thing in the world, whatever the word.
-  const common = !options.thing && !words.includes(" ") && isWord(words) && !properNoun(words);
+  // A word people write all the time ("guess", "kinda") is the word, asked of the dictionary first,
+  // even where a fact is asked: the clothing brand Guess is not what "guess what" means.
+  const everyday = !words.includes(" ") && commonness(words) >= 0.5 && !standsAsNameIn(said, words);
+  const common = (!options.thing || everyday) && !words.includes(" ") && isWord(words) && !properNoun(words);
   const dictionary = async () => {
     try {
       const meaning = await runtime.evaluate(call("Meaning", [{ value: c(identity) }, { value: c("Noun") }, { name: "context", value: wordContext(runtime.store, said, words) }]), c("Execution"));

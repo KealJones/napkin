@@ -474,6 +474,36 @@ function report(t: Turn, before: Turn[], conversation: string | undefined): stri
   return out.join("\n");
 }
 
+/** Every turn of a conversation, each written out whole as `report` writes one, as one file. */
+function conversationReport(turns: Turn[], conversation: string | undefined): string {
+  const head = [`# Napkin conversation`, ``, `- runtime: ${RUNTIME_BUILD}`, `- conversation: ${conversation ?? "(none)"}`, `- turns: ${turns.length}`, `- saved: ${new Date().toISOString()}`, ``];
+  const said = turns.map((t, i) => `${i + 1}. > ${t.said.replace(/\n/g, " ")}\n   < ${(t.reply ?? t.failed ?? "").replace(/\n/g, " ")}`);
+  return [...head, `## The conversation`, ``, ...said, ``, ...turns.map((t, i) => report(t, [], conversation).replace("## Napkin turn report", `## Turn ${i + 1}`))].join("\n");
+}
+
+/** A file handed to the one using the page: saved, or on a phone, offered to share. */
+async function saveFile(name: string, text: string): Promise<boolean> {
+  try {
+    const file = new File([text], name, { type: "text/markdown" });
+    const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean; share?: (d: { files: File[]; title?: string }) => Promise<void> };
+    if (nav.canShare?.({ files: [file] }) && nav.share) {
+      await nav.share({ files: [file], title: name });
+      return true;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -526,7 +556,7 @@ function usePress(onPress: () => void) {
 }
 
 /** What a long-press offers: the reply, or everything about the turn. */
-function Actions({ turn, onCopy, onClose, onOpen }: { turn: Turn | undefined; onCopy: (what: "reply" | "report") => void; onClose: () => void; onOpen: () => void }) {
+function Actions({ turn, onCopy, onClose, onOpen, onDownload }: { turn: Turn | undefined; onCopy: (what: "reply" | "report") => void; onClose: () => void; onOpen: () => void; onDownload: () => void }) {
   if (!turn) return null;
   return (
     <div className="actions-scrim" onClick={onClose}>
@@ -542,6 +572,13 @@ function Actions({ turn, onCopy, onClose, onOpen }: { turn: Turn | undefined; on
         <button type="button" role="menuitem" onClick={() => onCopy("reply")}>
           {Icon.answer}
           <span>Copy reply</span>
+        </button>
+        <button type="button" role="menuitem" onClick={onDownload}>
+          {Icon.steps}
+          <span>
+            Download conversation
+            <small>Every turn, written out whole, as one file to share</small>
+          </span>
         </button>
         <button type="button" role="menuitem" onClick={onOpen}>
           {Icon.ear}
@@ -614,6 +651,13 @@ function App() {
     const fresh = turns.find((t) => t.id === (stack[0] as { turn: Turn }).turn.id);
     if (fresh && fresh !== (stack[0] as { turn: Turn }).turn) setStack([{ kind: "turn", turn: fresh }, ...stack.slice(1)]);
   }, [turns]);
+
+  async function downloadConversation() {
+    if (!turns.length) return setToast("Nothing said yet");
+    const name = `napkin-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.md`;
+    const ok = await saveFile(name, conversationReport(turns, current));
+    setToast(ok ? `Saved ${name}` : "Couldn't save the conversation");
+  }
 
   async function refresh(openLatest = false) {
     try {
@@ -842,6 +886,17 @@ function App() {
           className="new"
           onClick={() => {
             setDrawer(false);
+            void downloadConversation();
+          }}
+        >
+          {Icon.steps}
+          Download this conversation
+        </button>
+        <button
+          type="button"
+          className="new"
+          onClick={() => {
+            setDrawer(false);
             void startNew().catch((e) => setToast(String(e)));
           }}
         >
@@ -865,6 +920,10 @@ function App() {
           if (!t) return;
           const text = what === "reply" ? t.reply ?? t.failed ?? "" : report(t, turns.slice(Math.max(0, at - 4), at), current);
           void copyText(text).then((ok) => setToast(ok ? (what === "reply" ? "Reply copied" : `Copied everything (${text.length.toLocaleString()} characters)`) : "Couldn't copy"));
+        }}
+        onDownload={() => {
+          setPressed(undefined);
+          void downloadConversation();
         }}
       />
       <Sheet stack={stack} setStack={setStack} />
