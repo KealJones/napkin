@@ -181,6 +181,10 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       const feature = `${taker.piece.role}.${hole}:${side}`;
       // What a question asks for is said first, wherever it would stand told: weighed apart.
       const asked = taken.piece.ask ? [`${feature}:ask`] : [];
+      // Said first in the message ("is tom taller…", "did you…"), a word may take differently: weighed apart too.
+      if (taker.piece.word === 0) asked.push(`${feature}:lead`);
+      // Taken outward of another taken from the same side ("is tom taller": "taller" after "tom").
+      if (taker.piece.fills.some((f) => f.side === side)) asked.push(`${feature}:outer`);
       const w = [feature, ...asked].reduce((sum, f) => sum + (weights.get(f) ?? 0), 0);
       out.push({
         piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: taken.piece }] },

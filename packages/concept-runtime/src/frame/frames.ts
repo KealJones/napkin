@@ -856,7 +856,9 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
  */
 function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined, history: readonly { result: string }[] = []): Reading[] {
   const store = runtime.store;
-  if (words.length < 2 || words.length > 24) return [];
+  // One word: something said whole ("hello", "thanks"), when the graph words it as itself.
+  if (words.length === 1) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
+  if (words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
   if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text)) || message.includes("`")) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
@@ -892,8 +894,8 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (computed) return computed;
   // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
   // things and the words for relations the reading names are looked up between, each way.
-  if (asksIn(root) || question) {
-    const known = facts(store, words, true, pointed).map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
+  if (asksIn(root) || asking(words, question)) {
+    const known = [...facts(store, words, true, pointed), ...kindQuestions(store, words, pointed), ...describes(store, words, true), ...deictics(runtime, words, true), ...sayings(store, words, true)].map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
     if (known.length) return known;
   }
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
@@ -915,7 +917,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (first.some(doing) && !(doing(root) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
-  const asked = question || asksIn(root);
+  const asked = asking(words, question) || asksIn(root);
   // Who or what a piece is, as the graph holds it: the one a word points at, the speaker, a thing.
   // Things joined ("socks and a charger") are a List of each.
   const who = (p: Piece | undefined): Expr | undefined => {
@@ -987,6 +989,54 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     }
     return [];
   }
+  // Whose it is: "my" is Me; "my sister's" is whoever Me's sister is, met now if not yet
+  // (Sister_1, IsA Person, Me Sister(Sister_1)) when something is told of her.
+  const ownerIdOf = (p: Piece, write: boolean): string | undefined => {
+    if (p.role !== "ReadOwning") {
+      const e = who(p);
+      return e !== undefined && isCall(e) ? e.head : undefined;
+    }
+    const [up] = filled(p, "Whose");
+    if (!up) return p.head;
+    const parent = ownerIdOf(up, write);
+    if (!parent) return undefined;
+    const relation = p.head;
+    const known = relationsOf(store, parent).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && isCall(r.claim.args[0].value) && !store.retracted(parent, r.claim)).map((r) => (isCall(r.claim) && isCall(r.claim.args[0]!.value) ? (r.claim.args[0]!.value as { head: string }).head : ""));
+    if (known.length) return known.at(-1);
+    if (!write) return `${parent}${relation}`;
+    const met = store.mint(relation);
+    store.addRelation(met, c("IsA", c("Person")), undefined, runtime.trace.cause);
+    store.addRelation(parent, c(relation, c(met)), undefined, runtime.trace.cause);
+    return met;
+  };
+  // Said to stand to another ("tom is taller than ann"): a relation named by how it is said,
+  // to what the marking word puts in. Told, kept; asked who, whoever holds it; asked whether, held or not.
+  if (root.role === "ReadSame") {
+    const [subjectPiece] = filled(root, "Subject");
+    const [said] = filled(root, "Said");
+    const link = said && (said.role === "ReadQuality" || said.role === "ReadThing") ? [...filled(said, "Where"), ...filled(root, "Where")].find((l) => filled(l, "What").length) : undefined;
+    const other = link && filled(link, "What")[0];
+    if (subjectPiece && said && link && other && !other.ask && !said.ask) {
+      const relation = nameOf(said.text);
+      const object = who(other)!;
+      if (subjectPiece.ask) {
+        const found = store.triples().filter((t) => t.predicate === relation && t.context === undefined && isCall(t.expr) && t.expr.args[0] && equal(t.expr.args[0].value, object) && !store.retracted(t.subject, t.expr)).map((t) => c(t.subject));
+        if (!found.length) return [];
+        return [{ key: `Composed who ${relation}`, features: ["read:composed-compared", ...best.features], score: base + 1, display: c(relation, c("Who"), object), chosen: [], notes, run: async () => c("Answer", found.length === 1 ? found[0]! : call("List", found.map((value) => ({ value })))) }];
+      }
+      const subject = who(subjectPiece);
+      if (!subject || !isCall(subject)) return [];
+      const fact = c(relation, object);
+      if (asked) {
+        const holds = relationsOf(store, subject.head).some((r) => r.context === undefined && equal(r.claim, fact) && !store.retracted(subject.head, r.claim));
+        return [{ key: `Composed whether ${relation}`, features: ["read:composed-compared", ...best.features], score: base + 1, display: c("Whether", c(relation, subject, object)), chosen: [], notes, run: async () => c("Answer", holds ? c("True") : c("UnknownTruth")) }];
+      }
+      return [{ writes: true, key: format(c(subject.head, fact)), features: ["read:composed-compared", ...best.features], score: base + 1, display: c("Stated", subject, fact), chosen: [], notes, run: async () => {
+        store.addRelation(subject.head, fact, undefined, runtime.trace.cause);
+        return c("Noted", fact, subject);
+      } }];
+    }
+  }
   // A relation said of an owner ("my name", "the capital of France", "tom's age"): told, a fact of
   // the owner; asked, what the owner holds of it.
   // Owned and told a thing or a number ("tom's age is 30", "my favorite color is blue"), it is
@@ -1003,8 +1053,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const [held, value] = subjectPiece && ownerOf(subjectPiece, said) ? [subjectPiece, said] : said && ownerOf(said, subjectPiece) ? [said, subjectPiece] : [undefined, undefined];
     const owner = held && ownerOf(held, value);
     if (held && owner && value) {
-      const ownerName = owner.role === "ReadOwning" ? owner.head : (who(owner) as Expr);
-      const ownerId = typeof ownerName === "string" ? ownerName : isCall(ownerName) ? ownerName.head : undefined;
+      const ownerId = ownerIdOf(owner, !value.ask && !asked);
       if (!ownerId) return [];
       // Described ("favorite color"), the relation is named with its describers: FavoriteColor.
       const describers = filled(held, "Describer").map((d) => d.text);

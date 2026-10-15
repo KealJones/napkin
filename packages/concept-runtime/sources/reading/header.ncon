@@ -78,7 +78,7 @@ Concept(ReadSame(), IsA(WordRole()),
 
 // Whose ("my", "tom's"), which one ("the", "a"), how much ("so", "very"), not, when and
 // whether ("will", "did", "can"), how it is said ("lol", "well"), and what joins ("and").
-Concept(ReadOwning(), IsA(WordRole()))
+Concept(ReadOwning(), IsA(WordRole()), HasHole("Whose", ReadOwning()))
 Concept(ReadDetermining(), IsA(WordRole()))
 Concept(ReadDegree(), IsA(WordRole()), HasHole("How", ReadDegree()))
 Concept(ReadNegation(), IsA(WordRole()))
@@ -128,6 +128,10 @@ Concept(ReadingByHoles(),
   Weighs("ReadDoing.Doer:before:ask", 0.3),
   Weighs("ReadSame.Said:before:ask", 1.6),
   Weighs("ReadJoining.With:after", 0.8),
+  Weighs("ReadSame.Subject:after:lead", 1.5),
+  Weighs("ReadSame.Said:after:outer", 0.5),
+  Weighs("ReadOwning.Whose:before", 0.8),
+  Weighs("ReadOwning.Whose:after", -2),
   Weighs("ReadOp.Operand:before", 0.6),
   Weighs("ReadOp.Operand:after", 0.6),
   Weighs("ReadOp.Where:after", 0.5),
