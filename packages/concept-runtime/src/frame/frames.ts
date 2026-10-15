@@ -925,15 +925,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   };
   // A thing as a doing's realization takes it: its head, with what describes or names it inside
   // ("shopping list" List(Shopping())), whose it is around it ("my" My(...)).
-  const asTaken = (p: Piece): Expr => {
-    if (p.value !== undefined) return p.value;
-    if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }]);
-    const inner = [...filled(p, "Describer"), ...filled(p, "Name")].map((d) => c(nameOf(d.text)));
-    const items = filled(p, "Also").flatMap((j) => filled(j, "With"));
-    let e: Expr = c(p.head, ...inner);
-    for (const o of filled(p, "Whose")) e = o.head === "Me" ? c("My", e) : c("Whose", c(o.head), e);
-    return items.length ? c("And", e, ...items.map(asTaken)) : e;
-  };
+  const asTaken = (p: Piece): Expr => thingAsTaken(words, p);
   // Where a link says it goes, it is said with what it carries ("put eggs on my list":
   // Put(Eggs(On(My(List()))))), as what the doing takes.
   const carrying = (done: Expr[], links: Expr[]): Expr[] => {
@@ -1093,7 +1085,8 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const [said] = filled(root, "Said");
     const [held, value] = subjectPiece && ownerOf(subjectPiece, said) ? [subjectPiece, said] : said && ownerOf(said, subjectPiece) ? [said, subjectPiece] : [undefined, undefined];
     const owner = held && ownerOf(held, value);
-    if (held && owner && value) {
+    // "what is on my list" asks what the list holds, not what "my list" is.
+    if (held && owner && value && !filled(root, "Where").length) {
       const ownerId = ownerIdOf(owner, !value.ask && !asked);
       if (!ownerId) return [];
       // Described ("favorite color"), the relation is named with its describers: FavoriteColor.
@@ -1155,8 +1148,34 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       },
     }];
   }
+  // Asked what is in or on something made in talk ("what is on my shopping list?"): what it holds.
+  if (root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask)) {
+    const place = [...filled(root, "Where"), ...filled(root, "Said").flatMap((x) => filled(x, "Where"))].flatMap((l) => filled(l, "What"))[0] ?? filled(root, "Said").find((x) => !x.ask && filled(x, "Whose").length);
+    if (place && place.value === undefined && !place.op && !place.ask) {
+      const taken = thingAsTaken(words, place);
+      const expr = c("Held", taken);
+      return [{ key: format(expr), features: ["read:composed-held", ...best.features], score: 2 + 0.3 * words.length, display: expr, chosen: [], notes: [`Asked what ${format(taken)} holds.`], run: async () => {
+        const v = await runtime.evaluate(expr, c("Execution"));
+        return isCall(v) && v.head === "Held" ? undefined : v;
+      } }];
+    }
+  }
   return [];
   }
+}
+
+/**
+ * A thing as a doing's realization takes it: its head, with what describes or names it inside
+ * ("shopping list" List(Shopping())), whose it is around it ("my" My(...)), things joined as And.
+ */
+function thingAsTaken(words: readonly Word[], p: Piece): Expr {
+  if (p.value !== undefined) return p.value;
+  if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }]);
+  const inner = [...filled(p, "Describer"), ...filled(p, "Name")].map((d) => c(nameOf(d.text)));
+  const items = filled(p, "Also").flatMap((j) => filled(j, "With"));
+  let e: Expr = c(p.head, ...inner);
+  for (const o of filled(p, "Whose")) e = o.head === "Me" ? c("My", e) : c("Whose", c(o.head), e);
+  return items.length ? c("And", e, ...items.map((x) => thingAsTaken(words, x))) : e;
 }
 
 /**
@@ -1542,7 +1561,10 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
       const computes = (store.get(whole)?.realizations ?? []).some((r) => !r.retired && runs(r)) && !typesOf(store, c(whole)).includes("CodePrimitive");
       // Or a thing described ("web app" Means ...): what it is is known, if nothing else of it.
       const described = relationsOf(store, whole).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "Means" && typeof r.claim.args[0]?.value === "string") && !(store.get(whole)?.realizations.length);
-      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes || described)) {
+      // Or a kind the graph has (ShoppingList IsA List, made in talk): "shopping list" is one thing.
+      // A kind of what its last word names: a compound ("shopping list" IsA List).
+      const kind = relationsOf(store, whole).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && (r.claim.args[0]!.value as { head: string }).head === nameOf(lemma(part.at(-1)!.toLowerCase()) || part.at(-1)!));
+      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes || described || kind)) {
         taken = n;
         break;
       }
