@@ -325,11 +325,12 @@ export interface TurnOptions extends HearOptions {
   /** How the world is reached when learning (Wikidata); tests pass a fake. */
   fetch?: (url: string) => Promise<unknown>;
   /**
-   * How a message is heard: "frames" reads it by its words' senses and holes first
-   * (frame/frames.ts) and falls back to the rules hearing when that does not account for every
-   * word; "rules" uses only the rules hearing. Defaults to "frames".
+   * How a message is heard: "frames" (the default) is the one reader, what the words make of
+   * each other by their holes (frame/compose.ts), with nothing behind it. "old" is the hearing
+   * before it (the situation reader, the fixed frames readers, then the rules), and "rules" the
+   * rules alone: both only to compare with.
    */
-  hearing?: "frames" | "rules";
+  hearing?: "frames" | "rules" | "old";
   /** Keep how words were read when the message worked out. Defaults to `learn`. */
   keepReadings?: boolean;
   /** Parse exact Concept syntax directly when explicitly requested. */
@@ -762,7 +763,8 @@ export async function turn(
   // amount after a worked answer is learned from (situation/correct.ts).
   const before = options.history?.at(-1);
   const told = options.inputMode !== "expression" && before ? tellingOf(message, before.result) : undefined;
-  if (before && told !== undefined) {
+  const old = options.hearing === "rules" || options.hearing === "old";
+  if (old && before && told !== undefined) {
     const x = correct(runtime.store, before.message, told, runtime.trace.cause);
     const unit = /answer="[\d.,-]+ ([^"]*)"/.exec(before.result)?.[1];
     const result = corrected(x, told, (n) => (unit ? `${n} ${unit}` : String(n)));
@@ -793,7 +795,7 @@ export async function turn(
     };
   }
   // Any message with an amount in it may tell a situation; situationOf says whether it does.
-  if (options.inputMode !== "expression" && options.situations !== false && /\d|\?/.test(message)) {
+  if (old && options.inputMode !== "expression" && options.situations !== false && /\d|\?/.test(message)) {
     // Told in several sentences, a situation whose thing asked is not told is still one: read
     // loosely, as asking a plain number, rather than its words looked up a sentence at a time.
     const strict = situationOf(runtime.store, message);
@@ -846,7 +848,7 @@ export async function turn(
       feedback(runtime.store, picked.features, true, runtime.trace.cause);
       for (const other of picked.others) feedback(runtime.store, other, false, runtime.trace.cause);
     }
-    const read: FrameRead = picked ? { looked: [] } : await frames(runtime, message, options.history ?? [], { lookup }).catch(() => ({ looked: [] }));
+    const read: FrameRead = picked ? { looked: [] } : await frames(runtime, message, options.history ?? [], { lookup, fixed: old }).catch(() => ({ looked: [] }));
     stuck = read.stuck;
     lookedUp = read.looked.map((l) => ({ identity: l.identity, how: "research" as const, detail: l.learned ? "looked up while reading" : "not found while reading" }));
     const framed: Framed | undefined = picked ? picked.framed : read.framed;
@@ -907,6 +909,33 @@ export async function turn(
       gaps: parts.flatMap((t) => t.gaps),
       learned: parts.flatMap((t) => t.learned),
       why: parts.flatMap((t, i) => [`Sentence ${i + 1}, heard on its own: "${sentences[i]}".`, ...(t.why ?? [])]),
+    };
+  }
+  // The one reader did not read it, and there is no other: said so, with where it got stuck, or
+  // how what was told felt. The old hearing (situations, fixed readers, rules) only when asked for.
+  if (!old && options.inputMode !== "expression") {
+    const replying = options.speak !== false;
+    const feltSaid = replying ? await feltReply(runtime, message, graphText, 0.2) : undefined;
+    const stuckSaid = replying && !feltSaid && stuck && (stuck.near || stuck.unknown.length) ? await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined) : undefined;
+    const spoken = feltSaid ?? stuckSaid ?? "I couldn't read that yet.";
+    if (replying) await remember(runtime, message, undefined, spoken, feltSaid !== undefined);
+    return {
+      heard: { message, raw: "", expression: undefined, problems: [], rejected: [], text: message, edits: [] },
+      expression: undefined,
+      parsed: undefined,
+      resolved: [],
+      resolvedNames: [],
+      result: undefined,
+      rendered: "",
+      spoken,
+      spokenBy: feltSaid || stuckSaid ? "graph" : "plain",
+      gaps: [],
+      ambiguities: [],
+      learned: lookedUp,
+      rereads: 0,
+      failed: undefined,
+      hearingUsed: "frames",
+      why: ["The one reader did not read it whole.", ...(stuckSaid ? [stuckSaid] : [])],
     };
   }
   // Deixis reads ambient state: Self() needs to know which message it is inside.

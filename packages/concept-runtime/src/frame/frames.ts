@@ -855,7 +855,7 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
  */
 function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined): Reading[] {
   const store = runtime.store;
-  if (words.length < 2 || words.length > 16) return [];
+  if (words.length < 2 || words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
   if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text)) || message.includes("`")) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
@@ -1358,6 +1358,8 @@ export interface FrameOptions {
   readonly lookup?: (identity: string, said: string, thing?: boolean, asks?: readonly string[]) => Promise<boolean>;
   /** Most lookups in one turn. */
   readonly lookups?: number;
+  /** The fixed readers too (sums, facts, statements, …), beside the one reader: for comparing with the old hearing only. */
+  readonly fixed?: boolean;
   /** Reading one part of a message joined by "and": not split again. */
   readonly part?: boolean;
 }
@@ -1430,7 +1432,7 @@ export interface FrameRead {
 export async function frames(runtime: Runtime, message: string, history: readonly { result: string }[] = [], options: FrameOptions = {}): Promise<FrameRead> {
   const store = runtime.store;
   const { tokens: typed, question } = tokens(store, message);
-  if (!typed.length || typed.length > 24) return { looked: [] };
+  if (!typed.length || typed.length > 30) return { looked: [] };
   const numbers = new Map<string, number | undefined>();
   // Whether a word is a number word ("seven") is asked of the graph off the record: it is how
   // a word is looked at, not a step in answering, and every word of every message is asked.
@@ -1544,7 +1546,10 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // with no sense is used only where it names a part or a kind of a fact's answer.
       // How close this reading of the row came, for saying where it got stuck when nothing reads it whole.
       const near: Miss[] = [];
-      const readings = [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message), ...safely(() => composed(runtime, words, question, message, pointed))];
+      // The one reader: what the words make of each other by their holes (frame/compose.ts). The
+      // fixed readers only when asked for, to compare with the old hearing.
+      const fixed = options.fixed ? [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)] : [];
+      const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed))];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);
