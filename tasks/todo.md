@@ -226,7 +226,9 @@ played by the general machinery that works out what follows from what is held.
 
 # A teacher for what Napkin is missing
 
-- Gemini via the pocket-gemini worker (probe 2026-10-15, CI): a joke answered in 51 s; a JSON fact request got upstream 503; an ATOMIC-style request timed out at 60 s. So it can only teach in the background (kept for next time, like ATOMIC past its wait), never in the turn. To do: a non-thinking model or a lower thinking budget in the worker, JSON response schema, retry on 503.
+- [x] Wired (research/teacher.ts): Gemini via the worker, asked last for a word (word / misspelling / name, in Means, IsA, PartOf, UsedFor, HasProperty) or an event (ATOMIC relations), stamped `Teacher Taught(term)`, asked once; on in the studio and CLI (`--no-teacher`), off in tests. Live probe: ~1-2 s per lesson; "my sourdough starter died" answered from what it taught; a made-up word taught as unknown, not guessed.
+- [ ] Taught facts said as supposed ("I think…") until a source or the person agrees; retract on contradiction.
+- [ ] Measured: teacher's ATOMIC answers against ATOMIC's own on events it has.
 
 A small model, run locally (in the browser or the host), asked only when Napkin has a gap the graph
 and the sources leave open: it TEACHES (facts in the graph's own relations, with itself as the
