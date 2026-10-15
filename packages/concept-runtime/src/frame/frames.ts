@@ -24,6 +24,7 @@ import { type Expr, c, call, equal, format, isCall, parse, walk } from "../conce
 import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { findNamed } from "../runtime/individuals.js";
 import { askedHole, fillFromContext } from "./context.js";
+import { verbatim } from "../ears/code-reading.js";
 import { asks as asksIn, compose, filled, operandsOf, piecesOf, thingOf, type Piece } from "./compose.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
@@ -862,9 +863,23 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (words.length === 1) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
-  if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text)) || message.includes("`")) return [];
+  if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text))) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
-  const row = words.map((w, i) => piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed));
+  // A word whose Concept the graph can do something with (a realization that takes what it is
+  // given: Run, Explain, Fix) can be a doing, whatever the tagger guesses of it.
+  const doable = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.length > 0 && !(r.context !== undefined && isCall(r.context) && (r.context.head === "Speaking" || r.context.head === "Describe")));
+  const row = words.map((w, i) => {
+    const pieces = piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed);
+    const heads = [...new Set([nameOf(lemma(w.text.toLowerCase()) || w.text), ...w.senses.flatMap((x) => (x.type === "entity" || x.type === "kind" ? [x.head] : []))])];
+    // Said first, and nothing else the word is (no computation, no question, no little word): told to be done.
+    // A word that asks only as another word does ("explain", a way of asking what) can still be its own doing.
+    const own = nameOf(lemma(w.text.toLowerCase()) || w.text);
+    const only = w.senses.every((x) => x.type === "entity" || x.type === "kind" || x.type === "takes" || x.type === "relation" || (x.type === "question" && x.head !== own));
+    const can = i === 0 && only ? heads.find((h) => /^[a-z]+$/i.test(w.text) && doable(h)) : undefined;
+    if (!can) return pieces;
+    const rest = pieces.filter((p) => !(p.role === "ReadDoing" && p.head === can));
+    return [...rest, { role: "ReadDoing", head: can, word: i, text: w.text, fills: [] }];
+  });
   const all = compose(store, row);
   if (process.env.NAPKIN_COMPOSE_DEBUG) console.error("  pieces", row.map((ps) => ps.map((p) => `${p.text}:${p.role}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.guessed ? "?" : ""}`).join(" ")).join(" | "));
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
@@ -932,7 +947,8 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // Put(Eggs(On(My(List()))))), as what the doing takes.
   const carrying = (done: Expr[], links: Expr[]): Expr[] => {
     const last = done.at(-1);
-    if (!links.length || last === undefined || !isCall(last)) return [...done, ...links];
+    // A value (code, a number) carries nothing: what a link puts with the doing stays beside it ("run `f` with 21").
+    if (!links.length || last === undefined || !isCall(last) || last.args.length) return [...done, ...links];
     return [...done.slice(0, -1), call(last.head, [...last.args, ...links.map((value) => ({ value }))])];
   };
   const linksOf = (p: Piece) => filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map(asTaken)));
@@ -1591,7 +1607,7 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
     // "what's", "he's": the word and "is", where the word asks or points (the graph says which).
     .replace(/\b([A-Za-z]+)'s\b/g, (all, w: string) => (typesOf(store, c(nameOf(w))).some((k) => k === "Interrogative" || k === "Pointing") ? `${w} is` : all));
-  return { tokens: text.match(/\d+(?:st|nd|rd|th)\b|\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/gi) ?? [], question };
+  return { tokens: text.match(/verbatim\d+|\d+(?:st|nd|rd|th)\b|\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/gi) ?? [], question };
 }
 
 /** Two or three words that are one name the graph holds ("steven spielberg" is StevenSpielberg). */
@@ -1789,6 +1805,10 @@ export interface FrameRead {
 
 export async function frames(runtime: Runtime, message: string, history: readonly { result: string }[] = [], options: FrameOptions = {}): Promise<FrameRead> {
   const store = runtime.store;
+  // Code, links and quotes are kept as typed: each one token (verbatim0), read as the value it is
+  // (InlineCode with its IR, a Block, the quoted text), for the words around it to take.
+  const kept = /[`"]|https?:\/\//.test(message) ? await verbatim(message).catch(() => undefined) : undefined;
+  if (kept?.spans.length) message = kept.text;
   const { tokens: typed, question } = tokens(store, message);
   if (!typed.length || typed.length > 30) return { looked: [] };
   const numbers = new Map<string, number | undefined>();
@@ -1809,6 +1829,11 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       const name = nameOf(w);
       const owned = /^([A-Za-z]+)'s$/i.exec(w);
       // "3rd": the number. "june": a month, which a day beside it makes a date (values).
+      const span = /^verbatim(\d+)$/.exec(w);
+      if (span && kept?.spans[Number(span[1])] !== undefined) {
+        senses.set(key, [{ type: "value", value: kept.spans[Number(span[1])]! }]);
+        return senses.get(key)!;
+      }
       const ordinal = /^(\d+)(?:st|nd|rd|th)$/i.exec(w);
       if (ordinal) {
         senses.set(key, [{ type: "value", value: Number(ordinal[1]) }]);
