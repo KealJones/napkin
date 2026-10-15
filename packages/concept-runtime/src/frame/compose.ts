@@ -30,7 +30,7 @@ export interface Piece {
   /** Taken from what the tagger guesses, though the graph has senses of the word: weighed less than a sense. */
   readonly guessed?: boolean;
   /** A computation the word stands for (senses.ts "op"): what runs, how many it takes, how tightly it binds. */
-  readonly op?: { readonly target: string; readonly arity: number; readonly binds: number; readonly right: boolean };
+  readonly op?: { readonly target: string; readonly arity: number; readonly binds: number; readonly right: boolean; readonly takes?: readonly string[] };
   readonly fills: readonly { hole: string; side: "before" | "after"; piece: Piece }[];
 }
 
@@ -86,7 +86,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
       add("ReadThing", head, { value: s.value });
       if (typeof s.value === "number") add("ReadCount", head, { value: s.value });
     }
-    else if (s.type === "op") add("ReadOp", s.target, { op: { target: s.target, arity: s.holes.length, binds: s.binds, right: s.right } });
+    else if (s.type === "op") add("ReadOp", s.target, { op: { target: s.target, arity: s.holes.length, binds: s.binds, right: s.right, takes: s.holes } });
     else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text));
     else if (s.type === "question") add("ReadThing", s.head, { ask: true });
     else if (s.type === "owner") add("ReadOwning", s.head);
@@ -163,8 +163,15 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       if (taker.piece.op && hole === "Also" && (side === "after" || filled(taken.piece, "With").length)) continue;
       // Things joined bind closer than what a word puts with them: in "the sum of 1, 2 and 3" the list is what "of" puts in.
       if (hole === "Also" && side === "after" && taker.piece.fills.some((f) => f.hole === "Where" && f.side === "after")) continue;
+      // Doings are joined to doings, things to things ("make a list and add milk").
+      if (hole === "Also" && taken.piece.role === "ReadJoining" && filled(taken.piece, "With").some((w) => (w.role === "ReadDoing") !== (taker.piece.role === "ReadDoing"))) continue;
       // A joining word put with a thing joins something to it ("3, 1 and 2"), not nothing.
       if (taken.piece.role === "ReadJoining" && taker.piece.role === "ReadThing" && !filled(taken.piece, "With").length) continue;
+      // A computation whose holes are all typed (a Number, a Duration) takes no plain thing ("in the box" is not a conversion).
+      if (taker.piece.op?.takes?.every((k) => k !== "Concept") && taken.piece.role === "ReadThing" && taken.piece.value === undefined && !taken.piece.ask && (hole === "Operand" || hole === "Where")) {
+        const what = hole === "Where" ? filled(taken.piece, "What")[0] : taken.piece;
+        if (!what || (what.value === undefined && !what.op)) continue;
+      }
       // A computation is taken whole: one still short of what it takes is not another's operand.
       if ((taker.piece.op || taker.piece.role === "ReadLink") && taken.piece.op && operandsOf(taken.piece).length < taken.piece.op.arity) continue;
       // A computation takes as many as it has holes for, by its operands and the words that mark one ("of", "from").

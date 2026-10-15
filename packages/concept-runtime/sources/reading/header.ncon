@@ -35,6 +35,7 @@ Concept(ReadDoing(), IsA(WordRole()),
   HasHole("Particle", ReadParticle()),
   HasHole("Said", ReadSame()),
   HasHole("Said", ReadDoing()),
+  HasHole("Also", ReadJoining()),
   Repeats("When"),
   HasHole("Mood", ReadMarker()),
   Repeats("Where"), Repeats("How"), Repeats("Aspect"), Repeats("Mood"))
@@ -88,7 +89,7 @@ Concept(ReadMarker(), IsA(WordRole()))
 Concept(ReadCount(), IsA(WordRole()))
 Concept(ReadTime(), IsA(WordRole()))
 Concept(ReadParticle(), IsA(WordRole()))
-Concept(ReadJoining(), IsA(WordRole()), HasHole("With", ReadThing()))
+Concept(ReadJoining(), IsA(WordRole()), HasHole("With", ReadThing()), HasHole("With", ReadDoing()))
 
 // What usually fills each hole from which side, to start with: a weight, not a rule. The doer
 // stands before its doing in most of what is said, what is done to after; a describer before
@@ -128,6 +129,9 @@ Concept(ReadingByHoles(),
   Weighs("ReadDoing.Doer:before:ask", 0.3),
   Weighs("ReadSame.Said:before:ask", 1.6),
   Weighs("ReadJoining.With:after", 0.8),
+  Weighs("ReadDoing.Also:after", 0.5),
+  Weighs("ReadDoing.Where:after", 0.3),
+  Weighs("ReadDoing.Also:before", -1),
   Weighs("ReadSame.Subject:after:lead", 1.5),
   Weighs("ReadSame.Said:after:outer", 0.5),
   Weighs("ReadOwning.Whose:before", 0.8),

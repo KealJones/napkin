@@ -964,7 +964,38 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if ((toBeDone && acts(root, can)) || acts(root, keeps) || (root.op && root.word === 0 && !asked)) {
     if (root.role !== "ReadDoing" && !root.op) return [];
     // Told to do it, or told it is done: the mood the words say is the context it runs in.
-    const expr = c("ContextScope", c(toBeDone && !asked ? "Imperative" : asked ? "Interrogative" : "Declarative"), doingCall(root));
+    // Doings joined ("make a shopping list and add milk to it") run one after another, in the order said.
+    const mood = c(toBeDone && !asked ? "Imperative" : asked ? "Interrogative" : "Declarative");
+    // What a doing took from past the doing joined to it ("… and add milk to it": "to it") is the later doing's.
+    const joined = (p: Piece): Piece[] => {
+      const joins = filled(p, "Also").filter((j) => filled(j, "With").some((w) => w.role === "ReadDoing"));
+      if (!joins.length) return [p];
+      const at = Math.min(...joins.map((j) => j.word));
+      const own = p.fills.filter((f) => f.hole !== "Also" && f.piece.word < at);
+      const past = p.fills.filter((f) => f.hole !== "Also" && f.piece.word > at);
+      const later = joins.flatMap((j) => filled(j, "With")).filter((w) => w.role === "ReadDoing").flatMap(joined);
+      const last = later.at(-1);
+      return [{ ...p, fills: own }, ...later.slice(0, -1), ...(last ? [{ ...last, fills: [...last.fills, ...past] }] : [])];
+    };
+    const steps = root.role === "ReadDoing" ? joined(root) : [root];
+    if (steps.length > 1) {
+      const lines = steps.map((p) => c("ContextScope", mood, doingCall(p)));
+      const all = call("Sequence", lines.map((value) => ({ value })));
+      return [{ key: format(all), features: ["read:composed-done", ...best.features], score: base, display: all, chosen: [], notes: [...notes, `Done in turn: ${lines.map(format).join("; ")}.`], run: async () => {
+        const out: Expr[] = [];
+        // A pointing word in a later doing is what an earlier one made ("… and add milk to it").
+        let made: Expr | undefined;
+        const point = (e: Expr): Expr => (!isCall(e) ? e : e.head === "Ref" && made ? made : call(e.head, e.args.map((a) => ({ ...a, value: point(a.value) }))));
+        for (const line of lines) {
+          const v = await runtime.evaluate(point(line), c("Execution"));
+          out.push(v);
+          const minted = [...walk(v)].find((n) => isCall(n) && !n.args.length && /_\d+$/.test(n.head));
+          if (minted) made = minted;
+        }
+        return call("Sequence", out.map((value) => ({ value })));
+      } }];
+    }
+    const expr = c("ContextScope", mood, doingCall(root));
     return [{
       key: format(expr),
       features: ["read:composed-done", ...best.features],
@@ -1161,7 +1192,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   }
   // Asked what is in or on something made in talk ("what is on my shopping list?"): what it holds.
   if (root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask)) {
-    const place = [...filled(root, "Where"), ...filled(root, "Said").flatMap((x) => filled(x, "Where"))].flatMap((l) => filled(l, "What"))[0] ?? filled(root, "Said").find((x) => !x.ask && filled(x, "Whose").length);
+    const place = [...filled(root, "Where"), ...filled(root, "Said").flatMap((x) => filled(x, "Where"))].flatMap((l) => filled(l, "What"))[0] ?? filled(root, "Said").find((x) => !x.ask && (filled(x, "Whose").length || filled(root, "Where").length || filled(x, "Where").length));
     if (place && place.value === undefined && !place.op && !place.ask) {
       const taken = thingAsTaken(words, place);
       const expr = c("Held", taken);
@@ -1182,9 +1213,15 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
 function thingAsTaken(words: readonly Word[], p: Piece): Expr {
   if (p.value !== undefined) return p.value;
   if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }]);
-  const inner = [...filled(p, "Describer"), ...filled(p, "Name")].map((d) => c(nameOf(d.text)));
+  // A thing that names it inside ("shopping list" List(Shopping())); a word that describes it around it ("a new list" New(List())).
+  const inner = filled(p, "Name").map((d) => c(nameOf(d.text)));
   const items = filled(p, "Also").flatMap((j) => filled(j, "With"));
-  let e: Expr = c(p.head, ...inner);
+  // What a word puts with it ("a list with milk"), inside it, as said.
+  const links = filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map((x) => thingAsTaken(words, x))));
+  // As said: "keys" stays Keys, the base form only where the graph named it so.
+  const asSaid = p.head === nameOf(lemma(p.text.toLowerCase()) || p.text) && /^[a-z]+$/i.test(p.text) ? nameOf(p.text) : p.head;
+  let e: Expr = c(asSaid, ...inner, ...links);
+  for (const d of filled(p, "Describer").reverse()) e = c(nameOf(d.text), e);
   for (const o of filled(p, "Whose")) e = o.head === "Me" ? c("My", e) : c("Whose", c(o.head), e);
   return items.length ? c("And", e, ...items.map((x) => thingAsTaken(words, x))) : e;
 }
