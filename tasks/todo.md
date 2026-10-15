@@ -81,7 +81,8 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   ("You must be feeling frustrated. Do you want to call a mechanic?"). The server's first search of
   the dataset can take a minute (its index is built); such a lookup is tried again later. Next: the
   Parquet files at build, searched locally, for no cold starts.
-- [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
+- [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): being replaced. Measuring: SODA (CC BY 4.0, built from ATOMIC) is the coverage set now (frames-coverage.mjs; first run 4/19 frames, 7 "don't know", 3 machinery). Replying: packs/dialogue.ncon's nearest-utterance replies (which leak corpus lines: "Hi Jane, you look great.") to go, how a message is heard and answered taught instead (teacher, kept), then DailyDialog removed.
+- [ ] SODA misses to fix: a Wikimedia file name said as an answer ("Montage of Our Solar System.jpg", "Frequency Of First Names In The Netherlands2010"); "Are me talking is a helper, a be verb"; "How about you?" answered "I'm Napkin"; "What can I do for you?" unknown; a name at the start ("Sarah, it's so nice") read into the feeling.
 - [x] 27. Chat ("when you say hello?") and focus ("supplies list") fixed; pursue's "cake recipe" reads Wikibooks, so it passes only with the network: run it in CI with the live-probe workflow's `test` input (passes, 3aedfc0).
   "cake recipe").
 - [x] 28. Code sent alone (a fenced block, nothing asked) is explained instead of "I see."
