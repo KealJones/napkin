@@ -227,7 +227,7 @@ played by the general machinery that works out what follows from what is held.
 # A teacher for what Napkin is missing
 
 - [x] Wired (research/teacher.ts): Gemini via the worker, asked last for a word (word / misspelling / name, in Means, IsA, PartOf, UsedFor, HasProperty) or an event (ATOMIC relations), stamped `Teacher Taught(term)`, asked once; on in the studio and CLI (`--no-teacher`), off in tests. Live probe: ~1-2 s per lesson; "my sourdough starter died" answered from what it taught; a made-up word taught as unknown, not guessed.
-- [ ] Taught facts said as supposed ("I think…") until a source or the person agrees; retract on contradiction.
+- Taught facts are said plainly, like anything learned (decided 2026-10-15); retracted only when contradicted.
 - [ ] Measured: teacher's ATOMIC answers against ATOMIC's own on events it has.
 
 A small model, run locally (in the browser or the host), asked only when Napkin has a gap the graph
@@ -237,11 +237,9 @@ was taken out because it invented facts ("emoji SynonymOf(emoticon)"), so:
 
 - [ ] Grounded first: the model reads a page Napkin fetched (Wikipedia, Wiktionary) and writes the
   relations the page says, rather than recalling from its weights.
-- [ ] Constrained: it answers only in relations the graph already has, for the gap asked, checked
+- [x] Constrained: it answers only in relations the graph already has, for the gap asked, checked
   by parsing; anything else is dropped.
-- [ ] Kept as supposed, not believed: stamped with the model as source, used to answer and said so,
-  believed once a source or the person agrees, retracted when contradicted.
-- [ ] Measured before it is on: how often what it teaches is right, on gaps with known answers.
+- [x] Kept plainly: stamped with the model as source (separable), said like anything learned.
 
 # Ideas
 
