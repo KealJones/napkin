@@ -57,6 +57,7 @@ Concept(ReadOp(), IsA(WordRole()),
   HasHole("Where", ReadLink()),
   HasHole("Also", ReadJoining()),
   HasHole("Mood", ReadMarker()),
+  HasHole("Determiner", ReadDetermining()),
   Repeats("Operand"), Repeats("Where"))
 
 // A word that says what something is ("is", "am"): of what, and what it is said to be.
@@ -129,6 +130,8 @@ Concept(ReadingByHoles(),
   Weighs("ReadOp.Operand:after", 0.6),
   Weighs("ReadOp.Where:after", 0.5),
   Weighs("ReadOp.Where:before", -1),
+  Weighs("ReadOp.Determiner:before", 0.8),
+  Weighs("ReadOp.Determiner:after", -2),
   Weighs("ReadJoining.With:before", -0.5),
   Weighs("ReadThing.Also:after", 0.5),
   Weighs("ReadThing.Also:before", -0.5))

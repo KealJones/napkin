@@ -71,7 +71,7 @@ const weightsOf = (store: ConceptStore): Map<string, number> => {
 export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: number, tags: readonly string[], pointed?: string): Piece[] {
   const out: Piece[] = [];
   const add = (role: string, head: string, extra: Partial<Piece> = {}) => {
-    if (!out.some((p) => p.role === role && p.head === head)) out.push({ role, head, word: at, text: word.text, fills: [], ...extra });
+    if (!out.some((p) => p.role === role && p.head === head && p.op?.arity === extra.op?.arity)) out.push({ role, head, word: at, text: word.text, fills: [], ...extra });
   };
   const has = (t: string) => tags.includes(t);
   for (const s of word.senses) {
@@ -148,7 +148,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
   };
   row.forEach((pieces, i) => {
     // A sense named as the word is ("name" Name, not DeclaresName) a little ahead of the others.
-    for (const p of pieces) put(i, i + 1, { piece: p, score: (p.guessed ? -0.8 : 0) + (p.head === nameOf(lemma(p.text.toLowerCase()) || p.text) ? 0.1 : 0), features: [`as:${p.text.toLowerCase()}=${p.role}`] });
+    for (const p of pieces) put(i, i + 1, { piece: p, score: (p.guessed ? -1.5 : 0) + (p.head === nameOf(lemma(p.text.toLowerCase()) || p.text) ? 0.1 : 0), features: [`as:${p.text.toLowerCase()}=${p.role}`] });
   });
   // One piece takes another into an open hole: the taker keeps its place as what the two are.
   const take = (taker: Composed, taken: Composed, side: "before" | "after"): Composed[] => {
@@ -157,6 +157,14 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
     for (const [hole, kinds] of h.takes) {
       if (!kinds.includes(taken.piece.role)) continue;
       if (!h.repeats.has(hole) && taker.piece.fills.some((f) => f.hole === hole)) continue;
+      // A computation is joined to what came before only from in front ("and plus 3"), not to a list.
+      if (taker.piece.op && hole === "Also" && (side === "after" || filled(taken.piece, "With").length)) continue;
+      // Things joined bind closer than what a word puts with them: in "the sum of 1, 2 and 3" the list is what "of" puts in.
+      if (hole === "Also" && side === "after" && taker.piece.fills.some((f) => f.hole === "Where" && f.side === "after")) continue;
+      // A joining word put with a thing joins something to it ("3, 1 and 2"), not nothing.
+      if (taken.piece.role === "ReadJoining" && taker.piece.role === "ReadThing" && !filled(taken.piece, "With").length) continue;
+      // A computation is taken whole: one still short of what it takes is not another's operand.
+      if ((taker.piece.op || taker.piece.role === "ReadLink") && taken.piece.op && operandsOf(taken.piece).length < taken.piece.op.arity) continue;
       // A computation takes as many as it has holes for, by its operands and the words that mark one ("of", "from").
       const op = taker.piece.op;
       if (op && (hole === "Operand" || hole === "Where") && operandsOf(taker.piece).length >= op.arity) continue;
@@ -193,11 +201,21 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       }
     }
   }
-  return at.get(`0,${n}`) ?? [];
+  // A computation left short of what it takes ("sort" read as taking two, given one) is weighed
+  // below one that took all it needs; a joined list of as many as it takes counts as them.
+  const short = (p: Piece): number => {
+    const given = p.op ? operandsOf(p) : [];
+    const own = !p.op ? 0 : given.length === 1 && p.op.arity > 1 && listed(given[0]!.piece) === p.op.arity ? 0 : Math.max(0, p.op.arity - given.length);
+    return own + p.fills.reduce((sum, f) => sum + short(f.piece), 0);
+  };
+  return (at.get(`0,${n}`) ?? []).map((x) => ({ ...x, score: x.score - 0.6 * short(x.piece) })).sort((a, b) => b.score - a.score);
 }
 
+/** How many things a piece joins ("3, 1 and 2" is three), one if it joins none. */
+export const listed = (p: Piece): number => 1 + p.fills.filter((f) => f.hole === "Also").reduce((sum, f) => sum + filled(f.piece, "With").reduce((n, w) => n + listed(w), 0), 0);
+
 /** A reading written out, its fills in a fixed order: two built in different orders are the same. */
-export const shape = (p: Piece): string => `${p.role}:${p.word}:${p.head}${p.fills.length ? "(" + p.fills.map((f) => `${f.hole}${f.side === "before" ? "<" : ">"}${shape(f.piece)}`).sort().join(",") + ")" : ""}`;
+export const shape = (p: Piece): string => `${p.role}:${p.word}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.fills.length ? "(" + p.fills.map((f) => `${f.hole}${f.side === "before" ? "<" : ">"}${shape(f.piece)}`).sort().join(",") + ")" : ""}`;
 
 /** What a computation takes, in the order it is said: its operands, and what a marking word ("of", "from") puts in. */
 export const operandsOf = (p: Piece): { piece: Piece; link?: Piece; at: number }[] =>

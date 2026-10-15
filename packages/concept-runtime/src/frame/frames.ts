@@ -862,6 +862,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
   const row = words.map((w, i) => piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed));
   const all = compose(store, row);
+  if (process.env.NAPKIN_COMPOSE_DEBUG) console.error("  pieces", row.map((ps) => ps.map((p) => `${p.text}:${p.role}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.guessed ? "?" : ""}`).join(" ")).join(" | "));
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
   const best = all[0];
   if (!best) return [];
@@ -1059,18 +1060,21 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
     }
   }
   const marksFirst = (p: Piece) => words[p.word]?.senses.some((s) => s.type === "glue" && s.marksFirst) ?? false;
+  // The things a joined list names, each ("3 and 4": 3, 4).
+  const items = (p: Piece): Piece[] => [{ ...p, fills: p.fills.filter((f) => f.hole !== "Also") }, ...filled(p, "Also").flatMap((j) => filled(j, "With")).flatMap(items)];
   const valueOf = (p: Piece): Expr | undefined => {
     if (p.op) {
-      const operands = operandsOf(p);
+      let operands = operandsOf(p);
+      // One list given where several are taken ("add 3 and 4"): its items are what is taken.
+      if (operands.length === 1 && p.op.arity > 1 && items(operands[0]!.piece).length === p.op.arity) operands = items(operands[0]!.piece).map((piece) => ({ piece, at: piece.word, ...(operands[0]!.link ? { link: operands[0]!.link } : {}) }));
       if (operands.length !== p.op.arity) return undefined;
       const ordered = [...operands.filter((o) => o.link && marksFirst(o.link)), ...operands.filter((o) => !(o.link && marksFirst(o.link)))];
       const args = ordered.map((o) => valueOf(o.piece));
       return args.every((a) => a !== undefined) ? c(p.op.target, ...(args as Expr[])) : undefined;
     }
-    const also = filled(p, "Also").flatMap((j) => filled(j, "With"));
-    if (also.length) {
-      const items = [{ ...p, fills: p.fills.filter((f) => f.hole !== "Also") }, ...also].map(valueOf);
-      return items.every((x) => x !== undefined) ? call("List", (items as Expr[]).map((value) => ({ value }))) : undefined;
+    if (filled(p, "Also").length) {
+      const each = items(p).map(valueOf);
+      return each.every((x) => x !== undefined) ? call("List", (each as Expr[]).map((value) => ({ value }))) : undefined;
     }
     return p.value ?? (p.ask ? undefined : thingOf(p));
   };
@@ -1079,7 +1083,8 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
   if (!op?.op) return undefined;
   const asked = question || asksWhat;
-  const operands = operandsOf(op);
+  const given = operandsOf(op);
+  const operands = given.length === 1 && op.op.arity > 1 && items(given[0]!.piece).length === op.op.arity ? items(given[0]!.piece).map((piece) => ({ piece, at: piece.word })) : given;
   // Short of what it takes. Nothing said before it ("plus 3", "and plus 3?"): it goes on from what
   // came before, found by the context lookup. Nothing after it ("what is 9 minus"): asked.
   if (operands.length < op.op.arity) {
