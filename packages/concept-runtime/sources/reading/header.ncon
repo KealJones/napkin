@@ -46,7 +46,16 @@ Concept(ReadQuality(), IsA(WordRole()),
   Repeats("Where"), Repeats("How"))
 
 // A word that puts something with what it is said of ("at", "in", "for"): what it puts.
-Concept(ReadLink(), IsA(WordRole()), HasHole("What", ReadThing()), HasHole("What", ReadDoing()))
+Concept(ReadLink(), IsA(WordRole()), HasHole("What", ReadThing()), HasHole("What", ReadDoing()), HasHole("What", ReadOp()))
+
+// A word that stands for a computation ("plus", "half", "squared"): what it works on are its
+// operands, said beside it or marked by a word ("half of 90", "subtract 3 from 10"); as many as
+// it has holes for (compose.ts).
+Concept(ReadOp(), IsA(WordRole()),
+  HasHole("Operand", ReadThing()),
+  HasHole("Operand", ReadOp()),
+  HasHole("Where", ReadLink()),
+  Repeats("Operand"), Repeats("Where"))
 
 // A word that says what something is ("is", "am"): of what, and what it is said to be.
 Concept(ReadSame(), IsA(WordRole()),
@@ -54,6 +63,8 @@ Concept(ReadSame(), IsA(WordRole()),
   HasHole("Said", ReadThing()),
   HasHole("Said", ReadQuality()),
   HasHole("Said", ReadDoing()),
+  HasHole("Said", ReadOp()),
+  HasHole("Subject", ReadOp()),
   HasHole("Where", ReadLink()),
   HasHole("How", ReadDegree()),
   HasHole("Not", ReadNegation()),
@@ -112,6 +123,10 @@ Concept(ReadingByHoles(),
   Weighs("ReadDoing.Doer:before:ask", 0.3),
   Weighs("ReadSame.Said:before:ask", 1.6),
   Weighs("ReadJoining.With:after", 0.8),
+  Weighs("ReadOp.Operand:before", 0.6),
+  Weighs("ReadOp.Operand:after", 0.6),
+  Weighs("ReadOp.Where:after", 0.5),
+  Weighs("ReadOp.Where:before", -1),
   Weighs("ReadJoining.With:before", -0.5),
   Weighs("ReadThing.Also:after", 0.5),
   Weighs("ReadThing.Also:before", -0.5))

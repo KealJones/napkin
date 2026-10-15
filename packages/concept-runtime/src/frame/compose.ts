@@ -25,6 +25,10 @@ export interface Piece {
   readonly ask?: boolean;
   readonly word: number;
   readonly text: string;
+  /** Taken from what the tagger guesses, though the graph has senses of the word: weighed less than a sense. */
+  readonly guessed?: boolean;
+  /** A computation the word stands for (senses.ts "op"): what runs, how many it takes, how tightly it binds. */
+  readonly op?: { readonly target: string; readonly arity: number; readonly binds: number; readonly right: boolean };
   readonly fills: readonly { hole: string; side: "before" | "after"; piece: Piece }[];
 }
 
@@ -76,6 +80,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
       add("ReadThing", head, { value: s.value });
       if (typeof s.value === "number") add("ReadCount", head, { value: s.value });
     }
+    else if (s.type === "op") add("ReadOp", s.target, { op: { target: s.target, arity: s.holes.length, binds: s.binds, right: s.right } });
     else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text));
     else if (s.type === "question") add("ReadThing", s.head, { ask: true });
     else if (s.type === "owner") add("ReadOwning", s.head);
@@ -87,6 +92,8 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
       else add("ReadLink", s.head);
     }
   }
+  // What the graph knows of the word comes first; what the tagger guesses beside it is weighed less.
+  const known = out.length;
   const base = nameOf(lemma(word.text.toLowerCase()) || word.text);
   const said = nameOf(word.text);
   if (has("Particle")) add("ReadParticle", said);
@@ -105,7 +112,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   if ((has("Noun") || has("Pronoun") || has("Value") || has("ProperNoun")) && !has("Possessive") && !out.some((p) => p.role === "ReadThing")) add("ReadThing", has("Plural") ? said : base);
   // Nothing known of it, and the tagger says nothing: something, not looked up yet.
   if (!out.length) add("ReadThing", said);
-  return out;
+  return known ? out.map((p, i) => (i < known ? p : { ...p, guessed: true })) : out;
 }
 
 /** Every way a row of words joins into one, best first. */
@@ -134,7 +141,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
     at.set(key, list.slice(0, keep));
   };
   row.forEach((pieces, i) => {
-    for (const p of pieces) put(i, i + 1, { piece: p, score: 0, features: [`as:${p.text.toLowerCase()}=${p.role}`] });
+    for (const p of pieces) put(i, i + 1, { piece: p, score: p.guessed ? -0.8 : 0, features: [`as:${p.text.toLowerCase()}=${p.role}`] });
   });
   // One piece takes another into an open hole: the taker keeps its place as what the two are.
   const take = (taker: Composed, taken: Composed, side: "before" | "after"): Composed[] => {
@@ -143,6 +150,16 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
     for (const [hole, kinds] of h.takes) {
       if (!kinds.includes(taken.piece.role)) continue;
       if (!h.repeats.has(hole) && taker.piece.fills.some((f) => f.hole === hole)) continue;
+      // A computation takes as many as it has holes for, by its operands and the words that mark one ("of", "from").
+      const op = taker.piece.op;
+      if (op && (hole === "Operand" || hole === "Where") && operandsOf(taker.piece).length >= op.arity) continue;
+      if (op && hole === "Where" && !filled(taken.piece, "What").length) continue;
+      // Which computation takes its neighbour first is the graph's (Binds): a looser one inside a tighter one costs.
+      let precedence = 0;
+      const inner = taken.piece.op ?? (hole === "Where" ? filled(taken.piece, "What")[0]?.op : undefined);
+      if (op && inner && inner.arity === 2 && (taken.piece.op ? taken.piece : filled(taken.piece, "What")[0]!).fills.length > 0) {
+        if (inner.binds < op.binds || (inner.binds === op.binds && (side === "after" ? !op.right : op.right))) precedence -= 1;
+      }
       // What is taken from one side is taken outward of what is already taken from that side.
       const feature = `${taker.piece.role}.${hole}:${side}`;
       // What a question asks for is said first, wherever it would stand told: weighed apart.
@@ -150,7 +167,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       const w = [feature, ...asked].reduce((sum, f) => sum + (weights.get(f) ?? 0), 0);
       out.push({
         piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: taken.piece }] },
-        score: taker.score + taken.score + 1 + w,
+        score: taker.score + taken.score + 1 + w + precedence,
         features: [...taker.features, ...taken.features, feature, ...asked],
       });
     }
@@ -174,6 +191,12 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
 
 /** A reading written out, its fills in a fixed order: two built in different orders are the same. */
 export const shape = (p: Piece): string => `${p.role}:${p.word}${p.fills.length ? "(" + p.fills.map((f) => `${f.hole}${f.side === "before" ? "<" : ">"}${shape(f.piece)}`).sort().join(",") + ")" : ""}`;
+
+/** What a computation takes, in the order it is said: its operands, and what a marking word ("of", "from") puts in. */
+export const operandsOf = (p: Piece): { piece: Piece; link?: Piece; at: number }[] =>
+  p.fills
+    .flatMap((f) => (f.hole === "Operand" ? [{ piece: f.piece, at: f.piece.word }] : f.hole === "Where" ? filled(f.piece, "What").map((w) => ({ piece: w, link: f.piece, at: f.piece.word })) : []))
+    .sort((a, b) => a.at - b.at);
 
 /** The pieces filling a hole of a piece. */
 export const filled = (p: Piece, hole: string): Piece[] => p.fills.filter((f) => f.hole === hole).map((f) => f.piece);

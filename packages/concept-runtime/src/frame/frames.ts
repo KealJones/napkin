@@ -23,7 +23,7 @@ import { keepReading } from "../resolve/learned.js";
 import { type Expr, c, call, equal, format, isCall, parse, walk } from "../concept/expression.js";
 import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { findNamed } from "../runtime/individuals.js";
-import { asks as asksIn, compose, filled, piecesOf, thingOf, type Piece } from "./compose.js";
+import { asks as asksIn, compose, filled, operandsOf, piecesOf, thingOf, type Piece } from "./compose.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
@@ -860,9 +860,13 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text)) || message.includes("`")) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
   const row = words.map((w, i) => piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed));
-  const best = compose(store, row)[0];
+  const all = compose(store, row);
+  if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
+  const best = all[0];
   if (!best) return [];
   const root = best.piece;
+  const computed = computing(runtime, words, root, best, question, message);
+  if (computed) return computed;
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
   // own realization reads it, as the rules hearing hands it on.
   const doing = (p: Piece) => p.role === "ReadDoing" || p.role === "ReadAspect";
@@ -984,6 +988,53 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
 }
 
 /** Readings that may fail on a row they cannot take: none, rather than none of the others either. */
+/**
+ * A computation the words make ("2 plus 3 times 4", "half of 90", "subtract 3 from 10", "what
+ * is 9 squared"): its operands, in the order said, a word that puts what follows it first
+ * ("from") putting it first; worked out by the runtime, as any realization is.
+ */
+function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: { score: number; features: readonly string[] }, question: boolean, message: string): Reading[] | undefined {
+  const store = runtime.store;
+  const marksFirst = (p: Piece) => words[p.word]?.senses.some((s) => s.type === "glue" && s.marksFirst) ?? false;
+  const valueOf = (p: Piece): Expr | undefined => {
+    if (p.op) {
+      const operands = operandsOf(p);
+      if (operands.length !== p.op.arity) return undefined;
+      const ordered = [...operands.filter((o) => o.link && marksFirst(o.link)), ...operands.filter((o) => !(o.link && marksFirst(o.link)))];
+      const args = ordered.map((o) => valueOf(o.piece));
+      return args.every((a) => a !== undefined) ? c(p.op.target, ...(args as Expr[])) : undefined;
+    }
+    const also = filled(p, "Also").flatMap((j) => filled(j, "With"));
+    if (also.length) {
+      const items = [{ ...p, fills: p.fills.filter((f) => f.hole !== "Also") }, ...also].map(valueOf);
+      return items.every((x) => x !== undefined) ? call("List", (items as Expr[]).map((value) => ({ value }))) : undefined;
+    }
+    return p.value ?? (p.ask ? undefined : thingOf(p));
+  };
+  // Asked what it comes to ("what is 2 plus 3"), or said alone ("2 plus 3", "subtract 3 from 10").
+  const asksWhat = root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask);
+  const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
+  if (!op) return undefined;
+  const expr = valueOf(op);
+  if (!expr) return [];
+  const asked = question || asksWhat;
+  return [{
+    key: format(expr),
+    features: ["read:composed-value", ...best.features],
+    score: 3 + 0.3 * words.length + 0.05 * best.score,
+    display: c("Value", expr),
+    chosen: [],
+    notes: [`Worked out by its words' holes: ${format(expr)}.`],
+    run: async () => {
+      const v = await runtime.evaluate(expr, c("Execution"));
+      // What still holds a computation it took is not worked out: no reading.
+      if (isCall(v) && isCall(expr) && v.head === expr.head) return undefined;
+      const doing = !asked && op.word === 0 && (hostWords(message)[0]?.tags ?? []).includes("Verb");
+      return doing || (isCall(v) && v.head === "Answer") ? v : c("Answer", v);
+    },
+  }];
+}
+
 function safely(read: () => Reading[]): Reading[] {
   try {
     return read();
