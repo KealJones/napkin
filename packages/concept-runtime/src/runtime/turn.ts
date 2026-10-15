@@ -29,7 +29,7 @@ import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
-import { atomicTermOf, groundInAtomic, heldOf } from "../research/atomic.js";
+import { atomicQueryOf, atomicTermOf, groundInAtomic, heldOf } from "../research/atomic.js";
 import { nameOf } from "../ears/parser/names.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
@@ -687,7 +687,7 @@ export async function turn(
     const lookup = options.learn !== false && options.research !== false;
     const term = atomicTermOf(message);
     const atomic = term && (lookup || heldOf(runtime.store, nameOf(term)).length)
-      ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, wait: 6_000, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
+      ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, wait: 6_000, query: atomicQueryOf(message), ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
       : undefined;
     const followed = atomic?.relations.length
       ? { identity: atomic.identity, term: term!, relations: atomic.relations, looked: [] }

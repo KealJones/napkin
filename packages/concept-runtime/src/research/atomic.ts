@@ -93,10 +93,24 @@ export function atomicTermOf(message: string): string | undefined {
 }
 
 /**
+ * What to search ATOMIC with for an event told: its words as ATOMIC writes its events, of someone
+ * else and in the present ("my car broke down" is "car breaks down", "i lost my job" "loses job"),
+ * the search matching words as written.
+ */
+export function atomicQueryOf(message: string): string | undefined {
+  if (!atomicTermOf(message)) return undefined;
+  const clause = message.split(/[.!?;]/)[0]!.split(/\b(?:and|but|so)\b/i).find((x) => atomicTermOf(x)) ?? message;
+  const doc = nlp(clause.replace(/^\s*i\b/i, "he").replace(/\b(my|our)\b/gi, "his").replace(/\bwe\b/gi, "they"));
+  doc.sentences().toPresentTense();
+  const words = (doc.json() as { terms: Term[] }[]).flatMap((x) => x.terms).filter(kept).map((t) => t.text.toLowerCase().replace(/[^a-z']/g, "")).filter((w) => w.length > 1);
+  return words.length ? words.join(" ") : undefined;
+}
+
+/**
  * Look an event up in ATOMIC and keep what follows from it, on the event's Concept (named as
  * its words are: CarBreakDown). What was kept; empty when nothing matched.
  */
-export async function groundInAtomic(store: ConceptStore, term: string, options: { fetch?: Fetch; cause?: number; wait?: number } = {}): Promise<{ identity: string; relations: Expr[] }> {
+export async function groundInAtomic(store: ConceptStore, term: string, options: { fetch?: Fetch; cause?: number; wait?: number; query?: string } = {}): Promise<{ identity: string; relations: Expr[] }> {
   const identity = nameOf(term);
   if (!identity) return { identity: "", relations: [] };
   const held = heldOf(store, identity);
@@ -111,11 +125,11 @@ export async function groundInAtomic(store: ConceptStore, term: string, options:
 /** Events being looked up now, so a second telling does not ask again while the first is out. */
 const pending = new Set<string>();
 
-async function lookUp(store: ConceptStore, identity: string, term: string, options: { fetch?: Fetch; cause?: number }): Promise<{ identity: string; relations: Expr[] }> {
+async function lookUp(store: ConceptStore, identity: string, term: string, options: { fetch?: Fetch; cause?: number; query?: string }): Promise<{ identity: string; relations: Expr[] }> {
   const get = options.fetch ?? defaultFetch;
-  // Asked as ATOMIC writes its events ("PersonX ..."), so rows about the event come before rows
-  // that only mention its words; two pages of them.
-  const page = (offset: number) => get(SERVER + new URLSearchParams({ dataset: DATASET, config: "default", split: "train", query: `PersonX ${term}`, offset: String(offset), length: "100" })) as Promise<{ rows?: { row?: Row }[] }>;
+  // Asked in the words ATOMIC writes its events with (`atomicQueryOf`), two pages of rows.
+  const query = options.query ?? term;
+  const page = (offset: number) => get(SERVER + new URLSearchParams({ dataset: DATASET, config: "default", split: "train", query, offset: String(offset), length: "100" })) as Promise<{ rows?: { row?: Row }[] }>;
   const pages = await Promise.all([page(0), page(100).catch(() => ({ rows: [] }))]);
   const wanted = new Set(term.split(" "));
   // The rows whose event is the one told: every word of the telling in it, and little else.
