@@ -233,6 +233,7 @@ played by the general machinery that works out what follows from what is held.
 - [ ] Long messages: broken into parts, read in order, one reading across them: a reference fills from earlier parts, and a hole left open fills from a later part.
 - [ ] One context lookup for open holes, its sources pluggable: this message, earlier messages, memory (the graph), files/system, then the learning sources; asked of the person when none can say.
 - [ ] Holes needing a result run when that result exists: the order is what each hole needs, not the order the words came in.
+- [ ] Order said is order kept (asked 2026-10-15): "Also, like in my last prompt, I say to do multiple things. But one thing "before" the others, we should see if any order like that exists before starting any executions as well to ensure proper desired ordering." Before anything runs, the whole message is read for order words ("before", "first", "then", "after", "once"), and the plan honours them along with what each hole needs.
 - [ ] Goals: what is wanted, and the steps to it the message did not say; pursued by asking itself, the same path a message takes, using its own answers to plan and do sub-goals, back and forth until done or stuck (then ask). Builds on packs/pursue.ncon.
 
 # A teacher for what Napkin is missing
