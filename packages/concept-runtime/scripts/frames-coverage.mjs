@@ -9,12 +9,25 @@ import { turn } from "../dist/runtime/turn.js";
 import { seed } from "../dist/seed/seed.js";
 import { c, format } from "../dist/concept/expression.js";
 
-const file = "data/dialog/dumps/train/dialogues_train.txt";
-if (!existsSync(file)) execSync("sh src/seed/dialogue/fetch.sh", { stdio: "inherit" });
-const utterances = readFileSync(file, "utf8").split("\n").flatMap((l) => l.split("__eou__")).map((u) => u.trim().replace(/\s+([,.!?'])/g, "$1").replace(/\s+'\s*/g, "'")).filter((u) => u.length > 3 && u.length < 90);
-// A spread of them, the same each run.
-const picked = [];
-for (let i = 0; picked.length < Number(process.env.N ?? 120) && i < utterances.length; i += 997) picked.push(utterances[i]);
+// CORPUS=soda (default): SODA (Kim et al., 2023; CC BY 4.0, allenai/soda), dialogues written from
+// ATOMIC's events, read through the Hugging Face dataset server. CORPUS=dailydialog: the old set.
+const corpus = process.env.CORPUS ?? "soda";
+const N = Number(process.env.N ?? 120);
+let picked = [];
+if (corpus === "soda") {
+  for (let offset = 0; picked.length < N && offset < 200_000; offset += 7919) {
+    const r = await fetch("https://datasets-server.huggingface.co/rows?" + new URLSearchParams({ dataset: "allenai/soda", config: "default", split: "test", offset: String(offset), length: "1" })).then((x) => x.json()).catch(() => ({}));
+    const d = r.rows?.[0]?.row?.dialogue ?? [];
+    const u = d.find((x, i) => i > 0 && x.length > 3 && x.length < 90) ?? d[0];
+    if (u && u.length < 90) picked.push(u);
+  }
+} else {
+  const file = "data/dialog/dumps/train/dialogues_train.txt";
+  if (!existsSync(file)) execSync("sh src/seed/dialogue/fetch.sh", { stdio: "inherit" });
+  const utterances = readFileSync(file, "utf8").split("\n").flatMap((l) => l.split("__eou__")).map((u) => u.trim().replace(/\s+([,.!?'])/g, "$1").replace(/\s+'\s*/g, "'")).filter((u) => u.length > 3 && u.length < 90);
+  // A spread of them, the same each run.
+  for (let i = 0; picked.length < N && i < utterances.length; i += 997) picked.push(utterances[i]);
+}
 let frames = 0, rules = 0, dunno = 0, garbled = 0;
 const byRules = [];
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("timed out")), ms))]);
@@ -38,5 +51,5 @@ for (const u of picked) {
   // A reply that shows the machinery: how it heard, what it is missing, an expression, a description no one asked for.
   if (/I heard that as|don't know how to|worked something out|Where I got stuck| means [a-z]|\w\(\)/.test(t.spoken)) garbled++;
 }
-console.log(`${picked.length} DailyDialog utterances: frames read ${frames}, rules ${rules}; "don't know" in ${dunno}; machinery shown in ${garbled}.`);
+console.log(`${picked.length} ${corpus} utterances: frames read ${frames}, rules ${rules}; "don't know" in ${dunno}; machinery shown in ${garbled}.`);
 console.log("\nHeard by the rules:\n" + byRules.join("\n"));
