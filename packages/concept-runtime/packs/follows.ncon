@@ -23,6 +23,28 @@ Concept(MotivatedByGoal(), IsA(Relation()))
 
 Concept(Entails(), IsA(Relation()))
 
+// What follows from an everyday event, as ATOMIC 2020 says it (src/research/atomic.ts): how the
+// one it happens to feels and what they want after it, what it does to them, what it takes first,
+// why one does it; and how others feel and what they want. Looked up when a message tells of one.
+Concept(XReact(), IsA(Relation()))
+
+Concept(XWant(), IsA(Relation()))
+
+Concept(XEffect(), IsA(Relation()))
+
+Concept(XNeed(), IsA(Relation()))
+
+Concept(XIntent(), IsA(Relation()))
+
+Concept(OReact(), IsA(Relation()))
+
+Concept(OWant(), IsA(Relation()))
+
+Concept(Atomic(),
+  IsA(LearningSource()),
+  License("CC BY 4.0")
+)
+
 // What follows from what was told, and how it felt: a reply's matter.
 Concept(Follows(), IsA(Result()))
 
@@ -240,9 +262,17 @@ Concept(Follows(),
                 If(
                   Or(
                     Or(NotEquals(Member($r, "context"), Undefined()), Not($claim)),
-                    And(
-                      And(NotEquals(Member($claim, "head"), "Causes"), NotEquals(Member($claim, "head"), "Entails")),
-                      NotEquals(Member($claim, "head"), "CausesDesire")
+                    Not(
+                      Includes(
+                        List(
+                          "Causes",
+                          "Entails",
+                          "CausesDesire",
+                          "XReact",
+                          "XEffect"
+                        ),
+                        Member($claim, "head")
+                      )
                     )
                   ),
                   Continue(),
@@ -687,7 +717,12 @@ Concept(Follows(),
                     HasLastSubevent = "involves",
                     HasPrerequisite = "needs",
                     MotivatedByGoal = "for",
-                    Entails = "causes"
+                    Entails = "causes",
+                    XReact = "feels",
+                    XWant = "wants",
+                    XEffect = "causes",
+                    XNeed = "needs",
+                    XIntent = "for"
                   )
                 ),
                 Bind($lists, Object()),
@@ -1126,11 +1161,37 @@ Concept(Follows(),
             ),
             Bind($first, Call(Member($args, "find"), Lambda(List($a), Equals(Member($a, "name"), Undefined())))),
             Bind($event, If($first, Call($wordsOf, Member($first, "value")), "")),
-            Bind($causes,
+            Comment("How one feels after it (ATOMIC's xReact: \"frustrated\"), said as what anyone would."),
+            Bind($feels,
               Call(
-                Member(Call($items, Call($named, "causes")), "slice"),
+                Member(Call($items, Call($named, "feels")), "slice"),
                 0,
                 2
+              )
+            ),
+            If(
+              Length($feels),
+              Call(
+                Member($parts, "push"),
+                Call(
+                  $pick,
+                  List(
+                    Add(Add("You must be feeling ", Call($either, $feels)), "."),
+                    Add(Add("That would leave anyone ", Call($either, $feels)), ".")
+                  )
+                )
+              ),
+              Undefined()
+            ),
+            Bind($causes,
+              If(
+                Length($feels),
+                List(),
+                Call(
+                  Member(Call($items, Call($named, "causes")), "slice"),
+                  0,
+                  2
+                )
               )
             ),
             Bind($wants, Call($items, Call($named, "wants"))),

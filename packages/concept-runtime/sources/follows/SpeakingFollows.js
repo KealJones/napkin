@@ -41,7 +41,10 @@ async (args, bindings, api) => {
   }
   const first = args.find((a) => a.name === undefined);
   const event = first ? wordsOf(first.value) : "";
-  const causes = items(named("causes")).slice(0, 2);
+  // How one feels after it (ATOMIC's xReact: "frustrated"), said as what anyone would.
+  const feels = items(named("feels")).slice(0, 2);
+  if (feels.length) parts.push(pick(["You must be feeling " + either(feels) + ".", "That would leave anyone " + either(feels) + "."]));
+  const causes = feels.length ? [] : items(named("causes")).slice(0, 2);
   const wants = items(named("wants"));
   if (event && causes.length) {
     const made = causes.filter(doing);

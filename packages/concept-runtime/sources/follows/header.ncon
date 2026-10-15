@@ -23,6 +23,25 @@ Concept(MotivatedByGoal(), IsA(Relation()))
 
 Concept(Entails(), IsA(Relation()))
 
+// What follows from an everyday event, as ATOMIC 2020 says it (src/research/atomic.ts): how the
+// one it happens to feels and what they want after it, what it does to them, what it takes first,
+// why one does it; and how others feel and what they want. Looked up when a message tells of one.
+Concept(XReact(), IsA(Relation()))
+
+Concept(XWant(), IsA(Relation()))
+
+Concept(XEffect(), IsA(Relation()))
+
+Concept(XNeed(), IsA(Relation()))
+
+Concept(XIntent(), IsA(Relation()))
+
+Concept(OReact(), IsA(Relation()))
+
+Concept(OWant(), IsA(Relation()))
+
+Concept(Atomic(), IsA(LearningSource()), License("CC BY 4.0"))
+
 // What follows from what was told, and how it felt: a reply's matter.
 Concept(Follows(), IsA(Result()))
 

@@ -29,6 +29,8 @@ import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
+import { atomicTermOf, groundInAtomic, heldOf } from "../research/atomic.js";
+import { nameOf } from "../ears/parser/names.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
@@ -680,11 +682,20 @@ export async function turn(
   else runtime.context.delete("lastSpoken");
   if (options.inputMode !== "expression" && !asks(runtime.store, message)) {
     learnFeelings(runtime.store, message, runtime.trace.cause);
-    const followed = await whatFollows(runtime.store, message, {
-      lookup: options.learn !== false && options.research !== false,
-      cause: runtime.trace.cause,
-      ...(options.fetch ? { fetch: options.fetch } : {}),
-    }).catch(() => undefined);
+    // An everyday event told ("my car broke down") as ATOMIC has it first: how one feels and what
+    // one wants after it; else what ConceptNet says it leads to.
+    const lookup = options.learn !== false && options.research !== false;
+    const term = atomicTermOf(message);
+    const atomic = term && (lookup || heldOf(runtime.store, nameOf(term)).length)
+      ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
+      : undefined;
+    const followed = atomic?.relations.length
+      ? { identity: atomic.identity, term: term!, relations: atomic.relations, looked: [] }
+      : await whatFollows(runtime.store, message, {
+          lookup,
+          cause: runtime.trace.cause,
+          ...(options.fetch ? { fetch: options.fetch } : {}),
+        }).catch(() => undefined);
     if (followed) {
       runtime.context.set("follows", followed.identity);
       // What it leads to feels some way too (depression is bad): learned, for how the event feels.

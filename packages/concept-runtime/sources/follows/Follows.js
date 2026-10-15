@@ -41,7 +41,7 @@ async (args, bindings, api) => {
   const led = event && api.store.get(event) ? api.store.get(event).relations : [];
   for (const r of led) {
     const claim = r.claim;
-    if (r.context !== undefined || !claim || (claim.head !== "Causes" && claim.head !== "Entails" && claim.head !== "CausesDesire")) continue;
+    if (r.context !== undefined || !claim || !["Causes", "Entails", "CausesDesire", "XReact", "XEffect"].includes(claim.head)) continue;
     const target = claim.args[0] ? claim.args[0].value : undefined;
     if (!target || !target.head) continue;
     for (const w of target.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2").split(" ")) {
@@ -123,7 +123,7 @@ async (args, bindings, api) => {
       if (!target || typeof target !== "object" || !target.head) continue;
       (by[claim.head] = by[claim.head] || []).push(api.call(target.head));
     }
-    const names = { Causes: "causes", CausesDesire: "wants", HasSubevent: "involves", HasFirstSubevent: "involves", HasLastSubevent: "involves", HasPrerequisite: "needs", MotivatedByGoal: "for", Entails: "causes" };
+    const names = { Causes: "causes", CausesDesire: "wants", HasSubevent: "involves", HasFirstSubevent: "involves", HasLastSubevent: "involves", HasPrerequisite: "needs", MotivatedByGoal: "for", Entails: "causes", XReact: "feels", XWant: "wants", XEffect: "causes", XNeed: "needs", XIntent: "for" };
     const lists = {};
     for (const [head, items] of Object.entries(by)) {
       const name = names[head];

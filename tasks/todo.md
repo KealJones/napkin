@@ -74,8 +74,13 @@ Found by the unseen probe after 0.16.0 (17 of 24 right, 1 asked, 5 honest misses
   hearing reads 47 the same, 36 differently (nearly all type annotations, which hearing does not
   hear yet; one Python `and`/`not`), 4 not at all (a generic arrow `<T,>`). Next: type annotations
   heard as Claims (tasks/typescript-claims.md), then switch.
-- [ ] 25. ATOMIC 2020 (CC BY) for everyday events (xReact, xWant, xEffect), fetched at build like
-  DailyDialog; ConceptNet has little for "my car broke down".
+- [x] 25. ATOMIC 2020 (CC BY) for everyday events (src/research/atomic.ts): looked up when a message
+  tells of one, through the Hugging Face dataset server's search over Estwld/atomic2020-origin; only
+  rows whose event is the one told are kept (XReact, XWant, XEffect, XNeed, XIntent, OReact, OWant on
+  the event, one import stamp each), and the reply says how one feels and asks after what one wants
+  ("You must be feeling frustrated. Do you want to call a mechanic?"). The server's first search of
+  the dataset can take a minute (its index is built); such a lookup is tried again later. Next: the
+  Parquet files at build, searched locally, for no cold starts.
 - [ ] 26. DailyDialog is CC BY-NC-SA (non-commercial): decide whether the corpus stays.
 - [x] 27. Chat ("when you say hello?") and focus ("supplies list") fixed; pursue's "cake recipe" reads Wikibooks, so it passes only with the network: run it in CI with the live-probe workflow's `test` input (passes, 3aedfc0).
   "cake recipe").
