@@ -958,6 +958,58 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     }
     return [];
   }
+  // A relation said of an owner ("my name", "the capital of France", "tom's age"): told, a fact of
+  // the owner; asked, what the owner holds of it.
+  // Owned and told a thing or a number ("tom's age is 30", "my favorite color is blue"), it is
+  // said as a relation of the owner too; told how it is ("my car is red") or what kind it is ("a
+  // Honda"), it is not.
+  const plain = (v: Piece | undefined) => !!v && (v.role === "ReadThing" || v.role === "ReadQuality") && !filled(v, "Determiner").some((d) => /^(a|an)$/i.test(d.text));
+  const ownerOf = (p: Piece, other?: Piece): Piece | undefined =>
+    p.relation || (p.role === "ReadThing" && (other?.ask || plain(other)))
+      ? (filled(p, "Whose")[0] ?? (p.relation ? filled(p, "Where").filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0] : undefined))
+      : undefined;
+  if (root.role === "ReadSame") {
+    const [subjectPiece] = filled(root, "Subject");
+    const [said] = filled(root, "Said");
+    const [held, value] = subjectPiece && ownerOf(subjectPiece, said) ? [subjectPiece, said] : said && ownerOf(said, subjectPiece) ? [said, subjectPiece] : [undefined, undefined];
+    const owner = held && ownerOf(held, value);
+    if (held && owner && value) {
+      const ownerName = owner.role === "ReadOwning" ? owner.head : (who(owner) as Expr);
+      const ownerId = typeof ownerName === "string" ? ownerName : isCall(ownerName) ? ownerName.head : undefined;
+      if (!ownerId) return [];
+      // Described ("favorite color"), the relation is named with its describers: FavoriteColor.
+      const describers = filled(held, "Describer").map((d) => d.text);
+      const relation = describers.length ? nameOf([...describers, held.text].join(" ")) : held.head;
+      if (value.ask) {
+        const found = relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
+        const latest = found.at(-1);
+        return [{
+          key: `Composed ${relation} of ${ownerId}`,
+          features: ["read:composed-relation-asked", ...best.features],
+          score: base + 1,
+          display: c("Asked", c(relation, c(ownerId), c("What"))),
+          chosen: [],
+          notes,
+          run: async () => (latest !== undefined ? c("Answer", latest) : c("Unknown", c(owner.role === "ReadOwning" ? nameOf(owner.text) : ownerId, c(relation)))),
+        }];
+      }
+      if (asked) return [];
+      const fact = c(relation, who(value)!);
+      return [{
+        writes: true,
+        key: format(c(ownerId, fact)),
+        features: ["read:composed-relation", ...best.features],
+        score: base + 1,
+        display: c("Stated", c(ownerId), fact),
+        chosen: [],
+        notes,
+        run: async () => {
+          store.addRelation(ownerId, fact, undefined, runtime.trace.cause);
+          return c("Noted", fact, c(ownerId));
+        },
+      }];
+    }
+  }
   if (root.role === "ReadSame" && !asked) {
     const subjectPiece = filled(root, "Subject")[0];
     const said = filled(root, "Said")[0];

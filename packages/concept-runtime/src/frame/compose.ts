@@ -25,6 +25,8 @@ export interface Piece {
   readonly ask?: boolean;
   readonly word: number;
   readonly text: string;
+  /** A relation the word names ("name", "age", "capital"): said of an owner, it is a fact of that owner. */
+  readonly relation?: boolean;
   /** Taken from what the tagger guesses, though the graph has senses of the word: weighed less than a sense. */
   readonly guessed?: boolean;
   /** A computation the word stands for (senses.ts "op"): what runs, how many it takes, how tightly it binds. */
@@ -74,7 +76,11 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   const has = (t: string) => tags.includes(t);
   for (const s of word.senses) {
     if (s.type === "entity" || s.type === "kind") add("ReadThing", s.head);
-    else if (s.type === "relation") add("ReadThing", s.head);
+    else if (s.type === "relation" && !s.inverse) {
+      const held = out.findIndex((p) => p.role === "ReadThing" && p.head === s.head);
+      if (held >= 0) out[held] = { ...out[held]!, relation: true };
+      else add("ReadThing", s.head, { relation: true });
+    }
     else if (s.type === "value") {
       const head = typeof s.value === "number" ? String(s.value) : isCall(s.value) ? s.value.head : String(s.value);
       add("ReadThing", head, { value: s.value });
@@ -105,7 +111,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   if (has("Adverb")) add("ReadDegree", said);
   if (has("Negative")) add("ReadNegation", said);
   if (has("Determiner") && !has("Possessive")) add("ReadDetermining", said);
-  if (has("Possessive") && !out.some((p) => p.role === "ReadOwning")) add("ReadOwning", said);
+  if (has("Possessive") && !out.some((p) => p.role === "ReadOwning")) add("ReadOwning", nameOf(word.text.replace(/['’]s?$/i, "")));
   if (has("Preposition") && !out.some((p) => p.role === "ReadLink")) add("ReadLink", said);
   if (has("Conjunction")) add("ReadJoining", said);
   if (has("Expression") || has("Interjection")) add("ReadMarker", said);
@@ -141,7 +147,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
     at.set(key, list.slice(0, keep));
   };
   row.forEach((pieces, i) => {
-    for (const p of pieces) put(i, i + 1, { piece: p, score: p.guessed ? -0.8 : 0, features: [`as:${p.text.toLowerCase()}=${p.role}`] });
+    // A sense named as the word is ("name" Name, not DeclaresName) a little ahead of the others.
+    for (const p of pieces) put(i, i + 1, { piece: p, score: (p.guessed ? -0.8 : 0) + (p.head === nameOf(lemma(p.text.toLowerCase()) || p.text) ? 0.1 : 0), features: [`as:${p.text.toLowerCase()}=${p.role}`] });
   });
   // One piece takes another into an open hole: the taker keeps its place as what the two are.
   const take = (taker: Composed, taken: Composed, side: "before" | "after"): Composed[] => {
@@ -190,7 +197,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
 }
 
 /** A reading written out, its fills in a fixed order: two built in different orders are the same. */
-export const shape = (p: Piece): string => `${p.role}:${p.word}${p.fills.length ? "(" + p.fills.map((f) => `${f.hole}${f.side === "before" ? "<" : ">"}${shape(f.piece)}`).sort().join(",") + ")" : ""}`;
+export const shape = (p: Piece): string => `${p.role}:${p.word}:${p.head}${p.fills.length ? "(" + p.fills.map((f) => `${f.hole}${f.side === "before" ? "<" : ">"}${shape(f.piece)}`).sort().join(",") + ")" : ""}`;
 
 /** What a computation takes, in the order it is said: its operands, and what a marking word ("of", "from") puts in. */
 export const operandsOf = (p: Piece): { piece: Piece; link?: Piece; at: number }[] =>
