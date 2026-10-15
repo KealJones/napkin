@@ -236,6 +236,14 @@ played by the general machinery that works out what follows from what is held.
 - [ ] Order said is order kept (asked 2026-10-15): "Also, like in my last prompt, I say to do multiple things. But one thing "before" the others, we should see if any order like that exists before starting any executions as well to ensure proper desired ordering." Before anything runs, the whole message is read for order words ("before", "first", "then", "after", "once"), and the plan honours them along with what each hole needs.
 - [ ] Goals: what is wanted, and the steps to it the message did not say; pursued by asking itself, the same path a message takes, using its own answers to plan and do sub-goals, back and forth until done or stuck (then ask). Builds on packs/pursue.ncon.
 
+Plan and guardrails (agreed 2026-10-15):
+- Order of work: (1) the context lookup, since everything else needs it; (2) a first, narrow version of goals right after it: "look for what's missing until it's found" is the lookup run as a loop; (3) long messages and back-filling; (4) the one reader taking over, the situation reader first (the hardest test: GSM8K frames-alone 1/50 vs 15/50); (5) the order said is the order kept; (6) goals in general.
+- No reader is deleted until the one reader matches it on its tests and benchmarks; until then it stays as a fallback, so nothing gets worse on the way.
+- The composer's weights are hand-set starting points; they must be learned (from confirmations and corrections, and from a corpus or the teacher), or the one reader will not reach parity.
+- Back-filling a hole from later text needs a confidence bar; below it, ask rather than guess.
+- Goals: a step budget, a visible trace of what it asked itself, and stop-and-ask when stuck. Expect narrow goals ("I need X to answer this", "try another source") to be useful well before open-ended plans.
+- Realistic: the context lookup and the order said, now; long messages and the one reader, as long measured work; goals, in small pieces, the general version uncertain.
+
 # A teacher for what Napkin is missing
 
 - [x] Wired (research/teacher.ts): Gemini via the worker, asked last for a word (word / misspelling / name, in Means, IsA, PartOf, UsedFor, HasProperty) or an event (ATOMIC relations), stamped `Teacher Taught(term)`, asked once; on in the studio and CLI (`--no-teacher`), off in tests. Live probe: ~1-2 s per lesson; "my sourdough starter died" answered from what it taught; a made-up word taught as unknown, not guessed.
