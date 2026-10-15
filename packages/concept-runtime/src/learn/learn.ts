@@ -8,6 +8,7 @@
  * The loop is bounded and every step is traced. A gap that cannot be closed stays a
  * residual, which is an honest outcome and better than a fabricated realization.
  */
+import { teachWord, type Ask } from "../research/teacher.js";
 import { type Expr, c, call, format, isCall, walk } from "../concept/expression.js";
 import { reachesBehaviour } from "../runtime/select.js";
 import { classesOf, groundInWikidata, reachesInWikidata, wikidataItem } from "../research/wikidata.js";
@@ -208,6 +209,8 @@ async function learnOnce(
     asked?: Set<string>;
     /** The conversation so far, whose words help say which sense of a word is meant. */
     history?: readonly { message: string }[];
+    /** Asked last, when no source has the word: what it teaches is kept, never said (research/teacher.ts). */
+    teacher?: Ask;
   } = {},
 ): Promise<LearnResult> {
   const maxPasses = options.maxPasses ?? 3;
@@ -472,6 +475,22 @@ async function learnOnce(
       // Heard applied to something ("Mishka(Bought(...))") or not: where it stands decides. Only
       // when asked: told something of it ("Gunter is my friend"), what was told is what it is, and
       // a guess kept beside it would answer before it.
+      // No source has it: the teacher, when there is one, says what it is there, a word, a
+      // misspelling of one, or a name, and that is kept as anything learned is.
+      if (looked && options.teacher && options.research !== false) {
+        const said = [message, ...(options.history ?? []).map((h) => h.message)].join(" ");
+        const taught = await teachWord(runtime.store, gap.identity, words, said, { ask: options.teacher, cause: runtime.trace.cause, asks }).catch(() => undefined);
+        if (taught?.meant) {
+          steps.push({ identity: gap.identity, how: "research", detail: `taught: "${words}" is "${taught.meant}" mistyped` });
+          learnedSomething = true;
+          continue;
+        }
+        if (taught?.relations.length) {
+          steps.push({ identity: gap.identity, how: taught.name ? "name" : "research", detail: `taught: ${taught.relations.map(format).join(", ")}` });
+          learnedSomething = true;
+          continue;
+        }
+      }
       if (looked && !told && standsAsNameIn(message, words)) {
         runtime.store.addRelation(gap.identity, call("IsA", [{ value: c("Name") }]), undefined, runtime.trace.cause);
         steps.push({ identity: gap.identity, how: "name", detail: "taken as a name: nothing else was found for it" });
@@ -534,7 +553,21 @@ export async function lookUpWord(
   runtime: Runtime,
   identity: string,
   said: string,
-  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean; asks?: readonly string[] } = {},
+  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean; asks?: readonly string[]; teacher?: Ask } = {},
+): Promise<boolean> {
+  const found = await lookUpWordIn(runtime, identity, said, options);
+  if (found || !options.teacher) return found;
+  // No source has it: taught, when there is a teacher (research/teacher.ts).
+  const words = identity.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  const taught = await teachWord(runtime.store, identity, words, said, { ask: options.teacher, cause: runtime.trace.cause, ...(options.asks ? { asks: options.asks } : {}) }).catch(() => undefined);
+  return !!taught && (taught.relations.length > 0 || taught.meant !== undefined);
+}
+
+async function lookUpWordIn(
+  runtime: Runtime,
+  identity: string,
+  said: string,
+  options: { fetch?: (url: string) => Promise<unknown>; thing?: boolean; asks?: readonly string[] },
 ): Promise<boolean> {
   // Asked as one of a kind ("who is X": someone; "where is X": a place): only a sense of that kind,
   // never a thing the word also means; asked who, and nothing found, a name.

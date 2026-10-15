@@ -29,6 +29,7 @@ import { facetAncestors, lineage, reachesBehaviour } from "./select.js";
 import { facets } from "./context.js";
 import { Relations } from "../store/relations.js";
 import { whatFollows } from "../research/conceptnet.js";
+import { teachEvent, type Ask } from "../research/teacher.js";
 import { atomicQueryOf, atomicTermOf, groundInAtomic, heldOf } from "../research/atomic.js";
 import { nameOf } from "../ears/parser/names.js";
 import { learnFeelings } from "../research/feeling.js";
@@ -344,6 +345,11 @@ export interface TurnOptions extends HearOptions {
   maxPasses?: number;
   /** Off keeps learning to the graph: no Wikidata, no dictionary. */
   research?: boolean;
+  /**
+   * Asked last, when no source has a word or an event: a model that teaches, what it says kept as
+   * facts in the graph's relations and answered from, never said (research/teacher.ts).
+   */
+  teacher?: Ask;
   /**
    * The conversation this message is said in, as ambient state, so what it is focused on
    * can be derived for it (memory-spec Part 8.1). Absent, nothing is focused.
@@ -691,13 +697,18 @@ export async function turn(
     const atomic = term && (lookup || heldOf(runtime.store, nameOf(term)).length)
       ? await groundInAtomic(runtime.store, term, { cause: runtime.trace.cause, wait: 6_000, query: atomicQueryOf(message), ...(options.fetch ? { fetch: options.fetch } : {}) }).catch(() => undefined)
       : undefined;
-    const followed = atomic?.relations.length
+    let followed = atomic?.relations.length
       ? { identity: atomic.identity, term: term!, relations: atomic.relations, looked: [] }
       : await whatFollows(runtime.store, message, {
           lookup,
           cause: runtime.trace.cause,
           ...(options.fetch ? { fetch: options.fetch } : {}),
         }).catch(() => undefined);
+    // Nothing any source has of it: taught, when there is a teacher, in ATOMIC's relations.
+    if (!followed?.relations.length && term && lookup && options.teacher) {
+      const taught = await teachEvent(runtime.store, term, message, { ask: options.teacher, cause: runtime.trace.cause }).catch(() => undefined);
+      if (taught?.relations.length) followed = { identity: taught.identity, term, relations: taught.relations, looked: [] };
+    }
     if (followed) {
       runtime.context.set("follows", followed.identity);
       // What it leads to feels some way too (depression is bad): learned, for how the event feels.
@@ -826,7 +837,7 @@ export async function turn(
   if (!asked && !changed && options.inputMode !== "expression" && options.hearing !== "rules") {
     // Learning on, a question with words the graph holds nothing of looks them up while it is
     // read (frame/frames.ts), and what is found is kept like anything else learned.
-    const lookup = options.learn === false ? undefined : (identity: string, said: string, thing?: boolean, asks?: readonly string[]) => lookUpWord(runtime, identity, [said, ...(options.history ?? []).slice(-4).map((h) => h.message)].join(" "), { ...(options.fetch ? { fetch: options.fetch } : {}), thing: thing === true, asks: asks ?? [] });
+    const lookup = options.learn === false ? undefined : (identity: string, said: string, thing?: boolean, asks?: readonly string[]) => lookUpWord(runtime, identity, [said, ...(options.history ?? []).slice(-4).map((h) => h.message)].join(" "), { ...(options.fetch ? { fetch: options.fetch } : {}), ...(options.teacher ? { teacher: options.teacher } : {}), thing: thing === true, asks: asks ?? [] });
     // The reply to "do you mean A or B?" picks one: its choices are confirmed, the others' corrected.
     const picked = last?.result?.startsWith("ChooseOne(") ? pickOption(runtime.store, last.result, message) : undefined;
     if (picked) {

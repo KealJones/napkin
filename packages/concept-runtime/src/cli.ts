@@ -10,6 +10,7 @@
 import { dirname, resolve } from "node:path";
 import { c, format, parse } from "./concept/expression.js";
 import { Runtime } from "./runtime/evaluator.js";
+import { geminiTeacher } from "./research/teacher.js";
 import { activation } from "./runtime/activation.js";
 import { evidenceStoreFor } from "./runtime/evidence.js";
 import { describeAgenda, exist } from "./runtime/exist.js";
@@ -301,6 +302,7 @@ if (expr) {
     history,
     conversation: conversationId,
     learn: !flag("--no-learn"),
+    ...(flag("--no-teacher") || flag("--no-learn") ? {} : { teacher: geminiTeacher() }),
     hearing: value("--hear") === "rules" ? "rules" : "frames",
   });
   show("message", t.heard.message);

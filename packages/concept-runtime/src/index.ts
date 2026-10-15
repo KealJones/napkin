@@ -44,3 +44,4 @@ export function createRuntime(): Runtime {
 }
 export { formatNcon } from "./code/format.js";
 export * from "./version.js";
+export { geminiTeacher, teachWord, teachEvent, type Ask } from "./research/teacher.js";

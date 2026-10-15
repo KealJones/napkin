@@ -45,6 +45,11 @@ Concept(Atomic(),
   License("CC BY 4.0")
 )
 
+// A model asked last, when no source has a word or an event: what it taught is kept, each from
+// one stamp per thing taught, so it is separable (research/teacher.ts).
+Concept(Teacher(), IsA(LearningSource()))
+Concept(Taught(), IsA(Relation()))
+
 // What follows from what was told, and how it felt: a reply's matter.
 Concept(Follows(), IsA(Result()))
 

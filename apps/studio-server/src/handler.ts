@@ -27,7 +27,7 @@ import {
   type TraceEvent,
   turn as runTurn,
 } from "@napkin/concept-runtime";
-import { concept, realization, RUNTIME_BUILD } from "@napkin/concept-runtime";
+import { concept, geminiTeacher, realization, RUNTIME_BUILD } from "@napkin/concept-runtime";
 import { codeLanguages, formatNcon, importSource, writeSource } from "@napkin/concept-runtime";
 
 export interface StudioOptions {
@@ -35,6 +35,8 @@ export interface StudioOptions {
   graphPath: string;
   /** The trace beside it (concept-spec Part 13). */
   tracePath: string;
+  /** Asked last, when no source has a word or an event; Gemini through the worker by default. */
+  teacher?: (prompt: string) => Promise<string>;
 }
 
 export interface Studio {
@@ -48,6 +50,8 @@ export interface Studio {
 export async function createStudio(options: StudioOptions): Promise<Studio> {
   const { graphPath, tracePath } = options;
   const store = new ConceptStore();
+  // A model asked last, when no source has a word or an event (research/teacher.ts).
+  const teacher = options.teacher ?? geminiTeacher();
   // The built-in packs, a user's own beside the graph (packs/*.ncon), then the journal.
   const opened = await openNapkinGraph(store, graphPath);
   /** Every change is already appended to the journal; a JSON graph is written whole. */
@@ -295,6 +299,8 @@ export async function createStudio(options: StudioOptions): Promise<Studio> {
 
         const result = await runTurn(runtime, text, c("Execution"), {
           learn: body.learn !== false,
+          // Asked last, when no source has a word or an event: it teaches, Napkin answers.
+          ...(body.learn !== false && body.teacher !== false ? { teacher } : {}),
           inputMode: body.inputMode === "expression" ? "expression" : "message",
           history,
           conversation: conversationId,
