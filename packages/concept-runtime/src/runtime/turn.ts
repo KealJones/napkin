@@ -345,6 +345,8 @@ export interface TurnOptions extends HearOptions {
   maxPasses?: number;
   /** Off keeps learning to the graph: no Wikidata, no dictionary. */
   research?: boolean;
+  /** Whether a message telling a situation is read whole by the situation reader; false leaves it to frames and the rules. */
+  situations?: boolean;
   /**
    * Asked last, when no source has a word or an event: a model that teaches, what it says kept as
    * facts in the graph's relations and answered from, never said (research/teacher.ts).
@@ -791,7 +793,7 @@ export async function turn(
     };
   }
   // Any message with an amount in it may tell a situation; situationOf says whether it does.
-  if (options.inputMode !== "expression" && /\d|\?/.test(message)) {
+  if (options.inputMode !== "expression" && options.situations !== false && /\d|\?/.test(message)) {
     // Told in several sentences, a situation whose thing asked is not told is still one: read
     // loosely, as asking a plain number, rather than its words looked up a sentence at a time.
     const strict = situationOf(runtime.store, message);

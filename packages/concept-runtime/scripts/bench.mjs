@@ -37,8 +37,12 @@ for (const [i, item] of items.entries()) {
   if (!shared) seed(store);
   const before = taught;
   let said = "";
+  let by = "";
   try {
-    said = (await withTimeout(turn(new Runtime(store, {}), item.q, c("Execution"), teacher ? { teacher } : {}), teacher ? 180_000 : 60_000)).spoken;
+    const t = await withTimeout(turn(new Runtime(store, {}), item.q, c("Execution"), { ...(teacher ? { teacher } : {}), ...(flags.has("nosituations") ? { situations: false } : {}) }), teacher ? 180_000 : 60_000);
+    said = t.spoken;
+    const why = (t.why ?? []).join(" ");
+    by = /Read as one situation|for the situation before/.test(why) ? "situation" : /Read by its words' holes/.test(why) ? "frames-composed" : t.hearingUsed ?? "rules";
   } catch (e) {
     said = `(${e.message})`;
   }
@@ -47,7 +51,10 @@ for (const [i, item] of items.entries()) {
   const ok = got !== undefined && Number(got) === Number(item.want);
   if (ok) right += 1;
   if (!/don't know|couldn't|can't|put it another way/i.test(said)) answered += 1;
-  lines.push(`${ok ? "RIGHT" : "wrong"} #${i + 1}${taught > before ? ` (taught ${taught - before})` : ""} want ${item.want}, said: ${said.slice(0, 160).replace(/\n/g, " ")}`);
+  lines.push(`${ok ? "RIGHT" : "wrong"} #${i + 1}${taught > before ? ` (taught ${taught - before})` : ""} [${by}] want ${item.want}, said: ${said.slice(0, 160).replace(/\n/g, " ")}`);
 }
 console.log(`\n${which}: ${right}/${items.length} right (${((100 * right) / Math.max(1, items.length)).toFixed(1)}%); answered (not "I don't know") ${answered}/${items.length}${teacher ? `; teacher asked ${taught} times` : ""}${shared ? "; one graph for all" : ""}\n`);
+const readers = {};
+for (const l of lines) { const r = l.match(/\[([a-z-]+)\]/)?.[1] ?? "?"; readers[r] = readers[r] ?? [0, 0]; readers[r][0]++; if (l.startsWith("RIGHT")) readers[r][1]++; }
+console.log("read by: " + Object.entries(readers).map(([r, [n, ok]]) => `${r} ${n} (${ok} right)`).join(", ") + "\n");
 for (const l of lines) console.log(l);
