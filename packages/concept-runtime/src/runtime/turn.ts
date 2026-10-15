@@ -35,7 +35,7 @@ import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
 import { correct, corrected, tellingOf } from "../situation/correct.js";
-import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember, unaskedLeftOut } from "./felt.js";
+import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember, unaskedLeftOut, isTelling } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
 
 export interface Gap {
@@ -1136,6 +1136,16 @@ export async function turn(
     spoken = felt;
     spokenBy = "graph";
   }
+  // Told something nothing worked out whole, and that felt no way ("those people are quarrelling",
+  // "here you are"): it is talk, answered as talk; which of its words were not known is not the
+  // reply to someone just talking. What was read is still kept, and the words still looked up.
+  const telling = isTelling(message, running);
+  const talked = replying && telling && !felt && (unanswered || /^I worked something out|^I heard that as|^I don't know/.test(spoken));
+  if (talked) {
+    const last = (options.history?.at(-1)?.spoken ?? "").toLowerCase();
+    spoken = ["I see.", "Okay.", "Mm, okay."].find((x) => !last.includes(x.toLowerCase())) ?? "I see.";
+    spokenBy = "graph";
+  }
   // Small talk, with something told before still open: asked after.
   const askedAfter = !felt && options.speak !== false ? await checkIn(runtime, result, graphText) : undefined;
   if (askedAfter) spoken = `${spoken} ${askedAfter}`;
@@ -1150,7 +1160,7 @@ export async function turn(
     }
   }
   let stuckSaid: string | undefined;
-  if (unanswered && !felt && !spoken.startsWith("I can't do that yet") && stuck && (stuck.near || stuck.unknown.length)) {
+  if (unanswered && !felt && !talked && !spoken.startsWith("I can't do that yet") && stuck && (stuck.near || stuck.unknown.length)) {
     stuckSaid = await graphText(runtime, "RenderResponse", stuckResult(stuck)).catch(() => undefined);
     if (stuckSaid && options.speak !== false) spoken = `${spoken} ${stuckSaid}`;
   }

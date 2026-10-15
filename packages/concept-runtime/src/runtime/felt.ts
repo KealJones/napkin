@@ -182,3 +182,8 @@ export function unaskedLeftOut(result: Expr | undefined, expression: Expr | unde
   if (kept.length === result.args.length) return result;
   return kept.length === 0 ? call("Unknown", []) : kept.length === 1 ? kept[0]!.value : call("Sequence", kept);
 }
+
+/** A message that tells, not asks or tells to do: no "?", and no part read as a question or an order. */
+export function isTelling(message: string, heard: Expr | undefined): boolean {
+  return !/\?/.test(message) && !(heard !== undefined && [...walk(heard)].some((n) => isCall(n) && (n.head === "Interrogative" || n.head === "Imperative")));
+}

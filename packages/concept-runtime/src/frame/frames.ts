@@ -1430,7 +1430,9 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   // names that the graph knows only by name (no facts of their own), then the words it holds
   // nothing of (a run of them as one name before each word alone). After each find, the message is
   // read again, and the looking stops as soon as a reading accounts for every word.
-  if (!best && options.lookup && asking(asTyped, question)) {
+  // Asked or told: a word nothing is held of is looked up while reading either way, so what is
+  // told with a word not met yet is read whole once the word is known.
+  if (!best && options.lookup) {
     const own = (id: string) => relationsOf(store, id).some((r) => r.context === undefined && isCall(r.claim) && !STRUCTURAL.has(r.claim.head) && r.claim.args.length > 0);
     const named = asTyped.flatMap((w) => w.senses.flatMap((x) => (x.type === "entity" ? [x.head] : x.type === "pointer" && pointed ? [pointed] : [])));
     const runs = unknownRuns(store, asTyped, message);
