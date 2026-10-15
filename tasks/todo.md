@@ -192,7 +192,10 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   write "every source file reads back", pursue "what a line leaves undone".
 - [x] W5. Lists of things: a run joined by commas and "and" ("apples, pears and plums") is a List in
   doings told ("Tom bought ..."), to-dos (each kept apart) and lists held (holding pack, already).
-- [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines.
+- [ ] W6. Speed: long messages read in parts; no lookup of words the text itself defines. The
+  solver scores readings as they are built (weights summed, features merged and steps said only for
+  what is kept): the slowest GSM8K item of the first 50 11.8 s -> about 4 s, the same answers.
+  Still: eight amounts make 3^8 subset pairs; prune by unit before combining.
 
 # Concept games and chess
 

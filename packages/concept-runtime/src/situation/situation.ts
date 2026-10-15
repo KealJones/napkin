@@ -653,9 +653,12 @@ interface Worked {
   readonly used: number;
   /** How it was worked out, said. */
   readonly how: string;
-  readonly steps: readonly string[];
-  /** What its steps agree or disagree with in the words, counted ("plus:total", "times:beside"). */
-  readonly features: Readonly<Record<string, number>>;
+  /** Its steps, said: made only for what is kept, as most of what is tried never is. */
+  readonly said: () => readonly string[];
+  /** What its steps agree or disagree with in the words, counted ("plus:total", "times:beside"): made when asked for. */
+  readonly feats: () => Readonly<Record<string, number>>;
+  /** Those features weighed: summed as it is built, so nothing is merged to score it. */
+  readonly linear: number;
   readonly divisions: number;
   readonly depth: number;
   /** What its doing does to it: kept through what it is multiplied by ("3 kg lost a month" × 4 months). */
@@ -705,6 +708,13 @@ const plus = (a: Readonly<Record<string, number>>, b: Readonly<Record<string, nu
 };
 
 const round = (n: number) => Math.round(n * 1e9) / 1e9;
+/** A unit as a key, made once per unit. */
+const unitKeys = new WeakMap<object, string>();
+const unitKey = (u: Unit): string => {
+  let k = unitKeys.get(u);
+  if (k === undefined) unitKeys.set(u, (k = Object.entries(u).filter(([, v]) => v !== 0).sort(([a], [b]) => (a < b ? -1 : 1)).map(([a, v]) => `${a}^${v}`).join(" ")));
+  return k;
+};
 const show = (n: number) => (Number.isInteger(round(n)) ? String(round(n)) : String(round(n)));
 
 export interface Solved {
@@ -796,11 +806,17 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   };
   // What a reading is, beyond its steps: how deep, whole or not, more than nothing.
   const own = (w: Worked): Record<string, number> => ({ depth: w.depth, ...(Number.isInteger(round(w.value)) ? { whole: 1 } : {}), ...(w.value > 0 ? { positive: 1 } : { negative: 1 }) });
-  const score = (w: Worked) => dot(w.features) + dot(own(w));
+  // Scored once each: a subset's readings are compared many times over.
+  const scored = new WeakMap<Worked, number>();
+  const score = (w: Worked) => {
+    let v = scored.get(w);
+    if (v === undefined) scored.set(w, (v = w.linear + dot(own(w))));
+    return v;
+  };
   const add = (w: Worked) => {
     // One per value and unit: the one that fits the words best.
     const list = keyed.get(w.used) ?? new Map<string, Worked>();
-    const key = `${round(w.value)}|${sayUnit(w.unit)}`;
+    const key = `${round(w.value)}|${unitKey(w.unit)}`;
     const was = list.get(key);
     if (!was || score(w) > score(was)) list.set(key, w);
     keyed.set(w.used, list);
@@ -812,7 +828,7 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
     keyed.delete(m);
   };
   amounts.forEach((a, i) => {
-    add({ value: a.value, unit: a.unit, used: 1 << i, how: show(a.value), steps: [], features: {}, divisions: 0, depth: 0, sign: a.sign });
+    add({ value: a.value, unit: a.unit, used: 1 << i, how: show(a.value), said: () => [], feats: () => ({}), linear: 0, divisions: 0, depth: 0, sign: a.sign });
     settle(1 << i);
   });
   // Subsets in order of size: each made of two smaller disjoint ones.
@@ -824,7 +840,7 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
       if (s < t) continue;
       for (const a of by.get(s) ?? []) {
         for (const b of by.get(t) ?? []) {
-          for (const w of combine(a, b, amounts, asked, signs)) add(w);
+          for (const w of combine(a, b, amounts, asked, signs, W)) add(w);
         }
       }
     }
@@ -847,8 +863,13 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   // The question's own words with how the answer comes out ("ask|profit|-"): learned, unweighed until then.
   const asking = hostWords(asked.said).filter((t) => (t.tags.includes("Noun") || t.tags.includes("Verb") || t.tags.includes("Adjective")) && !t.tags.includes("Pronoun")).map((t) => lemma(t.text.toLowerCase()));
   const answerFeatures = (w: Worked): Record<string, number> =>
-    plus(plus(plus(w.features, own(w)), Object.fromEntries(w.op ? asking.map((q) => [`ask|${q}|${w.op}`, 1]) : [])), { converts: converts(w.used), owed: owed(w.used), again: again(w.used), ...(theirs(w) ? { theirs: 1 } : {}), ...(usesRatios(w) ? {} : { ratioLeft: 1 }) });
-  const total = (w: Worked) => dot(answerFeatures(w));
+    plus(plus(plus(w.feats(), own(w)), Object.fromEntries(w.op ? asking.map((q) => [`ask|${q}|${w.op}`, 1]) : [])), { converts: converts(w.used), owed: owed(w.used), again: again(w.used), ...(theirs(w) ? { theirs: 1 } : {}), ...(usesRatios(w) ? {} : { ratioLeft: 1 }) });
+  const totals = new WeakMap<Worked, number>();
+  const total = (w: Worked) => {
+    let v = totals.get(w);
+    if (v === undefined) totals.set(w, (v = dot(answerFeatures(w))));
+    return v;
+  };
   // What can be: things counted come whole, money in cents; a reading that comes to 7.5 lollipops
   // is not one, when another can be.
   const whole = (w: Worked) => {
@@ -861,11 +882,11 @@ function readingsAs(amounts: readonly Amount[], asked: Asked): { best?: Solved; 
   // None can be: not worked out, rather than said as if it were.
   const pool = all.filter(whole).sort((x, y) => total(y) - total(x));
   const best = pool[0];
-  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w), how: w.how, steps: w.steps }));
+  const ranked = pool.filter((w) => owed(w.used) <= 2).map((w) => ({ value: round(w.value), features: answerFeatures(w), score: total(w), how: w.how, steps: w.said() }));
   if (best && owed(best.used) <= 2) {
     const next = pool.find((w) => Math.abs(w.value - best.value) > 1e-9);
     const margin = next ? total(best) - total(next) : 99;
-    return { best: { value: round(best.value), unit: best.unit, how: best.how, steps: best.steps, amounts, asked, margin, rivals: pool.length, features: answerFeatures(best) }, ranked };
+    return { best: { value: round(best.value), unit: best.unit, how: best.how, steps: best.said(), amounts, asked, margin, rivals: pool.length, features: answerFeatures(best) }, ranked };
   }
   return { ranked };
 }
@@ -877,7 +898,7 @@ const bits = (m: number) => {
 };
 
 /** Every way two worked amounts combine whose units allow it. */
-function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked, signs: boolean): Worked[] {
+function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked, signs: boolean, W: Readonly<Record<string, number>>): Worked[] {
   const out: Worked[] = [];
   const used = a.used | b.used;
   const depth = Math.max(a.depth, b.depth) + 1;
@@ -895,18 +916,25 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   // A sum or difference times another: a price multiplies the count it is the price of, not the
   // difference of counts.
   const summed = (w: Worked) => /^\(.*[+-].*\)$/.test(w.how);
-  const step = (value: number, unit: Unit, how: string, op: string, fit: readonly string[], division = 0): Worked => ({
-    value,
-    unit,
-    used,
-    how,
-    steps: [...a.steps, ...b.steps, `${show(a.value)} ${op} ${show(b.value)} = ${sayAmount(value, unit)}`],
-    features: plus(plus(a.features, b.features), division ? { divisions: division } : {}, fit),
-    divisions: a.divisions + b.divisions + division,
-    depth,
-    sign: op === "×" || op === "÷" ? a.sign || b.sign : 0,
-    op,
-  });
+  const step = (value: number, unit: Unit, how: string, op: string, fit: readonly string[], division = 0, x: Worked = a, y: Worked = b): Worked => {
+    let said: readonly string[] | undefined;
+    let merged: Readonly<Record<string, number>> | undefined;
+    let linear = a.linear + b.linear + (division ? (W.divisions ?? 0) * division : 0);
+    for (const f of fit) linear += W[f] ?? 0;
+    return {
+      value,
+      unit,
+      used,
+      how,
+      said: () => (said ??= [...a.said(), ...b.said(), `${show(x.value)} ${op} ${show(y.value)} = ${sayAmount(value, unit)}`]),
+      feats: () => (merged ??= plus(plus(a.feats(), b.feats()), division ? { divisions: division } : {}, fit)),
+      linear,
+      divisions: a.divisions + b.divisions + division,
+      depth,
+      sign: op === "×" || op === "÷" ? a.sign || b.sign : 0,
+      op,
+    };
+  };
   // A rate is not added to a rate unless a rate is asked: prices are multiplied by what they price.
   const rate = (u: Unit) => Object.values(u).some((v) => v < 0);
   const askedRate = rate(asked.unit);
@@ -929,10 +957,7 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     for (const [x, y] of [[a, b], [b, a]] as const) {
       if (x.value - y.value <= 0) continue;
       const minusFit = [signOf(y) < 0 ? "minus:sign" : "minus:unsigned", ...(asked.left ? ["minus:left"] : []), ...(asked.more ? ["minus:more"] : []), ...(asked.total ? ["minus:total"] : [])];
-      out.push({
-        ...step(x.value - y.value, a.unit, `(${x.how} - ${y.how})`, "-", [...minusFit, ...lexical("-", x, y)]),
-        steps: [...a.steps, ...b.steps, `${show(x.value)} - ${show(y.value)} = ${sayAmount(x.value - y.value, a.unit)}`],
-      });
+      out.push(step(x.value - y.value, a.unit, `(${x.how} - ${y.how})`, "-", [...minusFit, ...lexical("-", x, y)], 0, x, y));
     }
   }
   // Multiplied: units multiply. A ratio only ever multiplies.
@@ -952,8 +977,7 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
     if (y.value === 0 || ratioOf(x)) continue;
     const q = times(x.unit, y.unit, -1);
     if (!Object.values(q).every((v) => Math.abs(v) <= 1)) continue;
-    const w = step(x.value / y.value, q, `${x.how} ÷ ${y.how}`, "÷", lexical("÷", x, y), 1);
-    out.push({ ...w, steps: [...a.steps, ...b.steps, `${show(x.value)} ÷ ${show(y.value)} = ${sayAmount(x.value / y.value, q)}`] });
+    out.push(step(x.value / y.value, q, `${x.how} ÷ ${y.how}`, "÷", lexical("÷", x, y), 1, x, y));
   }
   return out;
 }
