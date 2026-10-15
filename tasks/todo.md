@@ -159,7 +159,7 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   carried by a more general word said beside it ("%" beside "tax") is that word's. The lexicon reads
   Multiplies/DividesBy as factors. Learned only, test 0-399: 78 (packs 84, none 46; was 69 before).
   Noise left: average DividesBy(3), a few names Multiplies(2).
-- [ ] W12 (was). Numbers words carry, learned from workings by lift (scripts/learn-carried.mjs): "fifteen"
+  Before: numbers words carry, learned from workings by lift (scripts/learn-carried.mjs): "fifteen"
   15, "dozen" 12, "dime" 0.1, "minute" 60, "week" 7, "percent" 100, "leg" 4, from the numbers a
   working uses that its question never says. As counting words in place of the packs': 75 (packs
   78, none 72). Next: tell counting words from units and shares by where they stand and what the
