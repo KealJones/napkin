@@ -866,7 +866,28 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
   const best = all[0];
   if (!best) return [];
-  const root = best.piece;
+  // What someone is said to have said ("I told them that 2 plus two was 5", "she said 2 plus 2 is
+  // 4", "he told me his name is Bob"): the clause is read as its own; a claim in it is checked, a
+  // statement only noted as said, never kept as true.
+  const reporting = best.piece.role === "ReadDoing" && words[best.piece.word]!.senses.some((s) => s.type === "takes" && s.reports);
+  // The clause: what the doing says, or what "that" puts with it or with whom it was told.
+  const clauseOf = (p: Piece): Piece[] => [...filled(p, "Said"), ...filled(p, "Where").flatMap((l) => filled(l, "What")), ...filled(p, "Done").flatMap(clauseOf)];
+  const clause = reporting ? clauseOf(best.piece).find((x) => x.role === "ReadSame" || x.role === "ReadDoing") : undefined;
+  if (clause) {
+    const doer = filled(best.piece, "Doer")[0];
+    const speaker = doer ? (doer.role === "ReadThing" ? thingOf(doer) : c(doer.head)) : c("Someone");
+    return fromRoot(clause).filter((r) => format(r.display).includes("Claimed(") || r.writes).map((r) => ({
+      ...r,
+      writes: false,
+      key: `Reported ${r.key}`,
+      features: ["read:composed-reported", ...r.features],
+      display: c("Reported", speaker, r.display),
+      run: r.writes ? async () => c("Noted", c("Reported", speaker, r.display)) : r.run,
+    }));
+  }
+  return fromRoot(best.piece);
+
+  function fromRoot(root: Piece): Reading[] {
   const computed = computing(runtime, words, root, best, question, message, history);
   if (computed) return computed;
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
@@ -1039,9 +1060,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     }];
   }
   return [];
+  }
 }
 
-/** Readings that may fail on a row they cannot take: none, rather than none of the others either. */
 /**
  * A computation the words make ("2 plus 3 times 4", "half of 90", "subtract 3 from 10", "what
  * is 9 squared"): its operands, in the order said, a word that puts what follows it first
@@ -1080,6 +1101,17 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   };
   // Asked what it comes to ("what is 2 plus 3"), or said alone ("2 plus 3", "subtract 3 from 10").
   const asksWhat = root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask);
+  // A claim of what something comes to ("2 plus 2 is 5", "is 2 plus 2 4"): checked, nothing kept.
+  if (root.role === "ReadSame" && !asksWhat) {
+    const [a] = filled(root, "Subject");
+    const [b] = filled(root, "Said");
+    if (a && b && (a.op || b.op) && !a.ask && !b.ask) {
+      const [A, B] = [valueOf(a), valueOf(b)];
+      if (A === undefined || B === undefined) return [];
+      const claim = c("Claimed", A, B);
+      return [{ key: format(claim), features: ["read:composed-claim", ...best.features], score, display: claim, chosen: [], notes: [`A claim, checked: ${format(claim)}.`], run: async () => runtime.evaluate(claim, c("Execution")) }];
+    }
+  }
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
   if (!op?.op) return undefined;
   const asked = question || asksWhat;
@@ -1140,6 +1172,7 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   }];
 }
 
+/** Readings that may fail on a row they cannot take: none, rather than none of the others either. */
 function safely(read: () => Reading[]): Reading[] {
   try {
     return read();

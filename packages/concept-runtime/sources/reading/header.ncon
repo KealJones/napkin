@@ -33,6 +33,8 @@ Concept(ReadDoing(), IsA(WordRole()),
   HasHole("Then", ReadDoing()),
   HasHole("When", ReadTime()),
   HasHole("Particle", ReadParticle()),
+  HasHole("Said", ReadSame()),
+  HasHole("Said", ReadDoing()),
   Repeats("When"),
   HasHole("Mood", ReadMarker()),
   Repeats("Where"), Repeats("How"), Repeats("Aspect"), Repeats("Mood"))
@@ -46,7 +48,7 @@ Concept(ReadQuality(), IsA(WordRole()),
   Repeats("Where"), Repeats("How"))
 
 // A word that puts something with what it is said of ("at", "in", "for"): what it puts.
-Concept(ReadLink(), IsA(WordRole()), HasHole("What", ReadThing()), HasHole("What", ReadDoing()), HasHole("What", ReadOp()))
+Concept(ReadLink(), IsA(WordRole()), HasHole("What", ReadThing()), HasHole("What", ReadDoing()), HasHole("What", ReadOp()), HasHole("What", ReadSame()))
 
 // A word that stands for a computation ("plus", "half", "squared"): what it works on are its
 // operands, said beside it or marked by a word ("half of 90", "subtract 3 from 10"); as many as

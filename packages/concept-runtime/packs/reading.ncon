@@ -38,6 +38,8 @@ Concept(ReadDoing(),
   HasHole("Then", ReadDoing()),
   HasHole("When", ReadTime()),
   HasHole("Particle", ReadParticle()),
+  HasHole("Said", ReadSame()),
+  HasHole("Said", ReadDoing()),
   Repeats("When"),
   HasHole("Mood", ReadMarker()),
   Repeats("Where"),
@@ -62,7 +64,8 @@ Concept(ReadLink(),
   IsA(WordRole()),
   HasHole("What", ReadThing()),
   HasHole("What", ReadDoing()),
-  HasHole("What", ReadOp())
+  HasHole("What", ReadOp()),
+  HasHole("What", ReadSame())
 )
 
 // A word that stands for a computation ("plus", "half", "squared"): what it works on are its
