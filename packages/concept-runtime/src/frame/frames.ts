@@ -856,6 +856,8 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
 function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined): Reading[] {
   const store = runtime.store;
   if (words.length < 2 || words.length > 16) return [];
+  // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
+  if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text)) || message.includes("`")) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
   const row = words.map((w, i) => piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed));
   const best = compose(store, row)[0];
@@ -863,10 +865,21 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const root = best.piece;
   // A word that does something here (save, make, subtract, post) is done, not kept as said: its
   // own realization reads it, as the rules hearing hands it on.
-  // So is a doing the graph says where what it takes is kept ("I need socks": `Need KeepsAs(ToDo())`).
-  const doesSomething = (head: string) => reachesBehaviour(store, head) || store.asSubject(head).some((t) => t.predicate === "KeepsAs");
-  const acts = (p: Piece): boolean => ((p.role === "ReadDoing" || p.role === "ReadAspect") && (doesSomething(p.head) || doesSomething(nameOf(p.text)))) || p.fills.some((f) => acts(f.piece));
-  if (acts(root)) return [];
+  const doing = (p: Piece) => p.role === "ReadDoing" || p.role === "ReadAspect";
+  const acts = (p: Piece, does: (head: string) => boolean): boolean => (doing(p) && (does(p.head) || does(nameOf(p.text)))) || p.fills.some((f) => acts(f.piece, does));
+  // Only where it is asked to be done: no one said to do it ("save that"), or the one spoken to
+  // asked if they can or will ("can you make a list"). Told or asked of what was done ("did you
+  // get a nice tree?", "I got a car") is talk of the doing, read here.
+  const doer = root.role === "ReadDoing" ? filled(root, "Doer")[0] : undefined;
+  const toBeDone = root.role !== "ReadDoing" || !doer || (/^you$/i.test(doer.text) && filled(root, "Aspect").some((a) => /^(can|could|would|will|wo|should|please)$/i.test(a.text)));
+  if (toBeDone && acts(root, (h) => reachesBehaviour(store, h))) return [];
+  // A doing the graph says where what it takes is kept ("I need socks": `Need KeepsAs(ToDo())`)
+  // is kept there, by whoever says it.
+  if (acts(root, (h) => store.asSubject(h).some((t) => t.predicate === "KeepsAs"))) return [];
+  // A message that starts with what can be done, not read as a doing, is told to be done ("take
+  // 10, double it"), however its other words fall.
+  const first = row[0]!;
+  if (first.some(doing) && !(doing(root) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
   const asked = question || asksIn(root);
