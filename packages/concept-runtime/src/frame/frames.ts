@@ -1213,8 +1213,8 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
     if (p.op) {
       let operands = operandsOf(p);
       // One list given where several are taken ("add 3 and 4"): its items are what is taken.
-      if (operands.length === 1 && p.op.arity > 1 && items(operands[0]!.piece).length === p.op.arity) operands = items(operands[0]!.piece).map((piece) => ({ piece, at: piece.word, ...(operands[0]!.link ? { link: operands[0]!.link } : {}) }));
-      if (operands.length !== p.op.arity) return undefined;
+      if (operands.length === 1 && p.op.arity > 1 && items(operands[0]!.piece).length >= p.op.arity) operands = items(operands[0]!.piece).map((piece) => ({ piece, at: piece.word, ...(operands[0]!.link ? { link: operands[0]!.link } : {}) }));
+      if (operands.length < p.op.arity) return undefined;
       const ordered = [...operands.filter((o) => o.link && marksFirst(o.link)), ...operands.filter((o) => !(o.link && marksFirst(o.link)))];
       const args = ordered.map((o) => valueOf(o.piece));
       return args.every((a) => a !== undefined) ? c(p.op.target, ...(args as Expr[])) : undefined;
@@ -1241,11 +1241,11 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
   if (!op?.op) return undefined;
   // What it takes are things, not values ("add milk to my list"): a doing, not a computation.
-  const plainThing = (p: Piece): boolean => !p.op && p.value === undefined && !p.ask && !filled(p, "Also").length;
+  const plainThing = (p: Piece): boolean => items(p).some((x) => !x.op && x.value === undefined && !x.ask);
   if (operandsOf(op).some((o) => plainThing(o.piece))) return undefined;
   const asked = question || asksWhat;
   const given = operandsOf(op);
-  const operands = given.length === 1 && op.op.arity > 1 && items(given[0]!.piece).length === op.op.arity ? items(given[0]!.piece).map((piece) => ({ piece, at: piece.word })) : given;
+  const operands = given.length === 1 && op.op.arity > 1 && items(given[0]!.piece).length >= op.op.arity ? items(given[0]!.piece).map((piece) => ({ piece, at: piece.word })) : given;
   // Short of what it takes. Nothing said before it ("plus 3", "and plus 3?"): it goes on from what
   // came before, found by the context lookup. Nothing after it ("what is 9 minus"): asked.
   if (operands.length < op.op.arity) {

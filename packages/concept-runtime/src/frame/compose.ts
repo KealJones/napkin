@@ -211,7 +211,9 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
   // below one that took all it needs; a joined list of as many as it takes counts as them.
   const short = (p: Piece): number => {
     const given = p.op ? operandsOf(p) : [];
-    const own = !p.op ? 0 : given.length === 1 && p.op.arity > 1 && listed(given[0]!.piece) === p.op.arity ? 0 : Math.max(0, p.op.arity - given.length);
+    const many = given.length === 1 && p.op ? listed(given[0]!.piece) : 0;
+    // A list of more than it takes is spread over it a little less readily than one that fits.
+    const own = !p.op ? 0 : p.op.arity > 1 && many >= p.op.arity ? (many === p.op.arity ? 0 : 0.5) : Math.max(0, p.op.arity - given.length);
     return own + p.fills.reduce((sum, f) => sum + short(f.piece), 0);
   };
   return (at.get(`0,${n}`) ?? []).map((x) => ({ ...x, score: x.score - 0.6 * short(x.piece) })).sort((a, b) => b.score - a.score);
