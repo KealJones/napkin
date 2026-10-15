@@ -204,16 +204,35 @@ a postal service); every sentence heard alone; quantities as words; 14 of 50 tim
   what is kept): the slowest GSM8K item of the first 50 11.8 s -> about 4 s, the same answers.
   Still: eight amounts make 3^8 subset pairs; prune by unit before combining.
 
-# Concept games and chess
+# Games, learned
 
-- [ ] Add reusable collection, record, geometry, and persistent-state Concepts.
-- [ ] Seed chess movement, legality, transitions, outcomes, and evaluation as composed realizations.
-- [ ] Add game sessions, action matching, simulation, corrections, and consent-controlled rule changes.
-- [ ] Connect the game interaction to chat through Concepts and expose the expressions for inspection.
-- [ ] Test ordinary play, illegal/ambiguous requests, special moves, variants, persistence, and actual chat use.
-- [ ] Run workspace checks and document usage and remaining limits.
+Not a pack per game (2026-10-14: the chess pack was dropped). A game is learned the way anything
+is: its pieces, places and moves told ("a knight moves in an L", "you win when ..."), shown by
+play, or read from where the world writes the rules, kept as ordinary Concepts and relations, and
+played by the general machinery that works out what follows from what is held.
 
-Domain behavior belongs in the saved Concept units. Seed files author ordinary units; no chess dispatch is added to the evaluator. Host code is limited to reusable operations on values, collections, geometry, storage, and external model transport.
+- [ ] Reusable Concepts a game's rules can be told in: places on a board (geometry), pieces as
+  individuals with a place, a turn, what a move changes, what ends it.
+- [ ] Rules told in words kept as realizations over those ("a rook moves any number of squares in a
+  straight line"), checked against play, corrected when a move is said to be wrong.
+- [ ] Rules read from a page (Wikipedia, Wikibooks) the same way, with their source.
+- [ ] A session in conversation: what is in play takes what is said to it first (any activity, not
+  one game), moves heard, answered from what is held, taken back, a rule changed with consent.
+
+# A teacher for what Napkin is missing
+
+A small model, run locally (in the browser or the host), asked only when Napkin has a gap the graph
+and the sources leave open: it TEACHES (facts in the graph's own relations, with itself as the
+source), and Napkin answers from what it then holds, never with the model's text. The old Teacher
+was taken out because it invented facts ("emoji SynonymOf(emoticon)"), so:
+
+- [ ] Grounded first: the model reads a page Napkin fetched (Wikipedia, Wiktionary) and writes the
+  relations the page says, rather than recalling from its weights.
+- [ ] Constrained: it answers only in relations the graph already has, for the gap asked, checked
+  by parsing; anything else is dropped.
+- [ ] Kept as supposed, not believed: stamped with the model as source, used to answer and said so,
+  believed once a source or the person agrees, retracted when contradicted.
+- [ ] Measured before it is on: how often what it teaches is right, on gaps with known answers.
 
 # Ideas
 
