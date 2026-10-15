@@ -122,6 +122,24 @@ export function lexicon(store: ConceptStore): Lexicon {
       }
       return undefined;
     };
+    // Supposed while learning, or kept as a fact: Multiplies(3) ("thrice"), DividesBy(3) ("thirds").
+    for (const f of formsOf(w)) {
+      const s = supposed.get(f);
+      if (s?.has("Factor")) {
+        found = num(s.get("Factor"));
+        break;
+      }
+      const held = forgotten.has("Factor") ? undefined : facts(f).find((x) => x.predicate === "Multiplies" || x.predicate === "DividesBy");
+      const n = held ? num(held.value) : undefined;
+      if (held && n !== undefined && n !== 0) {
+        found = held.predicate === "Multiplies" ? n : 1 / n;
+        break;
+      }
+    }
+    if (found !== undefined || forgotten.has("Factor")) {
+      factors.set(w, found);
+      return found;
+    }
     for (const f of formsOf(w)) {
       const id = nameOf(f);
       const targets = [id, ...store.asSubject(id).filter((t) => t.predicate === "SynonymOf" && isCall(t.expr)).map((t) => (isCall(t.expr) ? t.expr.args[0]?.value : undefined)).filter((v): v is Expr => v !== undefined && isCall(v) && !v.args.length).map((v) => (isCall(v) ? v.head : ""))];
@@ -220,15 +238,20 @@ export function lexicon(store: ConceptStore): Lexicon {
       return undefined;
     },
     suppose: (word, predicate, value) => {
+      factors.clear();
       for (const w of predicate.startsWith("Effect") ? doingForms(word) : formsOf(word)) {
         const s = supposed.get(w) ?? new Map<string, unknown>();
         s.set(predicate, value);
         supposed.set(w, s);
       }
     },
-    unsuppose: () => supposed.clear(),
+    unsuppose: () => {
+      supposed.clear();
+      factors.clear();
+    },
     forget: (predicates) => {
       forgotten = new Set(predicates);
+      factors.clear();
     },
   };
   lexicons.set(store, lex);

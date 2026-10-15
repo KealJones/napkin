@@ -18,7 +18,7 @@ const test = lines(testFile).slice(0, Number(nTest)).map((x) => ({ q: x.question
 const store = new ConceptStore();
 seed(store);
 const lex = lexicon(store);
-const MEANINGS = ["Removes", "Compares", "Changes", "Number"];
+const MEANINGS = ["Removes", "Compares", "Changes", "Number", "Factor"];
 
 let t = Date.now();
 const learned = learnFromWorkings(store, train);
