@@ -400,11 +400,13 @@ export function slotReadings(word: string, prev = "", next = "", written: { capi
   const out: SlotReading[] = [];
   const nameFit = fit(pv, nx, { left: (a) => p.nameLeft.get(a) ?? 0, right: (b) => p.nameRight.get(b) ?? 0, share: p.names / p.total });
   // A name is seldom what an unknown word is with nothing around it to say so.
-  out.push({ as: "name", text: word, score: nameFit - 0.5 + (isName(w) ? 1.5 : 0) + (written.capitalised ? 0.7 : 0) + (isWord(w) ? -0.5 : 0) });
+  // A name is not a form of another word: "promoted" is promote, done.
+  out.push({ as: "name", text: word, score: nameFit - 0.5 + (isName(w) ? 1.5 : 0) + (written.capitalised ? 0.7 : 0) + (isWord(w) ? -0.5 : 0) + (!isName(w) && inflects(w) ? -1 : 0) });
   const wordFit = (c: string) => fit(pv, nx, { left: (a) => s.bigrams.get(`${a} ${c}`) ?? 0, right: (b) => s.bigrams.get(`${c} ${b}`) ?? 0, share: Math.max(1, frequency(c)) / p.total });
   // As typed: a word people write, by its own pairs; else a word not known yet, with nothing for
   // or against it (what looking it up, or being told, is for).
-  out.push({ as: "word", text: w, score: frequency(w) > 0 ? wordFit(w) : 0 });
+  // A word written often is likely the word ("promoted"), whatever its pairs say.
+  out.push({ as: "word", text: w, score: frequency(w) > 0 ? wordFit(w) + commonness(w) : 0 });
   // Misspelled: each word a letter or two away, less for each letter changed.
   for (const a of alternatives(word, pv, nx)) if (a.kind === "spelling") out.push({ as: "word", text: a.text, score: wordFit(a.text) - a.distance + a.common });
   return out.sort((a, b) => b.score - a.score);

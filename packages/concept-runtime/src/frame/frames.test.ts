@@ -397,3 +397,12 @@ test("a run of things joined by commas and and is a list, told and asked back", 
   const said = (await talk(store, ["Tom bought apples, pears and plums.", "What did Tom buy?", "remember to buy eggs and milk", "what do i need to buy"])).map((x) => x.spoken);
   assert.deepEqual([said[1], said[3]], ["Apples, pears and plums.", "Eggs and milk."]);
 });
+
+test("a word that only says how or when does not stand between who and the doing, and a form of a word is not a name", async () => {
+  const store = new ConceptStore();
+  seed(store);
+  const said = (await talk(store, ["i just got promoted!"])).map((x) => x.spoken);
+  assert.doesNotMatch(said[0]!, /is a name|don't know/);
+  const { standsAsNameIn } = await import("../ears/parser/words.js");
+  assert.equal(standsAsNameIn("i just got promoted!", "promoted"), false);
+});

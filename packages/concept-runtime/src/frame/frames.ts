@@ -713,8 +713,9 @@ function doings(runtime: Runtime, words: readonly Word[], question: boolean, poi
   words.forEach((w, v) => {
     if (v === 0 || !doing(w)) return;
     if (words.length === 3 && v === 1 && relationsOf(store, nameOf(lemma(w.text.toLowerCase()))).some((r) => isCall(r.claim) && r.claim.head === "Defines")) return;
-    // Who does it: "i", a thing, or whose thing ("my sister", the thing).
-    const who = words.slice(0, v);
+    // Who does it: "i", a thing, or whose thing ("my sister", the thing); past a word that only
+    // says how or when ("i just got promoted", the tagger's adverb with no sense here).
+    const who = words.slice(0, v).filter((x) => !(x.senses.length === 0 && (tags.get(x.text.toLowerCase()) ?? []).includes("Adverb")));
     const self = who.length === 1 ? who[0].senses.find((s) => s.type === "entity") : undefined;
     const owned = who.length === 2 && who[0].senses.some((s) => s.type === "owner") && thingWord(who[1]) ? named([who[1]]) : undefined;
     // Or one pointed at ("she has the flu", after "my mom is sick").
