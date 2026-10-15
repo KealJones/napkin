@@ -856,6 +856,8 @@ function todos(runtime: Runtime, words: readonly Word[], question: boolean, mess
  */
 function composed(runtime: Runtime, words: readonly Word[], question: boolean, message: string, pointed: string | undefined, history: readonly { result: string }[] = []): Reading[] {
   const store = runtime.store;
+  // Several sentences are read each on their own (turn.ts), not run together into one reading.
+  if (/[.!?;]\s+\S/.test(message.trim())) return [];
   // One word: something said whole ("hello", "thanks"), when the graph words it as itself.
   if (words.length === 1) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
@@ -970,7 +972,16 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       display: expr,
       chosen: [],
       notes: [...notes, `Done: ${format(expr)}.`],
-      run: async () => runtime.evaluate(expr, c("Execution")),
+      run: async () => {
+        // Things told for a holder just made go in it ("make a grocery list" … "I need socks and a charger").
+        if (!toBeDone && !asked) {
+          const doer = filled(root, "Doer")[0];
+          const line = doer ? c(doer.role === "ReadThing" ? (thingOf(doer) as { head: string }).head : doer.head, doingCall(root)) : doingCall(root);
+          const filledIn = await runtime.evaluate(c("Fills", line), c("Execution")).catch(() => undefined);
+          if (filledIn !== undefined && !(isCall(filledIn) && filledIn.head === "Fills")) return filledIn;
+        }
+        return runtime.evaluate(expr, c("Execution"));
+      },
     }];
   }
   if (root.role === "ReadDoing") {

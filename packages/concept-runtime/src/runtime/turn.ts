@@ -833,6 +833,8 @@ export async function turn(
       };
     }
   }
+  // What a reading runs may read the conversation it is in (a holder just made, what is in play).
+  if (options.conversation !== undefined) runtime.context.set("conversation", options.conversation);
   let lookedUp: LearnStep[] = [];
   // Where the frames got stuck, said with a "don't know" if the rules hearing does not answer either.
   let stuck: Stuck | undefined;
