@@ -1351,7 +1351,10 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   // A claim of what something comes to ("2 plus 2 is 5", "is 2 plus 2 4"): checked, nothing kept.
   if (root.role === "ReadSame" && !asksWhat) {
     const [a] = filled(root, "Subject");
-    const [b] = filled(root, "Said");
+    const [saidPiece] = filled(root, "Said");
+    // Said to be the same by a word that says so ("equal to 100", "the same as 4"): what it puts with it is the other side.
+    const sameWord = saidPiece && words[saidPiece.word]?.senses.some((x) => x.type === "glue" && x.copula);
+    const b = sameWord ? [...filled(saidPiece!, "Where"), ...filled(root, "Where")].flatMap((l) => filled(l, "What"))[0] : saidPiece;
     // Both sides come to values: a word read as a thing ("waht", a slip) is no side of a claim.
     const comes = (p: Piece) => !!p.op || p.value !== undefined || items(p).every((x) => x.value !== undefined);
     if (a && b && (a.op || b.op) && !a.ask && !b.ask && comes(a) && comes(b)) {
