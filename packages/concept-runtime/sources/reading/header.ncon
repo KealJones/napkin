@@ -148,6 +148,6 @@ Concept(ReadingByHoles(),
   Weighs("ReadOp.Where:before", -1),
   Weighs("ReadOp.Determiner:before", 0.8),
   Weighs("ReadOp.Determiner:after", -2),
-  Weighs("ReadJoining.With:before", -0.5),
+  Weighs("ReadJoining.With:before", -3),
   Weighs("ReadThing.Also:after", 0.5),
   Weighs("ReadThing.Also:before", -0.5))

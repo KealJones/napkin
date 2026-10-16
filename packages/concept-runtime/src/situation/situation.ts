@@ -1228,7 +1228,7 @@ function conversions(store: ConceptStore, amounts: readonly Amount[], asked: Ask
  * as Charleston" is Toulouse's 2 × Charleston's sheep, once Charleston's are known, in whatever
  * order the sentences tell them. A ratio whose referent never comes stays a ratio.
  */
-function resolveRatios(said: readonly Amount[]): Amount[] {
+export function resolveRatios(said: readonly Amount[]): Amount[] {
   const list: (Amount & { derived?: boolean })[] = [...said];
   const replaced = new Set<Amount>();
   const same = (a?: string, b?: string) => !!a && !!b && a.toLowerCase().replace(/'s$/, "") === b.toLowerCase().replace(/'s$/, "");

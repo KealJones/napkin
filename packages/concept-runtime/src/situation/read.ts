@@ -16,7 +16,7 @@ import { lemma } from "../runtime/host.js";
 import { filled, type Piece } from "../frame/compose.js";
 import { frames, type Word } from "../frame/frames.js";
 import { lexicon } from "./lexicon.js";
-import type { Amount, Asked, Situation, Unit } from "./situation.js";
+import { resolveRatios, type Amount, type Asked, type Situation, type Unit } from "./situation.js";
 
 interface Sentence {
   readonly piece: Piece;
@@ -27,7 +27,9 @@ interface Sentence {
 /** Each sentence of a message, as the one reader fits its words together; nothing is run or kept. */
 export async function readSentences(runtime: Runtime, message: string): Promise<Sentence[]> {
   const out: Sentence[] = [];
-  for (const text of message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean)) {
+  // Sentences, and the clauses a comma parts in one that asks ("If Martha has 68 apples, how many …").
+  const parts = message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean).flatMap((x) => (/\?$/.test(x) ? x.split(/,\s+/) : [x]));
+  for (const text of parts) {
     let got: Sentence | undefined;
     await frames(runtime, text, [], { pieces: (piece, words) => (got ??= { piece, words, text }) }).catch(() => undefined);
     if (got) out.push(got);
@@ -100,6 +102,27 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       };
       return;
     }
+    // Said as a share or a difference of someone else's ("half as many apples as Martha", "30 less
+    // apples than Martha"): a word that multiplies (lex.times) or compares (lex.compares), and the one
+    // it is of, the thing a link puts in that is no count and no unit.
+    const ofWhom = (clause: Piece | undefined, unit: string | undefined): string | undefined => {
+      if (!clause) return undefined;
+      const linked = walk(clause).flatMap((x) => filled(x, "Where")).flatMap((l) => filled(l, "What"));
+      const who = linked.find((x) => x.role === "ReadThing" && x.value === undefined && !filled(x, "Count").length && base(x.text) !== unit && !lex.measures(base(x.text)) && !lex.per(x.text.toLowerCase()));
+      return who ? who.text.replace(/['’]s$/, "").toLowerCase() : undefined;
+    };
+    const ratios = new Set<Piece>();
+    for (const times of walk(s.piece).filter((x) => lex.times(x.text) !== undefined && typeof x.value !== "number")) {
+      const clause = clauseOf(times);
+      if (!clause) continue;
+      const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
+      const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
+      const whom = ofWhom(clause, unitName);
+      if (!whom) continue;
+      ratios.add(times);
+      const holder = holderOf(clause);
+      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
+    }
     for (const p of walk(s.piece)) {
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
       const alone = p.role === "ReadThing" && typeof p.value === "number" && !walk(s.piece).some((q) => filled(q, "Count").includes(p)) ? p : undefined;
@@ -115,7 +138,11 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (thing) unit[thing] = 1;
       if (per && per !== thing) unit[per] = (unit[per] ?? 0) - 1;
       if (count) lastUnit = base(p.text);
+      // A difference said of someone else's ("30 less apples than Martha").
+      const comparing = [...filled(p, "Name"), ...filled(p, "Describer"), ...(clause ? walk(clause) : [])].find((x) => x !== p && lex.compares(x.text) !== 0);
+      const whom = comparing ? ofWhom(clause, thing) : undefined;
       amounts.push({
+        ...(comparing && whom ? { ratio: true, of: { holder: whom, differs: lex.compares(comparing.text) } } : {}),
         value: number.value,
         unit: unit as Unit,
         said: `${number.value}${thing ? ` ${thing}` : ""}${per ? ` per ${per}` : ""}`,
@@ -130,5 +157,5 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     if (named) lastHolder = named;
   });
   if (!asked || !amounts.length) return undefined;
-  return { amounts, asked };
+  return { amounts: resolveRatios(amounts), asked };
 }

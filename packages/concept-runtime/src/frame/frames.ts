@@ -917,6 +917,8 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const own = nameOf(lemma(w.text.toLowerCase()) || w.text);
     const only = w.senses.every((x) => x.type === "entity" || x.type === "kind" || x.type === "takes" || x.type === "relation" || (x.type === "question" && x.head !== own));
     const can = i === 0 && only ? heads.find((h) => /^[a-z]+$/i.test(w.text) && doable(h)) : undefined;
+    // A word the graph says compares ("less", "more", "older") can say how a thing is, beside a count ("30 less apples").
+    if (heads.some((h) => store.asSubject(h).some((t) => t.predicate === "Compares")) && !pieces.some((p) => p.role === "ReadQuality")) pieces.push({ role: "ReadQuality", head: nameOf(w.text), word: i, text: w.text, fills: [] });
     if (!can) return pieces;
     const rest = pieces.filter((p) => !(p.role === "ReadDoing" && p.head === can));
     return [...rest, { role: "ReadDoing", head: can, word: i, text: w.text, fills: [] }];
