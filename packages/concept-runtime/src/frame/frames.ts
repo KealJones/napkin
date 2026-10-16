@@ -860,6 +860,26 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // Several sentences are read each on their own (turn.ts), not run together into one reading.
   if (/[.!?;]\s+\S/.test(message.trim())) return [];
   // One word: something said whole ("hello", "thanks"), when the graph words it as itself.
+  // Words that are one Concept said whole ("cool", "good morning", "lol"), which answers as itself
+  // by what it is (Cool IsA Approval, answered Glad you like it): that answer.
+  const whole = nameOf(words.map((w) => w.text).join(" "));
+  const named = (store.get(whole)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA");
+  if (words.length <= 3 && /^[A-Z][A-Za-z]*$/.test(whole) && store.has(whole) && !words.some((w) => w.senses.some((x) => x.type === "op" || x.type === "value" || (x.type === "question" && !(named && words.length > 1))))) {
+    const said: Reading = { key: `Whole ${whole}`, features: ["read:composed-whole"], score: 3 + words.length, display: c(whole), chosen: [], notes: [`"${words.map((w) => w.text).join(" ")}" is ${whole}, said whole.`], run: async () => {
+      const v = await runtime.evaluate(c(whole), c("Execution")).catch(() => undefined);
+      return v === undefined || (isCall(v) && v.head === whole) ? undefined : isCall(v) && v.head === "Answer" ? v : c("Answer", v);
+    } };
+    if (words.length > 1 || named) return [said, ...sayings(store, words, question)];
+  }
+  // What the graph has written for the words in the order said ("how are you": How(Are(You())),
+  // answered DoingWell in a question): read so when nothing else reads them.
+  // Only for what is asked: an answer, not a thing kept or done.
+  const inOrder = asking(words, question) && words.length <= 6 && words.every((w) => /^[a-z']+$/i.test(w.text)) ? words.map((w) => nameOf(w.text.replace(/'/g, ""))).reduceRight<Expr | undefined>((inner, h) => (inner === undefined ? c(h) : c(h, inner)), undefined) : undefined;
+  const saidInOrder: Reading[] = inOrder !== undefined ? [{ key: `In order ${format(inOrder)}`, features: ["read:composed-in-order"], score: 1, display: inOrder, chosen: [], notes: [`Read in the order said: ${format(inOrder)}.`], run: async () => {
+    const scoped = c("ContextScope", c(asking(words, question) ? "Interrogative" : "Declarative"), inOrder);
+    const v = await runtime.evaluate(scoped, c("Execution")).catch(() => undefined);
+    return v === undefined || (isCall(v) && (v.head === "ContextScope" || (isCall(inOrder) && v.head === inOrder.head))) ? undefined : v;
+  } }] : [];
   if (words.length === 1 && !words[0]!.senses.some((x) => x.type === "value" && isCall(x.value))) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
@@ -884,7 +904,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (process.env.NAPKIN_COMPOSE_DEBUG) console.error("  pieces", row.map((ps) => ps.map((p) => `${p.text}:${p.role}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.guessed ? "?" : ""}`).join(" ")).join(" | "));
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
   const best = all[0];
-  if (!best) return [];
+  if (!best) return saidInOrder;
   // What someone is said to have said ("I told them that 2 plus two was 5", "she said 2 plus 2 is
   // 4", "he told me his name is Bob"): the clause is read as its own; a claim in it is checked, a
   // statement only noted as said, never kept as true.
@@ -904,7 +924,8 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       run: r.writes ? async () => c("Noted", c("Reported", speaker, r.display)) : r.run,
     }));
   }
-  return fromRoot(best.piece);
+  const read = fromRoot(best.piece);
+  return read.length ? read : saidInOrder;
 
   function fromRoot(root: Piece): Reading[] {
   const computed = computing(runtime, words, root, best, question, message, history);
