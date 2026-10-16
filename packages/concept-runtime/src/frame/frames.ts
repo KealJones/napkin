@@ -1130,6 +1130,13 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const other = link && filled(link, "What")[0];
     if (subjectPiece && said && link && other && !other.ask && !said.ask) {
       const relation = nameOf(said.text);
+      // Two numbers compared by a word the graph says compares up or down ("is 100 more than 99"): worked out.
+      const way = store.asSubject(relation).find((t) => t.predicate === "Compares" && t.object !== undefined && isCall(t.object))?.object;
+      const [x, y] = [subjectPiece.value, other.value];
+      if (way !== undefined && isCall(way) && typeof x === "number" && typeof y === "number") {
+        const holds = way.head === "Up" ? x > y : x < y;
+        return [{ key: `Compared ${x} ${relation} ${y}`, features: ["read:composed-compared-values", ...best.features], score: base + 1, display: c("Whether", c(relation, x, y)), chosen: [], notes, run: async () => c("Answer", c(holds ? "True" : "False")) }];
+      }
       const object = who(other)!;
       if (subjectPiece.ask) {
         const found = store.triples().filter((t) => t.predicate === relation && t.context === undefined && isCall(t.expr) && t.expr.args[0] && equal(t.expr.args[0].value, object) && !store.retracted(t.subject, t.expr)).map((t) => c(t.subject));
@@ -1335,7 +1342,9 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   if (root.role === "ReadSame" && !asksWhat) {
     const [a] = filled(root, "Subject");
     const [b] = filled(root, "Said");
-    if (a && b && (a.op || b.op) && !a.ask && !b.ask) {
+    // Both sides come to values: a word read as a thing ("waht", a slip) is no side of a claim.
+    const comes = (p: Piece) => !!p.op || p.value !== undefined || items(p).every((x) => x.value !== undefined);
+    if (a && b && (a.op || b.op) && !a.ask && !b.ask && comes(a) && comes(b)) {
       const [A, B] = [valueOf(a), valueOf(b)];
       if (A === undefined || B === undefined) return [];
       const claim = c("Claimed", A, B);
@@ -1345,8 +1354,22 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   const op = root.op ? root : asksWhat ? filled(root, "Said").find((x) => x.op) : undefined;
   if (!op?.op) return undefined;
   // What it takes are things, not values ("add milk to my list"): a doing, not a computation.
-  const plainThing = (p: Piece): boolean => items(p).some((x) => !x.op && x.value === undefined && !x.ask);
+  // A pointing word taken ("double it") is what came before: a number the context lookup finds.
+  const pointing = (p: Piece) => words[p.word]?.senses.some((x) => x.type === "pointer") ?? false;
+  const plainThing = (p: Piece): boolean => items(p).some((x) => !x.op && x.value === undefined && !x.ask && !pointing(x));
   if (operandsOf(op).some((o) => plainThing(o.piece))) return undefined;
+  const pointed = operandsOf(op).filter((o) => pointing(o.piece));
+  if (pointed.length && operandsOf(op).length === op.op.arity) {
+    const target = op.op.target;
+    const given = operandsOf(op);
+    return [{ key: `${target} of what came before`, features: ["read:composed-points-back", ...best.features], score, display: c(target, ...given.map((o) => (pointing(o.piece) ? c("Before") : valueOf(o.piece) ?? c("What")))), chosen: [], notes: [`"${pointed[0]!.piece.text}" is what came before.`], run: async () => {
+      const found = await fillFromContext(context, { kind: "number", word: pointed[0]!.piece.text });
+      if (!found) return undefined;
+      const args = given.map((o) => (pointing(o.piece) ? found.value : valueOf(o.piece)));
+      if (args.some((x) => x === undefined)) return undefined;
+      return c("Answer", await runtime.evaluate(c(target, ...(args as Expr[])), c("Execution")));
+    } }];
+  }
   const asked = question || asksWhat;
   const given = operandsOf(op);
   const operands = given.length === 1 && op.op.arity > 1 && items(given[0]!.piece).length >= op.op.arity ? items(given[0]!.piece).map((piece) => ({ piece, at: piece.word })) : given;

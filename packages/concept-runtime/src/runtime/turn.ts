@@ -322,6 +322,8 @@ export function learnable(runtime: Runtime, gaps: readonly Gap[]): Gap[] {
 export interface TurnOptions extends HearOptions {
   /** A sentence of a longer message, heard on its own: not split again. */
   oneSentence?: boolean;
+  /** Read as one chunk: not parted again at its commas. */
+  oneChunk?: boolean;
   /** How the world is reached when learning (Wikidata); tests pass a fake. */
   fetch?: (url: string) => Promise<unknown>;
   /**
@@ -891,12 +893,16 @@ export async function turn(
   // Several sentences no reading took whole ("lol. You're kinda bad at talking. What time is it?"):
   // each is heard on its own, as if said one after another, and each answered; the rules never
   // see them run together.
-  const sentences = options.inputMode === "expression" || options.oneSentence ? [] : message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean);
+  const whole = options.inputMode === "expression" || options.oneSentence ? [] : message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean);
+  // One sentence no reading takes whole, in chunks a comma or semicolon parts ("take 10, double it,
+  // then subtract 5"): each chunk read in turn, what one leaves open filled from the one before.
+  const chunks = options.inputMode === "expression" || options.oneChunk || whole.length > 1 || options.hearing === "rules" || options.hearing === "old" ? [] : message.split(/\s*[,;]\s+/).map((x) => x.trim()).filter(Boolean);
+  const sentences = whole.length > 1 ? whole : chunks.length > 1 && chunks.every((x) => /[a-z0-9]/i.test(x)) ? chunks : [];
   if (sentences.length > 1) {
     const parts: TurnResult[] = [];
     let history = [...(options.history ?? [])];
     for (const sentence of sentences) {
-      const t = await turn(runtime, sentence, given, { ...options, history, oneSentence: true });
+      const t = await turn(runtime, sentence, given, { ...options, history, oneSentence: true, oneChunk: true });
       parts.push(t);
       history = [...history, { message: sentence, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken }];
     }
@@ -907,7 +913,8 @@ export async function turn(
       ...last,
       result,
       rendered: result === undefined ? last.rendered : format(result),
-      spoken: parts.map((t) => t.spoken.trim()).filter(Boolean).join(" "),
+      // Steps of one sentence each working on the one before ("take 10, double it, then subtract 5"): what they come to.
+      spoken: sentences === chunks && parts.every((t) => t.result !== undefined && (typeof t.result === "number" || (isCall(t.result) && t.result.head === "Answer" && typeof t.result.args[0]?.value === "number"))) ? last.spoken : parts.map((t) => t.spoken.trim()).filter(Boolean).join(" "),
       gaps: parts.flatMap((t) => t.gaps),
       learned: parts.flatMap((t) => t.learned),
       why: parts.flatMap((t, i) => [`Sentence ${i + 1}, heard on its own: "${sentences[i]}".`, ...(t.why ?? [])]),
