@@ -35,6 +35,7 @@ import { nameOf } from "../ears/parser/names.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
+import { readSentences, situationFromSentences } from "../situation/read.js";
 import { correct, corrected, tellingOf } from "../situation/correct.js";
 import { askedOfNapkin, asks, checkIn, feltReply, happened, keptOnly, offerAnswered, remember, unaskedLeftOut, isTelling } from "./felt.js";
 import { groundInWikidata, reachesInWikidata, regroundSense, wikidataItem } from "../research/wikidata.js";
@@ -837,6 +838,36 @@ export async function turn(
   }
   // What a reading runs may read the conversation it is in (a holder just made, what is in play).
   if (options.conversation !== undefined) runtime.context.set("conversation", options.conversation);
+  // A word problem told in sentences and asked at the end: each sentence read by the one reader,
+  // the amounts taken from what its words fit together as, worked out by the solver (situation/read.ts).
+  if (!old && options.inputMode !== "expression" && !options.oneSentence && /\d/.test(message) && /[.!?]\s+\S/.test(message.trim())) {
+    const sentences = await readSentences(runtime, message).catch(() => []);
+    const situation = sentences.length >= 2 ? situationFromSentences(runtime.store, sentences) : undefined;
+    const solved = situation ? solve(situation.amounts, situation.asked) : undefined;
+    if (situation && solved) {
+      const result = worked(solved);
+      const rendered = format(result);
+      const spoken = options.speak === false ? rendered : (await graphText(runtime, "RenderResponse", result)) ?? rendered;
+      return {
+        heard: { message, raw: rendered, expression: result, problems: [], rejected: [], text: message, edits: [] },
+        expression: result,
+        parsed: rendered,
+        resolved: [],
+        resolvedNames: [],
+        result,
+        rendered,
+        spoken,
+        spokenBy: options.speak === false ? "none" : "graph",
+        gaps: [],
+        ambiguities: [],
+        learned: [],
+        rereads: 0,
+        failed: undefined,
+        hearingUsed: "frames",
+        why: [`Read as one situation, sentence by sentence: ${situation.amounts.map((a) => a.said).join(", ")}; asked: "${situation.asked.said}".`, ...solved.steps],
+      };
+    }
+  }
   let lookedUp: LearnStep[] = [];
   // Where the frames got stuck, said with a "don't know" if the rules hearing does not answer either.
   let stuck: Stuck | undefined;

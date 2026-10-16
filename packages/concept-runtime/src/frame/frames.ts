@@ -51,7 +51,7 @@ export interface Framed {
   readonly why?: string[];
 }
 
-interface Word {
+export interface Word {
   readonly text: string;
   readonly senses: Sense[];
 }
@@ -1855,6 +1855,7 @@ function explain(store: ConceptStore, reading: Reading, edits: readonly Edit[], 
 
 let namesAt = -1;
 
+export type { Piece } from "./compose.js";
 export interface FrameOptions {
   /**
    * Look a thing up in the world and keep what is found (Wikidata, by `groundInWikidata`).
@@ -1866,6 +1867,8 @@ export interface FrameOptions {
   readonly lookups?: number;
   /** The fixed readers too (sums, facts, statements, …), beside the one reader: for comparing with the old hearing only. */
   readonly fixed?: boolean;
+  /** Only how the words fit together, for what reads a whole message in parts (situation/read.ts): nothing is run. */
+  readonly pieces?: (piece: Piece, words: readonly Word[]) => void;
   /** Reading one part of a message joined by "and": not split again. */
   readonly part?: boolean;
 }
@@ -2073,6 +2076,14 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // The one reader: what the words make of each other by their holes (frame/compose.ts). The
       // fixed readers only when asked for, to compare with the old hearing.
       const fixed = options.fixed ? [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)] : [];
+      if (options.pieces) {
+        if (row === rows[0]) {
+          const tagsHere = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
+          const best = compose(store, words.map((w, i) => piecesOf(w, i, tagsHere.get(w.text.toLowerCase()) ?? [], pointed)))[0];
+          if (best) options.pieces(best.piece, words);
+        }
+        continue;
+      }
       const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed, history))];
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
@@ -2104,6 +2115,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   };
 
   let { best, next, close, asTyped, nearest, unknown } = await choose();
+  if (options.pieces) return { looked: [] };
   const looked: Looked[] = [];
   // Learn while reading. A question that no reading accounts for looks up, in turn: the things it
   // names that the graph knows only by name (no facts of their own), then the words it holds

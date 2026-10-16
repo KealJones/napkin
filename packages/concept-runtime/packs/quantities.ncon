@@ -274,6 +274,24 @@ Concept(Annually(), CountsPer(Year()))
 
 Concept(Hourly(), CountsPer(Hour()))
 
+// Said before what one is counted of ("$2 per egg", "16 eggs every day", "each"): a rate.
+Concept(Per(), Marks(Each()))
+
+Concept(Every(), Marks(Each()))
+
+Concept(Each(), Marks(Each()))
+
+// Said of all of them together ("in total", "altogether").
+Concept(Total(), Marks(Whole()))
+
+Concept(Altogether(), Marks(Whole()))
+
+Concept(Together(), Marks(Whole()))
+
+Concept(Combined(), Marks(Whole()))
+
+Concept(Overall(), Marks(Whole()))
+
 Concept(Original(), Marks(Before()))
 
 Concept(Regular(), Marks(Before()))
