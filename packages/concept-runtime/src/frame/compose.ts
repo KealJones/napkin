@@ -90,7 +90,11 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
     }
     else if (s.type === "op") add("ReadOp", s.target, { op: { target: s.target, arity: s.holes.length, binds: s.binds, right: s.right, takes: s.holes } });
     else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text));
-    else if (s.type === "question") add("ReadThing", s.head, { ask: true });
+    else if (s.type === "question") {
+      add("ReadThing", s.head, { ask: true });
+      // A question word that asks an amount ("how many", "how much") asks how many of a thing: its count.
+      if (s.kinds.includes("Amount")) add("ReadCount", s.head, { ask: true });
+    }
     else if (s.type === "owner") add("ReadOwning", s.head);
     else if (s.type === "takes") add("ReadDoing", s.head, { takes: true });
     else if (s.type === "glue") {
@@ -192,7 +196,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       // What is taken from one side is taken outward of what is already taken from that side.
       const feature = `${taker.piece.role}.${hole}:${side}`;
       // What a question asks for is said first, wherever it would stand told: weighed apart.
-      const asked = taken.piece.ask ? [`${feature}:ask`] : [];
+      const asked = asks(taken.piece) ? [`${feature}:ask`] : [];
       // Said first in the message ("is tom taller…", "did you…"), a word may take differently: weighed apart too.
       if (taker.piece.word === 0) asked.push(`${feature}:lead`);
       // A doing that takes a whole statement takes one more readily than another doing does.

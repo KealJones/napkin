@@ -1758,7 +1758,9 @@ function fold(store: ConceptStore, words: readonly string[]): string[] {
       // Or a kind the graph has (ShoppingList IsA List, made in talk): "shopping list" is one thing.
       // A kind of what its last word names: a compound ("shopping list" IsA List).
       const kind = relationsOf(store, whole).some((r) => r.context === undefined && isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && (r.claim.args[0]!.value as { head: string }).head === nameOf(lemma(part.at(-1)!.toLowerCase()) || part.at(-1)!));
-      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes || described || kind)) {
+      // Or a question said in words ("how much"): asked as one.
+      const asking = typesOf(store, c(whole)).some((k) => k === "QuestionWord" || k === "Interrogative");
+      if (part.length === n && part.every((w) => /^[A-Za-z]+$/.test(w)) && !STRUCTURAL.has(whole) && store.has(whole) && (holdsFacts(store, whole) || computes || described || kind || asking)) {
         taken = n;
         break;
       }
