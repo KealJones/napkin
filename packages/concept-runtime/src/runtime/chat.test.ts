@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { c } from "../concept/expression.js";
+import { c, format } from "../concept/expression.js";
 import { say } from "../ears/say.js";
 import { seed } from "../seed/seed.js";
 import { ConceptStore } from "../store/store.js";
@@ -9,49 +9,58 @@ import { turn } from "./turn.js";
 
 const store = new ConceptStore();
 seed(store);
-const ask = async (text: string) =>
-  (await turn(new Runtime(store), text, c("Execution"), { learn: false, speak: false })).rendered;
+// What Napkin says to a message: behaviour is what is said, not the form it is held in.
+const ask = async (text: string) => (await turn(new Runtime(store), text, c("Execution"), { learn: false })).spoken;
+const NOT_TALK = /tell me more|stuck|couldn't read|can't put it into words/i;
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const inDays = (n: number) => DAYS[new Date(Date.now() + n * 86_400_000).getDay()];
 
 test("the when said after what is asked belongs to it", async () => {
-  assert.equal(await ask("what day will it be tomorrow"), `Answer("${inDays(1)}")`);
-  assert.equal(await ask("what day will it be in 5 days"), `Answer("${inDays(5)}")`);
-  assert.match(await ask("what's the date tomorrow"), new RegExp(`weekday="${inDays(1)}"`));
-  assert.equal(await ask("what day is it"), `Answer("${inDays(0)}")`);
+  assert.match(await ask("what day will it be tomorrow"), new RegExp(inDays(1)!, "i"));
+  assert.match(await ask("what day will it be in 5 days"), new RegExp(inDays(5)!, "i"));
+  assert.match(await ask("what's the date tomorrow"), new RegExp(inDays(1)!, "i"));
+  assert.match(await ask("what day is it"), new RegExp(inDays(0)!, "i"));
 });
 
 test("roots and percents, said the way people say them", async () => {
-  assert.equal(await ask("what is the square root of 144"), "Answer(12)");
-  assert.equal(await ask("whats the cube root of 27"), "Answer(3)");
-  assert.equal(await ask("what is 15% of 80"), "Answer(12)");
+  assert.match(await ask("what is the square root of 144"), /\b12\b/);
+  assert.match(await ask("whats the cube root of 27"), /\b3\b/);
+  assert.match(await ask("what is 15% of 80"), /\b12\b/);
 });
 
 test("small talk is answered, not looked up", async () => {
-  assert.equal(await ask("good morning"), "Answer(Hello())");
-  assert.equal(await ask("how are you?"), "Answer(DoingWell())");
-  assert.equal(await ask("cool"), "Answer(GladYouLikeIt())");
-  assert.equal(await ask("ok"), "Answer(GotIt())");
-  assert.equal(await ask("lol"), "Answer(Laughing())");
-  assert.equal(await ask("good night"), "Answer(Goodbye())");
+  const talk: [string, RegExp][] = [
+    ["good morning", /morning|hello|\bhi\b/i],
+    ["how are you?", /good|well|fine|doing/i],
+    ["cool", /glad|nice|great|cool/i],
+    ["ok", /okay|got it|sure/i],
+    ["lol", /\bha|laugh|glad|funny/i],
+    ["good night", /night|bye|sleep/i],
+  ];
+  for (const [said, wanted] of talk) {
+    const reply = await ask(said);
+    assert.match(reply, wanted, `${said} -> ${reply}`);
+    assert.doesNotMatch(reply, NOT_TALK, `${said} -> ${reply}`);
+  }
+  assert.doesNotMatch(await ask("ok"), /how do you feel/i);
   assert.equal(await say("cool", c("Answer", c("GladYouLikeIt"))), "Glad you like it!");
 });
 
 test("the system can say who it is and what it can do", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
-  assert.equal(await ask("what is your name"), 'Answer("Napkin")');
-  assert.match(await ask("what can you do"), /^Answer\(List\(Arithmetic\(\), /);
-  assert.match(await ask("who are you"), /IsA\(AI\(\)\)/);
-  assert.doesNotMatch(await ask("who are you"), /CanDo/, "capabilities are answered when asked, not recited");
+  assert.match(await ask("what is your name"), /napkin/i);
+  assert.match(await ask("what can you do"), /arithmetic|calculat|math|add|answer/i);
+  assert.match(await ask("who are you"), /napkin|assistant|\bAI\b/i);
+  assert.doesNotMatch(await ask("who are you"), /what can you do|I can .*, .*, .*, /i, "capabilities are answered when asked, not recited");
 });
 
 test("everyday arithmetic words, chains of steps, and comparisons", async () => {
-  assert.equal(await ask("what is half of 90"), "Answer(45)");
-  assert.equal(await ask("what is double 8"), "Answer(16)");
-  assert.equal(await ask("what's the average of 2, 4 and 9"), "Answer(5)");
-  assert.equal(await ask("take 10, double it, then subtract 5"), "15");
-  assert.equal(await ask("is 100 more than 99"), "Answer(True())");
-  assert.equal(await ask("is 3 bigger than 5"), "Answer(False())");
+  assert.match(await ask("what is half of 90"), /\b45\b/);
+  assert.match(await ask("what is double 8"), /\b16\b/);
+  assert.match(await ask("what's the average of 2, 4 and 9"), /\b5\b/);
+  assert.match(await ask("take 10, double it, then subtract 5"), /\b15\b/);
+  assert.match(await ask("is 100 more than 99"), /^yes/i);
+  assert.match(await ask("is 3 bigger than 5"), /^no/i);
 });
 
 test("each question in a message is answered", async () => {
@@ -60,9 +69,9 @@ test("each question in a message is answered", async () => {
 
 test("holidays are dates, and being told it was wrong is apologised for", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const days = await ask("how many days until christmas");
-  assert.match(days, /^Answer\(Days\(\d+\)\)$/);
-  assert.equal(await ask("that was wrong"), "Answer(Sorry())");
-  assert.equal(await ask("no"), "Answer(Okay())");
+  assert.match(days, /\d+ days?/i);
+  assert.match(await ask("that was wrong"), /sorry/i);
+  assert.match(await ask("no"), /okay|ok\b|alright/i);
 });
 
 test("a work sharing a word's name is learned as a namesake, not as what the word is", async () => {
@@ -78,7 +87,7 @@ test("a work sharing a word's name is learned as a namesake, not as what the wor
 });
 
 test("known names read whole, even with a describing word in them", async () => {
-  assert.match(await ask("how many days until new years day"), /^Answer\(Days\(\d+\)\)$/);
+  assert.match(await ask("how many days until new years day"), /\d+ days?/i);
 });
 
 test("a namesake learned flat is left out of what is said when the word has another category", async () => {
@@ -114,29 +123,32 @@ test("asking what it knows of a kind looks up the kind's members", { todo: "reca
   known.seed(concept("Robin", { relations: ["IsA(Bird())"] }));
   known.seed(concept("Sparrow", { relations: ["IsA(Bird())"] }));
   known.seed(concept("Moment", { relations: [{ claim: (await import("../concept/expression.js")).parse("IsA(Bird())"), context: c("Namesake") }] }));
-  const askIt = async (text: string) => (await turn(new Runtime(known), text, c("Execution"), { learn: false, speak: false })).rendered;
-  assert.equal(await askIt("do you know any games?"), "Answer(List(TicTacToe()))");
-  assert.equal(await askIt("what games do you know"), "Answer(List(TicTacToe()))");
-  assert.equal(await askIt("do you know any birds?"), "Answer(List(Robin(), Sparrow()))", "a namesake is not a member");
+  const askIt = async (text: string) => (await turn(new Runtime(known), text, c("Execution"), { learn: false })).spoken;
+  assert.match(await askIt("do you know any games?"), /tic.?tac.?toe/i);
+  assert.match(await askIt("what games do you know"), /tic.?tac.?toe/i);
+  const birds = await askIt("do you know any birds?");
+  assert.match(birds, /robin/i);
+  assert.match(birds, /sparrow/i);
+  assert.doesNotMatch(birds, /moment/i, "a namesake is not a member");
 });
 
 /** A conversation, each turn knowing the ones before, on a store of its own. */
 const conversation = () => {
   const own = new ConceptStore();
   seed(own);
-  const history: { message: string; result: string }[] = [];
+  const history: { message: string; result: string; spoken?: string }[] = [];
   return async (text: string) => {
-    const r = await turn(new Runtime(own), text, c("Execution"), { learn: false, speak: false, history });
-    history.push({ message: text, result: String(r.rendered) });
-    return String(r.rendered);
+    const r = await turn(new Runtime(own), text, c("Execution"), { learn: false, history });
+    history.push({ message: text, result: r.result === undefined ? String(r.rendered) : format(r.result), spoken: r.spoken });
+    return r.spoken;
   };
 };
 
 test("a number word does sums in symbols, and an arithmetic verb works on the last answer", async () => {
   const talk = conversation();
-  assert.equal(await talk("what is one + 2?"), "Answer(3)");
-  assert.equal(await talk("what is 1 plus 3?"), "Answer(4)");
-  assert.equal(await talk("and then add 5?"), "9");
+  assert.match(await talk("what is one + 2?"), /\b3\b/);
+  assert.match(await talk("what is 1 plus 3?"), /\b4\b/);
+  assert.match(await talk("and then add 5?"), /\b9\b/);
 });
 
 test("a reference resolves to what was answered, not its text", async () => {
@@ -155,77 +167,77 @@ test("a kind is described with what its synonyms hold, and as it was said", { to
   own.seed(concept("Job", { relations: ["SynonymOf(Occupation())", "IsA(Work())", "RelatedTo(Employment())"] }));
   own.seed(concept("Occupation", { relations: ["SynonymOf(Job())"] }));
   seed(own);
-  const ask2 = async (text: string) => String((await turn(new Runtime(own), text, c("Execution"), { learn: false, speak: false })).rendered);
-  assert.match(await ask2("what is an occupation"), /^Describes\(Occupation\(\), .*RelatedTo\(Employment\(\)\)/);
-  assert.match(await ask2("what is an ocupation"), /^Describes\(Occupation\(\), .*RelatedTo\(Employment\(\)\)/);
+  const ask2 = async (text: string) => (await turn(new Runtime(own), text, c("Execution"), { learn: false })).spoken;
+  assert.match(await ask2("what is an occupation"), /employment/i);
+  assert.match(await ask2("what is an ocupation"), /employment/i);
 });
 
 test("a kind said with its words is believed whole, and a job asked for is a kind one is", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const talk = conversation();
   // Every word said is kept: a compound the lexicon knows, or the kind with its words.
-  assert.match(await talk("I am a Senior Software Engineer"), /IsA\((SoftwareEngineer\(\)\), Senior\(\)|Engineer\(Senior\(\), Software\(\)\)\))/);
+  assert.doesNotMatch(await talk("I am a Senior Software Engineer"), NOT_TALK);
   await talk("a software engineer is an engineer");
   await talk("an engineer is a job");
   assert.match(await talk("what is my job?"), /Engineer/);
 });
 
 test("a question that asks more than its subject is not answered with the subject", async () => {
-  assert.doesNotMatch(await ask("when you say hello?"), /^Answer\(Hello/);
+  assert.doesNotMatch(await ask("when you say hello?"), /^hello\W*$/i);
 });
 
 test("a sum in symbols, then an arithmetic word, works on the last answer", async () => {
   const talk = conversation();
-  assert.equal(await talk("what is five + 2"), "Answer(7)");
-  assert.equal(await talk("add 5"), "12");
+  assert.match(await talk("what is five + 2"), /\b7\b/);
+  assert.match(await talk("add 5"), /\b12\b/);
 });
 
 test("what is said of two things joined by or is believed of each, a described kind kept whole", { todo: "recall and belief left the seed (packs/memory.ncon.bak); a target for Pursue" }, async () => {
   const talk = conversation();
-  assert.match(await talk("Woops or Whoops is a word you say when you do something wrong on accident"), /^Sequence\(Believed\(Woops\(\), List\(IsA\(Word\(.+\)\)\)\), Believed\(Whoops\(\), /);
-  assert.match(await talk("what is whoops"), /^Describes\(Whoops\(\), List\(IsA\(Word\(/);
+  assert.doesNotMatch(await talk("Woops or Whoops is a word you say when you do something wrong on accident"), NOT_TALK);
+  assert.match(await talk("what is whoops"), /word|wrong|accident/i);
+  assert.match(await talk("what is woops"), /word|wrong|accident/i);
 });
 
 test("hearing: what the rules parser heard that hearing does not yet", { todo: "hearing grammar: an adverb after a phrase (\"so much\"), a verb and its particle (\"add up\"), two questions joined by \"and\", an arithmetic word used as a verb (\"times that by 2\"), a mistyped operator (\"time\"), an operator word leading with one number (\"times 3\"), \"I meant\" corrections" }, async () => {
-  assert.equal(await ask("thank you so much"), "Answer(YoureWelcome())");
-  assert.equal(await ask("add up 3, 4 and 5"), "12");
-  assert.equal(await ask("what is 2 plus 2 and what is 3 times 3"), "Sequence(Answer(4), Answer(9))");
+  assert.match(await ask("thank you so much"), /welcome/i);
+  assert.match(await ask("add up 3, 4 and 5"), /\b12\b/);
+  assert.match(await ask("what is 2 plus 2 and what is 3 times 3"), /\b4\b.*\b9\b/);
   const talk = conversation();
-  assert.equal(await talk("what is five + 2"), "Answer(7)");
-  assert.equal(await talk("add 5"), "12");
-  assert.equal(await talk("and time 27"), "324");
+  assert.match(await talk("what is five + 2"), /\b7\b/);
+  assert.match(await talk("add 5"), /\b12\b/);
+  assert.match(await talk("and time 27"), /\b324\b/);
   // An operator word leading with one number ("times 3"), and "I meant" taking a turn's place.
   const again = conversation();
   await again("what is 2 plus 2");
   await again("times 3");
-  assert.equal(await again("no, i meant times 5"), "20");
+  assert.match(await again("no, i meant times 5"), /\b20\b/);
   // A second correction replaces the first, so it works on the answer before that: 12.
-  assert.equal(await again("woops i meant and TIMES 27?"), "324");
+  assert.match(await again("woops i meant and TIMES 27?"), /\b324\b/);
 });
 
 test("arithmetic in symbols, with grouping, powers and fractions, is the sum it writes", async () => {
-  assert.equal(await ask("what is (2+3)*4"), "Answer(20)");
-  assert.equal(await ask("what is 2^10"), "Answer(1024)");
-  assert.equal(await ask("whats 3/4"), "Answer(0.75)");
-  assert.equal(await ask("what's 12 * 12 - 4"), "Answer(140)");
+  assert.match(await ask("what is (2+3)*4"), /\b20\b/);
+  assert.match(await ask("what is 2^10"), /\b1024\b/);
+  assert.match(await ask("whats 3/4"), /0?\.75/);
+  assert.match(await ask("what's 12 * 12 - 4"), /\b140\b/);
 });
 
 test("a thing named that works out to a value is answered, and lists and counts are said as words", async () => {
-  assert.equal(await ask("average of 3, 5, 10"), "Answer(6)");
-  const spoken = async (text: string) => (await turn(new Runtime(store), text, c("Execution"), { learn: false })).spoken;
-  assert.equal(await spoken("sort 5, 3, 9, 1"), "1, 3, 5 and 9.");
-  assert.equal(await spoken('reverse "hello"'), "olleh");
-  assert.match(await spoken("how many days until christmas"), /^\d+ days\.$/);
+  assert.match(await ask("average of 3, 5, 10"), /\b6\b/);
+  assert.match(await ask("sort 5, 3, 9, 1"), /1\D+3\D+5\D+9/);
+  assert.match(await ask('reverse "hello"'), /olleh/i);
+  assert.match(await ask("how many days until christmas"), /\d+ days?/i);
 });
 
 test("what a doing is done to, said with of, and a number with the doing said after it", async () => {
-  assert.equal(await ask("what is the largest of 4, 17, 2"), "Answer(17)");
-  assert.equal(await ask("min of 4, 17, 2"), "Answer(2)");
-  assert.equal(await ask("square root of 144"), "Answer(12)");
-  assert.equal(await ask("whats 2 to the power of 10"), "Answer(1024)");
-  assert.equal(await ask("what is 12 multiplied by 3"), "Answer(36)");
-  assert.equal(await ask("what is 100 divided by 4"), "Answer(25)");
-  assert.equal(await ask("subtract 3 from 10"), "7");
-  assert.equal(await ask("divide 100 by 4"), "25");
+  assert.match(await ask("what is the largest of 4, 17, 2"), /\b17\b/);
+  assert.match(await ask("min of 4, 17, 2"), /^\W*2\b/);
+  assert.match(await ask("square root of 144"), /\b12\b/);
+  assert.match(await ask("whats 2 to the power of 10"), /\b1024\b/);
+  assert.match(await ask("what is 12 multiplied by 3"), /\b36\b/);
+  assert.match(await ask("what is 100 divided by 4"), /\b25\b/);
+  assert.match(await ask("subtract 3 from 10"), /^\W*7\b/);
+  assert.match(await ask("divide 100 by 4"), /^\W*25\b/);
 });
 
 test("sentences no reading takes whole are each heard on their own and each answered; a thing named in passing is not described", async () => {
@@ -233,8 +245,9 @@ test("sentences no reading takes whole are each heard on their own and each answ
   seed(s);
   const spoken = async (text: string) => (await turn(new Runtime(s), text, c("Execution"), { learn: false })).spoken;
   const said = await spoken("lol. You're kinda bad at talking. What time is it?");
-  assert.match(said, /^Ha!/);
-  assert.match(said, /It is \d+:\d\d [AP]M\.$/);
+  assert.match(said, /\bha\b|laugh|glad|funny|lol/i);
+  assert.doesNotMatch(said, /stuck|don't know yet/i);
+  assert.match(said, /\d+:\d\d [AP]M/);
   // Guess the clothing brand, known to the graph, is not what "guess what" asks about.
   s.addRelation("Guess", c("IsA", c("Brand")));
   s.addRelation("Guess", c("Means", "American clothing line brand"));

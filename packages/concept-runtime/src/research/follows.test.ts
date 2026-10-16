@@ -81,13 +81,23 @@ test("a friend remembers: something bad told is asked after at the next small ta
     history.push({ message: m, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
     return t.spoken;
   };
-  assert.equal(await say("my mom is sick"), "Sorry to hear your mom is sick. Do you want to talk about it?");
-  assert.equal(await say("yeah"), "I'm listening. What's been going on?");
-  assert.equal(await say("what is 2 plus 2"), "4.");
-  assert.equal(await say("hi"), "Hello! By the way, how is your mom doing?");
-  assert.equal(await say("hello"), "Hello!");
+  const sick = await say("my mom is sick");
+  assert.match(sick, /sorry|oh no|hear that/i);
+  assert.match(sick, /mom/i);
+  const yeah = await say("yeah");
+  assert.match(yeah, /listening|tell me|what happened|going on/i);
+  assert.doesNotMatch(yeah, /great that yeah/i);
+  assert.match(await say("what is 2 plus 2"), /\b4\b/);
+  const hi = await say("hi");
+  assert.match(hi, /hello|hi\b|hey/i);
+  assert.match(hi, /mom/i);
+  const hello = await say("hello");
+  assert.match(hello, /hello|hi\b|hey/i);
+  assert.doesNotMatch(hello, /mom/i, "asked after once only");
   await say("I lost my job");
-  assert.equal(await say("nah"), "That's okay. I'm here if you change your mind.");
+  const nah = await say("nah");
+  assert.match(nah, /okay|fine|here/i);
+  assert.doesNotMatch(nah, /great that nah/i);
 });
 
 // Wikipedia as its API answers search and extracts, for the pages these tests read (text written

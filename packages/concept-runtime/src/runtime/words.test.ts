@@ -16,40 +16,42 @@ const conversation = () => {
     const runtime = new Runtime(store);
     const heard = conversations.receive();
     runtime.trace.said(heard.seq);
-    const r = await turn(runtime, text, c("Execution"), { learn: false, speak: false, conversation: id });
-    conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, heard });
-    return String(r.rendered);
+    const r = await turn(runtime, text, c("Execution"), { learn: false, conversation: id });
+    conversations.record(id, { message: text, ...(r.expression ? { parsed: r.expression } : {}), result: r.result ?? r.rendered, spoken: r.spoken, heard });
+    return r.spoken;
   };
   return { store, say };
 };
 
 test("a word told is a word known: what it was said to mean, from what was said", { todo: "hearing: \"lol means laugh out loud\" is heard as three phrases; \"means\" does not yet take both sides" }, async () => {
   const { say } = conversation();
-  assert.match(await say("lol means laugh out loud"), /^Noted\(Lol\(Means\(/);
-  assert.equal(await say("what does lol mean?"), 'Answer(Meaning(Lol(), "laugh out loud", as=Unlabelled(), from=Said()))');
+  assert.doesNotMatch(await say("lol means laugh out loud"), /stuck|couldn't read|nothing for/i);
+  assert.match(await say("what does lol mean?"), /laugh out loud/i);
 });
 
 test("a word that is an interjection is answered as talk, by inheritance", async () => {
   const { store, say } = conversation();
   store.addRelation("Zorp", c("IsA", c("Interjection")));
   store.addRelation("Zorp", c("Means", "a greeting among friends"));
-  assert.match(await say("zorp"), /^Noted\(Zorp\(\).*means="a greeting among friends"\)$/);
+  const reply = await say("zorp");
+  assert.match(reply, /greet|hello|hi\b|zorp/i);
+  assert.doesNotMatch(reply, /stuck|couldn't read/i);
 });
 
 test("a word alone is said, not set aside", async () => {
   const { say } = conversation();
-  assert.equal(await say("yo"), "Answer(Hello())");
+  assert.match(await say("yo"), /hello|\bhi\b|hey|\byo\b/i);
 });
 
 test("tell me about yourself describes Self, and a question about us nothing answers is not known", async () => {
   const { say } = conversation();
-  assert.match(await say("tell me about yourself"), /^Describes\(Self\(\), List\(Named\("Napkin"\)/);
+  assert.match(await say("tell me about yourself"), /napkin/i);
 });
 
 test("a word told a value is worked out with: what was said it is stands in for it", async () => {
   const { say } = conversation();
   await say("pi is 3.14159");
-  assert.equal(await say("what is pi times 2"), "Answer(6.28318)");
+  assert.match(await say("what is pi times 2"), /6\.2831/);
   await say("a dozen is 12");
-  assert.equal(await say("what is 3 times a dozen"), "Answer(36)");
+  assert.match(await say("what is 3 times a dozen"), /\b36\b/);
 });

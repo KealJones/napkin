@@ -65,12 +65,12 @@ test("a grounded kind answers as one: subclass chains, membership takes one step
   // K2 is a volcano; a volcano is a kind of mountain: so K2 is a mountain.
   store.addRelation("Volcano", c("SubclassOf", c("Mountain")));
   store.addRelation("K2", c("IsA", c("Volcano")));
-  const ask = async (text: string) => (await (await import("../runtime/turn.js")).turn(new Runtime(store), text, c("Execution"), { learn: false, speak: false })).rendered;
-  assert.equal(await ask("is an emoji a symbol?"), "Answer(True())", "subclass chain");
-  assert.equal(await ask("is k2 a mountain?"), "Answer(True())", "an instance, through its kind's superclass");
-  assert.equal(await ask("is an emoji a notation?"), "Answer(True())");
-  assert.equal(await ask("is an emoji an emoticon?"), "Answer(False())", "Wikidata says different from");
-  assert.equal(await ask("is an emoticon an emoji?"), "Answer(False())", "and that holds both ways");
+  const ask = async (text: string) => (await (await import("../runtime/turn.js")).turn(new Runtime(store), text, c("Execution"), { learn: false })).spoken;
+  assert.match(await ask("is an emoji a symbol?"), /^yes/i, "subclass chain");
+  assert.match(await ask("is k2 a mountain?"), /^yes/i, "an instance, through its kind's superclass");
+  assert.match(await ask("is an emoji a notation?"), /^yes/i);
+  assert.match(await ask("is an emoji an emoticon?"), /^no\b/i, "Wikidata says different from");
+  assert.match(await ask("is an emoticon an emoji?"), /^no\b/i, "and that holds both ways");
 });
 
 test("a personal individual is never looked up", async () => {

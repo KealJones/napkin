@@ -5,7 +5,7 @@
 //
 // Each case is a conversation in eval/frames/cases.json, on a fresh graph with the fixture's
 // facts (what a Wikidata import would have stored), and an answer is right when what is said
-// contains what is expected. --show prints every turn.
+// contains what is expected (or matches it, "re:") and none of what is not expected ("expectNot"). --show prints every turn.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,15 +42,18 @@ async function run(hearing, said) {
   return out;
 }
 
-const right = (spoken, expected) => spoken.toLowerCase().includes(expected.toLowerCase());
+// An expectation is a substring, or a regular expression when written "re:...", read case-insensitively.
+// "expectNot" (per turn, a string or a list of them, same forms) names what must not be said.
+const found = (spoken, what) => (what.startsWith("re:") ? new RegExp(what.slice(3), "i").test(spoken) : spoken.toLowerCase().includes(what.toLowerCase()));
+const right = (spoken, expected, not = []) => found(spoken, expected) && [not].flat().every((n) => !n || !found(spoken, n));
 const totals = { rules: 0, frames: 0, byFrames: 0, turns: 0 };
 const groups = {};
 for (const k of cases) {
   const rules = await run("rules", k.say);
   const framed = await run("frames", k.say);
   k.say.forEach((message, i) => {
-    const r = right(rules[i].spoken, k.expect[i]);
-    const f = right(framed[i].spoken, k.expect[i]);
+    const r = right(rules[i].spoken, k.expect[i], k.expectNot?.[i]);
+    const f = right(framed[i].spoken, k.expect[i], k.expectNot?.[i]);
     totals.turns += 1;
     totals.rules += r;
     totals.frames += f;

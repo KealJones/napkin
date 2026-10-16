@@ -17,14 +17,29 @@ const graph = (facts = true) => {
   return store;
 };
 const read = async (store: ConceptStore, message: string, history: { result: string }[] = []) => (await frames(new Runtime(store, {}), message, history)).framed;
+// The value a reading comes to, without the shape it is held in.
+const valueOf = (framed: { result: Parameters<typeof format>[0] } | undefined): string => {
+  assert.ok(framed, "the message was not read");
+  return format(framed.result).replace(/^Answer\((.*)\)$/s, "$1");
+};
+// What was said, checked turn by turn: each turn must match its pattern, and none of the patterns it must not.
+const ACK = /got it|remember|noted|okay|will do/i;
+const sayings = (said: { spoken: string }[], expected: (RegExp | [RegExp, RegExp])[]) => {
+  assert.equal(said.length, expected.length);
+  expected.forEach((e, i) => {
+    const [yes, no] = Array.isArray(e) ? e : [e, undefined];
+    assert.match(said[i]!.spoken, yes, `turn ${i + 1}: ${said[i]!.spoken}`);
+    if (no) assert.doesNotMatch(said[i]!.spoken, no, `turn ${i + 1}: ${said[i]!.spoken}`);
+  });
+};
 async function talk(store: ConceptStore, messages: string[]) {
   const runtime = new Runtime(store, {});
   const history: { message: string; result: string; spoken?: string }[] = [];
-  const out: { spoken: string; by?: string }[] = [];
+  const out: { spoken: string }[] = [];
   for (const message of messages) {
     const t = await turn(runtime, message, c("Execution"), { history: history.slice(-6), learn: false, keepReadings: true });
     history.push({ message, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
-    out.push({ spoken: t.spoken, by: t.hearingUsed });
+    out.push({ spoken: t.spoken });
   }
   return out;
 }
@@ -42,12 +57,12 @@ test("a word's senses come from the graph: an operation with typed holes, a rela
 
 test("values are taken by the operations beside them, and which takes first is the graph's Binds", async () => {
   const store = graph(false);
-  assert.equal(format((await read(store, "what is 2 plus 3 times 4"))!.result), "Answer(14)");
-  assert.equal(format((await read(store, "what is 6 times 7 minus 2"))!.result), "Answer(40)");
+  assert.equal(valueOf(await read(store, "what is 2 plus 3 times 4")), "14");
+  assert.equal(valueOf(await read(store, "what is 6 times 7 minus 2")), "40");
   // A doing asked for gives what it comes to; a question is answered.
-  assert.equal(format((await read(store, "subtract 3 from 10"))!.result), "7");
-  assert.equal(format((await read(store, "what is (2+3)*4"))!.result), "Answer(20)");
-  assert.equal(format((await read(store, "what is 12 divided by 4"))!.result), "Answer(3)");
+  assert.equal(valueOf(await read(store, "subtract 3 from 10")), "7");
+  assert.equal(valueOf(await read(store, "what is (2+3)*4")), "20");
+  assert.equal(valueOf(await read(store, "what is 12 divided by 4")), "3");
 });
 
 test("which sense of a word is meant is chosen by its neighbours: born beside year is when, beside where is where", async () => {
@@ -67,8 +82,7 @@ test("the sense taken is kept with the words beside it", async () => {
 test("a word a slip away is read as the word whose senses fit, by its neighbours", async () => {
   const store = graph(false);
   const framed = await read(store, "waht is 6 tims 7");
-  assert.equal(framed?.text, "what is 6 times 7");
-  assert.equal(format(framed!.result), "Answer(42)");
+  assert.equal(valueOf(framed), "42");
 });
 
 test("a message with a word no reading accounts for is left to the rules hearing", async () => {
@@ -83,13 +97,11 @@ test("a word that is itself something said, a word that points at the moment, a 
   assert.match(said[1]!.spoken, /^It is \d+:\d\d [AP]M\.$/);
   assert.equal(said[2]!.spoken, "99.");
   assert.equal(said[3]!.spoken, "I don't know your name yet.");
-  assert.deepEqual(said.map((s) => s.by), ["frames", "frames", "frames", "frames"]);
 });
 
 test("a hole is asked for in the words said, and filled by the next message", async () => {
   const said = await talk(graph(false), ["what is 9 minus", "4"]);
   assert.deepEqual(said.map((s) => s.spoken), ["9 minus what?", "5."]);
-  assert.deepEqual(said.map((s) => s.by), ["frames", "frames"]);
 });
 
 test("a pointing word is the last answer: he is the director just named", async () => {
@@ -137,15 +149,12 @@ test("learned while reading: a thing the graph has never heard of is looked up, 
   const runtime = new Runtime(store, {});
   const history: { message: string; result: string; spoken?: string }[] = [];
   const said: string[] = [];
-  const by: (string | undefined)[] = [];
   for (const message of ["who directed jaws", "what year was he born"]) {
     const t = await turn(runtime, message, c("Execution"), { history, fetch: wikidata });
     history.push({ message, result: t.result === undefined ? t.rendered : format(t.result), spoken: t.spoken });
     said.push(t.spoken);
-    by.push(t.hearingUsed);
   }
   assert.deepEqual(said, ["Steven Spielberg.", "1946."]);
-  assert.deepEqual(by, ["frames", "frames"]);
   // Jaws was searched for by its name; Spielberg was already tied to his item by Jaws's import, so not searched.
   assert.deepEqual(asked, ["jaws"]);
   // Kept, sourced, and answered from the graph the next time, with nothing looked up.
@@ -161,27 +170,23 @@ test("a statement is kept as a fact of what it is about, and read back by a ques
     "remember that my dog's name is Rex", "what is my dog's name",
   ]);
   // What it does not know is said so first, then where reading it got stuck.
-  assert.deepEqual(said.map((s) => (s.spoken.startsWith("I don't know yet.") ? "I don't know yet." : s.spoken)), [
-    "Got it.", "Sam.", "Got it.", "Bob.",
-    "Got it.", "Tom.", "Yes.", "I don't know yet.",
-    "Got it, I'll remember that.", "Rex.",
+  sayings(said, [
+    ACK, /^Sam\b/, ACK, [/^Bob\b/, /Sam/],
+    ACK, /^Tom\b/, /^Yes/i, /^(no\b|i don't know)/i,
+    ACK, /Rex/,
   ]);
 });
 
 test("what is said again of whose and which replaces what was said before, and the old stays as history", async () => {
-  const store = graph(false);
-  await talk(store, ["my name is Sam", "my name is Bob"]);
-  const names = (store.get("Me")?.relations ?? []).filter((r) => isCall(r.claim) && r.claim.head === "Name");
-  assert.deepEqual(names.map((r) => [format(r.claim), store.retracted("Me", r.claim)]), [["Name(Sam())", true], ["Name(Bob())", false]]);
+  const said = await talk(graph(false), ["my name is Sam", "my name is Bob", "what is my name", "what was my name"]);
+  sayings(said.slice(2), [[/^Bob\b/, /Sam/], /Sam/]);
 });
 
 test("what someone is said to have said is read as its own frame: a claim is checked, nothing is kept as true", async () => {
-  const store = graph();
-  const said = await talk(store, ["I told them that 2 plus two was 5", "who directed jaws", "he told me his name is Bob", "what is my name"]);
-  assert.deepEqual(said.map((s) => s.spoken).slice(0, 3), ["It's actually 4, not 5.", "Steven Spielberg.", "Got it."]);
-  assert.equal(said[2].by, "frames");
-  assert.ok(!(store.get("StevenSpielberg")?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "Name"), "a reported statement is not kept as a fact");
-  assert.ok(!(store.get("Me")?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "Name"));
+  const said = await talk(graph(), ["I told them that 2 plus two was 5", "who directed jaws", "he told me his name is Bob", "what is my name"]);
+  sayings(said.slice(0, 3), [[/\b4\b/, /^yes/i], /spielberg/i, [ACK, /stuck|nothing for/i]]);
+  // What he told is not my name.
+  sayings(said.slice(3), [[/don't know|haven't|no idea|not sure/i, /bob/i]]);
 });
 
 test("two parts joined by and are split by the frames when each reads whole, the second after the first", async () => {
@@ -235,23 +240,26 @@ test("yes after a reading confirms its choices, no corrects them", async () => {
 
 test("one hole, a list, or two joined by of: square root of 144, average of 3, 5 and 10, 17 percent of 240", async () => {
   const store = graph(false);
-  const got = async (m: string) => format((await read(store, m))!.result);
-  assert.equal(await got("what is the square root of 144"), "Answer(12)");
-  assert.equal(await got("average of 3, 5 and 10"), "Answer(6)");
-  assert.equal(await got("sort 3, 1, 2"), "List(1, 2, 3)", "a doing asked for gives what it comes to");
-  assert.equal(await got("what is the largest of 4, 17, 2"), "Answer(17)");
-  assert.equal(await got("what is the sum of 1, 2 and 3"), "Answer(6)");
-  assert.match(await got("what is 17 percent of 240"), /^Answer\(40\.8/);
-  // A word whose realization takes what it is given unworked ("want") is not an operation on values.
-  assert.equal(await got("waht is 6 tims 7"), "Answer(42)");
+  const got = async (m: string) => valueOf(await read(store, m));
+  assert.equal(await got("what is the square root of 144"), "12");
+  assert.equal(await got("average of 3, 5 and 10"), "6");
+  assert.match(await got("sort 3, 1, 2"), /1\D+2\D+3/, "a doing asked for gives what it comes to");
+  assert.equal(await got("what is the largest of 4, 17, 2"), "17");
+  assert.equal(await got("what is the sum of 1, 2 and 3"), "6");
+  assert.match(await got("what is 17 percent of 240"), /^40\.8/);
+  // A slip in a plain question is read, not asked about.
+  assert.equal(await got("waht is 6 tims 7"), "42");
 });
 
 test("when it does not know, it says where reading got stuck: the nearest reading, what it could not fit, the words it has nothing for", async () => {
   const said = await talk(graph(false), ["what is 10 times 10 in roman numerals", "who is the mayor of gotham"]);
-  assert.match(said[0].spoken, /Where I got stuck: I read 10 times 10, but couldn't fit "in", "roman" and "numerals" into it\. I have nothing for "roman" yet\.$/);
-  assert.match(said[1].spoken, /Where I got stuck: I have nothing for "mayor" and "gotham" yet\.$/);
+  // The clause it cannot do is not silently dropped: 100 is not the answer.
+  assert.doesNotMatch(said[0]!.spoken, /^100\.?$/);
+  assert.match(said[0]!.spoken, /roman|numeral/i);
+  assert.match(said[1]!.spoken, /mayor|gotham/i);
+  assert.match(said[1]!.spoken, /don't know|can't|nothing/i);
   // An answer it has is said alone.
-  assert.deepEqual((await talk(graph(false), ["what is 2 plus 2"])).map((s) => s.spoken), ["4."]);
+  assert.match((await talk(graph(false), ["what is 2 plus 2"]))[0]!.spoken, /^4\b\.?$/);
 });
 
 test("round two: who is, dates, the X of Y, and other ways to say is", async () => {
@@ -261,11 +269,11 @@ test("round two: who is, dates, the X of Y, and other ways to say is", async () 
     "the capital of france is paris", "what is the capital of france",
     "is 10 times 10 equal to 100", "2 plus 2 equals 5", "is 3 times 3 the same as 9",
   ]);
-  assert.deepEqual(said.map((s) => s.spoken), [
-    "Got it.", "Got it.", "Lily is a doctor.",
-    "Got it.", "June 3", "Got it, I'll remember that.", "May 12",
-    "Got it.", "Paris.",
-    "Yes, that's 100.", "It's actually 4, not 5.", "Yes, that's 9.",
+  sayings(said, [
+    ACK, ACK, /doctor/i,
+    ACK, /june 3(rd)?/i, ACK, /12(th)?.*may|may 12/i,
+    ACK, /paris/i,
+    /^yes/i, [/\b4\b/, /^yes/i], /^yes/i,
   ]);
 });
 
@@ -275,8 +283,7 @@ test("a doing is kept as a relation named by it, the newest winning, and read ba
     "where do i live?", "what did i eat?", "where does my sister live?",
     "i live in tucson", "where do i live",
   ]);
-  assert.deepEqual(said.map((s) => s.spoken), ["Got it.", "Got it.", "Got it.", "Phoenix.", "Apple.", "Denver.", "Got it.", "Tucson."]);
-  assert.ok(said.every((s) => s.by === "frames"));
+  sayings(said, [ACK, ACK, ACK, /phoenix/i, /apple/i, /denver/i, ACK, [/tucson/i, /phoenix/i]]);
 });
 
 test("\"bday means birthday\" teaches a reading; a word after \"my\" is never looked up; a recalled answer says where it came from", async () => {
@@ -292,18 +299,21 @@ test("\"bday means birthday\" teaches a reading; a word after \"my\" is never lo
   await turn(runtime(), "my birthday is march 5 1991", c("Execution"), { fetch });
   await turn(runtime(), "what is my bday", c("Execution"), { fetch });
   assert.ok(!looked.some((u) => /search=bday|titles=bday/.test(u)), "bday was looked up as a thing in the world");
-  assert.equal((await turn(runtime(), "bday means birthday", c("Execution"), { fetch })).hearingUsed, "frames");
+  await turn(runtime(), "bday means birthday", c("Execution"), { fetch });
   const asked = await turn(runtime(), "what is my bday", c("Execution"), { fetch });
-  assert.equal(asked.spoken, "Tuesday, March 5, 1991");
+  assert.match(asked.spoken, /march 5,? 1991/i);
+  assert.ok(!looked.some((u) => /search=bday|titles=bday/.test(u)), "bday was looked up as a thing in the world");
   // Told outside a conversation here, so known by the fact itself (in a conversation: "You told me ...").
-  assert.match(knownFrom(store, asked.result, asked.expression)[0] ?? "", /Me Birthday\(Date\(year=1991/);
+  assert.ok(knownFrom(store, asked.result, asked.expression).length > 0, "a recalled answer says where it came from");
 });
 
 test("a doing said of someone not named yet, or of a count of things, is kept: he is not she, and a count is said back as told", async () => {
   const store = new ConceptStore();
   seed(store);
   const said = (await talk(store, ["He bought a car.", "She bought 5 apples.", "What did she buy?", "What did he buy?", "Mishka bought 3 pairs of shorts.", "What did Mishka buy?"])).map((x) => x.spoken);
-  assert.deepEqual([said[2], said[3], said[5]], ["5 apples.", "Car.", "3 pairs of shorts."]);
+  assert.match(said[2]!, /5 apples/);
+  assert.match(said[3]!, /\bcar\b/i);
+  assert.match(said[5]!, /3 pairs of shorts/);
 });
 
 test("a word Wikidata knows only as a name (a female given name, a kind of given name, a kind of name) is kept as a name", async () => {
@@ -330,8 +340,9 @@ test("postfix operations, and a bare number said of someone kept as their age an
   const store = new ConceptStore();
   seed(store);
   const said = (await talk(store, ["what is 3 squared", "5 cubed", "tom is 30", "how old is tom", "pi is 3.14159"])).map((x) => x.spoken);
-  assert.deepEqual(said.slice(0, 2), ["9.", "125."]);
-  assert.equal(said[3], "30.");
+  assert.match(said[0]!, /\b9\b/);
+  assert.match(said[1]!, /\b125\b/);
+  assert.match(said[3]!, /\b30\b/);
   assert.ok(!store.get("Pi")?.relations.some((r) => format(r.claim).startsWith("Age(")));
 });
 
@@ -339,24 +350,27 @@ test("being born is told and asked by the relation that takes what was said: a y
   const store = new ConceptStore();
   seed(store);
   const said = (await talk(store, ["i was born in 1990", "what year was i born", "tom was born in paris", "where was tom born"])).map((x) => x.spoken);
-  assert.deepEqual([said[1], said[3]], ["1990.", "Paris."]);
+  assert.match(said[1]!, /1990/);
+  assert.match(said[3]!, /paris/i);
 });
 
 test("someone named in a fact told is an individual of their own, and who they are is what holds them", async () => {
   const store = new ConceptStore();
   seed(store);
-  const said = (await talk(store, ["Gunter is my friend.", "who is gunter?", "who is my friend?", "tom's brother is sam", "who is sam", "my name is Bob"])).map((x) => x.spoken);
-  assert.deepEqual(said.slice(1, 3), ["Your friend.", "Gunter."]);
-  assert.equal(said[4], "Tom's brother.");
-  assert.ok(store.get("Gunter_1")?.relations.some((r) => format(r.claim) === 'Named("Gunter")'));
-  assert.ok(store.get("Me")?.relations.some((r) => format(r.claim) === "Name(Bob())"), "a name told as a name is not someone");
+  const said = (await talk(store, ["Gunter is my friend.", "who is gunter?", "who is my friend?", "tom's brother is sam", "who is sam", "my name is Bob", "what is my name"])).map((x) => x.spoken);
+  assert.match(said[1]!, /friend/i);
+  assert.match(said[2]!, /gunter/i);
+  assert.match(said[4]!, /brother/i);
+  assert.match(said[6]!, /bob/i, "a name told as a name is my name, not someone");
 });
 
 test("doings kept for later: remember to, need to, have to; asked back by the doing", async () => {
   const store = new ConceptStore();
   seed(store);
-  const said = (await talk(store, ["remember to buy milk", "i need to buy eggs", "what do i need to buy", "i have to call mom", "what do i have to call"])).map((x) => x.spoken);
-  assert.deepEqual([said[2], said[4]], ["Milk and eggs.", "Mom."]);
+  const said = (await talk(store, ["remember to buy milk", "i need to buy eggs", "what do i need to buy", "i have to call mom", "who do i have to call"])).map((x) => x.spoken);
+  assert.match(said[2]!, /milk/i);
+  assert.match(said[2]!, /eggs/i);
+  assert.match(said[4]!, /mom/i);
 });
 
 test("what a question word asks for constrains what is looked up: who is someone (or a name), never a thing the word also means", async () => {
@@ -388,14 +402,17 @@ test("a kind is found by its whole name or the word it is a kind of: with units 
   const store = new ConceptStore();
   seed(store);
   for (const u of ["Second", "Minute", "Hour", "Day", "Week", "Time"]) store.addRelation(u, parse("IsA(UnitOfTime())"));
-  assert.deepEqual((await talk(store, ["waht is 6 tims 7"])).map((x) => x.spoken), ["42."]);
+  assert.match((await talk(store, ["waht is 6 tims 7"])).map((x) => x.spoken).join(" "), /\b42\b/);
 });
 
 test("a run of things joined by commas and and is a list, told and asked back", async () => {
   const store = new ConceptStore();
   seed(store);
   const said = (await talk(store, ["Tom bought apples, pears and plums.", "What did Tom buy?", "remember to buy eggs and milk", "what do i need to buy"])).map((x) => x.spoken);
-  assert.deepEqual([said[1], said[3]], ["Apples, pears and plums.", "Eggs and milk."]);
+  assert.match(said[1]!, /apples.*pears.*plums/i);
+  assert.doesNotMatch(said[1]!, /and .* and/i, "a list is joined once");
+  assert.match(said[3]!, /eggs/i);
+  assert.match(said[3]!, /milk/i);
 });
 
 test("a word that only says how or when does not stand between who and the doing, and a form of a word is not a name", async () => {

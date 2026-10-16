@@ -113,17 +113,20 @@ test("asked for a doing it has no way to do, Napkin says so; asked for one it ha
   const store = new ConceptStore();
   seed(store);
   const say = async (m: string) => (await turn(new Runtime(store), m, c("Execution"), { learn: false })).spoken;
-  assert.equal(await say("can you post to reddit?"), "I can't post to Reddit yet.");
-  assert.equal(await say("can you add 2 and 3?"), "5");
+  const reddit = await say("can you post to reddit?");
+  assert.match(reddit, /can't|cannot|not able|unable/i);
+  assert.match(reddit, /reddit/i);
+  assert.match(await say("can you add 2 and 3?"), /\b5\b/);
 });
 
 test("supposed, then asked: what the supposing says a thing is, put in the question", async () => {
   const { turn } = await import("./turn.js");
   const store = new ConceptStore();
   seed(store);
-  const say = async (m: string) => (await turn(new Runtime(store), m, c("Execution"), { learn: false })).rendered;
-  assert.equal(await say("if x is 3 what is x times 2"), "Answer(6)");
-  const inFive = await say("what day will it be in 5 days");
-  assert.equal(await say("if it was 5 days in the future what day would it be?"), inFive);
-  assert.equal(await say("what day is 5 days from now"), inFive);
+  const say = async (m: string) => (await turn(new Runtime(store), m, c("Execution"), { learn: false })).spoken;
+  assert.match(await say("if x is 3 what is x times 2"), /\b6\b/);
+  const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date(Date.now() + 5 * 86_400_000).getDay()]!;
+  assert.match(await say("what day will it be in 5 days"), new RegExp(day, "i"));
+  assert.match(await say("if it was 5 days in the future what day would it be?"), new RegExp(day, "i"));
+  assert.match(await say("what day is 5 days from now"), new RegExp(day, "i"));
 });
