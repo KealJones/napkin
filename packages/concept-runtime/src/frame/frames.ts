@@ -940,7 +940,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (computed) return computed;
   // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
   // things and the words for relations the reading names are looked up between, each way.
-  if (asksIn(root) || asking(words, question)) {
+  // Asked as it was ("what was my name"): what held before is the owner's to say, below.
+  const pastAsked = root.role === "ReadSame" && (tags.get(words[root.word]!.text.toLowerCase()) ?? []).includes("PastTense") && [...filled(root, "Said"), ...filled(root, "Subject")].some((x) => filled(x, "Whose").length);
+  if ((asksIn(root) || asking(words, question)) && !pastAsked) {
     const known = [...facts(store, words, true, pointed), ...kindQuestions(store, words, pointed), ...describes(store, words, true), ...deictics(runtime, words, true), ...sayings(store, words, true)].map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
     if (known.length) return known;
   }
@@ -1196,7 +1198,12 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
         const found = relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
         // Held under no relation of that name, the graph's own word for it may hold it ("your name": Self Named("Napkin")).
         const akinHeld = found.length ? [] : relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head !== relation && wordsOf(r.claim.head).some((w) => wordsOf(relation).some((x) => akin(w, x))) && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
-        const latest = found.at(-1) ?? akinHeld.at(-1);
+        // Asked as it was ("what was my name", after it was said again): what held before the newest.
+        const past = (tags.get(words[root.word]!.text.toLowerCase()) ?? []).includes("PastTense");
+        const all = relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0]).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
+        const now = found.at(-1);
+        const before = past && now !== undefined ? all.filter((v) => !equal(v, now)) : [];
+        const latest = before.at(-1) ?? found.at(-1) ?? akinHeld.at(-1);
         return [{
           key: `Composed ${relation} of ${ownerId}`,
           features: ["read:composed-relation-asked", ...best.features],
