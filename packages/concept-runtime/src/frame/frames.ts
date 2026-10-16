@@ -1050,7 +1050,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
         chosen: [],
         notes,
         run: async () => {
-          store.addRelation(subject.head, fact, undefined, runtime.trace.cause);
+          replacing(store, subject.head, fact, runtime.trace.cause);
           return c("Noted", fact, subject);
         },
       }];
@@ -1156,7 +1156,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       const relation = describers.length ? nameOf([...describers, held.text].join(" ")) : held.head;
       if (value.ask) {
         const found = relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
-        const latest = found.at(-1);
+        // Held under no relation of that name, the graph's own word for it may hold it ("your name": Self Named("Napkin")).
+        const akinHeld = found.length ? [] : relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head !== relation && wordsOf(r.claim.head).some((w) => wordsOf(relation).some((x) => akin(w, x))) && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
+        const latest = found.at(-1) ?? akinHeld.at(-1);
         return [{
           key: `Composed ${relation} of ${ownerId}`,
           features: ["read:composed-relation-asked", ...best.features],
@@ -1178,7 +1180,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
         chosen: [],
         notes,
         run: async () => {
-          store.addRelation(ownerId, fact, undefined, runtime.trace.cause);
+          replacing(store, ownerId, fact, runtime.trace.cause);
           return c("Noted", fact, c(ownerId));
         },
       }];
@@ -1224,6 +1226,21 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   }
   return [];
   }
+}
+
+/**
+ * Kept as the newest of its kind: what was said before of the same relation of the same thing
+ * ("i live in phoenix", then "i live in tucson"; "my name is Sam", then "Bob") is taken back.
+ */
+function replacing(store: ConceptStore, subject: string, fact: Expr, cause: number | undefined): void {
+  if (isCall(fact)) {
+    const names = (e: Expr) => (isCall(e) ? e.args.map((a) => a.name ?? "").join(",") : "");
+    for (const r of relationsOf(store, subject)) {
+      if (r.context !== undefined || !isCall(r.claim) || r.claim.head !== fact.head || names(r.claim) !== names(fact) || equal(r.claim, fact) || store.retracted(subject, r.claim)) continue;
+      for (const st of r.stamps ?? []) store.addRelation(subject, c("Retracts", st.seq), undefined, cause);
+    }
+  }
+  store.addRelation(subject, fact, undefined, cause);
 }
 
 /**

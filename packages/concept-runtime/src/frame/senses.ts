@@ -139,7 +139,8 @@ function index(store: ConceptStore): Index {
   const kindsHeld = new Set<string>();
   for (const t of store.triples()) {
     // A relation held only in a context (GlobalName in Code(Python())) is not a word's sense in talk.
-    if (!STRUCTURAL.has(t.predicate) && t.context === undefined) predicates.add(t.predicate);
+    // A relation that holds something: a marker said with nothing (Function DeclaresName()) answers nothing asked.
+    if (!STRUCTURAL.has(t.predicate) && t.context === undefined && isCall(t.expr) && t.expr.args.length) predicates.add(t.predicate);
     if ((t.predicate === "IsA" || t.predicate === "SubclassOf") && isCall(t.object ?? null)) kindsHeld.add((t.object as Call).head);
     // A relation the world has (a Wikidata property, "date of birth"), held of nothing yet.
     const q = t.predicate === "SameAs" && isCall(t.object ?? null) && (t.object as Call).head === "Wikidata" ? (t.object as Call).args[0]?.value : undefined;
