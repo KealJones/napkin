@@ -1045,7 +1045,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     if (root.role !== "ReadDoing" && !root.op) return [];
     // Told to do it, or told it is done: the mood the words say is the context it runs in.
     // Doings joined ("make a shopping list and add milk to it") run one after another, in the order said.
-    const mood = c(toBeDone && !asked ? "Imperative" : asked ? "Interrogative" : "Declarative");
+    // Told first to do it ("write avg where …"), it is a command, whatever question word comes after; a "?" asks.
+    const commanded = toBeDone && (!asked || (root.word === 0 && !question));
+    const mood = c(commanded ? "Imperative" : asked ? "Interrogative" : "Declarative");
     // What a doing took from past the doing joined to it ("… and add milk to it": "to it") is the later doing's.
     const joined = (p: Piece): Piece[] => {
       const joins = filled(p, "Also").filter((j) => filled(j, "With").some((w) => w.role === "ReadDoing"));
