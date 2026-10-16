@@ -909,9 +909,17 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // 4", "he told me his name is Bob"): the clause is read as its own; a claim in it is checked, a
   // statement only noted as said, never kept as true.
   const reporting = best.piece.role === "ReadDoing" && words[best.piece.word]!.senses.some((s) => s.type === "takes" && s.reports);
+  // A word whose hole is a whole statement and says it holds ("remember that my dog's name is Rex",
+  // "note that …"): the statement is read as told.
+  const holding = best.piece.role === "ReadDoing" && !reporting && words[best.piece.word]!.senses.some((s) => s.type === "takes" && !s.reports);
   // The clause: what the doing says, or what "that" puts with it or with whom it was told.
   const clauseOf = (p: Piece): Piece[] => [...filled(p, "Said"), ...filled(p, "Where").flatMap((l) => filled(l, "What")), ...filled(p, "Done").flatMap(clauseOf)];
   const clause = reporting ? clauseOf(best.piece).find((x) => x.role === "ReadSame" || x.role === "ReadDoing") : undefined;
+  const heldClause = holding ? clauseOf(best.piece).find((x) => x.role === "ReadSame" || x.role === "ReadDoing") : undefined;
+  if (heldClause) {
+    const read = fromRoot(heldClause);
+    if (read.length) return read;
+  }
   if (clause) {
     const doer = filled(best.piece, "Doer")[0];
     const speaker = doer ? (doer.role === "ReadThing" ? thingOf(doer) : c(doer.head)) : c("Someone");
@@ -948,7 +956,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // A message that starts with what can be done, not read as a doing, is told to be done ("take
   // 10, double it"), however its other words fall.
   const first = row[0]!;
-  if (first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
+  if (root === best.piece && first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
   const asked = asking(words, question) || asksIn(root);

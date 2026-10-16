@@ -25,6 +25,8 @@ export interface Piece {
   readonly ask?: boolean;
   readonly word: number;
   readonly text: string;
+  /** A doing whose hole is a whole statement ("remember", "said", "think"). */
+  readonly takes?: boolean;
   /** A relation the word names ("name", "age", "capital"): said of an owner, it is a fact of that owner. */
   readonly relation?: boolean;
   /** Taken from what the tagger guesses, though the graph has senses of the word: weighed less than a sense. */
@@ -90,6 +92,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
     else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text));
     else if (s.type === "question") add("ReadThing", s.head, { ask: true });
     else if (s.type === "owner") add("ReadOwning", s.head);
+    else if (s.type === "takes") add("ReadDoing", s.head, { takes: true });
     else if (s.type === "glue") {
       if (s.copula) add("ReadSame", s.head);
       else if (s.head === "And" || s.head === "Comma") add("ReadJoining", s.head);
@@ -192,6 +195,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       const asked = taken.piece.ask ? [`${feature}:ask`] : [];
       // Said first in the message ("is tom taller…", "did you…"), a word may take differently: weighed apart too.
       if (taker.piece.word === 0) asked.push(`${feature}:lead`);
+      // A doing that takes a whole statement takes one more readily than another doing does.
+      if (taker.piece.takes) asked.push(`${feature}:takes`);
       // Taken outward of another taken from the same side ("is tom taller": "taller" after "tom").
       if (taker.piece.fills.some((f) => f.side === side)) asked.push(`${feature}:outer`);
       // What kind of piece filled it, weighed apart ("of" takes a thing more readily than a whole saying).
