@@ -99,6 +99,8 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
     }
   }
   // What the graph knows of the word comes first; what the tagger guesses beside it is weighed less.
+  // A word that is a number ("two") is that number, not the computation that reads it.
+  if (out.some((p) => p.value !== undefined)) for (let i = out.length - 1; i >= 0; i--) if (out[i]!.op && out[i]!.op!.arity === 1 && out[i]!.op!.target === "Number") out.splice(i, 1);
   const known = out.length;
   const base = nameOf(lemma(word.text.toLowerCase()) || word.text);
   const said = nameOf(word.text);
@@ -192,6 +194,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       if (taker.piece.word === 0) asked.push(`${feature}:lead`);
       // Taken outward of another taken from the same side ("is tom taller": "taller" after "tom").
       if (taker.piece.fills.some((f) => f.side === side)) asked.push(`${feature}:outer`);
+      // What kind of piece filled it, weighed apart ("of" takes a thing more readily than a whole saying).
+      asked.push(`${feature}=${taken.piece.role}`);
       const w = [feature, ...asked].reduce((sum, f) => sum + (weights.get(f) ?? 0), 0);
       out.push({
         piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: taken.piece }] },

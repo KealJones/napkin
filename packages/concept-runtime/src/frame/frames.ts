@@ -863,7 +863,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (words.length === 1) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
-  if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text))) return [];
+  if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text) && !w.senses.some((x) => x.type === "op"))) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
   // A word whose Concept the graph can do something with (a realization that takes what it is
   // given: Run, Explain, Fix) can be a doing, whatever the tagger guesses of it.
@@ -1136,15 +1136,19 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const plain = (v: Piece | undefined) => !!v && (v.role === "ReadThing" || v.role === "ReadQuality") && !filled(v, "Determiner").some((d) => /^(a|an)$/i.test(d.text));
   const ownerOf = (p: Piece, other?: Piece): Piece | undefined =>
     p.relation || (p.role === "ReadThing" && (other?.ask || plain(other)))
-      ? (filled(p, "Whose")[0] ?? (p.relation ? filled(p, "Where").filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0] : undefined))
+      ? (filled(p, "Whose")[0] ?? filled(p, "Where").filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0])
       : undefined;
   if (root.role === "ReadSame") {
     const [subjectPiece] = filled(root, "Subject");
     const [said] = filled(root, "Said");
-    const [held, value] = subjectPiece && ownerOf(subjectPiece, said) ? [subjectPiece, said] : said && ownerOf(said, subjectPiece) ? [said, subjectPiece] : [undefined, undefined];
+    // "of" said beside the whole ("the capital | of france | is paris") is of what it follows.
+    const rootOf = filled(root, "Where").find((l) => /^of$/i.test(l.text));
+    const withOf = (p: Piece | undefined) => (p && rootOf && !filled(p, "Where").length ? { ...p, fills: [...p.fills, { hole: "Where", side: "after" as const, piece: rootOf }] } : p);
+    const [subjectAt, saidAt] = [withOf(subjectPiece), said];
+    const [held, value] = subjectAt && ownerOf(subjectAt, saidAt) ? [subjectAt, saidAt] : saidAt && ownerOf(saidAt, subjectAt) ? [saidAt, subjectAt] : [undefined, undefined];
     const owner = held && ownerOf(held, value);
     // "what is on my list" asks what the list holds, not what "my list" is.
-    if (held && owner && value && !filled(root, "Where").length) {
+    if (held && owner && value && !filled(root, "Where").some((l) => l !== rootOf)) {
       const ownerId = ownerIdOf(owner, !value.ask && !asked);
       if (!ownerId) return [];
       // Described ("favorite color"), the relation is named with its describers: FavoriteColor.

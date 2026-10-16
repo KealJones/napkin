@@ -56,7 +56,7 @@ const someone = (runtime: Runtime, e: Expr): boolean =>
 /** What the conversation said last that fits: the last answer, or the last one named that fits. */
 const conversation: ContextSource = {
   name: "conversation",
-  find(wanted, { runtime, history }) {
+  find: (wanted, { runtime, history }) => {
     for (const [back, h] of [...history].reverse().entries()) {
       const result = read(h.result);
       const value = answered(result);
@@ -76,7 +76,7 @@ const conversation: ContextSource = {
 /** What the graph holds the conversation is about: the thing a pointing word was last taken to mean. */
 const memory: ContextSource = {
   name: "memory",
-  find(wanted, { runtime }) {
+  find: (wanted, { runtime }) => {
     const pointed = runtime.context.get("pointed");
     if (typeof pointed === "string" && pointed && wanted.kind !== "number") {
       const value = c(pointed);
