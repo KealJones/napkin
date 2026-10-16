@@ -860,7 +860,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // Several sentences are read each on their own (turn.ts), not run together into one reading.
   if (/[.!?;]\s+\S/.test(message.trim())) return [];
   // One word: something said whole ("hello", "thanks"), when the graph words it as itself.
-  if (words.length === 1) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
+  if (words.length === 1 && !words[0]!.senses.some((x) => x.type === "value" && isCall(x.value))) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
   if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text) && !w.senses.some((x) => x.type === "op"))) return [];
@@ -1301,6 +1301,15 @@ function computing(runtime: Runtime, words: readonly Word[], root: Piece, best: 
   };
   // Asked what it comes to ("what is 2 plus 3"), or said alone ("2 plus 3", "subtract 3 from 10").
   const asksWhat = root.role === "ReadSame" && filled(root, "Subject").some((x) => x.ask);
+  // A sum written in symbols, kept whole as what it writes ("(2+3)*4" Multiply(Add(2, 3), 4)): worked out.
+  const written = (p: Piece | undefined): Expr | undefined => (p && p.value !== undefined && isCall(p.value) && !["InlineCode", "Block", "File", "Examples"].includes(p.value.head) ? p.value : undefined);
+  const sum = written(asksWhat ? filled(root, "Said")[0] : root.fills.length ? undefined : root);
+  if (sum) {
+    return [{ key: format(sum), features: ["read:composed-written-sum", ...best.features], score, display: c("Value", sum), chosen: [], notes: [`A sum written in symbols: ${format(sum)}.`], run: async () => {
+      const v = await runtime.evaluate(sum, c("Execution"));
+      return isCall(v) && isCall(sum) && v.head === sum.head ? undefined : c("Answer", v);
+    } }];
+  }
   // A claim of what something comes to ("2 plus 2 is 5", "is 2 plus 2 4"): checked, nothing kept.
   if (root.role === "ReadSame" && !asksWhat) {
     const [a] = filled(root, "Subject");
@@ -1828,7 +1837,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   const store = runtime.store;
   // Code, links and quotes are kept as typed: each one token (verbatim0), read as the value it is
   // (InlineCode with its IR, a Block, the quoted text), for the words around it to take.
-  const kept = /[`"]|https?:\/\//.test(message) ? await verbatim(message).catch(() => undefined) : undefined;
+  const kept = /[`"/^()+*×÷]|https?:|\d\s*[-%]|\w\(/.test(message) ? await verbatim(message).catch(() => undefined) : undefined;
   if (kept?.spans.length) message = kept.text;
   const { tokens: typed, question } = tokens(store, message);
   if (!typed.length || typed.length > 30) return { looked: [] };
