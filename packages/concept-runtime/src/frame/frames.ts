@@ -1134,7 +1134,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (root.role === "ReadSame") {
     const [subjectPiece] = filled(root, "Subject");
     const [said] = filled(root, "Said");
-    const link = said && (said.role === "ReadQuality" || said.role === "ReadThing") ? [...filled(said, "Where"), ...filled(root, "Where")].find((l) => filled(l, "What").length) : undefined;
+    // How one stands to another is a quality said of it ("taller"), or a word the graph says compares.
+    const comparing = (p: Piece) => p.role === "ReadQuality" || !!p.relation || store.asSubject(nameOf(p.text)).some((t) => t.predicate === "Compares");
+    const link = said && comparing(said) ? [...filled(said, "Where"), ...filled(root, "Where")].find((l) => filled(l, "What").length) : undefined;
     const other = link && filled(link, "What")[0];
     if (subjectPiece && said && link && other && !other.ask && !said.ask) {
       const relation = nameOf(said.text);
@@ -1172,7 +1174,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const plain = (v: Piece | undefined) => !!v && (v.role === "ReadThing" || v.role === "ReadQuality") && !filled(v, "Determiner").some((d) => /^(a|an)$/i.test(d.text));
   const ownerOf = (p: Piece, other?: Piece): Piece | undefined =>
     p.relation || (p.role === "ReadThing" && (other?.ask || plain(other)))
-      ? (filled(p, "Whose")[0] ?? filled(p, "Where").filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0])
+      ? (filled(p, "Whose")[0] ?? [...filled(p, "Where"), ...filled(root, "Where").filter((l) => l.word === p.word + 1)].filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0])
       : undefined;
   if (root.role === "ReadSame") {
     const [subjectPiece] = filled(root, "Subject");
