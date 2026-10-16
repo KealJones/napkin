@@ -162,6 +162,8 @@ function index(store: ConceptStore): Index {
     const of = ws.indexOf("of");
     return [...new Set([ws.join(" "), of > 0 ? ws[of - 1]! : ws[ws.length - 1]!, ...called(store, id)])];
   };
+  // A fact about words themselves (TakesValue, Called, CanBe) is no word's sense in talk: "takes" is not TakesValue.
+  for (const p of [...predicates]) if (typesOf(store, c(p)).includes("WordFact")) predicates.delete(p);
   const built = { version: store.version, relations: by(predicates, named), inverses: by(predicates, (id) => called(store, id, "InverseCalled")), kinds: by(kindsHeld, kindWords), predicates };
   indexes.set(store, built);
   return built;

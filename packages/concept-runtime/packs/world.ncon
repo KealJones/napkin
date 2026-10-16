@@ -22,7 +22,7 @@ Concept(Weather(), IsA(Result()))
 // each by what it is called, so "i was born in 1990" and "when was i born" find them.
 // What each takes, as Wikidata's datatype says (a time; an item, a place): which one a year or a
 // city said after "born" is.
-Concept(TakesValue(), IsA(Relation()))
+Concept(TakesValue(), IsA(Relation()), IsA(WordFact()))
 Concept(DateOfBirth(),
   IsA(Relation()),
   SameAs(Wikidata("P569")),

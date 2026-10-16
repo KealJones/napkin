@@ -117,11 +117,13 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (!clause) continue;
       const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
       const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
-      const whom = ofWhom(clause, unitName);
-      if (!whom) continue;
+      // "half that much": what was said just before.
+      const that = s.words[times.word + 1] && s.words[times.word + 1]!.senses.some((x) => x.type === "pointer");
+      const whom = that ? undefined : ofWhom(clause, unitName);
+      if (!whom && !that) continue;
       ratios.add(times);
       const holder = holderOf(clause);
-      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
+      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: 0, ratio: true, of: that ? { last: true } : { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
     }
     for (const p of walk(s.piece)) {
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
