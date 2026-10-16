@@ -12,7 +12,7 @@
  */
 import type { ConceptStore } from "../store/store.js";
 import type { Runtime } from "../runtime/evaluator.js";
-import { lemma } from "../runtime/host.js";
+import { lemma, words as hostWords } from "../runtime/host.js";
 import { filled, type Piece } from "../frame/compose.js";
 import { frames, type Word } from "../frame/frames.js";
 import { lexicon } from "./lexicon.js";
@@ -28,7 +28,15 @@ interface Sentence {
 export async function readSentences(runtime: Runtime, message: string): Promise<Sentence[]> {
   const out: Sentence[] = [];
   // Sentences, and the clauses a comma parts in one that asks ("If Martha has 68 apples, how many …").
-  const parts = message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean).flatMap((x) => (/\?$/.test(x) ? x.split(/,\s+/) : [x]));
+  // A question after what it supposes ("If Martha has 68 apples, how many …"): the supposing apart
+  // from the asking, at the comma before the chunk that asks; said first, it keeps its commas whole.
+  const asks = (x: string) => hostWords(x).some((w) => w.tags.includes("QuestionWord"));
+  const parts = message.split(/(?<=[.!?])\s+(?=\S)/).map((x) => x.trim()).filter(Boolean).flatMap((x) => {
+    if (!/\?$/.test(x)) return [x];
+    const chunks = x.split(/,\s+/);
+    const k = chunks.findIndex(asks);
+    return k > 0 ? [chunks.slice(0, k).join(", "), chunks.slice(k).join(", ")] : [x];
+  });
   for (const text of parts) {
     let got: Sentence | undefined;
     await frames(runtime, text, [], { pieces: (piece, words) => (got ??= { piece, words, text }) }).catch(() => undefined);
@@ -97,10 +105,10 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         left: all.some((w) => lex.marks(w, "Remaining")),
         total: all.some((w) => lex.marks(w, "Whole")),
         more: false,
-        ...(holder ? { holder } : {}),
+        // Asked of all of them together ("do Toulouse, Charleston, and Seattle have together"): no one holder.
+        ...(holder && !all.some((w) => lex.marks(w, "Whole")) ? { holder } : {}),
         said: s.text,
       };
-      return;
     }
     // Said as a share or a difference of someone else's ("half as many apples as Martha", "30 less
     // apples than Martha"): a word that multiplies (lex.times) or compares (lex.compares), and the one
@@ -129,17 +137,29 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
       const alone = p.role === "ReadThing" && typeof p.value === "number" && !walk(s.piece).some((q) => filled(q, "Count").includes(p)) ? p : undefined;
       const number = count ?? alone;
-      if (!number || typeof number.value !== "number") continue;
+      if (!number || typeof number.value !== "number" || number.ask) continue;
       const clause = clauseOf(p);
       const holder = holderOf(clause);
       const doing = clause?.role === "ReadDoing" ? base(clause.text) : undefined;
       const money = new RegExp(`\\$\\s*${number.value}\\b`).test(s.text);
-      const thing = count ? base(p.text) : money ? "dollar" : lastUnit;
+      // A count of times ("4 times as many", "3 times a week"): how often, or what multiplies, no thing of its own.
+      const often = !!count && s.words[p.word]?.senses.some((x) => x.type === "op" && x.target === "Multiply");
+      const thing = often ? undefined : count ? base(p.text) : money ? "dollar" : lastUnit;
       const per = perOf(p) ?? (clause ? perOf(clause) : undefined);
       const unit: Record<string, number> = {};
       if (thing) unit[thing] = 1;
       if (per && per !== thing) unit[per] = (unit[per] ?? 0) - 1;
-      if (count) lastUnit = base(p.text);
+      if (count && !often) lastUnit = base(p.text);
+      if (often && !perOf(p) && !(clause && perOf(clause))) {
+        const unitPiece = clause ? walk(clause).find((x) => x.role === "ReadThing" && x !== p && x.value === undefined && filled(x, "Describer").length > 0) : undefined;
+        const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
+        const whom = ofWhom(clause, unitName);
+        if (whom) {
+          const holder = holderOf(clause);
+          amounts.push({ value: number.value, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: `${number.value} times`, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}) });
+          continue;
+        }
+      }
       // A difference said of someone else's ("30 less apples than Martha").
       const comparing = [...filled(p, "Name"), ...filled(p, "Describer"), ...(clause ? walk(clause) : [])].find((x) => x !== p && lex.compares(x.text) !== 0);
       const whom = comparing ? ofWhom(clause, thing) : undefined;
