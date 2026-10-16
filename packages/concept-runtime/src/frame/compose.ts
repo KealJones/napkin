@@ -201,6 +201,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       if (taker.piece.fills.some((f) => f.side === side)) asked.push(`${feature}:outer`);
       // What kind of piece filled it, weighed apart ("of" takes a thing more readily than a whole saying).
       asked.push(`${feature}=${taken.piece.role}`);
+      // A marking word taken with nothing it marks ("who was jaws directed by") is taken less readily.
+      if (taken.piece.role === "ReadLink" && !filled(taken.piece, "What").length) asked.push(`${feature}:empty`);
       const w = [feature, ...asked].reduce((sum, f) => sum + (weights.get(f) ?? 0), 0);
       out.push({
         piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: taken.piece }] },
@@ -252,6 +254,16 @@ export const filled = (p: Piece, hole: string): Piece[] => p.fills.filter((f) =>
 
 /** A thing as a Concept: its describers and its own word as one name ("nice tree" NiceTree), a count as a Quantity. */
 export function thingOf(p: Piece): Expr {
+  // A month with a day beside it ("june 3rd", "3rd of june"): the date.
+  if (p.value !== undefined && isCall(p.value) && p.value.head === "Date" && !p.value.args.some((a) => a.name === "day")) {
+    const day = [...filled(p, "Count"), ...filled(p, "Name"), ...filled(p, "Operand")].find((x) => typeof x.value === "number");
+    if (day) return call("Date", [...p.value.args, { name: "day", value: day.value! }]);
+  }
+  // A day with its month beside it ("3rd" named by "june", "12th of may"): the date.
+  if (typeof p.value === "number") {
+    const month = [...filled(p, "Name"), ...filled(p, "Where").flatMap((l) => filled(l, "What"))].find((x) => x.value !== undefined && isCall(x.value) && x.value.head === "Date");
+    if (month && isCall(month.value!)) return call("Date", [...(month.value as { args: readonly { name?: string; value: Expr }[] }).args, { name: "day", value: p.value }]);
+  }
   if (p.value !== undefined) return p.value;
   const describers = filled(p, "Describer").map((d) => d.text);
   const count = filled(p, "Count").find((x) => x.value !== undefined && typeof x.value === "number");

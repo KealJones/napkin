@@ -1926,7 +1926,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       // A month's name keeps its other senses too: "may" also asks leave.
       const month = MONTHS[nameOf(w)];
       if (month !== undefined) {
-        senses.set(key, [...(await sensesOf(store, w, number)), { type: "glue", head: `Month${month}`, marksFirst: false, copula: false }]);
+        // A month is a date too, made whole by a day said beside it ("june 3rd").
+        senses.set(key, [...(await sensesOf(store, w, number)), { type: "value", value: call("Date", [{ name: "month", value: month }]) }, { type: "glue", head: `Month${month}`, marksFirst: false, copula: false }]);
         return senses.get(key)!;
       }
       // A comma parts what is said, as "and" does; it takes nothing and says nothing.
