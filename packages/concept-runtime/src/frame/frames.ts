@@ -874,11 +874,32 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // What the graph has written for the words in the order said ("how are you": How(Are(You())),
   // answered DoingWell in a question): read so when nothing else reads them.
   // Only for what is asked: an answer, not a thing kept or done.
-  const inOrder = asking(words, question) && words.length <= 6 && words.every((w) => /^[a-z']+$/i.test(w.text)) ? words.map((w) => nameOf(w.text.replace(/'/g, ""))).reduceRight<Expr | undefined>((inner, h) => (inner === undefined ? c(h) : c(h, inner)), undefined) : undefined;
-  const saidInOrder: Reading[] = inOrder !== undefined ? [{ key: `In order ${format(inOrder)}`, features: ["read:composed-in-order"], score: 1, display: inOrder, chosen: [], notes: [`Read in the order said: ${format(inOrder)}.`], run: async () => {
-    const scoped = c("ContextScope", c(asking(words, question) ? "Interrogative" : "Declarative"), inOrder);
-    const v = await runtime.evaluate(scoped, c("Execution")).catch(() => undefined);
-    return v === undefined || (isCall(v) && (v.head === "ContextScope" || (isCall(inOrder) && v.head === inOrder.head))) ? undefined : v;
+  // Each word as the graph writes it: its value when it is one (code, a number), else its Concept.
+  const leaf = (w: Word): Expr | undefined => {
+    const v = w.senses.find((x) => x.type === "value");
+    if (v && v.type === "value") return v.value;
+    return /^[a-z']+$/i.test(w.text) ? c(nameOf(w.text.replace(/'/g, ""))) : undefined;
+  };
+  const leaves = words.map(leaf);
+  const nest = (xs: Expr[]): Expr => xs.reduceRight((inner, h) => (isCall(h) && !h.args.length ? call(h.head, [{ value: inner }]) : h));
+  // Said in order, each word taking what follows (How(Are(You()))); or a question word and its helper
+  // taking the rest side by side (What(Does(code, Give()))).
+  const orders: Expr[] = asking(words, question) && words.length <= 6 && leaves.every((x) => x !== undefined)
+    ? (() => {
+        const side = words.length >= 3 && isCall(leaves[0]!) && isCall(leaves[1]!) ? [c((leaves[0] as { head: string }).head, c((leaves[1] as { head: string }).head, ...(leaves.slice(2) as Expr[])))] : [];
+        // A value said before the end (code, then what it is asked to do) cannot take what follows it: side by side first.
+        const valueInside = leaves.slice(0, -1).some((x) => isCall(x!) && x.args.length > 0);
+        return valueInside ? [...side, nest(leaves as Expr[])] : [nest(leaves as Expr[]), ...side];
+      })()
+    : [];
+  const inOrder = orders[0];
+  const saidInOrder: Reading[] = inOrder !== undefined ? [{ key: `In order ${format(inOrder)}`, features: ["read:composed-in-order"], score: 1, display: inOrder, chosen: [], notes: [`Read in the order said: ${orders.map(format).join(" or ")}.`], run: async () => {
+    for (const order of orders) {
+      const scoped = c("ContextScope", c("Interrogative"), order);
+      const v = await runtime.evaluate(scoped, c("Execution")).catch(() => undefined);
+      if (v !== undefined && !(isCall(v) && (v.head === "ContextScope" || (isCall(order) && v.head === order.head)))) return v;
+    }
+    return undefined;
   } }] : [];
   if (words.length === 1 && !words[0]!.senses.some((x) => x.type === "value" && isCall(x.value))) return sayings(store, words, question).map((r) => ({ ...r, features: ["read:composed-saying", ...r.features] }));
   if (words.length > 24) return [];
@@ -973,7 +994,17 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   };
   // A thing as a doing's realization takes it: its head, with what describes or names it inside
   // ("shopping list" List(Shopping())), whose it is around it ("my" My(...)).
-  const asTaken = (p: Piece): Expr => thingAsTaken(words, p);
+  // What came before, for a pointing word: the last result said.
+  const lastSaid = (() => {
+    const text = history.at(-1)?.result;
+    if (!text) return undefined;
+    try {
+      return parse(text);
+    } catch {
+      return undefined;
+    }
+  })();
+  const asTaken = (p: Piece): Expr => thingAsTaken(words, p, lastSaid);
   // Where a link says it goes, it is said with what it carries ("put eggs on my list":
   // Put(Eggs(On(My(List()))))), as what the doing takes.
   const carrying = (done: Expr[], links: Expr[]): Expr[] => {
@@ -985,8 +1016,10 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const linksOf = (p: Piece) => filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map(asTaken)));
   const doingCall = (p: Piece): Expr => {
     if (p.op) return c(p.op.target, ...carrying(operandsOf(p).filter((o) => !o.link).map((o) => asTaken(o.piece)), linksOf(p)));
+    // A pointing word or a value carries nothing inside it: what is said with it goes beside ("save it to a.js").
+    const bare = (d: Piece) => d.value !== undefined || (words[d.word]?.senses.some((x) => x.type === "pointer") ?? false);
     const done = filled(p, "Done").map(asTaken);
-    const links = linksOf(p);
+    const links = [...linksOf(p), ...filled(p, "Done").filter(bare).flatMap(linksOf)];
     const particles = filled(p, "Particle").map((x) => x.text);
     const head = particles.length ? nameOf([lemma(p.text.toLowerCase()) || p.text, ...particles].join(" ")) : p.head;
     return c(store.has(head) ? head : p.head, ...carrying(done, links));
@@ -1292,20 +1325,21 @@ function replacing(store: ConceptStore, subject: string, fact: Expr, cause: numb
  * A thing as a doing's realization takes it: its head, with what describes or names it inside
  * ("shopping list" List(Shopping())), whose it is around it ("my" My(...)), things joined as And.
  */
-function thingAsTaken(words: readonly Word[], p: Piece): Expr {
+function thingAsTaken(words: readonly Word[], p: Piece, before?: Expr): Expr {
   if (p.value !== undefined) return p.value;
-  if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }]);
+  // A pointing word is what came before, when something did ("save it", after code was written).
+  if (words[p.word]?.senses.some((x) => x.type === "pointer")) return call("Ref", [{ value: p.text.toLowerCase() }, ...(before !== undefined ? [{ name: "resolvedTo", value: before }] : [])]);
   // A thing that names it inside ("shopping list" List(Shopping())); a word that describes it around it ("a new list" New(List())).
   const inner = filled(p, "Name").map((d) => c(nameOf(d.text)));
   const items = filled(p, "Also").flatMap((j) => filled(j, "With"));
   // What a word puts with it ("a list with milk"), inside it, as said.
-  const links = filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map((x) => thingAsTaken(words, x))));
+  const links = filled(p, "Where").map((l) => c(nameOf(l.text), ...filled(l, "What").map((x) => thingAsTaken(words, x, before))));
   // As said: "keys" stays Keys, the base form only where the graph named it so.
   const asSaid = p.head === nameOf(lemma(p.text.toLowerCase()) || p.text) && /^[a-z]+$/i.test(p.text) ? nameOf(p.text) : p.head;
   let e: Expr = c(asSaid, ...inner, ...links);
   for (const d of filled(p, "Describer").reverse()) e = c(nameOf(d.text), e);
   for (const o of filled(p, "Whose")) e = o.head === "Me" ? c("My", e) : c("Whose", c(o.head), e);
-  return items.length ? c("And", e, ...items.map((x) => thingAsTaken(words, x))) : e;
+  return items.length ? c("And", e, ...items.map((x) => thingAsTaken(words, x, before))) : e;
 }
 
 /**
@@ -1902,7 +1936,15 @@ export async function frames(runtime: Runtime, message: string, history: readonl
   // Code, links and quotes are kept as typed: each one token (verbatim0), read as the value it is
   // (InlineCode with its IR, a Block, the quoted text), for the words around it to take.
   const kept = /[`"/^()+*×÷]|https?:|\d\s*[-%]|\w\(/.test(message) ? await verbatim(message).catch(() => undefined) : undefined;
-  if (kept?.spans.length) message = kept.text;
+  if (kept?.spans.length) {
+    message = kept.text;
+    // Asked of "this" and then shown it ("what does this do? `code`"): what is shown is what "this" was.
+    const shown = /^(.*?[?.!])\s*(verbatim\d+)\s*$/.exec(message.trim());
+    if (shown) {
+      const pointing = shown[1]!.split(/\s+/).find((w) => typesOf(store, c(nameOf(w.replace(/[?.!:]+$/, "")))).some((k) => k === "Pointing" || k === "Deictic" || k === "Pronoun"));
+      if (pointing) message = shown[1]!.replace(new RegExp(`\\b${pointing.replace(/[?.!:]+$/, "")}\\b`), shown[2]!);
+    }
+  }
   const { tokens: typed, question } = tokens(store, message);
   if (!typed.length || typed.length > 30) return { looked: [] };
   const numbers = new Map<string, number | undefined>();

@@ -125,7 +125,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   if (!out.length) add("ReadThing", said);
   // A guess of the same Concept a sense names ("live", a relation the graph holds, guessed a doing) is no guess.
   const heads = new Set(out.slice(0, known).filter((p) => !p.op).map((p) => p.head));
-  return known ? out.map((p, i) => (i < known || heads.has(p.head) ? p : { ...p, guessed: true })) : out;
+  return known ? out.map((p, i) => (i < known || (p.role === "ReadDoing" && heads.has(p.head)) ? p : { ...p, guessed: true })) : out;
 }
 
 /** Every way a row of words joins into one, best first. */
