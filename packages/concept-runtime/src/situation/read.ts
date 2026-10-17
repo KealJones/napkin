@@ -13,7 +13,7 @@
 import type { ConceptStore } from "../store/store.js";
 import type { Runtime } from "../runtime/evaluator.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
-import { filled, type Piece } from "../frame/compose.js";
+import { filled, type Composed, type Piece } from "../frame/compose.js";
 import { frames, type Word } from "../frame/frames.js";
 import { lexicon } from "./lexicon.js";
 import { resolveRatios, type Amount, type Asked, type Situation, type Unit } from "./situation.js";
@@ -22,6 +22,8 @@ interface Sentence {
   readonly piece: Piece;
   readonly words: readonly Word[];
   readonly text: string;
+  /** Every way its words were fitted together, best first, with the choices that made each (for learning the weights). */
+  readonly ranked: readonly Composed[];
 }
 
 /** Each sentence of a message, as the one reader fits its words together; nothing is run or kept. */
@@ -39,7 +41,7 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
   });
   for (const text of parts) {
     let got: Sentence | undefined;
-    await frames(runtime, text, [], { pieces: (piece, words) => (got ??= { piece, words, text }) }).catch(() => undefined);
+    await frames(runtime, text, [], { pieces: (piece, words, ranked) => (got ??= { piece, words, text, ranked }) }).catch(() => undefined);
     if (got) out.push(got);
   }
   return out;

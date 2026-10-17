@@ -25,7 +25,7 @@ import { knownAsName, standsAsNameIn } from "../ears/parser/words.js";
 import { findNamed } from "../runtime/individuals.js";
 import { askedHole, fillFromContext } from "./context.js";
 import { verbatim } from "../ears/code-reading.js";
-import { asks as asksIn, compose, filled, operandsOf, piecesOf, thingOf, type Piece } from "./compose.js";
+import { type Composed, asks as asksIn, compose, filled, operandsOf, piecesOf, thingOf, type Piece } from "./compose.js";
 import { nameOf } from "../ears/parser/names.js";
 import { lemma, words as hostWords } from "../runtime/host.js";
 import { alternatives, beside, commonness, expandBare, isWord, settled, unbare, useGraphNames } from "../ears/parser/words.js";
@@ -1870,7 +1870,7 @@ export interface FrameOptions {
   /** The fixed readers too (sums, facts, statements, …), beside the one reader: for comparing with the old hearing only. */
   readonly fixed?: boolean;
   /** Only how the words fit together, for what reads a whole message in parts (situation/read.ts): nothing is run. */
-  readonly pieces?: (piece: Piece, words: readonly Word[]) => void;
+  readonly pieces?: (piece: Piece, words: readonly Word[], ranked: readonly Composed[]) => void;
   /** Reading one part of a message joined by "and": not split again. */
   readonly part?: boolean;
 }
@@ -2081,8 +2081,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       if (options.pieces) {
         if (row === rows[0]) {
           const tagsHere = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
-          const best = compose(store, words.map((w, i) => piecesOf(w, i, tagsHere.get(w.text.toLowerCase()) ?? [], pointed)))[0];
-          if (best) options.pieces(best.piece, words);
+          const ranked = compose(store, words.map((w, i) => piecesOf(w, i, tagsHere.get(w.text.toLowerCase()) ?? [], pointed)));
+          if (ranked[0]) options.pieces(ranked[0].piece, words, ranked);
         }
         continue;
       }
