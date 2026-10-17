@@ -17,7 +17,16 @@ Concept(Him(), PointsAt(Someone()), PointsAt(Male()))
 
 Concept(She(), PointsAt(Someone()), PointsAt(Female()))
 
-Concept(Her(), PointsAt(Someone()), PointsAt(Female()))
+Concept(Her(), PointsAt(Someone()), PointsAt(Female()), IsA(Possessive()))
 
 // Whose: "his wife" is the wife of whom "he" would point at.
-Concept(His(), IsA(Pointing()), PointsAt(Someone()), PointsAt(Male()))
+Concept(His(), IsA(Pointing()), IsA(Possessive()), PointsAt(Someone()), PointsAt(Male()))
+
+Concept(Their(), IsA(Pointing()), IsA(Possessive()), PointsAt(Someone()))
+
+Concept(Its(), IsA(Pointing()), IsA(Possessive()))
+
+// Where: "there" points at a place said before, "here" at where the one speaking is.
+Concept(There(), IsA(Pointing()), PointsAt(Place()))
+
+Concept(Here(), IsA(Pointing()), PointsAt(Place()))

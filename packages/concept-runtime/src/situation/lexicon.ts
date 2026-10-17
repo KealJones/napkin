@@ -96,6 +96,13 @@ export function lexicon(store: ConceptStore): Lexicon {
   // takes 0.5 of it; Twice is MultiplyValues(x, 2). A synonym's definition counts (Halves, Half).
   const factors = new Map<string, number | undefined>();
   const factorOf = (word: string): number | undefined => {
+    // Said in parts ("one-half", "two-thirds"): how many, of what each part takes.
+    const parts = word.toLowerCase().split(/[-\s]+/).filter(Boolean);
+    if (parts.length === 2) {
+      const n = valueOf(parts[0]!);
+      const f = factorOf(parts[1]!);
+      if (n !== undefined && f !== undefined && f < 1) return n * f;
+    }
     const w = word.toLowerCase().replace(/[^a-z]/g, "");
     if (factors.has(w)) return factors.get(w);
     let found: number | undefined;

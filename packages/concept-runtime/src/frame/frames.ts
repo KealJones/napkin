@@ -906,23 +906,7 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // Words only: marks and code ("(", "+", a fenced block) are read by what reads them.
   if (words.some((w) => !/[a-z0-9]/i.test(w.text) && !/^[,;]$/.test(w.text) && !w.senses.some((x) => x.type === "op"))) return [];
   const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
-  // A word whose Concept the graph can do something with (a realization that takes what it is
-  // given: Run, Explain, Fix) can be a doing, whatever the tagger guesses of it.
-  const doable = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.length > 0 && !(r.context !== undefined && isCall(r.context) && (r.context.head === "Speaking" || r.context.head === "Describe")));
-  const row = words.map((w, i) => {
-    const pieces = piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed);
-    const heads = [...new Set([nameOf(lemma(w.text.toLowerCase()) || w.text), ...w.senses.flatMap((x) => (x.type === "entity" || x.type === "kind" ? [x.head] : []))])];
-    // Said first, and nothing else the word is (no computation, no question, no little word): told to be done.
-    // A word that asks only as another word does ("explain", a way of asking what) can still be its own doing.
-    const own = nameOf(lemma(w.text.toLowerCase()) || w.text);
-    const only = w.senses.every((x) => x.type === "entity" || x.type === "kind" || x.type === "takes" || x.type === "relation" || (x.type === "question" && x.head !== own));
-    const can = i === 0 && only ? heads.find((h) => /^[a-z]+$/i.test(w.text) && doable(h)) : undefined;
-    // A word the graph says compares ("less", "more", "older") can say how a thing is, beside a count ("30 less apples").
-    if (heads.some((h) => store.asSubject(h).some((t) => t.predicate === "Compares")) && !pieces.some((p) => p.role === "ReadQuality")) pieces.push({ role: "ReadQuality", head: nameOf(w.text), word: i, text: w.text, fills: [] });
-    if (!can) return pieces;
-    const rest = pieces.filter((p) => !(p.role === "ReadDoing" && p.head === can));
-    return [...rest, { role: "ReadDoing", head: can, word: i, text: w.text, fills: [] }];
-  });
+  const row = rowOf(store, words, message, pointed);
   const all = compose(store, row);
   if (process.env.NAPKIN_COMPOSE_DEBUG) console.error("  pieces", row.map((ps) => ps.map((p) => `${p.text}:${p.role}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.guessed ? "?" : ""}`).join(" ")).join(" | "));
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
@@ -1737,9 +1721,11 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
   const text = expandBare(message)
     .replace(/([+*/=×÷])/g, " $1 ")
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
+    // "an 8-ounce cup": the count and what it counts.
+    .replace(/(\d)-(\p{L})/gu, "$1 $2")
     // "what's", "he's": the word and "is", where the word asks or points (the graph says which).
     .replace(/\b([A-Za-z]+)'s\b/g, (all, w: string) => (typesOf(store, c(nameOf(w))).some((k) => k === "Interrogative" || k === "Pointing") ? `${w} is` : all));
-  return { tokens: text.match(/verbatim\d+|\d+(?:st|nd|rd|th)\b|\d+(?:\.\d+)?|[A-Za-z]+(?:'[A-Za-z]+)?|[+*/=×÷(),-]/gi) ?? [], question };
+  return { tokens: text.match(/verbatim\d+|\d+(?:st|nd|rd|th)\b|\d+(?:\.\d+)?|\p{L}+(?:['-]\p{L}+)*|[+*/=×÷(),-]/giu) ?? [], question };
 }
 
 /** Two or three words that are one name the graph holds ("steven spielberg" is StevenSpielberg). */
@@ -1925,6 +1911,29 @@ function unknownRuns(store: ConceptStore, words: readonly Word[], message: strin
   return runs;
 }
 
+/** What each word can be, as pieces, with what the graph says of it beside its senses. */
+function rowOf(store: ConceptStore, words: readonly Word[], message: string, pointed: string | undefined): Piece[][] {
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
+  // A word whose Concept the graph can do something with (a realization that takes what it is
+  // given: Run, Explain, Fix) can be a doing, whatever the tagger guesses of it.
+  const doable = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.length > 0 && !(r.context !== undefined && isCall(r.context) && (r.context.head === "Speaking" || r.context.head === "Describe")));
+  const row = words.map((w, i) => {
+    const pieces = piecesOf(w, i, tags.get(w.text.toLowerCase()) ?? [], pointed);
+    const heads = [...new Set([nameOf(lemma(w.text.toLowerCase()) || w.text), ...w.senses.flatMap((x) => (x.type === "entity" || x.type === "kind" ? [x.head] : []))])];
+    // Said first, and nothing else the word is (no computation, no question, no little word): told to be done.
+    // A word that asks only as another word does ("explain", a way of asking what) can still be its own doing.
+    const own = nameOf(lemma(w.text.toLowerCase()) || w.text);
+    const only = w.senses.every((x) => x.type === "entity" || x.type === "kind" || x.type === "takes" || x.type === "relation" || (x.type === "question" && x.head !== own));
+    const can = i === 0 && only ? heads.find((h) => /^[a-z]+$/i.test(w.text) && doable(h)) : undefined;
+    // A word the graph says compares ("less", "more", "older") can say how a thing is, beside a count ("30 less apples").
+    if (heads.some((h) => store.asSubject(h).some((t) => t.predicate === "Compares")) && !pieces.some((p) => p.role === "ReadQuality")) pieces.push({ role: "ReadQuality", head: nameOf(w.text), word: i, text: w.text, fills: [] });
+    if (!can) return pieces;
+    const rest = pieces.filter((p) => !(p.role === "ReadDoing" && p.head === can));
+    return [...rest, { role: "ReadDoing", head: can, word: i, text: w.text, fills: [] }];
+  });
+  return row;
+}
+
 /** A result still holding one of the operations it was built from: the computation did not run. */
 function residual(result: Expr, ops: readonly string[]): boolean {
   // The operations it was built with (op:word=Target), not the lists that hold its values.
@@ -1955,7 +1964,8 @@ export async function frames(runtime: Runtime, message: string, history: readonl
     }
   }
   const { tokens: typed, question } = tokens(store, message);
-  if (!typed.length || typed.length > 30) return { looked: [] };
+  // A long message is read only as pieces (a word problem's sentence); answering reads one of thirty words at most.
+  if (!typed.length || typed.length > (options.pieces ? 64 : 30)) return { looked: [] };
   const numbers = new Map<string, number | undefined>();
   // Whether a word is a number word ("seven") is asked of the graph off the record: it is how
   // a word is looked at, not a step in answering, and every word of every message is asked.
@@ -2068,7 +2078,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       for (const text of folded) words.push({ text, senses: await sensesFor(text) });
       if (row === rows[0]) asTyped = words;
       // Every word must say something the graph has a sense of.
-      if (words.some((w) => !w.senses.length && !/^[a-z]+(?: [a-z]+)*$/i.test(w.text) && !/^[()]$/.test(w.text))) continue;
+      if (words.some((w) => !w.senses.length && !/^\p{L}+(?:[-']\p{L}+)*(?: \p{L}+(?:[-']\p{L}+)*)*$/iu.test(w.text) && !/^[()]$/.test(w.text))) continue;
       // Brackets that do not pair are not read here.
       if (folded.filter((w) => w === "(").length !== folded.filter((w) => w === ")").length) continue;
       // Each kind of reading accounts for every word that says something, or is not made: a word
@@ -2080,8 +2090,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       const fixed = options.fixed ? [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)] : [];
       if (options.pieces) {
         if (row === rows[0]) {
-          const tagsHere = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
-          const ranked = compose(store, words.map((w, i) => piecesOf(w, i, tagsHere.get(w.text.toLowerCase()) ?? [], pointed)));
+          const ranked = compose(store, rowOf(store, words, message, pointed));
           if (ranked[0]) options.pieces(ranked[0].piece, words, ranked);
         }
         continue;

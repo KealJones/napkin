@@ -1063,10 +1063,7 @@ export function situationOf(store: ConceptStore, said: string, options: { loose?
   if (span && !amounts.some((a) => a.optional && a.unit[base(span[1]!)] === 1)) amounts.push({ value: 1, unit: { [base(span[1]!)]: 1 }, said: `1 ${base(span[1]!)}`, sentence: q, sign: 0, optional: true });
   // "Harald's" is Harald.
   const named = amounts.map((a) => ({ ...a, ...(a.holder ? { holder: plain(a.holder) } : {}), ...(a.of?.holder ? { of: { ...a.of, holder: plain(a.of.holder) } } : {}) }));
-  const cap = named.find((a) => a.capacity);
-  const top = (a: Amount) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0).join();
-  const held = cap ? named.map((a) => (a === cap ? { ...a, sign: 1 } : top(a) === top(cap) && a.sign === 0 ? { ...a, sign: -1 } : a)) : named;
-  const resolved = resolveRatios(held);
+  const resolved = resolveRatios(withCapacity(named));
   // "He kept 5 lollipops and shared the remaining", "the rest went to ...": said with no number,
   // what is left by then of what was had first, less the others of it said since.
   sentences.forEach((sentence, at) => {
@@ -1234,6 +1231,13 @@ function conversions(store: ConceptStore, amounts: readonly Amount[], asked: Ask
  * as Charleston" is Toulouse's 2 × Charleston's sheep, once Charleston's are known, in whatever
  * order the sentences tell them. A ratio whose referent never comes stays a ratio.
  */
+/** What can be had at most ("a budget of $200"): had, and what else of it is said taken from it. */
+export function withCapacity(amounts: readonly Amount[]): Amount[] {
+  const cap = amounts.find((a) => a.capacity);
+  const top = (a: Amount) => Object.keys(a.unit).filter((k) => a.unit[k]! > 0).join();
+  return cap ? amounts.map((a) => (a === cap ? { ...a, sign: 1 } : top(a) === top(cap) && a.sign === 0 ? { ...a, sign: -1 } : a)) : [...amounts];
+}
+
 export function resolveRatios(said: readonly Amount[]): Amount[] {
   const list: (Amount & { derived?: boolean })[] = [...said];
   const replaced = new Set<Amount>();

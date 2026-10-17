@@ -17,7 +17,7 @@ import { filled, type Composed, type Piece } from "../frame/compose.js";
 import { isCall } from "../concept/expression.js";
 import { frames, type Word } from "../frame/frames.js";
 import { lexicon } from "./lexicon.js";
-import { conversionsFor, resolveRatios, type Amount, type Asked, type Situation, type Unit } from "./situation.js";
+import { conversionsFor, resolveRatios, withCapacity, type Amount, type Asked, type Situation, type Unit } from "./situation.js";
 
 interface Sentence {
   readonly piece: Piece;
@@ -40,9 +40,27 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
     const k = chunks.findIndex(asks);
     return k > 0 ? [chunks.slice(0, k).join(", "), chunks.slice(k).join(", ")] : [x];
   });
-  for (const text of parts) {
+  const readOne = async (text: string): Promise<Sentence | undefined> => {
     let got: Sentence | undefined;
     await frames(runtime, text, [], { pieces: (piece, words, ranked) => (got ??= { piece, words, text, ranked }) }).catch(() => undefined);
+    // Said joined to what came before ("and each jaguar eats …"): the clause it joins.
+    const joined = got && got.piece.role === "ReadJoining" && got.piece.fills.length === 1 ? got.piece.fills[0]!.piece : undefined;
+    return got && joined ? { ...got, piece: joined } : got;
+  };
+  // A clause said whole: something done, or said to be, of someone.
+  const clause = (s: Sentence) => (s.piece.role === "ReadDoing" || s.piece.role === "ReadSame") && s.piece.fills.some((f) => f.hole === "Doer" || f.hole === "Subject");
+  for (const text of parts) {
+    // Clauses a comma parts ("each bird eats 12 beetles, each snake eats 3 birds"): each read alone,
+    // when each is a clause of its own; otherwise the commas part a list, read whole.
+    const chunks = text.split(/,\s+/);
+    if (chunks.length > 1) {
+      const read = await Promise.all(chunks.map(readOne));
+      if (read.every((r) => r && clause(r))) {
+        out.push(...(read as Sentence[]));
+        continue;
+      }
+    }
+    const got = await readOne(text);
     if (got) out.push(got);
   }
   return out;
@@ -53,10 +71,13 @@ const walk = (p: Piece): Piece[] => [p, ...p.fills.flatMap((f) => walk(f.piece))
 /** The situation the sentences tell and the question asks, or undefined when they do not tell one. */
 export function situationFromSentences(store: ConceptStore, sentences: readonly Sentence[]): Situation | undefined {
   const lex = lexicon(store);
-  const asking = sentences.findIndex((s) => walk(s.piece).some((p) => p.ask));
+  // What is asked: the sentence that asks ("…?"), not one a question word only joins ("a wallet which costs $100").
+  const asks = sentences.map((s) => walk(s.piece).some((p) => p.ask));
+  const marked = sentences.map((s, i) => (asks[i] && /\?\s*$/.test(s.text) ? i : -1)).filter((i) => i >= 0);
+  const asking = marked.length ? marked.at(-1)! : asks.lastIndexOf(true);
   if (asking < 0) return undefined;
   const base = (w: string) => {
-    const lower = w.toLowerCase().replace(/[^a-z]/g, "");
+    const lower = w.toLowerCase().replace(/[^\p{L}]/gu, "");
     return lex.synonym(lower) ?? (lemma(lower) || lower);
   };
   const pointing = (s: Sentence, p: Piece) => s.words[p.word]?.senses.some((x) => x.type === "pointer") ?? false;
@@ -95,7 +116,18 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         const what = filled(l, "What")[0];
         if (what && lex.per(what.text.toLowerCase())) return lex.per(what.text.toLowerCase());
       }
+      // Said after it, of one ("500 movies a day", "$5 a month"): so many for each one.
+      const one = p.fills.find((f) => f.side === "after" && (f.hole === "Name" || f.hole === "Done") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
+      if (one) return base(one.piece.text);
+      // A span each one of which it is done in ("eaten each day"): what is done, determined by a word marking each.
+      const spans = filled(p, "Done").find((d) => d.value === undefined && !filled(d, "Count").length && filled(d, "Determiner").some((x) => lex.marks(x.text, "Each")));
+      if (spans) return base(spans.text);
       return undefined;
+    };
+    // The one a clause is said of, determined by a word that marks each one ("each bird").
+    const eachOf = (clause: Piece): string | undefined => {
+      const who = [...filled(clause, "Doer"), ...filled(clause, "Subject")][0];
+      return who && !pointing(s, who) && filled(who, "Determiner").some((d) => lex.marks(d.text, "Each")) ? base(who.text) : undefined;
     };
     if (at === asking) {
       const ask = walk(s.piece).find((p) => p.ask)!;
@@ -104,11 +136,12 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const inUnit = walk(s.piece).flatMap((p) => filled(p, "Where")).filter((l) => !lex.marks(l.text, "Each")).flatMap((l) => filled(l, "What")).find((x) => lex.measures(base(x.text)));
       // "how much" asking nothing counted, where money was said: how much money.
       const moneySaid = amounts.some((a) => (a.unit["dollar"] ?? 0) > 0) || /\$\s*\d/.test(sentences.map((x) => x.text).join(" "));
-      const unitName = counted ? base(counted.text) : inUnit ? base(inUnit.text) : moneySaid && /much/i.test(ask.text) ? "dollar" : lastUnit;
+      const unitName = counted ? (lex.marks(base(counted.text), "Money") ? "dollar" : base(counted.text)) : inUnit ? base(inUnit.text) : moneySaid && /much/i.test(ask.text) ? "dollar" : lastUnit;
       const clause = clauseOf(ask);
       const holder = holderOf(clause);
       // Asked per a span ("make every day"): a rate asked.
-      const per = clause ? perOf(clause) : undefined;
+      // Asked per a span ("make every day", "are eaten each day"): of the clause, or of what it says is done.
+      const per = clause ? perOf(clause) ?? filled(clause, "Said").filter((x) => x.role === "ReadDoing").map(perOf).find(Boolean) : undefined;
       const all = s.words.map((w) => w.text);
       const unit: Record<string, number> = {};
       if (unitName) unit[unitName] = 1;
@@ -139,13 +172,21 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
       const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
       // "half that much": what was said just before. "half of the remaining pages": of what is left.
-      const that = s.words[times.word + 1] && s.words[times.word + 1]!.senses.some((x) => x.type === "pointer");
-      const left = walk(clause).some((x) => x !== times && lex.marks(x.text, "Remaining"));
+      // What it is of: the link said just after it ("of it", "of the remaining butter"), else its clause.
+      const ofLink = walk(clause).find((x) => x.role === "ReadLink" && x.word === times.word + 1);
+      const pointsAt = (i: number) => s.words[i]?.senses.some((x) => x.type === "pointer") ?? false;
+      // "of it": the thing it points at, as said, not a share worked from it.
+      const ofIt = !!ofLink && pointsAt(times.word + 2);
+      const that = pointsAt(times.word + 1) || ofIt;
+      const own = (p: Piece): Piece[] => [p, ...p.fills.filter((f) => f.hole !== "Also").flatMap((f) => own(f.piece))];
+      const left = (ofLink ? own(ofLink) : walk(clause)).some((x) => x !== times && lex.marks(x.text, "Remaining"));
       const whom = that || left ? undefined : ofWhom(clause, unitName);
-      if (!whom && !that && !left) continue;
+      // Of no one named ("sold half as many clips in May", "half of it"): of what was said just before.
+      const before = !whom && !that && !left;
+      if (before && !amounts.length) continue;
       ratios.add(times);
       const holder = holderOf(clause);
-      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: 0, ratio: true, of: left ? { last: true, left: true } : that ? { last: true } : { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
+      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: lex.effect(base(clause.text)), ratio: true, of: left ? { last: true, left: true } : ofIt ? { last: true, thing: true } : that || before ? { last: true } : { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
     }
     for (const p of walk(s.piece)) {
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
@@ -159,12 +200,19 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       // A count of times ("4 times as many", "3 times a week"): how often, or what multiplies, no thing of its own.
       const often = !!count && s.words[p.word]?.senses.some((x) => x.type === "op" && x.target === "Multiply");
       // Money said with what it is for each of ("$12 an hour", "$7 each"): dollars per that thing.
-      const each = money && count && filled(p, "Determiner").some((d) => /^(a|an)$/i.test(d.text) || lex.marks(d.text, "Each"));
-      const thing = often ? undefined : money ? "dollar" : count ? base(p.text) : lastUnit;
-      const per = each ? base(p.text) : perOf(p) ?? (clause ? perOf(clause) : undefined);
+      const each = money && count && filled(p, "Determiner").some((d) => lex.marks(d.text, "Single") || lex.marks(d.text, "Each"));
+      // A number said alone where something uncounted is done ("sold clips to 48 of her friends"): so many of it.
+      const doneThing = alone && clause ? filled(clause, "Done").find((d) => d.role === "ReadThing" && d.value === undefined && !d.ask && !filled(d, "Count").length && !pointing(s, d)) : undefined;
+      // Counted in a measure that names it ("an 8-ounce cup"): so much of the measure for each one.
+      const measure = count ? filled(p, "Name").find((n) => n.word > number.word && lex.measures(base(n.text))) : undefined;
+      const thing = often ? undefined : money ? "dollar" : measure ? base(measure.text) : count ? base(p.text) : doneThing ? base(doneThing.text) : lastUnit;
+      const per = each || measure ? base(p.text) : perOf(p) ?? (clause ? perOf(clause) : undefined);
       const unit: Record<string, number> = {};
       if (thing) unit[thing] = 1;
       if (per && per !== thing) unit[per] = (unit[per] ?? 0) - 1;
+      // Said of each one who does it ("each bird eats 12 beetles"): so many for each of them.
+      const eachOne = clause ? eachOf(clause) : undefined;
+      if (eachOne && eachOne !== thing && eachOne !== per) unit[eachOne] = (unit[eachOne] ?? 0) - 1;
       if (count && !often && !money) lastUnit = base(p.text);
       if (often && !perOf(p) && !(clause && perOf(clause))) {
         const unitPiece = clause ? walk(clause).find((x) => x.role === "ReadThing" && x !== p && x.value === undefined && filled(x, "Describer").length > 0) : undefined;
@@ -195,6 +243,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         sign: doing ? lex.effect(doing) : 0,
         ...(holder ? { holder } : {}),
         ...(doing ? { doing } : {}),
+        // Said as what can be had at most ("a budget of $200", "a limit of 5000 pounds"): a word marking it, just before.
+        ...((clause ? walk(clause) : []).some((x) => x.word < number.word && x.word >= number.word - 3 && lex.marks(x.text, "Capacity")) ? { capacity: true } : {}),
         near: walk(p).map((x) => base(x.text)),
       });
     }
@@ -202,6 +252,6 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     if (named) lastHolder = named;
   });
   if (!asked || !amounts.length) return undefined;
-  const resolved = resolveRatios(amounts);
+  const resolved = resolveRatios(withCapacity(amounts));
   return { amounts: [...resolved, ...conversionsFor(store, resolved, asked, asked.said)], asked };
 }

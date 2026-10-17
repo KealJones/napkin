@@ -31,6 +31,8 @@ export interface Piece {
   readonly relation?: boolean;
   /** Taken from what the tagger guesses, though the graph has senses of the word: weighed less than a sense. */
   readonly guessed?: boolean;
+  /** A word that points ("it", "there", "them"): what it stands for is elsewhere, so it is not counted or named. */
+  readonly points?: boolean;
   /** A computation the word stands for (senses.ts "op"): what runs, how many it takes, how tightly it binds. */
   readonly op?: { readonly target: string; readonly arity: number; readonly binds: number; readonly right: boolean; readonly takes?: readonly string[] };
   readonly fills: readonly { hole: string; side: "before" | "after"; piece: Piece }[];
@@ -89,7 +91,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
       if (typeof s.value === "number") add("ReadCount", head, { value: s.value });
     }
     else if (s.type === "op") add("ReadOp", s.target, { op: { target: s.target, arity: s.holes.length, binds: s.binds, right: s.right, takes: s.holes } });
-    else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text));
+    else if (s.type === "pointer") add("ReadThing", pointed ?? nameOf(word.text), { points: true });
     else if (s.type === "question") {
       add("ReadThing", s.head, { ask: true });
       // A question word that asks an amount ("how many", "how much") asks how many of a thing: its count.
@@ -100,7 +102,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
     else if (s.type === "glue") {
       if (s.copula) add("ReadSame", s.head);
       else if (s.head === "And" || s.head === "Comma") add("ReadJoining", s.head);
-      else if (/^(A|An|The)$/.test(s.head)) add("ReadDetermining", s.head);
+      else if (s.determiner) add("ReadDetermining", s.head);
       else if (s.helper) add("ReadAspect", s.head);
       else add("ReadLink", s.head);
     }
@@ -121,6 +123,8 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   if (has("Negative")) add("ReadNegation", said);
   if (has("Determiner") && !has("Possessive")) add("ReadDetermining", said);
   if (has("Possessive") && !out.some((p) => p.role === "ReadOwning")) add("ReadOwning", nameOf(word.text.replace(/['’]s?$/i, "")));
+  // Whose, with nothing after it that it owns ("bags of Reese's"): the one named.
+  if (out.some((p) => p.role === "ReadOwning") && /['’]s$/i.test(word.text) && !out.some((p) => p.role === "ReadThing")) add("ReadThing", nameOf(word.text));
   if (has("Preposition") && !out.some((p) => p.role === "ReadLink")) add("ReadLink", said);
   if (has("Conjunction")) add("ReadJoining", said);
   if (has("Expression") || has("Interjection")) add("ReadMarker", said);
@@ -131,6 +135,9 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
   const heads = new Set(out.slice(0, known).filter((p) => !p.op).map((p) => p.head));
   return known ? out.map((p, i) => (i < known || (p.role === "ReadDoing" && heads.has(p.head)) ? p : { ...p, guessed: true })) : out;
 }
+
+/** Holes that only say which one or what it is like: not what makes two joined pieces alike. */
+const MODIFYING = new Set(["Also", "Determiner", "Describer", "Name", "Whose", "Aside"]);
 
 /** Every way a row of words joins into one, best first. */
 export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6): Composed[] {
@@ -171,7 +178,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       // A computation is joined to what came before only from in front ("and plus 3"), not to a list.
       if (taker.piece.op && hole === "Also" && (side === "after" || filled(taken.piece, "With").length)) continue;
       // Things joined bind closer than what a word puts with them: in "the sum of 1, 2 and 3" the list is what "of" puts in.
-      if (hole === "Also" && side === "after" && taker.piece.fills.some((f) => f.hole === "Where" && f.side === "after")) continue;
+      // Unless what is joined has a word putting its own ("$30 on a shirt and $18 on a belt").
+      if (hole === "Also" && side === "after" && taker.piece.role !== "ReadDoing" && taker.piece.fills.some((f) => f.hole === "Where" && f.side === "after") && !filled(taken.piece, "With").some((w) => filled(w, "Where").length)) continue;
       // Doings are joined to doings, things to things ("make a list and add milk").
       if (hole === "Also" && taken.piece.role === "ReadJoining" && filled(taken.piece, "With").some((w) => (w.role === "ReadDoing") !== (taker.piece.role === "ReadDoing"))) continue;
       // A joining word put with a thing joins something to it ("3, 1 and 2"), not nothing.
@@ -203,11 +211,30 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
       if (taker.piece.takes) asked.push(`${feature}:takes`);
       // Taken outward of another taken from the same side ("is tom taller": "taller" after "tom").
       if (taker.piece.fills.some((f) => f.side === side)) asked.push(`${feature}:outer`);
+      // Which holes it is taken outward of: a word the order says stands nearer ("a" nearer "day" than "movies").
+      for (const h of new Set(taker.piece.fills.filter((f) => f.side === side).map((f) => f.hole))) asked.push(`${feature}:outside=${h}`);
+      // Joined like with like ("$30 on a shirt, $46 on pants"): what is joined fills the same holes.
+      if (hole === "Also") {
+        const with_ = filled(taken.piece, "With")[0];
+        const holesOf_ = (p: Piece) => [...new Set(p.fills.map((f) => f.hole).filter((h) => !MODIFYING.has(h)))].sort().join(",");
+        if (with_ && with_.role === taker.piece.role && holesOf_(with_) && holesOf_(with_) === holesOf_(taker.piece)) asked.push(`${feature}:parallel`);
+      }
+      // Taken by a word that points ("12 people there"): weighed apart.
+      if (taker.piece.points) asked.push(`${feature}:points`);
+      // A value taken where a thing is ("3 bags" read as bags named 3): weighed apart.
+      if (taken.piece.value !== undefined && taken.piece.role === "ReadThing") asked.push(`${feature}:value`);
       // What kind of piece filled it, weighed apart ("of" takes a thing more readily than a whole saying).
       asked.push(`${feature}=${taken.piece.role}`);
       // A marking word taken with nothing it marks ("who was jaws directed by") is taken less readily.
       if (taken.piece.role === "ReadLink" && !filled(taken.piece, "What").length) asked.push(`${feature}:empty`);
       const w = [feature, ...asked].reduce((sum, f) => sum + (weights.get(f) ?? 0), 0);
+      // A joining taken by a joining (", and c") is one joining: what the inner one joins.
+      if (taker.piece.role === "ReadJoining" && taken.piece.role === "ReadJoining") {
+        const inner = filled(taken.piece, "With");
+        if (inner.length !== 1 || hole !== "With" || taker.piece.head !== "Comma" || side !== "after") continue;
+        out.push({ piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: inner[0]! }] }, score: taker.score + taken.score + 1 + w, features: [...taker.features, ...taken.features, feature, ...asked] });
+        continue;
+      }
       out.push({
         piece: { ...taker.piece, fills: [...taker.piece.fills, { hole, side, piece: taken.piece }] },
         score: taker.score + taken.score + 1 + w + precedence,
@@ -242,6 +269,7 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
   }
   };
   build();
+  if (process.env.SPANS) for (let i = 0; i < n; i++) console.log(i, row[i]![0]?.text, [...Array(n - i).keys()].map((d) => at.get(`${i},${i + d + 1}`)?.length ?? 0).join(" "));
   // Nothing reads the row whole: read again, letting a word no hole takes be set aside.
   if (!at.get(`0,${n}`)?.length && n > 2) {
     aside = true;

@@ -281,6 +281,11 @@ Concept(Every(), Marks(Each()))
 
 Concept(Each(), Marks(Each()))
 
+// Said of one of them ("$12 an hour", "a dress"): one, which beside money says what it is for each of.
+Concept(A(), Marks(Single()))
+
+Concept(An(), Marks(Single()))
+
 // Said of all of them together ("in total", "altogether").
 Concept(Total(), Marks(Whole()))
 
@@ -331,6 +336,25 @@ Concept(Wage(), Marks(Money()))
 Concept(Amount(), Marks(Money()))
 
 Concept(Fee(), Marks(Money()))
+
+Concept(Money(), Marks(Money()))
+
+Concept(Profit(), Marks(Money()))
+
+Concept(Income(), Marks(Money()))
+
+Concept(Earnings(), Marks(Money()))
+
+Concept(Budget(), Marks(Money()), Marks(Capacity()))
+
+// Said of what can be had at most ("a limit of 5000 pounds").
+Concept(Limit(), Marks(Capacity()))
+
+Concept(Capacity(), Marks(Capacity()))
+
+Concept(Maximum(), Marks(Capacity()))
+
+Concept(Savings(), Marks(Money()))
 
 Concept(Person(), PluralForm("people"))
 
