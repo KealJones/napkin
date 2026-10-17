@@ -17,6 +17,7 @@ import { filled, type Composed, type Piece } from "../frame/compose.js";
 import { isCall } from "../concept/expression.js";
 import { frames, type Word } from "../frame/frames.js";
 import { lexicon } from "./lexicon.js";
+import { nameOf } from "../ears/parser/names.js";
 import { conversionsFor, resolveRatios, withCapacity, type Amount, type Asked, type Situation, type Unit } from "./situation.js";
 
 interface Sentence {
@@ -38,7 +39,12 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
     if (!/\?$/.test(x)) return [x];
     const chunks = x.split(/,\s+/);
     const k = chunks.findIndex(asks);
-    return k > 0 ? [chunks.slice(0, k).join(", "), chunks.slice(k).join(", ")] : [x];
+    if (k > 0) return [chunks.slice(0, k).join(", "), chunks.slice(k).join(", ")];
+    // Asked, then what it supposes ("how many … together if Seattle has 20 sheep?"): the supposing
+    // first, at the word the graph says supposes (Supposes), then the asking.
+    const said = x.split(/\s+/);
+    const at = said.findIndex((w, i) => i > 0 && runtime.store.asSubject(nameOf(w.replace(/[^\p{L}]/gu, ""))).some((t) => t.predicate === "Supposes"));
+    return at > 0 ? [said.slice(at).join(" ").replace(/\?$/, "."), said.slice(0, at).join(" ") + "?"] : [x];
   });
   const readOne = async (text: string): Promise<Sentence | undefined> => {
     let got: Sentence | undefined;
@@ -53,12 +59,19 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
     // Clauses a comma parts ("each bird eats 12 beetles, each snake eats 3 birds"): each read alone,
     // when each is a clause of its own; otherwise the commas part a list, read whole.
     // Clauses joined by "and" too ("each carton of ice cream cost $4 and each carton of yoghurt cost $1").
+    // A question is read whole: its commas part whom it asks of ("Toulouse, Charleston, and Seattle").
+    if (/\?\s*$/.test(text)) {
+      const got = await readOne(text);
+      if (got) out.push(got);
+      continue;
+    }
     let parted = false;
     for (const at of [/,\s+/, /,?\s+and\s+/i]) {
       const chunks = text.split(at);
       if (chunks.length < 2) continue;
       const read = await Promise.all(chunks.map(readOne));
-      if (read.every((r) => r && clause(r))) {
+      // After the first, a doing said of the same one needs no doer of its own ("… and bakes muffins").
+      if (read.every((r, k) => r && (clause(r) || (k > 0 && r.piece.role === "ReadDoing" && r.piece.word <= 1 && !filled(r.piece, "Doer").length)))) {
         out.push(...(read as Sentence[]));
         parted = true;
         break;
@@ -96,6 +109,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     amounts.push(a);
     place.set(a, word);
   };
+  // Who is named anywhere in the problem: a name said first in one sentence is the name said in another.
+  const names = new Set(sentences.flatMap((s) => hostWords(s.text)).filter((w) => w.tags.includes("ProperNoun") || w.tags.includes("Person")).map((w) => w.text.toLowerCase().replace(/[^\p{L}'’]/gu, "").replace(/['’]s$/, "")));
   sentences.forEach((s, at) => {
     const from = amounts.length;
     // Who the clause is said of, and what is done in it.
@@ -104,7 +119,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     const tags = new Map(hostWords(s.text).map((w) => [w.text.toLowerCase().replace(/[^a-z'’]/g, ""), w.tags]));
     const someone = (p: Piece) => {
       const t = tags.get(p.text.toLowerCase().replace(/[^a-z'’]/g, "")) ?? [];
-      return !p.ask && p.value === undefined && !t.includes("Pronoun") && (t.includes("Person") || t.includes("ProperNoun") || (t.includes("Possessive") && t.includes("Noun")) || store.asSubject(p.head).some((x) => x.predicate === "IsA" && x.object !== undefined && isCall(x.object) && (x.object as { head: string }).head === "Person"));
+      return !p.ask && p.value === undefined && !t.includes("Pronoun") && (names.has(p.text.toLowerCase().replace(/[^\p{L}'’]/gu, "").replace(/['’]s$/, "")) || t.includes("Person") || t.includes("ProperNoun") || (t.includes("Possessive") && t.includes("Noun")) || store.asSubject(p.head).some((x) => x.predicate === "IsA" && x.object !== undefined && isCall(x.object) && (x.object as { head: string }).head === "Person"));
     };
     const holderOf = (clause: Piece | undefined): string | undefined => {
       // Said as done by someone ("was earned by Lisa"): that one.
@@ -132,7 +147,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       // A word marking each one, nearest the amount first; then a word that counts per a span.
       for (const l of [...links].sort((a, b) => Math.abs(a.word - p.word) - Math.abs(b.word - p.word))) {
         const what = filled(l, "What")[0];
-        if (what && lex.marks(l.text, "Each")) return base(what.text);
+        // "every morning": each day, as the graph says what the word counts per.
+        if (what && lex.marks(l.text, "Each")) return lex.per(what.text.toLowerCase()) ?? base(what.text);
       }
       for (const l of links) {
         const what = filled(l, "What")[0];
@@ -140,10 +156,10 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       }
       // Said after it, of one ("500 movies a day", "$5 a month"): so many for each one.
       const one = p.fills.find((f) => f.side === "after" && (f.hole === "Name" || f.hole === "Done") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
-      if (one) return base(one.piece.text);
+      if (one) return lex.per(one.piece.text.toLowerCase()) ?? base(one.piece.text);
       // A span each one of which it is done in ("eaten each day"): what is done, determined by a word marking each.
       const spans = filled(p, "Done").find((d) => d.value === undefined && !filled(d, "Count").length && filled(d, "Determiner").some((x) => lex.marks(x.text, "Each")));
-      if (spans) return base(spans.text);
+      if (spans) return lex.per(spans.text.toLowerCase()) ?? base(spans.text);
       return undefined;
     };
     // The one a clause is said of, determined by a word that marks each one ("each bird").
@@ -155,12 +171,16 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const ask = walk(s.piece).find((p) => p.ask)!;
       const counted = walk(s.piece).find((p) => p.role === "ReadThing" && filled(p, "Count").some((x) => x.ask));
       // Said in a unit ("in dollars"): a link that marks no rate, to a thing the graph says measures something.
-      const inUnit = walk(s.piece).flatMap((p) => filled(p, "Where")).filter((l) => !lex.marks(l.text, "Each")).flatMap((l) => filled(l, "What")).find((x) => lex.measures(base(x.text)));
+      const inUnit = walk(s.piece).flatMap((p) => filled(p, "Where")).filter((l) => !lex.marks(l.text, "Each")).flatMap((l) => filled(l, "What")).find((x) => lex.measures(base(x.text)) && !filled(x, "Count").length);
       // "how much" asking nothing counted, where money was said: how much money.
       const moneySaid = amounts.some((a) => (a.unit["dollar"] ?? 0) > 0) || /\$\s*\d/.test(sentences.map((x) => x.text).join(" "));
-      const unitName = counted ? (lex.marks(base(counted.text), "Money") ? "dollar" : base(counted.text)) : inUnit ? base(inUnit.text) : moneySaid && /much/i.test(ask.text) ? "dollar" : lastUnit;
       const clause = clauseOf(ask);
-      const holder = holderOf(clause);
+      // Asked what something that is money is ("what was the original price"): money.
+      const moneyAsked = moneySaid && !!clause && walk(clause).some((x) => x.role === "ReadThing" && !x.ask && lex.marks(base(x.text), "Money"));
+      const unitName = counted ? (lex.marks(base(counted.text), "Money") ? "dollar" : base(counted.text)) : inUnit ? base(inUnit.text) : moneySaid && (/much/i.test(ask.text) || moneyAsked) ? "dollar" : lastUnit;
+      // Asked of something that is no one ("what was the price"): of no one in particular.
+      const subject = clause ? [...filled(clause, "Doer"), ...filled(clause, "Subject"), ...filled(clause, "Said")].find((x) => !x.ask && x.role === "ReadThing") : undefined;
+      const holder = subject && !pointing(s, subject) && !someone(subject) && !filled(subject, "Whose").length ? undefined : holderOf(clause);
       // Asked per a span ("make every day"): a rate asked.
       // Asked per a span ("make every day", "are eaten each day"): of the clause, or of what it says is done.
       const per = clause ? perOf(clause) ?? filled(clause, "Said").filter((x) => x.role === "ReadDoing").map(perOf).find(Boolean) : undefined;
@@ -177,6 +197,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         more: !!clause && walk(clause).some((x) => (x.role === "ReadQuality" || x.role === "ReadDegree") && lex.compares(x.text) !== 0),
         // Asked of all of them together ("do Toulouse, Charleston, and Seattle have together"): no one holder.
         ...(holder && !all.some((w) => lex.marks(w, "Whole")) ? { holder } : {}),
+        // Asked of a thing that is no one ("the original price"): that kind of it, if one is worked out.
+        ...(subject && !holder && !pointing(s, subject) && !someone(subject) ? { kind: base(subject.text) } : {}),
         said: s.text,
       };
     }
@@ -256,17 +278,22 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const clause = clauseOf(p);
       const holder = holderOf(clause);
       const doing = clause?.role === "ReadDoing" ? base(clause.text) : undefined;
-      const money = new RegExp(`\\$\\s*${number.value}\\b`).test(s.text);
+      // Said with "$" ("$19.50" is 19.5).
+      const money = [...s.text.matchAll(/\$\s*([\d,]*\.?\d+)/g)].some((m) => Number(m[1]!.replace(/,/g, "")) === number.value);
       // A count of times ("4 times as many", "3 times a week"): how often, or what multiplies, no thing of its own.
       const often = !!count && s.words[p.word]?.senses.some((x) => x.type === "op" && x.target === "Multiply");
       // Money said with what it is for each of ("$12 an hour", "$7 each"): dollars per that thing.
       const each = money && count && filled(p, "Determiner").some((d) => lex.marks(d.text, "Single") || lex.marks(d.text, "Each"));
       // A number said alone where something uncounted is done ("sold clips to 48 of her friends"): so many of it.
-      const doneThing = alone && clause ? filled(clause, "Done").find((d) => d.role === "ReadThing" && d.value === undefined && !d.ask && !filled(d, "Count").length && !pointing(s, d)) : undefined;
+      const doneThing = alone && clause && !lastUnit ? filled(clause, "Done").find((d) => d.role === "ReadThing" && d.value === undefined && !d.ask && !filled(d, "Count").length && !pointing(s, d)) : undefined;
       // Counted in a measure that names it ("an 8-ounce cup"): so much of the measure for each one.
       const measure = count ? filled(p, "Name").find((n) => n.word > number.word && lex.measures(base(n.text))) : undefined;
       const thing = often ? undefined : money ? "dollar" : measure ? base(measure.text) : count ? base(p.text) : doneThing ? base(doneThing.text) : lastUnit;
-      const per = each || measure ? base(p.text) : perOf(p) ?? (clause ? perOf(clause) : undefined);
+      // How often the clause says it is done ("3 sprints 3 times a week"): the span is how often's, not the thing's.
+      const oftenHere = !!clause && walk(clause).some((x) => x !== p && filled(x, "Count").some((n) => s.words[x.word]?.senses.some((y) => y.type === "op" && y.target === "Multiply")));
+      // Money said with a word marking each after it ("sells them for $15 each"): for each of what was counted last.
+      const eachAfter = money && !count && lastUnit && lex.marks(s.words[number.word + 1]?.text ?? "", "Each") ? lastUnit : undefined;
+      const per = eachAfter ?? (each || measure ? base(p.text) : perOf(p) ?? (clause && !(oftenHere && !often) ? perOf(clause) : undefined));
       const unit: Record<string, number> = {};
       if (thing) unit[thing] = 1;
       if (per && per !== thing) unit[per] = (unit[per] ?? 0) - 1;
@@ -288,7 +315,9 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (new RegExp(`\\b${number.value}\\s*(%|percent)`, "i").test(s.text)) {
         const whom = ofWhom(clause, lastUnit);
         const holder = holderOf(clause);
-        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: whom ? { holder: whom } : { last: true }, ...(holder ? { holder } : {}) });
+        // A share that changes what it is of ("a 25% discount", "a 10% raise"): up or down by it.
+        const changing = (clause ? walk(clause) : []).map((x) => lex.changes(x.text)).find((d) => d !== 0);
+        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: { ...(whom ? { holder: whom } : { last: true }), ...(changing ? { change: changing } : {}) }, ...(holder ? { holder } : {}) });
         continue;
       }
       // A difference said of someone else's ("30 less apples than Martha").
@@ -299,6 +328,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const eachWho = clause ? [...filled(clause, "Doer"), ...filled(clause, "Subject")][0] : undefined;
       const kind = count && !measure && !money ? kindOf(p) : eachOne && eachWho ? kindOf(eachWho) : undefined;
       put(number.word, {
+        // How often it is done ("3 times a week"): it only multiplies.
+        ...(often && !comparing ? { ratio: true } : {}),
         ...(comparing && whom ? { ratio: true, of: { holder: whom, differs: lex.compares(comparing.text) } } : {}),
         ...(comparing && otherKind ? { ratio: true, of: { named: otherKind, last: true, differs: lex.compares(comparing.text) } } : {}),
         ...(kind ? { kind } : {}),
@@ -320,5 +351,6 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
   });
   if (!asked || !amounts.length) return undefined;
   const resolved = resolveRatios(withCapacity(amounts));
-  return { amounts: [...resolved, ...conversionsFor(store, resolved, asked, asked.said)], asked };
+  const kept: Asked = asked.kind && !resolved.some((a) => a.kind === asked!.kind) ? { ...asked, kind: undefined } : asked;
+  return { amounts: [...resolved, ...conversionsFor(store, resolved, kept, kept.said)], asked: kept };
 }

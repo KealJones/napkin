@@ -1927,7 +1927,10 @@ function rowOf(store: ConceptStore, words: readonly Word[], message: string, poi
     const only = w.senses.every((x) => x.type === "entity" || x.type === "kind" || x.type === "takes" || x.type === "relation" || (x.type === "question" && x.head !== own));
     const can = i === 0 && only ? heads.find((h) => /^[a-z]+$/i.test(w.text) && doable(h)) : undefined;
     // A word the graph says compares ("less", "more", "older") can say how a thing is, beside a count ("30 less apples").
+    // So can a word the graph says marks which of them ("total", "remaining", "each"): Marks.
     if (heads.some((h) => store.asSubject(h).some((t) => t.predicate === "Compares")) && !pieces.some((p) => p.role === "ReadQuality")) pieces.push({ role: "ReadQuality", head: nameOf(w.text), word: i, text: w.text, fills: [] });
+    // Or one it says marks which of them ("total meters"): weighed as a guess beside what else it is.
+    else if (heads.some((h) => store.asSubject(h).some((t) => t.predicate === "Marks")) && !w.senses.some((x) => x.type === "glue") && !pieces.some((p) => p.role === "ReadQuality")) pieces.push({ role: "ReadQuality", head: nameOf(w.text), word: i, text: w.text, fills: [], guessed: true });
     if (!can) return pieces;
     const rest = pieces.filter((p) => !(p.role === "ReadDoing" && p.head === can));
     return [...rest, { role: "ReadDoing", head: can, word: i, text: w.text, fills: [] }];

@@ -966,7 +966,8 @@ function combine(a: Worked, b: Worked, amounts: readonly Amount[], asked: Asked,
   // of its own (a ratio, "twice"); month × sheet is not a thing.
   const cancels = Object.keys(a.unit).some((k) => (a.unit[k] ?? 0) * (b.unit[k] ?? 0) < 0);
   const bare = !Object.keys(a.unit).length || !Object.keys(b.unit).length;
-  const meaningful = Object.values(product).every((v) => Math.abs(v) <= 1) && (cancels || bare);
+  // How often ("3 times a week"), a ratio over a span, counts nothing of its own either.
+  const meaningful = Object.values(product).every((v) => Math.abs(v) <= 1) && (cancels || bare || ratioOf(a) || ratioOf(b));
   // Of the same kind, they go together ("30 small holes" × "3 minutes a small hole"); of different kinds, not.
   const kindA = leafAt(a) >= 0 ? amounts[leafAt(a)]!.kind : undefined;
   const kindB = leafAt(b) >= 0 ? amounts[leafAt(b)]!.kind : undefined;
