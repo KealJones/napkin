@@ -219,6 +219,8 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
         const holesOf_ = (p: Piece) => [...new Set(p.fills.map((f) => f.hole).filter((h) => !MODIFYING.has(h)))].sort().join(",");
         if (with_ && with_.role === taker.piece.role && holesOf_(with_) && holesOf_(with_) === holesOf_(taker.piece)) asked.push(`${feature}:parallel`);
       }
+      // A name that is more than a word or two of a name ("truck stamps than snowflake" as a name): weighed apart.
+      if (hole === "Name" && taken.piece.fills.some((f) => f.hole !== "Name")) asked.push(`${feature}:filled`);
       // Taken by a word that points ("12 people there"): weighed apart.
       if (taker.piece.points) asked.push(`${feature}:points`);
       // A value taken where a thing is ("3 bags" read as bags named 3): weighed apart.

@@ -103,6 +103,8 @@ function operations(store: ConceptStore, word: string): Sense[] {
   const binds = heads.flatMap((h) => claimed(store, h, "Binds")).find((x) => typeof x === "number");
   const right = heads.some((h) => relationsOf(store, h).some((rel) => isCall(rel.claim) && rel.claim.head === "Binds" && rel.claim.args.some((a) => isCall(a.value) && a.value.head === "Right")));
   for (const target of heads) {
+    // What reads the store's own records is no word's meaning.
+    if (typesOf(store, c(target)).includes("StoreReading")) continue;
     for (const r of store.get(target)?.realizations ?? []) {
       if (r.retired || !runs(r) || !isCall(r.pattern) || r.pattern.head !== target) continue;
       // A computation over values: it takes them worked out, hands back more than it was given, and does nothing to the world.

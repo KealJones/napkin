@@ -286,10 +286,15 @@ Concept(A(), Marks(Single()))
 
 Concept(An(), Marks(Single()))
 
+// Said of who does it, when what is done is said first ("was earned by Lisa").
+Concept(By(), Marks(Agent()))
+
 // Said of all of them together ("in total", "altogether").
 Concept(Total(), Marks(Whole()))
 
 Concept(Altogether(), Marks(Whole()))
+
+Concept(All(), Marks(Whole()))
 
 Concept(Together(), Marks(Whole()))
 

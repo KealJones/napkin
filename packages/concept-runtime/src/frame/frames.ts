@@ -1913,7 +1913,8 @@ function unknownRuns(store: ConceptStore, words: readonly Word[], message: strin
 
 /** What each word can be, as pieces, with what the graph says of it beside its senses. */
 function rowOf(store: ConceptStore, words: readonly Word[], message: string, pointed: string | undefined): Piece[][] {
-  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), w.tags]));
+  // What the tagger takes each word for, and the thing it says it could be besides ("pieces" a verb, or plural pieces).
+  const tags = new Map(hostWords(message).map((w) => [w.text.toLowerCase().replace(/[.!?,]+$/, ""), [...new Set([...w.tags, ...(w.tags.includes("Verb") && (w.could ?? []).includes("Noun") ? (w.could ?? []).filter((t) => t === "Noun" || t === "Plural" || t === "Singular") : []), ...(w.tags.includes("Noun") && !w.tags.includes("ProperNoun") && !w.tags.includes("Plural") && (w.could ?? []).includes("Verb") ? ["Verb"] : [])])]]));
   // A word whose Concept the graph can do something with (a realization that takes what it is
   // given: Run, Explain, Fix) can be a doing, whatever the tagger guesses of it.
   const doable = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.length > 0 && !(r.context !== undefined && isCall(r.context) && (r.context.head === "Speaking" || r.context.head === "Describe")));

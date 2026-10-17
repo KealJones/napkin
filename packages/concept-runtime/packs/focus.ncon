@@ -39,11 +39,6 @@ Concept(Their(),
 
 Concept(Its(), IsA(Pointing()), IsA(Possessive()))
 
-// Where: "there" points at a place said before, "here" at where the one speaking is.
-Concept(There(), IsA(Pointing()), PointsAt(Place()))
-
-Concept(Here(), IsA(Pointing()), PointsAt(Place()))
-
 // The things a conversation has in play, newest first: what its answers were and were about, what
 // its pointing words pointed at, the things it named that have names, and what this turn made. An answer to
 // a question that asked for a kind is AskedAs(thing, kind): what "where" answered is a place. Read

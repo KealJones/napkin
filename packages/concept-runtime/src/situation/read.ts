@@ -52,14 +52,19 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
   for (const text of parts) {
     // Clauses a comma parts ("each bird eats 12 beetles, each snake eats 3 birds"): each read alone,
     // when each is a clause of its own; otherwise the commas part a list, read whole.
-    const chunks = text.split(/,\s+/);
-    if (chunks.length > 1) {
+    // Clauses joined by "and" too ("each carton of ice cream cost $4 and each carton of yoghurt cost $1").
+    let parted = false;
+    for (const at of [/,\s+/, /,?\s+and\s+/i]) {
+      const chunks = text.split(at);
+      if (chunks.length < 2) continue;
       const read = await Promise.all(chunks.map(readOne));
       if (read.every((r) => r && clause(r))) {
         out.push(...(read as Sentence[]));
-        continue;
+        parted = true;
+        break;
       }
     }
+    if (parted) continue;
     const got = await readOne(text);
     if (got) out.push(got);
   }
@@ -85,7 +90,14 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
   let lastHolder: string | undefined;
   let lastUnit: string | undefined;
   let asked: Asked | undefined;
+  // Amounts in the order they were said, within each sentence too: what a share is of comes before it.
+  const place = new Map<Amount, number>();
+  const put = (word: number, a: Amount) => {
+    amounts.push(a);
+    place.set(a, word);
+  };
   sentences.forEach((s, at) => {
+    const from = amounts.length;
     // Who the clause is said of, and what is done in it.
     const clauses = walk(s.piece).filter((p) => p.role === "ReadDoing" || p.role === "ReadSame");
     // Who can hold: someone, as the tagger or the graph says (a name, a person), not a thing or a question.
@@ -95,11 +107,21 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       return !p.ask && p.value === undefined && !t.includes("Pronoun") && (t.includes("Person") || t.includes("ProperNoun") || (t.includes("Possessive") && t.includes("Noun")) || store.asSubject(p.head).some((x) => x.predicate === "IsA" && x.object !== undefined && isCall(x.object) && (x.object as { head: string }).head === "Person"));
     };
     const holderOf = (clause: Piece | undefined): string | undefined => {
+      // Said as done by someone ("was earned by Lisa"): that one.
+      const by = clause ? [...walk(clause), ...walk(s.piece).filter((x) => x !== clause && walk(x).includes(clause)).flatMap((x) => filled(x, "Where"))].filter((x) => x.role === "ReadLink" && lex.marks(x.text, "Agent")).flatMap((l) => filled(l, "What")).find((x) => someone(x)) : undefined;
+      if (by) return by.text.replace(/['’]s$/, "").toLowerCase();
       const who = clause ? [...filled(clause, "Doer"), ...filled(clause, "Subject")][0] : undefined;
       if (!who) return lastHolder;
-      if (pointing(s, who)) return lastHolder;
-      const owner = filled(who, "Whose")[0];
-      const named = owner ?? who;
+      // Several together ("Lisa, Jack, and Tommy earned $60"): all of them, no one of them.
+      if (filled(who, "Also").length) return undefined;
+      // "she" said after someone named in the same sentence ("Anna goes … where she gets"): that one.
+      if (pointing(s, who)) {
+        const first = clauses.flatMap((c) => filled(c, "Doer")).find((d) => d.word < who.word && !pointing(s, d) && someone(d));
+        return first ? first.text.replace(/['’]s$/, "").toLowerCase() : lastHolder;
+      }
+      // Whose by a pointing word ("her brother Billy"): the one named, else whose.
+      const owner = filled(who, "Whose").find((o) => !pointing(s, o));
+      const named = owner && !someone(who) ? owner : who;
       if (!someone(named)) return lastHolder;
       return named.text.replace(/['’]s$/, "").toLowerCase();
     };
@@ -148,9 +170,11 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (per && per !== unitName) unit[per] = -1;
       asked = {
         unit: unit as Unit,
-        left: all.some((w) => lex.marks(w, "Remaining")),
+        // What is left, or what was not done ("how many did Ralph not hit"): the rest.
+        left: all.some((w) => lex.marks(w, "Remaining")) || (!!clause && walk(clause).some((x) => x.role === "ReadNegation")),
         total: all.some((w) => lex.marks(w, "Whole")),
-        more: false,
+        // "how many more", "how much less … than": the difference between two.
+        more: !!clause && walk(clause).some((x) => (x.role === "ReadQuality" || x.role === "ReadDegree") && lex.compares(x.text) !== 0),
         // Asked of all of them together ("do Toulouse, Charleston, and Seattle have together"): no one holder.
         ...(holder && !all.some((w) => lex.marks(w, "Whole")) ? { holder } : {}),
         said: s.text,
@@ -162,14 +186,47 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     const ofWhom = (clause: Piece | undefined, unit: string | undefined): string | undefined => {
       if (!clause) return undefined;
       const linked = walk(clause).flatMap((x) => filled(x, "Where")).flatMap((l) => filled(l, "What"));
-      const who = linked.find((x) => x.role === "ReadThing" && x.value === undefined && !filled(x, "Count").length && base(x.text) !== unit && !lex.measures(base(x.text)) && !lex.per(x.text.toLowerCase()));
+      // Or the one who did what it is of ("half of what Lisa earned").
+      const doers = linked.filter((x) => x.role === "ReadDoing").flatMap((d) => filled(d, "Doer")).filter((x) => someone(x));
+      const who = linked.find((x) => x.role === "ReadThing" && x.value === undefined && !filled(x, "Count").length && base(x.text) !== unit && !lex.measures(base(x.text)) && !lex.per(x.text.toLowerCase())) ?? doers[0];
       return who ? who.text.replace(/['’]s$/, "").toLowerCase() : undefined;
     };
+    // Which of its kind a counted thing is: what it is named or described as ("snowflake stamps",
+    // "large pizzas"), or what it holds, said just after it ("10 cartons of ice cream").
+    const kindOf = (p: Piece): string | undefined => {
+      const name = filled(p, "Name").find((n) => n.value === undefined && !n.points && !lex.measures(base(n.text)) && lex.compares(n.text) === 0);
+      if (name) return base(name.text);
+      const held = filled(p, "Where").find((l) => l.word === p.word + 1 && !lex.marks(l.text, "Each"));
+      const what = held ? filled(held, "What")[0] : undefined;
+      if (what && what.role === "ReadThing" && what.value === undefined && !what.points && !filled(what, "Count").length && !lex.measures(base(what.text))) return base(what.text);
+      const describer = filled(p, "Describer").find((d) => lex.compares(d.text) === 0 && lex.times(d.text) === undefined && !lex.marks(d.text, "Remaining") && !lex.marks(d.text, "Whole"));
+      return describer ? base(describer.text) : undefined;
+    };
+    // Compared with another kind of the same ("9 more truck stamps than snowflake stamps"): that kind.
+    const namedOf = (clause: Piece | undefined, unit: string | undefined, own?: Piece): string | undefined => {
+      if (!clause || !unit) return undefined;
+      const linksOf = (x: Piece) => filled(x, "Where").flatMap((l) => filled(l, "What"));
+      const linked = [...(own ? linksOf(own) : []), ...walk(clause).flatMap(linksOf)];
+      const other = linked.find((x) => x.role === "ReadThing" && base(x.text) === unit && kindOf(x));
+      return other ? kindOf(other) : undefined;
+    };
     const ratios = new Set<Piece>();
-    for (const times of walk(s.piece).filter((x) => lex.times(x.text) !== undefined && typeof x.value !== "number")) {
+    // A share: a word that multiplies ("half"), or one written as a fraction ("2/5").
+    const fraction = (x: Piece): number | undefined => {
+      const v = x.value;
+      if (v === undefined || !isCall(v) || v.head !== "Divide" || v.args.length !== 2) return undefined;
+      const [a, b] = v.args.map((y) => y.value);
+      return typeof a === "number" && typeof b === "number" && b !== 0 ? a / b : undefined;
+    };
+    const share = (x: Piece): number | undefined => (typeof x.value === "number" ? undefined : lex.times(x.text) ?? fraction(x));
+    const shown = (x: Piece): string => {
+      const v = x.value;
+      return fraction(x) !== undefined && v !== undefined && isCall(v) ? `${v.args[0]!.value}/${v.args[1]!.value}` : x.text;
+    };
+    for (const times of walk(s.piece).filter((x) => share(x) !== undefined)) {
       const clause = clauseOf(times);
       if (!clause) continue;
-      const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && lex.times(x.text) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
+      const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && share(x) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && !x.ask && !x.points && !someone(x) && share(x) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
       const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
       // "half that much": what was said just before. "half of the remaining pages": of what is left.
       // What it is of: the link said just after it ("of it", "of the remaining butter"), else its clause.
@@ -186,9 +243,12 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (before && !amounts.length) continue;
       ratios.add(times);
       const holder = holderOf(clause);
-      amounts.push({ value: lex.times(times.text)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: times.text, sentence: at, sign: lex.effect(base(clause.text)), ratio: true, of: left ? { last: true, left: true } : ofIt ? { last: true, thing: true } : that || before ? { last: true } : { holder: whom }, ...(holder ? { holder } : {}), doing: base(clause.text) });
+      put(times.word, { value: share(times)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: shown(times), sentence: at, sign: lex.effect(base(clause.text)), ratio: true, of: { ...(left ? { last: true, left: true } : ofIt ? { last: true, thing: true } : that || before ? { last: true } : { holder: whom }), ...(share(times)! < 1 ? { part: true } : {}) }, ...(holder ? { holder } : {}), doing: base(clause.text) });
     }
+    // What a share is said of, by number ("half of the $60"): the amount said before, not another.
+    const sharedOf = new Set([...ratios].flatMap((t) => walk(clauseOf(t) ?? t).filter((x) => x.role === "ReadLink" && x.word === t.word + 1)).flatMap((l) => walk(l)));
     for (const p of walk(s.piece)) {
+      if (sharedOf.has(p) && typeof p.value === "number") continue;
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
       const alone = p.role === "ReadThing" && typeof p.value === "number" && !walk(s.piece).some((q) => filled(q, "Count").includes(p)) ? p : undefined;
       const number = count ?? alone;
@@ -220,7 +280,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         const whom = ofWhom(clause, unitName);
         if (whom) {
           const holder = holderOf(clause);
-          amounts.push({ value: number.value, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: `${number.value} times`, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}) });
+          put(number.word, { value: number.value, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: `${number.value} times`, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}) });
           continue;
         }
       }
@@ -228,14 +288,20 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       if (new RegExp(`\\b${number.value}\\s*(%|percent)`, "i").test(s.text)) {
         const whom = ofWhom(clause, lastUnit);
         const holder = holderOf(clause);
-        amounts.push({ value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: whom ? { holder: whom } : { last: true }, ...(holder ? { holder } : {}) });
+        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: whom ? { holder: whom } : { last: true }, ...(holder ? { holder } : {}) });
         continue;
       }
       // A difference said of someone else's ("30 less apples than Martha").
       const comparing = [...filled(p, "Name"), ...filled(p, "Describer"), ...(clause ? walk(clause) : [])].find((x) => x !== p && lex.compares(x.text) !== 0);
-      const whom = comparing ? ofWhom(clause, thing) : undefined;
-      amounts.push({
+      const otherKind = comparing ? namedOf(clause, thing, p) : undefined;
+      const whom = comparing && !otherKind ? ofWhom(clause, thing) : undefined;
+      // Said of each one of a kind ("each carton of ice cream cost $4"): of that kind.
+      const eachWho = clause ? [...filled(clause, "Doer"), ...filled(clause, "Subject")][0] : undefined;
+      const kind = count && !measure && !money ? kindOf(p) : eachOne && eachWho ? kindOf(eachWho) : undefined;
+      put(number.word, {
         ...(comparing && whom ? { ratio: true, of: { holder: whom, differs: lex.compares(comparing.text) } } : {}),
+        ...(comparing && otherKind ? { ratio: true, of: { named: otherKind, last: true, differs: lex.compares(comparing.text) } } : {}),
+        ...(kind ? { kind } : {}),
         value: number.value,
         unit: unit as Unit,
         said: `${number.value}${thing ? ` ${thing}` : ""}${per ? ` per ${per}` : ""}`,
@@ -248,6 +314,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         near: walk(p).map((x) => base(x.text)),
       });
     }
+    amounts.splice(from, amounts.length - from, ...amounts.slice(from).sort((a, b) => (place.get(a) ?? 0) - (place.get(b) ?? 0)));
     const named = holderOf(clauses[0]);
     if (named) lastHolder = named;
   });

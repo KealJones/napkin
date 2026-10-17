@@ -1302,6 +1302,7 @@ export function resolveRatios(said: readonly Amount[]): Amount[] {
         sentence: r.sentence,
         sign: r.sign,
         ...(r.doing ? { doing: r.doing } : {}),
+        ...(r.kind ? { kind: r.kind } : {}),
         ...(r.of.part && r.value < 1 ? { partOf: ref.said } : {}),
         ...(r.holder ? { holder: r.holder } : {}),
         derived: true,

@@ -5500,3 +5500,17 @@ Concept(Amount(), AnsweredBy(Number()))
 Concept(Time(), AnsweredBy(Date()))
 
 Concept(Date(), AnsweredBy(Date()))
+
+// What reads the store's own records back (stamps, mentions, sources): a mechanism, not
+// something a word in a message stands for.
+Concept(StoreReading(), IsA(Category()))
+
+Concept(Mentioning(), IsA(StoreReading()))
+
+Concept(Between(), IsA(StoreReading()))
+
+Concept(Stamps(), IsA(StoreReading()))
+
+Concept(RecordedAt(), IsA(StoreReading()))
+
+Concept(SourceOf(), IsA(StoreReading()))
