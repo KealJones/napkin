@@ -71,7 +71,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     const tags = new Map(hostWords(s.text).map((w) => [w.text.toLowerCase().replace(/[^a-z'’]/g, ""), w.tags]));
     const someone = (p: Piece) => {
       const t = tags.get(p.text.toLowerCase().replace(/[^a-z'’]/g, "")) ?? [];
-      return !p.ask && p.value === undefined && (t.includes("Person") || t.includes("ProperNoun") || t.includes("Possessive") || store.asSubject(p.head).some((x) => x.predicate === "IsA" && x.object !== undefined && isCall(x.object) && (x.object as { head: string }).head === "Person"));
+      return !p.ask && p.value === undefined && !t.includes("Pronoun") && (t.includes("Person") || t.includes("ProperNoun") || (t.includes("Possessive") && t.includes("Noun")) || store.asSubject(p.head).some((x) => x.predicate === "IsA" && x.object !== undefined && isCall(x.object) && (x.object as { head: string }).head === "Person"));
     };
     const holderOf = (clause: Piece | undefined): string | undefined => {
       const who = clause ? [...filled(clause, "Doer"), ...filled(clause, "Subject")][0] : undefined;
@@ -175,6 +175,13 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
           amounts.push({ value: number.value, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: `${number.value} times`, sentence: at, sign: 0, ratio: true, of: { holder: whom }, ...(holder ? { holder } : {}) });
           continue;
         }
+      }
+      // A share said in hundredths ("40% of the way", "25% as many"): a ratio of what it is said of.
+      if (new RegExp(`\\b${number.value}\\s*(%|percent)`, "i").test(s.text)) {
+        const whom = ofWhom(clause, lastUnit);
+        const holder = holderOf(clause);
+        amounts.push({ value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: whom ? { holder: whom } : { last: true }, ...(holder ? { holder } : {}) });
+        continue;
       }
       // A difference said of someone else's ("30 less apples than Martha").
       const comparing = [...filled(p, "Name"), ...filled(p, "Describer"), ...(clause ? walk(clause) : [])].find((x) => x !== p && lex.compares(x.text) !== 0);
