@@ -140,7 +140,7 @@ export function piecesOf(word: { text: string; senses: readonly Sense[] }, at: n
 const MODIFYING = new Set(["Also", "Determiner", "Describer", "Name", "Whose", "Aside"]);
 
 /** Every way a row of words joins into one, best first. */
-export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6): Composed[] {
+export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6, options: { aside?: boolean } = {}): Composed[] {
   const n = row.length;
   if (!n) return [];
   const holes = new Map<string, Holes>();
@@ -162,7 +162,11 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
     }
     list.push(x);
     list.sort((a, b) => b.score - a.score);
-    at.set(key, list.slice(0, keep));
+    // The best few, and the best of each kind of piece besides: a thing read below a run of doings
+    // ("pieces" a doing, or pieces counted) is kept for what takes a thing.
+    const kept = list.slice(0, keep);
+    for (const y of list.slice(keep)) if (!kept.some((k) => k.piece.role === y.piece.role)) kept.push(y);
+    at.set(key, kept);
   };
   row.forEach((pieces, i) => {
     // A sense named as the word is ("name" Name, not DeclaresName) a little ahead of the others.
@@ -271,9 +275,9 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
   }
   };
   build();
-  if (process.env.SPANS) for (let i = 0; i < n; i++) console.log(i, row[i]![0]?.text, [...Array(n - i).keys()].map((d) => at.get(`${i},${i + d + 1}`)?.length ?? 0).join(" "));
   // Nothing reads the row whole: read again, letting a word no hole takes be set aside.
-  if (!at.get(`0,${n}`)?.length && n > 2) {
+  // Only when asked for (a word problem's sentence): a message read for answering is split instead.
+  if (options.aside && !at.get(`0,${n}`)?.length && n > 2) {
     aside = true;
     for (const key of [...at.keys()]) {
       const [i, j] = key.split(",").map(Number);

@@ -26,6 +26,8 @@ interface Sentence {
   readonly text: string;
   /** Every way its words were fitted together, best first, with the choices that made each (for learning the weights). */
   readonly ranked: readonly Composed[];
+  /** The clause it goes on from, when it says only what else that clause is done to. */
+  readonly context?: Piece;
 }
 
 /** Each sentence of a message, as the one reader fits its words together; nothing is run or kept. */
@@ -78,6 +80,20 @@ export async function readSentences(runtime: Runtime, message: string): Promise<
       }
     }
     if (parted) continue;
+    // A clause, then what else it is done to, a comma apart ("Marie ordered one meal that costs $12,
+    // 5 packs of milk that cost $3 each, and some boxes of pizza"): each read alone, the later ones
+    // going on from the first, whose doing and doer they share.
+    const chunks = text.split(/,\s+/);
+    if (chunks.length > 2) {
+      const read = await Promise.all(chunks.map(readOne));
+      // The later ones are things, or things said with what they cost or are ("5 packs of milk that cost $3 each"): no one does them.
+      const tags = new Map(hostWords(text).map((w) => [w.text.toLowerCase().replace(/[^\p{L}'’]/gu, ""), w.tags]));
+      const someoneIn = (r: Sentence) => [...filled(r.piece, "Doer"), ...filled(r.piece, "Subject")].some((d) => d.points || (tags.get(d.text.toLowerCase()) ?? []).some((t) => t === "Person" || t === "ProperNoun" || t === "Pronoun"));
+      if (read.every(Boolean) && clause(read[0]!) && read.slice(1).every((r) => r!.piece.role === "ReadThing" || (r!.piece.role === "ReadDoing" && r!.piece.word > 1 && !someoneIn(r!)))) {
+        out.push(read[0]!, ...read.slice(1).map((r) => ({ ...r!, context: read[0]!.piece })));
+        continue;
+      }
+    }
     const got = await readOne(text);
     if (got) out.push(got);
   }
@@ -114,7 +130,9 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
   sentences.forEach((s, at) => {
     const from = amounts.length;
     // Who the clause is said of, and what is done in it.
-    const clauses = walk(s.piece).filter((p) => p.role === "ReadDoing" || p.role === "ReadSame");
+    const own = walk(s.piece).filter((p) => p.role === "ReadDoing" || p.role === "ReadSame");
+    // Said as what else a clause before is done to: that clause's doing and doer, and its own.
+    const clauses = s.context ? [s.context, ...own] : own;
     // Who can hold: someone, as the tagger or the graph says (a name, a person), not a thing or a question.
     const tags = new Map(hostWords(s.text).map((w) => [w.text.toLowerCase().replace(/[^a-z'’]/g, ""), w.tags]));
     const someone = (p: Piece) => {
@@ -155,7 +173,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         if (what && lex.per(what.text.toLowerCase())) return lex.per(what.text.toLowerCase());
       }
       // Said after it, of one ("500 movies a day", "$5 a month"): so many for each one.
-      const one = p.fills.find((f) => f.side === "after" && (f.hole === "Name" || f.hole === "Done") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
+      const one = p.fills.find((f) => f.side === "after" && (f.hole === "Name" || f.hole === "Done") && !lex.marks(f.piece.text, "Whole") && !lex.marks(f.piece.text, "Remaining") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
       if (one) return lex.per(one.piece.text.toLowerCase()) ?? base(one.piece.text);
       // A span each one of which it is done in ("eaten each day"): what is done, determined by a word marking each.
       const spans = filled(p, "Done").find((d) => d.value === undefined && !filled(d, "Count").length && filled(d, "Determiner").some((x) => lex.marks(x.text, "Each")));
@@ -169,7 +187,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
     };
     if (at === asking) {
       const ask = walk(s.piece).find((p) => p.ask)!;
-      const counted = walk(s.piece).find((p) => p.role === "ReadThing" && filled(p, "Count").some((x) => x.ask));
+      // What is counted: the thing the asking count is on, else the thing said right after it ("how many boxes … did").
+      const counted = walk(s.piece).find((p) => p.role === "ReadThing" && filled(p, "Count").some((x) => x.ask)) ?? (s.words[ask.word]?.senses.some((x) => x.type === "question" && x.kinds.includes("Amount")) ? walk(s.piece).find((p) => p.role === "ReadThing" && p.word === ask.word + 1 && p.value === undefined && !lex.marks(p.text, "Whole")) : undefined);
       // Said in a unit ("in dollars"): a link that marks no rate, to a thing the graph says measures something.
       const inUnit = walk(s.piece).flatMap((p) => filled(p, "Where")).filter((l) => !lex.marks(l.text, "Each")).flatMap((l) => filled(l, "What")).find((x) => lex.measures(base(x.text)) && !filled(x, "Count").length);
       // "how much" asking nothing counted, where money was said: how much money.
@@ -252,7 +271,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const unitName = unitPiece ? base(unitPiece.text) : lastUnit;
       // "half that much": what was said just before. "half of the remaining pages": of what is left.
       // What it is of: the link said just after it ("of it", "of the remaining butter"), else its clause.
-      const ofLink = walk(clause).find((x) => x.role === "ReadLink" && x.word === times.word + 1);
+      const ofLink = walk(s.piece).find((x) => x.role === "ReadLink" && x.word === times.word + 1);
       const pointsAt = (i: number) => s.words[i]?.senses.some((x) => x.type === "pointer") ?? false;
       // "of it": the thing it points at, as said, not a share worked from it.
       const ofIt = !!ofLink && pointsAt(times.word + 2);
@@ -268,8 +287,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       put(times.word, { value: share(times)!, unit: (unitName ? { [unitName]: 1 } : {}) as Unit, said: shown(times), sentence: at, sign: lex.effect(base(clause.text)), ratio: true, of: { ...(left ? { last: true, left: true } : ofIt ? { last: true, thing: true } : that || before ? { last: true } : { holder: whom }), ...(share(times)! < 1 ? { part: true } : {}) }, ...(holder ? { holder } : {}), doing: base(clause.text) });
     }
     // What a share is said of, by number ("half of the $60"): the amount said before, not another.
-    const sharedOf = new Set([...ratios].flatMap((t) => walk(clauseOf(t) ?? t).filter((x) => x.role === "ReadLink" && x.word === t.word + 1)).flatMap((l) => walk(l)));
-    for (const p of walk(s.piece)) {
+    const sharedOf = new Set([...ratios].flatMap((t) => walk(s.piece).filter((x) => x.role === "ReadLink" && x.word === t.word + 1)).flatMap((l) => walk(l)));
+    for (const p of [...walk(s.piece)].sort((a, b) => a.word - b.word)) {
       if (sharedOf.has(p) && typeof p.value === "number") continue;
       const count = p.role === "ReadThing" ? filled(p, "Count").find((x) => typeof x.value === "number") : undefined;
       const alone = p.role === "ReadThing" && typeof p.value === "number" && !walk(s.piece).some((q) => filled(q, "Count").includes(p)) ? p : undefined;

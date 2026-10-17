@@ -2094,7 +2094,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       const fixed = options.fixed ? [...computations(runtime, words, question, message, near), ...facts(store, words, question, pointed, near), ...statements(runtime, words, question, pointed, message, near), ...kindQuestions(store, words, pointed), ...reports(runtime, words, pointed, message), ...describes(store, words, question), ...sayings(store, words, question), ...deictics(runtime, words, question), ...doings(runtime, words, question, pointed, message, near), ...todos(runtime, words, question, message)] : [];
       if (options.pieces) {
         if (row === rows[0]) {
-          const ranked = compose(store, rowOf(store, words, message, pointed));
+          const ranked = compose(store, rowOf(store, words, message, pointed), 6, { aside: true });
           if (ranked[0]) options.pieces(ranked[0].piece, words, ranked);
         }
         continue;
