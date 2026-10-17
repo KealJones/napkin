@@ -140,13 +140,13 @@ Concept(Buck(), SynonymOf(Dollar()))
 // What words do to amounts, read by situation/lexicon.ts: a word that compares says one amount is
 // more (Up) or less (Down) than another; a word that changes says a share is added to or taken off
 // what it is a share of. Learned words get the same facts and work the same way.
-Concept(Compares(), IsA(Relation()))
+Concept(Compares(), IsA(Relation()), IsA(WordFact()))
 
-Concept(Changes(), IsA(Relation()))
+Concept(Changes(), IsA(Relation()), IsA(WordFact()))
 
-Concept(CountsPer(), IsA(Relation()))
+Concept(CountsPer(), IsA(Relation()), IsA(WordFact()))
 
-Concept(Marks(), IsA(Relation()))
+Concept(Marks(), IsA(Relation()), IsA(WordFact()))
 
 Concept(PluralForm(), IsA(Relation()))
 

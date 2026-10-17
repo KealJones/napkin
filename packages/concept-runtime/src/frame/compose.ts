@@ -214,8 +214,19 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
         features: [...taker.features, ...taken.features, feature, ...asked],
       });
     }
+    // Read with nothing else taking it, a word is set aside rather than the whole reading lost
+    // ("together" that no hole takes): costly, so any reading that uses it wins.
+    if (aside && !out.length && !taken.piece.fills.length && !taken.piece.ask && taken.piece.value === undefined) {
+      out.push({
+        piece: { ...taker.piece, fills: [...taker.piece.fills, { hole: "Aside", side, piece: taken.piece }] },
+        score: taker.score + taken.score - 2,
+        features: [...taker.features, ...taken.features, "Aside"],
+      });
+    }
     return out;
   };
+  let aside = false;
+  const build = () => {
   for (let len = 2; len <= n; len++) {
     for (let i = 0; i + len <= n; i++) {
       const j = i + len;
@@ -228,6 +239,17 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6):
         }
       }
     }
+  }
+  };
+  build();
+  // Nothing reads the row whole: read again, letting a word no hole takes be set aside.
+  if (!at.get(`0,${n}`)?.length && n > 2) {
+    aside = true;
+    for (const key of [...at.keys()]) {
+      const [i, j] = key.split(",").map(Number);
+      if (j! - i! > 1) at.delete(key);
+    }
+    build();
   }
   // A computation left short of what it takes ("sort" read as taking two, given one) is weighed
   // below one that took all it needs; a joined list of as many as it takes counts as them.

@@ -226,7 +226,9 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     const helps = GLUE.some((g) => kinds.includes(g));
     out.push(...operations(store, head).filter((o) => !helps || (o.type === "op" && o.holes.every((h) => h !== "Concept"))));
     // A word that only helps say the others ("as", "of") is not a thing, whatever facts its Concept holds.
-    if (holdsFacts(store, head) && !GLUE.some((g) => kinds.includes(g))) out.push({ type: "entity", head });
+    // Facts only about the word ("altogether" Marks(Whole())) make it no thing.
+    const thingFacts = relationsOf(store, head).some((r) => isCall(r.claim) && !STRUCTURAL.has(r.claim.head) && r.claim.args.length > 0 && !typesOf(store, c(r.claim.head)).includes("WordFact")) || store.asObject(head).some((t) => !STRUCTURAL.has(t.predicate) && !typesOf(store, c(t.predicate)).includes("WordFact"));
+    if (thingFacts && !GLUE.some((g) => kinds.includes(g))) out.push({ type: "entity", head });
   }
   const at = index(store);
   // A word that only helps say the others ("did") names no relation or kind, whatever its base form shares.

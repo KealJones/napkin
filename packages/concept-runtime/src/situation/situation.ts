@@ -1205,6 +1205,12 @@ function unknowns(list: (Amount & { derived?: boolean })[], same: (a?: string, b
  * offered for each pair of units in play, a year and the months a car is washed in, there to use
  * and not owed. "in a year" in the question puts a year in play.
  */
+/** How many of one unit make another, for the amounts and the question (a minute in an hour): what converts them. */
+export function conversionsFor(store: ConceptStore, amounts: readonly Amount[], asked: Asked, question: string): Amount[] {
+  lex = lexicon(store);
+  return conversions(store, amounts, asked, question);
+}
+
 function conversions(store: ConceptStore, amounts: readonly Amount[], asked: Asked, question: string): Amount[] {
   const units = new Set([...amounts.flatMap((a) => Object.keys(a.unit)), ...Object.keys(asked.unit)]);
   for (const w of question.toLowerCase().match(/[a-z]+/g) ?? []) if (TIME.test(base(w))) units.add(base(w));
