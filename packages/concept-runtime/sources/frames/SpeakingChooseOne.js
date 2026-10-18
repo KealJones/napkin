@@ -17,6 +17,9 @@ async (args, bindings, api) => {
     const what = await sayOf(o.args[0].value);
     parts.push(says && says.value && says.value.head ? what + " (" + readable(says.value.head) + ")" : what);
   }
+  // Readings that would all say the same are one answer, not a choice.
+  const distinct = [...new Set(parts)];
+  if (distinct.length === 1 && parts.length > 1) return distinct[0] + ".";
   if (parts.length < 2) {
     return "Which do you mean?";
   }

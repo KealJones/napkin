@@ -264,7 +264,9 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       const v = x.value;
       return fraction(x) !== undefined && v !== undefined && isCall(v) ? `${v.args[0]!.value}/${v.args[1]!.value}` : x.text;
     };
-    for (const times of walk(s.piece).filter((x) => share(x) !== undefined)) {
+    // A share word said right after a number is how that number is said ("25 percent"), not a share of its own.
+    const afterNumber = (x: Piece) => s.words[x.word - 1]?.senses.some((y) => y.type === "value" && typeof y.value === "number") ?? false;
+    for (const times of walk(s.piece).filter((x) => share(x) !== undefined && !afterNumber(x))) {
       const clause = clauseOf(times);
       if (!clause) continue;
       const unitPiece = walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && share(x) === undefined && filled(x, "Describer").length + filled(x, "Count").length > 0) ?? walk(clause).find((x) => x.role === "ReadThing" && x !== times && x.value === undefined && !x.ask && !x.points && !someone(x) && share(x) === undefined && !filled(x, "Whose").length && filled(clause, "Doer")[0] !== x);
@@ -345,7 +347,8 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         const holder = holderOf(clause);
         // A share that changes what it is of ("a 25% discount", "a 10% raise"): up or down by it.
         const changing = (clause ? walk(clause) : []).map((x) => lex.changes(x.text)).find((d) => d !== 0);
-        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: { ...(whom ? { holder: whom } : { last: true, about }), ...(changing ? { change: changing } : {}) }, ...(holder ? { holder } : {}) });
+        const shareUnit = count && !lex.times(p.text) ? base(p.text) : lastUnit;
+        put(number.word, { value: number.value / 100, unit: (shareUnit ? { [shareUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: { ...(whom ? { holder: whom } : { last: true, about }), ...(changing ? { change: changing } : {}), ...(count && shareUnit ? { unit: shareUnit } : {}) }, ...(holder ? { holder } : {}) });
         continue;
       }
       // A difference said of someone else's ("30 less apples than Martha").

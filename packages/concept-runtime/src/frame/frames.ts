@@ -1020,12 +1020,14 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const doingCall = (p: Piece): Expr => {
     if (p.op) return c(p.op.target, ...carrying(operandsOf(p).filter((o) => !o.link).map((o) => asTaken(o.piece)), linksOf(p)));
     // A pointing word or a value carries nothing inside it: what is said with it goes beside ("save it to a.js").
-    const bare = (d: Piece) => d.value !== undefined || (words[d.word]?.senses.some((x) => x.type === "pointer") ?? false);
+    // So does one in the talk itself ("tell me about yourself": me, Deictic).
+    const bare = (d: Piece) => d.value !== undefined || (words[d.word]?.senses.some((x) => x.type === "pointer") ?? false) || typesOf(store, c(d.head)).includes("Deictic");
     const done = filled(p, "Done").map(asTaken);
     const links = [...linksOf(p), ...filled(p, "Done").filter(bare).flatMap(linksOf)];
     const particles = filled(p, "Particle").map((x) => x.text);
     const head = particles.length ? nameOf([lemma(p.text.toLowerCase()) || p.text, ...particles].join(" ")) : p.head;
-    return c(store.has(head) ? head : p.head, ...carrying(done, links));
+    const lastDone = filled(p, "Done").at(-1);
+    return c(store.has(head) ? head : p.head, ...(lastDone && bare(lastDone) ? [...done, ...links] : carrying(done, links)));
   };
   const doingName = (p: Piece) => nameOf([lemma(p.text.toLowerCase()) || p.text, ...filled(p, "Particle").map((x) => x.text)].join(" "));
   const mods = (p: Piece) => [
@@ -1856,13 +1858,14 @@ interface Option {
 }
 
 /** The message as tokens: words, numbers, and the symbols arithmetic is written with. */
-function tokens(store: ConceptStore, message: string): { tokens: string[]; question: boolean } {
+function tokens(store: ConceptStore, message: string, pieces = false): { tokens: string[]; question: boolean } {
   const question = message.includes("?");
   const text = expandBare(message)
     .replace(/([+*/=×÷])/g, " $1 ")
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
     // "15%": the number and the word it is said with.
-    .replace(/(\d)\s*%/g, "$1 percent")
+    // (A word problem keeps the number alone: its share is read from what is said with it.)
+    .replace(/(\d)\s*%/g, pieces ? "$1" : "$1 percent")
     // "80,000": one number, its thousands marked.
     .replace(/(\d),(?=\d{3}\b)/g, "$1")
     // "an 8-ounce cup": the count and what it counts.
@@ -2123,7 +2126,7 @@ export async function frames(runtime: Runtime, message: string, history: readonl
       if (pointing) message = shown[1]!.replace(new RegExp(`\\b${pointing.replace(/[?.!:]+$/, "")}\\b`), shown[2]!);
     }
   }
-  const { tokens: typed, question } = tokens(store, message);
+  const { tokens: typed, question } = tokens(store, message, !!options.pieces);
   // A long message is read only as pieces (a word problem's sentence); answering reads one of thirty words at most.
   if (!typed.length || typed.length > (options.pieces ? 64 : 30)) return { looked: [] };
   const numbers = new Map<string, number | undefined>();

@@ -135,6 +135,13 @@ Concept(ChooseOne(),
                 )
               )
             ),
+            Comment("Readings that would all say the same are one answer, not a choice."),
+            Bind($distinct, Concat(New($Set, $parts))),
+            If(
+              And(Equals(Length($distinct), 1), GreaterThan(Length($parts), 1)),
+              Return(Add(Index($distinct, 0), ".")),
+              Undefined()
+            ),
             If(
               LessThan(Length($parts), 2),
               Return("Which do you mean?"),
