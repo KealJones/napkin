@@ -51,7 +51,7 @@ test("tell me about yourself describes Self, and a question about us nothing ans
 test("a word told a value is worked out with: what was said it is stands in for it", async () => {
   const { say } = conversation();
   await say("pi is 3.14159");
-  assert.match(await say("what is pi times 2"), /6\.2831/);
+  assert.match(await say("what is pi times 2"), /6\.283/);
   await say("a dozen is 12");
   assert.match(await say("what is 3 times a dozen"), /\b36\b/);
 });

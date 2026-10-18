@@ -910,7 +910,11 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const all = compose(store, row);
   if (process.env.NAPKIN_COMPOSE_DEBUG) console.error("  pieces", row.map((ps) => ps.map((p) => `${p.text}:${p.role}:${p.head}${p.op ? "/" + p.op.arity : ""}${p.guessed ? "?" : ""}`).join(" ")).join(" | "));
   if (process.env.NAPKIN_COMPOSE_DEBUG) for (const x of all) console.error("  compose", x.score.toFixed(2), shapeSaid(x.piece));
-  const best = all[0];
+  // A message that only joins on to what was said ("and then add 5?") is what it joins: the best
+  // reading whose root is not the joining word, when one is near as good.
+  const joinedOn = (x: Composed | undefined) => !!x && x.piece.role === "ReadJoining" && x.piece.word === 0;
+  const unjoined = joinedOn(all[0]) ? all.find((x) => !joinedOn(x) && x.score >= all[0]!.score - 1) : undefined;
+  const best = unjoined ?? all[0];
   if (!best) return saidInOrder;
   // What someone is said to have said ("I told them that 2 plus two was 5", "she said 2 plus 2 is
   // 4", "he told me his name is Bob"): the clause is read as its own; a claim in it is checked, a
@@ -968,6 +972,13 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   if (root === best.piece && first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
+  // A word that says one of many ("a", "an"): the graph's Marks(Single()).
+  const single = (w: string) => store.asSubject(nameOf(w)).some((t) => t.predicate === "Marks" && t.object !== undefined && isCall(t.object) && (t.object as { head: string }).head === "Single");
+  // Someone, as the tagger or the graph has it, or a word nothing knows yet said as who something is of.
+  const someoneSaid = (p: Piece) => {
+    const t = tags.get(p.text.toLowerCase()) ?? [];
+    return !p.ask && p.value === undefined && !t.includes("Pronoun") && (t.includes("Person") || t.includes("ProperNoun") || typesOf(store, c(p.head)).includes("Person"));
+  };
   const asked = asking(words, question) || asksIn(root);
   // Who or what a piece is, as the graph holds it: the one a word points at, the speaker, a thing.
   // Things joined ("socks and a charger") are a List of each.
@@ -1047,20 +1058,35 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     };
     const steps = root.role === "ReadDoing" ? joined(root) : [root];
     if (steps.length > 1) {
+      // A step that computes and is short of what it takes ("then subtract 5") works on what the step before came to.
+      const stepCall = (p: Piece, k: number): Expr => {
+        const e = doingCall(p);
+        const op = words[p.word]?.senses.find((x): x is Extract<Sense, { type: "op" }> => x.type === "op");
+        if (k === 0 || !op || !isCall(e) || e.args.length >= op.holes.length) return e;
+        return call(op.target, [{ value: call("Ref", [{ value: "" }]) }, ...e.args]);
+      };
       const lines = steps.map((p) => c("ContextScope", mood, doingCall(p)));
+      const worked = steps.map((p, k) => c("ContextScope", mood, stepCall(p, k)));
       const all = call("Sequence", lines.map((value) => ({ value })));
       return [{ key: format(all), features: ["read:composed-done", ...best.features], score: base, display: all, chosen: [], notes: [...notes, `Done in turn: ${lines.map(format).join("; ")}.`], run: async () => {
         const out: Expr[] = [];
         // A pointing word in a later doing is what an earlier one made ("… and add milk to it").
         let made: Expr | undefined;
-        const point = (e: Expr): Expr => (!isCall(e) ? e : e.head === "Ref" && made ? made : call(e.head, e.args.map((a) => ({ ...a, value: point(a.value) }))));
-        for (const line of lines) {
+        // Else what the step before came to, when it came to a value ("take 10, double it").
+        let came: Expr | undefined;
+        const point = (e: Expr): Expr => (!isCall(e) ? e : e.head === "Ref" && (made ?? came) !== undefined ? (made ?? came)! : call(e.head, e.args.map((a) => ({ ...a, value: point(a.value) }))));
+        for (const [k, plain] of lines.entries()) {
+          const line = came !== undefined && made === undefined ? worked[k]! : plain;
           const v = await runtime.evaluate(point(line), c("Execution"));
           out.push(v);
+          const value = isCall(v) && v.head === "Answer" ? v.args[0]?.value : v;
+          if (typeof value === "number") came = value;
           const minted = [...walk(v)].find((n) => isCall(n) && !n.args.length && /_\d+$/.test(n.head));
           if (minted) made = minted;
         }
-        return call("Sequence", out.map((value) => ({ value })));
+        // Steps each working on the one before, all values: what they come to.
+        const values = out.every((v) => typeof v === "number" || (isCall(v) && v.head === "Answer" && typeof v.args[0]?.value === "number"));
+        return values ? out.at(-1)! : call("Sequence", out.map((value) => ({ value })));
       } }];
     }
     const expr = c("ContextScope", mood, doingCall(root));
@@ -1189,12 +1215,27 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       } }];
     }
   }
+  // Asked how something of someone is, by a word the graph says asks it ("how old is tom":
+  // Old Asks(Age())): what that one holds of it.
+  if (root.role === "ReadSame" && asked) {
+    const pieces = (p: Piece): Piece[] => [p, ...p.fills.flatMap((f) => pieces(f.piece))];
+    const asks = (p: Piece) => store.asSubject(nameOf(p.text)).find((t) => t.predicate === "Asks" && t.object !== undefined && isCall(t.object))?.object;
+    // The word that says what is asked, past the question word itself ("how" asks steps; "how old", an age).
+    const asker = pieces(root).find((p) => p !== root && !p.ask && !words[p.word]!.senses.some((x) => x.type === "question") && asks(p) !== undefined);
+    const kind = asker ? asks(asker) : undefined;
+    const target = [...filled(root, "Subject"), ...filled(root, "Said")].flatMap(pieces).find((p) => p !== asker && !p.ask && p.role === "ReadThing" && someoneSaid(p));
+    const subject = target ? who(target) : undefined;
+    if (kind !== undefined && isCall(kind) && subject !== undefined && isCall(subject) && !subject.args.length) {
+      const held = relationsOf(store, subject.head).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === kind.head && r.claim.args[0] && !store.retracted(subject.head, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
+      return [{ key: `Composed ${kind.head} of ${subject.head}`, features: ["read:composed-asks", ...best.features], score: base + 1, display: c("Asked", c(kind.head, subject, c("What"))), chosen: [], notes, run: async () => (held.length ? c("Answer", held.at(-1)!) : c("Unknown", subject, c(kind.head))) }];
+    }
+  }
   // A relation said of an owner ("my name", "the capital of France", "tom's age"): told, a fact of
   // the owner; asked, what the owner holds of it.
   // Owned and told a thing or a number ("tom's age is 30", "my favorite color is blue"), it is
   // said as a relation of the owner too; told how it is ("my car is red") or what kind it is ("a
   // Honda"), it is not.
-  const plain = (v: Piece | undefined) => !!v && (v.role === "ReadThing" || v.role === "ReadQuality") && !filled(v, "Determiner").some((d) => /^(a|an)$/i.test(d.text));
+  const plain = (v: Piece | undefined) => !!v && (v.role === "ReadThing" || v.role === "ReadQuality") && !filled(v, "Determiner").some((d) => single(d.text));
   const ownerOf = (p: Piece, other?: Piece): Piece | undefined =>
     p.relation || (p.role === "ReadThing" && (other?.ask || plain(other)))
       ? (filled(p, "Whose")[0] ?? [...filled(p, "Where"), ...filled(root, "Where").filter((l) => l.word === p.word + 1)].filter((l) => /^of$/i.test(l.text)).flatMap((l) => filled(l, "What"))[0])
@@ -1261,7 +1302,28 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     let claim: Expr;
     if (said.role === "ReadQuality") claim = c("HasProperty", c(nameOf(said.text)));
     else if (said.role === "ReadDoing") claim = call(doingName(said), [...filled(said, "Done").map((d) => ({ value: who(d)! })), ...mods(said)]);
-    else if (filled(said, "Determiner").some((d) => /^(a|an)$/i.test(d.text))) claim = c("IsA", who(said)!);
+    else if (filled(said, "Determiner").some((d) => single(d.text))) claim = c("IsA", who(said)!);
+    // A bare number said of someone ("tom is 30") is what the graph says such a number of someone
+    // most likely is (`Someone NumberIs(Age())`), kept as that, the newest replacing the one before.
+    else if (typeof said.value === "number" && !said.fills.length && someoneSaid(subjectPiece)) {
+      const relation = store.asSubject("Someone").find((t) => t.predicate === "NumberIs" && t.object !== undefined && isCall(t.object))?.object;
+      if (relation === undefined || !isCall(relation)) return [];
+      const fact = c(relation.head, said.value);
+      return [{ writes: true, key: format(c(subject.head, fact)), features: ["read:composed-number-of", ...best.features], score: base, display: c("Stated", subject, fact), chosen: [], notes, run: async () => {
+        replacing(store, subject.head, fact, runtime.trace.cause);
+        if (!store.asSubject(subject.head).some((t) => t.predicate === "IsA")) store.addRelation(subject.head, c("IsA", c("Person")), undefined, runtime.trace.cause);
+        return c("Noted", fact, subject);
+      } }];
+    }
+    // A thing said to be a number ("pi is 3.14159", "a dozen is 12"): another way to say that number,
+    // as number words are (`Eight SynonymOf(Number(8))`), so it is worked out with.
+    else if (typeof said.value === "number" && !said.fills.length && subjectPiece.role === "ReadThing" && subjectPiece.value === undefined && !subjectPiece.points && !filled(subjectPiece, "Whose").length && !filled(subjectPiece, "Where").length && !negated(root)) {
+      const fact = c("SynonymOf", c("Number", said.value));
+      return [{ writes: true, key: format(c(subject.head, fact)), features: ["read:composed-number-word", ...best.features], score: base, display: c("Stated", subject, fact), chosen: [], notes, run: async () => {
+        replacing(store, subject.head, fact, runtime.trace.cause);
+        return c("Noted", fact, subject);
+      } }];
+    }
     else return [];
     const fact = negated(root) ? c("Not", claim) : claim;
     return [{
@@ -1721,6 +1783,8 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
   const text = expandBare(message)
     .replace(/([+*/=×÷])/g, " $1 ")
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
+    // "15%": the number and the word it is said with.
+    .replace(/(\d)\s*%/g, "$1 percent")
     // "80,000": one number, its thousands marked.
     .replace(/(\d),(?=\d{3}\b)/g, "$1")
     // "an 8-ounce cup": the count and what it counts.

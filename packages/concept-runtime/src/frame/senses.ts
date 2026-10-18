@@ -242,7 +242,9 @@ export async function sensesOf(store: ConceptStore, word: string, number: (word:
     for (const k of at.kinds.get(w) ?? []) if (!out.some((s) => s.type === "kind" && s.head === k)) out.push({ type: "kind", head: k });
   }
   if (!out.some((s) => s.type === "value")) {
-    const n = await number(lower);
+    // A word the graph says is another way to say a number ("pi", once told it is 3.14159).
+    const synonym = [name, base].flatMap((h) => store.asSubject(h)).map((t) => (t.predicate === "SynonymOf" && isCall(t.expr) ? t.expr.args[0]?.value : undefined)).find((v) => v !== undefined && isCall(v) && v.head === "Number" && typeof v.args[0]?.value === "number");
+    const n = synonym !== undefined && isCall(synonym) ? (synonym.args[0]!.value as number) : await number(lower);
     if (n !== undefined) out.push({ type: "value", value: n });
   }
   return out;

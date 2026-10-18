@@ -1,6 +1,6 @@
 {
   "name": "@napkin/concept-runtime",
-  "version": "0.21.4",
+  "version": "0.22.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
