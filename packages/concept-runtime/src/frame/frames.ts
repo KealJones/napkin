@@ -953,27 +953,6 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   // "what do i need to buy"): kept, or asked back, as todos() reads it.
   const kept = todos(runtime, words, question, message);
   if (kept.length) return kept.map((r) => ({ ...r, features: ["read:composed-todo", ...r.features], score: r.score + 0.05 * best.score }));
-  // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
-  // things and the words for relations the reading names are looked up between, each way.
-  // Asked as it was ("what was my name"): what held before is the owner's to say, below.
-  const pastAsked = root.role === "ReadSame" && (tags.get(words[root.word]!.text.toLowerCase()) ?? []).includes("PastTense") && [...filled(root, "Said"), ...filled(root, "Subject")].some((x) => filled(x, "Whose").length);
-  if ((asksIn(root) || asking(words, question)) && !pastAsked) {
-    const known = [...facts(store, words, true, pointed), ...kindQuestions(store, words, pointed), ...describes(store, words, true), ...deictics(runtime, words, true), ...sayings(store, words, true)].map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
-    if (known.length) return known;
-  }
-  // A word that does something here (save, make, subtract, post) is done, not kept as said: its
-  // own realization reads it, as the rules hearing hands it on.
-  const doing = (p: Piece) => p.role === "ReadDoing" || p.role === "ReadAspect";
-  const acts = (p: Piece, does: (head: string) => boolean): boolean => (doing(p) && (does(p.head) || does(nameOf(p.text)))) || p.fills.some((f) => acts(f.piece, does));
-  // Only where it is asked to be done: no one said to do it ("save that"), or the one spoken to
-  // asked if they can or will ("can you make a list"). Told or asked of what was done ("did you
-  // get a nice tree?", "I got a car") is talk of the doing, read here.
-  const doer = root.role === "ReadDoing" ? filled(root, "Doer")[0] : undefined;
-  const toBeDone = root.role !== "ReadDoing" || !doer || (/^you$/i.test(doer.text) && filled(root, "Aspect").some((a) => /^(can|could|would|will|wo|should|please)$/i.test(a.text)));
-  // A message that starts with what can be done, not read as a doing, is told to be done ("take
-  // 10, double it"), however its other words fall.
-  const first = row[0]!;
-  if (root === best.piece && first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // A pointing word with nothing to point at ("that's wrong", said of the last reply) is not a thing to keep facts of.
   const unpointed = (p: Piece | undefined) => !!p && words[p.word]!.senses.some((s) => s.type === "pointer") && !pointed;
   // A word that says one of many ("a", "an"): the graph's Marks(Single()).
@@ -1080,23 +1059,49 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const pieces = (p: Piece): Piece[] => [p, ...p.fills.flatMap((f) => pieces(f.piece))];
     const all = pieces(root);
     const askAt = words.findIndex((w) => w.senses.some((x) => x.type === "question"));
-    const op = askAt >= 0 ? words[askAt + 1]?.senses.find((x): x is Extract<Sense, { type: "op" }> => x.type === "op" && x.holes.length === 1) : undefined;
-    const others = all.filter((p) => p.word !== askAt && p.word !== askAt + 1);
+    // Past the words that only help say it ("what is the date"): the first word after the question word that says something.
+    const opAt = askAt < 0 ? -1 : words.findIndex((w, i) => i > askAt && !w.senses.every((x) => x.type === "glue"));
+    const op = opAt >= 0 ? words[opAt]?.senses.find((x): x is Extract<Sense, { type: "op" }> => x.type === "op" && x.holes.length === 1) : undefined;
+    const others = all.filter((p) => p.word !== askAt && p.word !== opAt && !(p.word > askAt && p.word < opAt));
     // Only words that say when, point at now, or only help say it: "will it be", "is it".
     const when = others.find((p) => p.role === "ReadLink" && words[p.word]!.senses.some((x) => x.type === "op" && x.target === "In") && filled(p, "What").some((w) => filled(w, "Count").some((n) => typeof n.value === "number")));
     const dated = others.find((p) => (p.role === "ReadThing" || p.role === "ReadTime") && store.get(p.head)?.realizations.some((r) => !r.retired && isCall(r.pattern) && !r.pattern.args.length) && typesOf(store, c(p.head)).some((k) => k === "Day" || k === "Date" || k === "RelativeDay"));
     const plain = others.every((p) => p === when || (when && pieces(when).includes(p)) || p === dated || p.role === "ReadSame" || p.role === "ReadAspect" || (p.role === "ReadDoing" && words[p.word]!.senses.some((x) => x.type === "glue")) || p.points || words[p.word]!.senses.some((x) => x.type === "pointer"));
-    if (op && plain && (when || dated || others.some((p) => p.points || words[p.word]!.senses.some((x) => x.type === "pointer")))) {
+    // Said of a time, of the moment pointed at ("is it"), or of nothing else at all ("what is the date"): now.
+    const bare = others.every((p) => p.role === "ReadSame" || p.role === "ReadAspect");
+    if (op && plain && (when || dated || bare || others.some((p) => p.points || words[p.word]!.senses.some((x) => x.type === "pointer")))) {
       const span = when ? filled(when, "What")[0]! : undefined;
       const n = span ? filled(span, "Count").find((x) => typeof x.value === "number")?.value : undefined;
       const time = span && typeof n === "number" ? c("In", c(nameOf(span.text), n)) : dated ? c(dated.head) : c("Today");
       const expr = c(op.target, time);
       return [{ key: format(expr), features: ["read:composed-of-time", ...best.features], score: base + 1, display: expr, chosen: [], notes: [...notes, `Worked out of a time: ${format(expr)}.`], run: async () => {
         const v = await runtime.evaluate(expr, c("Execution"));
-        return isCall(v) && v.head === op.target ? undefined : c("Answer", v);
+        // Not worked out: handed back as it was asked (a Date of a date is worked out, Date(Tomorrow()) is not).
+        return isCall(v) && v.head === op.target && v.args.some((a) => isCall(a.value) && !a.name) ? undefined : c("Answer", v);
       } }];
     }
   }
+  // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
+  // things and the words for relations the reading names are looked up between, each way.
+  // Asked as it was ("what was my name"): what held before is the owner's to say, below.
+  const pastAsked = root.role === "ReadSame" && (tags.get(words[root.word]!.text.toLowerCase()) ?? []).includes("PastTense") && [...filled(root, "Said"), ...filled(root, "Subject")].some((x) => filled(x, "Whose").length);
+  if ((asksIn(root) || asking(words, question)) && !pastAsked) {
+    const known = [...facts(store, words, true, pointed), ...kindQuestions(store, words, pointed), ...describes(store, words, true), ...deictics(runtime, words, true), ...sayings(store, words, true)].map((r) => ({ ...r, features: ["read:composed-fact", ...r.features], score: r.score + 0.05 * best.score }));
+    if (known.length) return known;
+  }
+  // A word that does something here (save, make, subtract, post) is done, not kept as said: its
+  // own realization reads it, as the rules hearing hands it on.
+  const doing = (p: Piece) => p.role === "ReadDoing" || p.role === "ReadAspect";
+  const acts = (p: Piece, does: (head: string) => boolean): boolean => (doing(p) && (does(p.head) || does(nameOf(p.text)))) || p.fills.some((f) => acts(f.piece, does));
+  // Only where it is asked to be done: no one said to do it ("save that"), or the one spoken to
+  // asked if they can or will ("can you make a list"). Told or asked of what was done ("did you
+  // get a nice tree?", "I got a car") is talk of the doing, read here.
+  const doer = root.role === "ReadDoing" ? filled(root, "Doer")[0] : undefined;
+  const toBeDone = root.role !== "ReadDoing" || !doer || (/^you$/i.test(doer.text) && filled(root, "Aspect").some((a) => /^(can|could|would|will|wo|should|please)$/i.test(a.text)));
+  // A message that starts with what can be done, not read as a doing, is told to be done ("take
+  // 10, double it"), however its other words fall.
+  const first = row[0]!;
+  if (root === best.piece && first.some(doing) && !((doing(root) || root.op) && root.word === 0) && !root.fills.some((f) => doing(f.piece) && f.piece.word === 0)) return [];
   // Asked to be done, or a doing the graph says where what it takes is kept ("I need socks":
   // `Need KeepsAs(ToDo())`): the doing runs, its realization given what the words put in its holes.
   const keeps = (h: string) => store.asSubject(h).some((t) => t.predicate === "KeepsAs");
@@ -1326,7 +1331,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     // "of" said beside the whole ("the capital | of france | is paris") is of what it follows.
     const rootOf = filled(root, "Where").find((l) => /^of$/i.test(l.text));
     const withOf = (p: Piece | undefined) => (p && rootOf && !filled(p, "Where").length ? { ...p, fills: [...p.fills, { hole: "Where", side: "after" as const, piece: rootOf }] } : p);
-    const [subjectAt, saidAt] = [withOf(subjectPiece), said];
+    // Of what it follows: "the capital | of france | is paris", "my anniversary is the 12th | of may".
+    const follows = (p: Piece | undefined) => !!p && !!rootOf && rootOf.word === p.word + 1;
+    const [subjectAt, saidAt] = [follows(said) ? subjectPiece : withOf(subjectPiece), follows(said) ? withOf(said) : said];
     const [held, value] = subjectAt && ownerOf(subjectAt, saidAt) ? [subjectAt, saidAt] : saidAt && ownerOf(saidAt, subjectAt) ? [saidAt, subjectAt] : [undefined, undefined];
     const owner = held && ownerOf(held, value);
     // "what is on my list" asks what the list holds, not what "my list" is.

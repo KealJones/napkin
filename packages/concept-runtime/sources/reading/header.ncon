@@ -20,6 +20,8 @@ Concept(ReadThing(), IsA(WordRole()),
   HasHole("Name", ReadThing()),
   HasHole("Where", ReadLink()),
   HasHole("Also", ReadJoining()),
+  // When it is ("the date tomorrow", "the meeting on friday").
+  HasHole("When", ReadTime()),
   Repeats("Describer"), Repeats("Where"), Repeats("Also"))
 
 // A doing: who does it, what it is done to, where and how and when, whether it is not.
@@ -150,6 +152,7 @@ Concept(ReadingByHoles(),
   Weighs("ReadDoing.Where:before", -0.6),
   Weighs("ReadDoing.Also:before", -1),
   Weighs("ReadDoing.Then:before", -0.5),
+  Weighs("ReadDoing.Where:after:outside=Said", -1),
   Weighs("ReadDoing.Said:before", -0.5),
   Weighs("ReadSame.Subject:after:lead", 1.5),
   Weighs("ReadSame.Where:after:empty", -0.8),
