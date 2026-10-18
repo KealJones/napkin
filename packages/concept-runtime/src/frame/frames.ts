@@ -1034,6 +1034,30 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const notes = [`Read by its words' holes: ${shapeSaid(root)}.`];
   // What was read says itself whether it was told or asked (Stated, Whether, a What in it): no wrapper says it again.
   const display = (e: Expr) => e;
+  // Asked what something is that the graph works out of a time ("what day will it be in 5 days",
+  // "what day is it"): the word right after the question word, if it computes from one thing, worked
+  // out of the time the words say ("in 5 days": In(Days(5)), "tomorrow"), else of now.
+  if (asked) {
+    const pieces = (p: Piece): Piece[] => [p, ...p.fills.flatMap((f) => pieces(f.piece))];
+    const all = pieces(root);
+    const askAt = words.findIndex((w) => w.senses.some((x) => x.type === "question"));
+    const op = askAt >= 0 ? words[askAt + 1]?.senses.find((x): x is Extract<Sense, { type: "op" }> => x.type === "op" && x.holes.length === 1) : undefined;
+    const others = all.filter((p) => p.word !== askAt && p.word !== askAt + 1);
+    // Only words that say when, point at now, or only help say it: "will it be", "is it".
+    const when = others.find((p) => p.role === "ReadLink" && words[p.word]!.senses.some((x) => x.type === "op" && x.target === "In") && filled(p, "What").some((w) => filled(w, "Count").some((n) => typeof n.value === "number")));
+    const dated = others.find((p) => (p.role === "ReadThing" || p.role === "ReadTime") && store.get(p.head)?.realizations.some((r) => !r.retired && isCall(r.pattern) && !r.pattern.args.length) && typesOf(store, c(p.head)).some((k) => k === "Day" || k === "Date" || k === "RelativeDay"));
+    const plain = others.every((p) => p === when || (when && pieces(when).includes(p)) || p === dated || p.role === "ReadSame" || p.role === "ReadAspect" || (p.role === "ReadDoing" && words[p.word]!.senses.some((x) => x.type === "glue")) || p.points || words[p.word]!.senses.some((x) => x.type === "pointer"));
+    if (op && plain && (when || dated || others.some((p) => p.points || words[p.word]!.senses.some((x) => x.type === "pointer")))) {
+      const span = when ? filled(when, "What")[0]! : undefined;
+      const n = span ? filled(span, "Count").find((x) => typeof x.value === "number")?.value : undefined;
+      const time = span && typeof n === "number" ? c("In", c(nameOf(span.text), n)) : dated ? c(dated.head) : c("Today");
+      const expr = c(op.target, time);
+      return [{ key: format(expr), features: ["read:composed-of-time", ...best.features], score: base + 1, display: expr, chosen: [], notes: [...notes, `Worked out of a time: ${format(expr)}.`], run: async () => {
+        const v = await runtime.evaluate(expr, c("Execution"));
+        return isCall(v) && v.head === op.target ? undefined : c("Answer", v);
+      } }];
+    }
+  }
   // Asked to be done, or a doing the graph says where what it takes is kept ("I need socks":
   // `Need KeepsAs(ToDo())`): the doing runs, its realization given what the words put in its holes.
   const keeps = (h: string) => store.asSubject(h).some((t) => t.predicate === "KeepsAs");

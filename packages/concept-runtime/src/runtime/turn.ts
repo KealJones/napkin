@@ -32,6 +32,7 @@ import { whatFollows } from "../research/conceptnet.js";
 import { teachEvent, type Ask } from "../research/teacher.js";
 import { atomicQueryOf, atomicTermOf, groundInAtomic, heldOf } from "../research/atomic.js";
 import { nameOf } from "../ears/parser/names.js";
+import { supposing } from "../frame/suppose.js";
 import { learnFeelings } from "../research/feeling.js";
 import { asksReason, explainWhy, explanation } from "../research/why.js";
 import { situationOf, solve, sure, unworked, worked } from "../situation/situation.js";
@@ -838,6 +839,17 @@ export async function turn(
   }
   // What a reading runs may read the conversation it is in (a holder just made, what is in play).
   if (options.conversation !== undefined) runtime.context.set("conversation", options.conversation);
+  // Supposed, then asked ("if x is 3 what is x times 2"): what is supposed is told, the question
+  // asked with it held, and what the supposing put in the graph taken out again once answered.
+  const supposed = !old && options.inputMode !== "expression" && !options.oneSentence ? supposing(runtime.store, message) : undefined;
+  if (supposed) {
+    const from = runtime.store.sequence;
+    const first = await turn(runtime, supposed.supposed, given, { ...options, oneSentence: true, oneChunk: true });
+    const upto = runtime.store.sequence;
+    const answered = await turn(runtime, supposed.asked, given, { ...options, oneSentence: true, history: [...(options.history ?? []), { message: supposed.supposed, result: first.result === undefined ? first.rendered : format(first.result), spoken: first.spoken }] });
+    runtime.store.collect(new Set(Array.from({ length: upto - from }, (_, k) => from + k)));
+    return { ...answered, why: [`Supposed, for this question only: "${supposed.supposed}".`, ...(answered.why ?? [])] };
+  }
   // A word problem told in sentences and asked at the end: each sentence read by the one reader,
   // the amounts taken from what its words fit together as, worked out by the solver (situation/read.ts).
   if (!old && options.inputMode !== "expression" && !options.oneSentence && /\d/.test(message) && /[.!?]\s+\S/.test(message.trim())) {
