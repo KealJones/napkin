@@ -306,13 +306,17 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       // A number said alone where something uncounted is done ("sold clips to 48 of her friends"): so many of it.
       const doneThing = alone && clause && !lastUnit ? filled(clause, "Done").find((d) => d.role === "ReadThing" && d.value === undefined && !d.ask && !filled(d, "Count").length && !pointing(s, d)) : undefined;
       // Counted in a measure that names it ("an 8-ounce cup"): so much of the measure for each one.
-      const measure = count ? filled(p, "Name").find((n) => n.word > number.word && lex.measures(base(n.text))) : undefined;
+      // Or a count of more than one said on one thing ("a 3 egg omelet"): so many of what names it, for each.
+      const singular = !(tags.get(p.text.toLowerCase().replace(/[^\p{L}'’]/gu, "")) ?? []).includes("Plural") && base(p.text) === p.text.toLowerCase();
+      const measure = count ? filled(p, "Name").find((n) => n.word > number.word && (lex.measures(base(n.text)) || (number.value !== 1 && singular))) : undefined;
       const thing = often ? undefined : money ? "dollar" : measure ? base(measure.text) : count ? base(p.text) : doneThing ? base(doneThing.text) : lastUnit;
       // How often the clause says it is done ("3 sprints 3 times a week"): the span is how often's, not the thing's.
       const oftenHere = !!clause && walk(clause).some((x) => x !== p && filled(x, "Count").some((n) => s.words[x.word]?.senses.some((y) => y.type === "op" && y.target === "Multiply")));
       // Money said with a word marking each after it ("sells them for $15 each"): for each of what was counted last.
       const eachAfter = money && !count && lastUnit && lex.marks(s.words[number.word + 1]?.text ?? "", "Each") ? lastUnit : undefined;
-      const per = eachAfter ?? (each || measure ? base(p.text) : perOf(p) ?? (clause && !(oftenHere && !often) ? perOf(clause) : undefined));
+      // One of the thing it is counted on ("a 3 egg omelet every morning"): so many each time, not each one.
+      const oneOf = measure && filled(p, "Determiner").some((d) => lex.marks(d.text, "Single"));
+      const per = eachAfter ?? (each || (measure && !oneOf) ? base(p.text) : perOf(p) ?? (clause && !(oftenHere && !often) ? perOf(clause) : undefined));
       const unit: Record<string, number> = {};
       if (thing) unit[thing] = 1;
       if (per && per !== thing) unit[per] = (unit[per] ?? 0) - 1;

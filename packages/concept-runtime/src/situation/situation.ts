@@ -1219,9 +1219,12 @@ function conversions(store: ConceptStore, amounts: readonly Amount[], asked: Ask
       const small = t.expr.args[0]?.value;
       const n = t.expr.args[1]?.value;
       if (!isCall(small) || typeof n !== "number") continue;
-      const unit = small.head.toLowerCase();
-      if (!units.has(unit) || unit === big) continue;
-      out.push({ value: n, unit: { [unit]: 1, [big]: -1 }, said: `${n} ${unit}s in a ${big}`, sentence: -1, sign: 0, optional: true });
+      // Holding items ("a dozen" is 12 of anything counted): so many of each thing counted that no unit measures.
+      const smalls = small.head === "Item" ? [...units].filter((u) => u !== big && !lex.measures(u) && !(store.asSubject(nameOf(u)).some((x) => x.predicate === "Holds"))) : [small.head.toLowerCase()];
+      for (const unit of smalls) {
+        if (!units.has(unit) || unit === big) continue;
+        out.push({ value: n, unit: { [unit]: 1, [big]: -1 }, said: `${n} ${unit}s in a ${big}`, sentence: -1, sign: 0, optional: true });
+      }
     }
   }
   return out;
