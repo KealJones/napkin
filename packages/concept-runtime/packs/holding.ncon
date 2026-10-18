@@ -1300,6 +1300,143 @@ Concept(Remove(),
   )
 )
 
+// Not known, of someone or something ("I don't know Sam's age yet", "your cat's name"): whose it is,
+// said by the word that refers to it when one does (Me: "your"), then what is not known.
+Concept(Unknown(),
+  Realization(Unknown($of, $what),
+    context = Speaking(),
+    evaluateArguments = false,
+    body = Code(
+      ir = Async(
+        Lambda(List($args, $bindings, $api),
+          Sequence(
+            Bind($isCall, Lambda(List($e), And(And(NotEquals($e, null), Equals(TypeOf($e), "object")), In("head", $e)))),
+            Bind($of, Call(Member($bindings, "get"), "of")),
+            Bind($what, Call(Member($bindings, "get"), "what")),
+            Bind($say,
+              Async(
+                Lambda(List($e),
+                  Sequence(
+                    Bind($r,
+                      Await(
+                        Call(
+                          Member($api, "evaluate"),
+                          Call(Member($api, "call"), "Say", $e),
+                          Call(Member($api, "call"), "Execution")
+                        )
+                      )
+                    ),
+                    Return(
+                      If(
+                        Equals(TypeOf($r), "string"),
+                        Call(Member($r, "replace"), Regex("[.!?]+$", ""), ""),
+                        ""
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            If(
+              Or(Not(Call($isCall, $what)), Length(Member($what, "args"))),
+              Return(Call(Member($api, "call"), "Unknown", $of, $what)),
+              Undefined()
+            ),
+            Bind($possessive,
+              If(
+                And(Call($isCall, $of), Not(Length(Member($of, "args")))),
+                Call(
+                  Member(Call(Member(Member($api, "store"), "asObject"), Member($of, "head")), "find"),
+                  Lambda(List($t),
+                    And(
+                      Equals(Member($t, "predicate"), "Refers"),
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Member($t, "subject")),
+                              "relations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r),
+                          And(
+                            And(
+                              And(
+                                Call($isCall, Member($r, "claim")),
+                                Equals(Member(Member($r, "claim"), "head"), "IsA")
+                              ),
+                              Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                            ),
+                            Equals(
+                              Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                              "Possessive"
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
+            Bind($words,
+              If(
+                $possessive,
+                Await(
+                  Call(
+                    $say,
+                    Call(
+                      Member($api, "call"),
+                      Member($possessive, "subject"),
+                      $what
+                    )
+                  )
+                ),
+                ""
+              )
+            ),
+            If(
+              $words,
+              Return(Add(Add("I don't know ", $words), " yet.")),
+              Undefined()
+            ),
+            Bind($owner, Await(Call($say, $of))),
+            Bind($thing, Call(Member(Await(Call($say, $what)), "toLowerCase"))),
+            If(
+              Or(Not($owner), Not($thing)),
+              Return(Call(Member($api, "call"), "Unknown", $of, $what)),
+              Undefined()
+            ),
+            Return(
+              Add(
+                Add(
+                  Add(
+                    Add(
+                      Add("I don't know ", $owner),
+                      If(
+                        Call(Member(Regex("s$", "i"), "test"), $owner),
+                        "'",
+                        "'s"
+                      )
+                    ),
+                    " "
+                  ),
+                  $thing
+                ),
+                " yet."
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
 // Who someone is to another, said with whose it is: Whose(Tom(), Brother()) is "Tom's brother".
 // An individual is said by the name it holds (Sam_1 Named "Sam").
 Concept(Whose(),

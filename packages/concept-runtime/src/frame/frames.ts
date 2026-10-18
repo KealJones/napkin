@@ -1245,6 +1245,13 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   }
   // Whose it is: "my" is Me; "my sister's" is whoever Me's sister is, met now if not yet
   // (Sister_1, IsA Person, Me Sister(Sister_1)) when something is told of her.
+  // Whose it is, as said: "my cat's" My(Cat()), "tom's sister's" Whose(Tom(), Sister()).
+  const ownerSaid = (p: Piece): Expr => {
+    const own = c(nameOf(p.text.replace(/['’]s$/i, "")));
+    const [up] = filled(p, "Whose");
+    if (!up) return words[p.word]!.senses.some((x) => x.type === "owner") && !/['’]s$/i.test(p.text) ? c(p.head) : own;
+    return !/['’]s$/i.test(up.text) ? c(nameOf(up.text), own) : c("Whose", ownerSaid(up), own);
+  };
   const ownerIdOf = (p: Piece, write: boolean): string | undefined => {
     if (p.role !== "ReadOwning") {
       const e = who(p);
@@ -1360,10 +1367,17 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
           display: c("Asked", c(relation, c(ownerId), c("What"))),
           chosen: [],
           notes,
-          run: async () => (latest !== undefined ? c("Answer", latest) : c("Unknown", c(owner.role === "ReadOwning" ? nameOf(owner.text) : ownerId, c(relation)))),
+          run: async () => (latest !== undefined ? c("Answer", latest) : c("Unknown", owner.role === "ReadOwning" ? ownerSaid(owner) : c(ownerId), c(relation))),
         }];
       }
-      if (asked) return [];
+      // Asked whether it is what is said ("is my favorite color blue?"): held, or what is held instead.
+      if (asked) {
+        const held = relationsOf(store, ownerId).filter((r) => r.context === undefined && isCall(r.claim) && r.claim.head === relation && r.claim.args[0] && !store.retracted(ownerId, r.claim)).map((r) => (isCall(r.claim) ? r.claim.args[0]!.value : r.claim));
+        const now = held.at(-1);
+        const guess = who(value);
+        if (now === undefined || guess === undefined) return [];
+        return [{ key: `Composed whether ${relation} of ${ownerId}`, features: ["read:composed-relation-whether", ...best.features], score: base + 1, display: c("Whether", c(relation, c(ownerId), guess)), chosen: [], notes, run: async () => c("Answer", equal(now, guess) ? c("ClaimHolds", now) : c("ClaimFails", now, guess)) }];
+      }
       const fact = c(relation, who(value)!);
       return [{
         writes: true,
