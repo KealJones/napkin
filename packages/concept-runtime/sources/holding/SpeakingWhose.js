@@ -9,8 +9,13 @@ async (args, bindings, api) => {
     if (named && typeof named.args[0]?.value === "string") return named.args[0].value;
     return e.head.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
   };
-  const owner = words(bindings.get("owner"));
+  // Whose by a word that says it of one in the talk ("my" Refers(Me())): that word, as the one spoken to says it ("your").
+  const ownerExpr = bindings.get("owner");
+  const possessive = isCall(ownerExpr)
+    ? api.store.asObject(ownerExpr.head).find((t) => t.predicate === "Refers" && (api.store.get(t.subject)?.relations ?? []).some((r) => isCall(r.claim) && r.claim.head === "IsA" && isCall(r.claim.args[0]?.value) && r.claim.args[0].value.head === "Possessive"))
+    : undefined;
   const what = words(bindings.get("what")).toLowerCase();
-  const text = `${owner}${/s$/i.test(owner) ? "'" : "'s"} ${what}`;
+  const said = possessive && isCall(bindings.get("what")) ? await api.evaluate(api.call("Words", api.call(possessive.subject, bindings.get("what"))), api.call("Execution")) : undefined;
+  const text = typeof said === "string" ? said : `${words(ownerExpr)}${/s$/i.test(words(ownerExpr)) ? "'" : "'s"} ${what}`;
   return text[0].toUpperCase() + text.slice(1) + ".";
 };

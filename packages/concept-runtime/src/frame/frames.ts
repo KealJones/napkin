@@ -2023,6 +2023,18 @@ function unknownRuns(store: ConceptStore, words: readonly Word[], message: strin
   return runs;
 }
 
+/** Nothing held of it, but it is held by another ("Gunter is my friend", then "who is gunter?"):
+ * who it is to them, Whose(Me(), Friend()). */
+function heldBy(store: ConceptStore, x: Expr): Expr | undefined {
+  if (!isCall(x) || x.head !== "NoDescription") return undefined;
+  const of = x.args[0]?.value;
+  if (of === undefined || !isCall(of)) return undefined;
+  const by = store.asObject(of.head).filter((t) => !STRUCTURAL.has(t.predicate) && t.context === undefined && !typesOf(store, c(t.predicate)).includes("WordFact") && isCall(t.expr) && t.expr.args.length === 1 && !store.retracted(t.subject, t.expr));
+  if (!by.length) return undefined;
+  const whose = by.map((t) => c("Whose", c(t.subject), c(t.predicate)));
+  return c("Answer", whose.length === 1 ? whose[0]! : call("List", whose.map((value) => ({ value }))));
+}
+
 /** What each word can be, as pieces, with what the graph says of it beside its senses. */
 function rowOf(store: ConceptStore, words: readonly Word[], message: string, pointed: string | undefined): Piece[][] {
   // What the tagger takes each word for, and the thing it says it could be besides ("pieces" a verb, or plural pieces).
@@ -2211,7 +2223,10 @@ export async function frames(runtime: Runtime, message: string, history: readonl
         }
         continue;
       }
-      const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed, history))];
+      const readings = [...fixed, ...safely(() => composed(runtime, words, question, message, pointed, history))].map((r) => ({ ...r, run: async () => {
+        const v = await r.run();
+        return (v !== undefined && heldBy(store, v)) || v;
+      } }));
       // Respelling a real word may answer a question, never tell the graph something.
       const respelled = row.edits.some((e) => e.kind !== "learned" && e.typed.split(" ").some((t) => isWord(t)));
       const unknownHere = words.filter((w) => !w.senses.length && /^[a-z]+$/i.test(w.text) && !store.has(nameOf(w.text)) && !store.has(nameOf(lemma(w.text.toLowerCase())))).map((w) => w.text);

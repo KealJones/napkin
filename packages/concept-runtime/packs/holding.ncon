@@ -1349,22 +1349,91 @@ Concept(Whose(),
                 )
               )
             ),
-            Bind($owner, Call($words, Call(Member($bindings, "get"), "owner"))),
+            Comment(
+              "Whose by a word that says it of one in the talk (\"my\" Refers(Me())): that word, as the one spoken to says it (\"your\")."
+            ),
+            Bind($ownerExpr, Call(Member($bindings, "get"), "owner")),
+            Bind($possessive,
+              If(
+                Call($isCall, $ownerExpr),
+                Call(
+                  Member(Call(Member(Member($api, "store"), "asObject"), Member($ownerExpr, "head")), "find"),
+                  Lambda(List($t),
+                    And(
+                      Equals(Member($t, "predicate"), "Refers"),
+                      Call(
+                        Member(
+                          Otherwise(
+                            OptionalMember(
+                              Call(Member(Member($api, "store"), "get"), Member($t, "subject")),
+                              "relations"
+                            ),
+                            List()
+                          ),
+                          "some"
+                        ),
+                        Lambda(List($r),
+                          And(
+                            And(
+                              And(
+                                Call($isCall, Member($r, "claim")),
+                                Equals(Member(Member($r, "claim"), "head"), "IsA")
+                              ),
+                              Call($isCall, OptionalMember(Index(Member(Member($r, "claim"), "args"), 0), "value"))
+                            ),
+                            Equals(
+                              Member(Member(Index(Member(Member($r, "claim"), "args"), 0), "value"), "head"),
+                              "Possessive"
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                ),
+                Undefined()
+              )
+            ),
             Bind($what, Call(Member(Call($words, Call(Member($bindings, "get"), "what")), "toLowerCase"))),
+            Bind($said,
+              If(
+                And($possessive, Call($isCall, Call(Member($bindings, "get"), "what"))),
+                Await(
+                  Call(
+                    Member($api, "evaluate"),
+                    Call(
+                      Member($api, "call"),
+                      "Words",
+                      Call(
+                        Member($api, "call"),
+                        Member($possessive, "subject"),
+                        Call(Member($bindings, "get"), "what")
+                      )
+                    ),
+                    Call(Member($api, "call"), "Execution")
+                  )
+                ),
+                Undefined()
+              )
+            ),
             Bind($text,
-              Add(
+              If(
+                Equals(TypeOf($said), "string"),
+                $said,
                 Add(
                   Add(
-                    Add("", $owner),
-                    If(
-                      Call(Member(Regex("s$", "i"), "test"), $owner),
-                      "'",
-                      "'s"
-                    )
+                    Add(
+                      Add("", Call($words, $ownerExpr)),
+                      If(
+                        Call(Member(Regex("s$", "i"), "test"), Call($words, $ownerExpr)),
+                        "'",
+                        "'s"
+                      )
+                    ),
+                    " "
                   ),
-                  " "
-                ),
-                $what
+                  $what
+                )
               )
             ),
             Return(Add(Add(Call(Member(Index($text, 0), "toUpperCase")), Call(Member($text, "slice"), 1)), "."))
