@@ -15,6 +15,7 @@ import { nameOf } from "../ears/parser/names.js";
 import { lemma } from "../runtime/host.js";
 import type { ConceptStore } from "../store/store.js";
 import type { Sense } from "./senses.js";
+import { typesOf } from "../runtime/types.js";
 
 export interface Piece {
   readonly role: string;
@@ -179,6 +180,10 @@ export function compose(store: ConceptStore, row: readonly Piece[][], keep = 6, 
     for (const [hole, kinds] of h.takes) {
       if (!kinds.includes(taken.piece.role)) continue;
       if (!h.repeats.has(hole) && taker.piece.fills.some((f) => f.hole === hole)) continue;
+      // A value is not said to be at a time ("20 minutes" is no 20 at minutes).
+      if (hole === "When" && taker.piece.value !== undefined) continue;
+      // A thing is at a time the graph knows as one ("the date tomorrow"), not one only guessed so ("minutes").
+      if (hole === "When" && taker.piece.role === "ReadThing" && (taken.piece.guessed || !typesOf(store, c(taken.piece.head)).includes("Date"))) continue;
       // A computation is joined to what came before only from in front ("and plus 3"), not to a list.
       if (taker.piece.op && hole === "Also" && (side === "after" || filled(taken.piece, "With").length)) continue;
       // Things joined bind closer than what a word puts with them: in "the sum of 1, 2 and 3" the list is what "of" puts in.
