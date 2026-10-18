@@ -949,6 +949,10 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   function fromRoot(root: Piece): Reading[] {
   const computed = computing(runtime, words, root, best, question, message, history);
   if (computed) return computed;
+  // A doing kept for later by a word the graph says keeps it ("remember to buy eggs and milk",
+  // "what do i need to buy"): kept, or asked back, as todos() reads it.
+  const kept = todos(runtime, words, question, message);
+  if (kept.length) return kept.map((r) => ({ ...r, features: ["read:composed-todo", ...r.features], score: r.score + 0.05 * best.score }));
   // Asked of what the graph holds ("who directed jaws", "where was steven spielberg born"): the
   // things and the words for relations the reading names are looked up between, each way.
   // Asked as it was ("what was my name"): what held before is the owner's to say, below.
@@ -987,7 +991,9 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const also = filled(p, "Also").flatMap((j) => filled(j, "With"));
     if (!also.length) return thingOf(p);
     const own = thingOf({ ...p, fills: p.fills.filter((f) => f.hole !== "Also") });
-    return call("List", [own, ...also.map((x) => who(x)!)].map((value) => ({ value })));
+    // A run joined one after another ("apples, pears and plums") is one list, not a list in a list.
+    const items = also.map((x) => who(x)!).flatMap((x) => (isCall(x) && x.head === "List" ? x.args.map((a) => a.value) : [x]));
+    return call("List", [own, ...items].map((value) => ({ value })));
   };
   // A thing as a doing's realization takes it: its head, with what describes or names it inside
   // ("shopping list" List(Shopping())), whose it is around it ("my" My(...)).
@@ -1034,6 +1040,22 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
   const notes = [`Read by its words' holes: ${shapeSaid(root)}.`];
   // What was read says itself whether it was told or asked (Stated, Whether, a What in it): no wrapper says it again.
   const display = (e: Expr) => e;
+  // Asked of a run of values by a word whose Concept works on such a run ("what comes next: 2, 4,
+  // 8, 16", "what comes after 2, 4, 6, 8": Next and After take the items): that word, given them.
+  if (asked) {
+    const pieces = (p: Piece): Piece[] => [p, ...p.fills.flatMap((f) => pieces(f.piece))];
+    const values = pieces(root).filter((p) => typeof p.value === "number").sort((a, b) => a.word - b.word);
+    const joined = values.length >= 3 && values.slice(1).every((v) => pieces(root).some((j) => j.role === "ReadJoining" && filled(j, "With").includes(v)));
+    const runs = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.some((a) => isCall(a.value) && a.value.head === "Rest"));
+    const worker = joined ? words.filter((w) => !w.senses.some((x) => x.type === "question")).map((w) => nameOf(w.text)).find(runs) : undefined;
+    if (worker) {
+      const expr = c(worker, call("List", values.map((v) => ({ value: v.value as number }))));
+      return [{ key: format(expr), features: ["read:composed-run", ...best.features], score: base + 1, display: expr, chosen: [], notes: [...notes, `Worked on the run: ${format(expr)}.`], run: async () => {
+        const v = await runtime.evaluate(expr, c("Execution"));
+        return isCall(v) && v.head === worker ? undefined : c("Answer", v);
+      } }];
+    }
+  }
   // Asked what something is that the graph works out of a time ("what day will it be in 5 days",
   // "what day is it"): the word right after the question word, if it computes from one thing, worked
   // out of the time the words say ("in 5 days": In(Days(5)), "tomorrow"), else of now.
