@@ -444,6 +444,152 @@ Concept(HowMany(),
                 Undefined()
               )
             ),
+            Comment(
+              "How long until a day (\"how many days until christmas\", Days(Until(Christmas()))): from today to it, in that unit."
+            ),
+            Bind($until,
+              If(
+                And(
+                  And(
+                    And(Call($isCall, Index($said, 0)), Equals(Length(Member(Index($said, 0), "args")), 1)),
+                    Call($isCall, Member(Index(Member(Index($said, 0), "args"), 0), "value"))
+                  ),
+                  Equals(Member(Member(Index(Member(Index($said, 0), "args"), 0), "value"), "head"), "Until")
+                ),
+                Member(Index(Member(Index($said, 0), "args"), 0), "value"),
+                If(
+                  And(Call($isCall, Index($said, 1)), Equals(Member(Index($said, 1), "head"), "Until")),
+                  Index($said, 1),
+                  Undefined()
+                )
+              )
+            ),
+            If(
+              And($until, Call($isCall, Index($said, 0))),
+              Sequence(
+                Bind($unit, Object(head = Member(Index($said, 0), "head"), args = List())),
+                Bind($day,
+                  Await(Call(Member($api, "evaluate"), OptionalMember(Index(Member($until, "args"), 0), "value")))
+                ),
+                Bind($today, Await(Call(Member($api, "evaluate"), Call(Member($api, "call"), "Today")))),
+                Bind($field,
+                  Lambda(List($d, $n),
+                    If(
+                      Call($isCall, $d),
+                      OptionalMember(
+                        Call(Member(Member($d, "args"), "find"), Lambda(List($x), Equals(Member($x, "name"), $n))),
+                        "value"
+                      ),
+                      Undefined()
+                    )
+                  )
+                ),
+                Bind($at,
+                  Lambda(List($d),
+                    Call(
+                      Member($Date, "UTC"),
+                      Call($field, $d, "year"),
+                      Subtract(Call($field, $d, "month"), 1),
+                      Call($field, $d, "day")
+                    )
+                  )
+                ),
+                If(
+                  And(
+                    And(
+                      And(Call($isCall, $day), Equals(Member($day, "head"), "Date")),
+                      Equals(TypeOf(Call($field, $day, "day")), "number")
+                    ),
+                    Call($isCall, $today)
+                  ),
+                  Sequence(
+                    Bind($days,
+                      Call(Member($Math, "round"), Divide(Subtract(Call($at, $day), Call($at, $today)), 86400000))
+                    ),
+                    Comment(
+                      "Days in the unit asked, as the graph holds them (Week Holds(Day(), 7), Day Holds(Hour(), 24))."
+                    ),
+                    Bind($one, Call(Member($api, "lemma"), Call(Member(Member($unit, "head"), "toLowerCase")))),
+                    Bind($base,
+                      If(
+                        $one,
+                        Add(Call(Member(Index($one, 0), "toUpperCase")), Call(Member($one, "slice"), 1)),
+                        Member($unit, "head")
+                      )
+                    ),
+                    Bind($holds,
+                      Lambda(List($whole, $part),
+                        Member(
+                          Index(
+                            OptionalMember(
+                              Call(
+                                Member(
+                                  Map(
+                                    Otherwise(
+                                      OptionalMember(Call(Member(Member($api, "store"), "get"), $whole), "relations"),
+                                      List()
+                                    ),
+                                    Lambda(List($r), Member($r, "claim"))
+                                  ),
+                                  "find"
+                                ),
+                                Lambda(List($x),
+                                  And(
+                                    And(
+                                      And(
+                                        And(Call($isCall, $x), Equals(Member($x, "head"), "Holds")),
+                                        Call($isCall, OptionalMember(Index(Member($x, "args"), 0), "value"))
+                                      ),
+                                      Equals(Member(Member(Index(Member($x, "args"), 0), "value"), "head"), $part)
+                                    ),
+                                    Equals(TypeOf(OptionalMember(Index(Member($x, "args"), 1), "value")), "number")
+                                  )
+                                )
+                              ),
+                              "args"
+                            ),
+                            1
+                          ),
+                          "value"
+                        )
+                      )
+                    ),
+                    Bind($per,
+                      If(
+                        Equals($base, "Day"),
+                        1,
+                        Otherwise(
+                          Call($holds, "Day", $base),
+                          If(
+                            Call($holds, $base, "Day"),
+                            Divide(1, Call($holds, $base, "Day")),
+                            Undefined()
+                          )
+                        )
+                      )
+                    ),
+                    If(
+                      Equals($per, Undefined()),
+                      Return(Call(Member($api, "call"), "HowMany", Spread($said))),
+                      Undefined()
+                    ),
+                    Return(
+                      Object(
+                        head = "Quantity",
+                        args = List(
+                          Object(
+                            value = Divide(Call(Member($Math, "round"), Multiply(Multiply($days, $per), 100)), 100)
+                          ),
+                          Object(name = "unit", value = $unit)
+                        )
+                      )
+                    )
+                  ),
+                  Undefined()
+                )
+              ),
+              Undefined()
+            ),
             If(
               Or(Not(Call($isCall, $a)), Not(Call($isCall, $b))),
               Return(Call(Member($api, "call"), "HowMany", Spread($said))),

@@ -1056,6 +1056,21 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
       } }];
     }
   }
+  // Asked by a question word whose own Concept works out what it asks ("how many days until
+  // christmas": HowMany takes what is counted, Days(Until(Christmas()))): that, given the thing asked.
+  if (asked && root.role === "ReadThing" && !root.ask) {
+    const q = words.findIndex((w) => w.senses.some((x) => x.type === "question"));
+    const head = q >= 0 ? words[q]!.senses.find((x) => x.type === "question")?.head : undefined;
+    const runs = (h: string) => (store.get(h)?.realizations ?? []).some((r) => !r.retired && isCall(r.pattern) && r.pattern.head === h && r.pattern.args.some((a) => isCall(a.value) && a.value.head === "Rest"));
+    if (head && runs(head)) {
+      const thing = asTaken({ ...root, fills: root.fills.filter((f) => !f.piece.ask) });
+      const expr = c(head, thing);
+      return [{ key: format(expr), features: ["read:composed-asked-by", ...best.features], score: base + 1, display: expr, chosen: [], notes: [...notes, `Worked out by what asks it: ${format(expr)}.`], run: async () => {
+        const v = await runtime.evaluate(expr, c("Execution"));
+        return isCall(v) && v.head === head ? undefined : isCall(v) && v.head === "Answer" ? v : c("Answer", v);
+      } }];
+    }
+  }
   // Asked what something is that the graph works out of a time ("what day will it be in 5 days",
   // "what day is it"): the word right after the question word, if it computes from one thing, worked
   // out of the time the words say ("in 5 days": In(Days(5)), "tomorrow"), else of now.
@@ -1160,10 +1175,21 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
     const done = filled(root, "Done")[0];
     const relation = doingName(root);
     if (!asked) {
-      if (!doer || doer.ask || unpointed(doer)) return [];
-      const subject = who(doer);
+      if (!doer || doer.ask) return [];
+      // Said of someone pointed at whom nothing in the talk is yet ("He bought a car."): someone of
+      // their own, of the kinds the word points at (He PointsAt(Male())), for later words to find.
+      const fresh = unpointed(doer);
+      const subject = fresh ? c(nameOf(doer.text)) : who(doer);
       if (!subject || !isCall(subject) || subject.args.length) return [];
-      const claim = call(relation, [...(done ? [{ value: who(done)! }] : []), ...mods(root)]);
+      // A count said with what it is of, just after it ("3 pairs of shorts"): one amount, of that.
+      const ofLink = done ? filled(root, "Where").find((l) => l.word === done.word + 1 && filled(l, "What").length && /^of$/i.test(l.text)) : undefined;
+      const doneExpr = done ? who(done)! : undefined;
+      const unit = doneExpr !== undefined && isCall(doneExpr) ? doneExpr.args.find((a) => a.name === "unit")?.value : undefined;
+      const counted = doneExpr !== undefined && ofLink && isCall(doneExpr) && doneExpr.head === "Quantity" && unit !== undefined && isCall(unit)
+        ? call("Quantity", doneExpr.args.map((a) => (a.name === "unit" ? { name: "unit", value: c(nameOf(`${done!.text} of ${filled(ofLink, "What")[0]!.text}`)) } : a)))
+        : doneExpr;
+      const rest = mods({ ...root, fills: root.fills.filter((f) => counted === doneExpr || f.piece !== ofLink) });
+      const claim = call(relation, [...(counted !== undefined ? [{ value: counted }] : []), ...rest]);
       const fact = negated(root) ? c("Not", claim) : claim;
       return [{
         writes: true,
@@ -1174,8 +1200,14 @@ function composed(runtime: Runtime, words: readonly Word[], question: boolean, m
         chosen: [],
         notes,
         run: async () => {
-          replacing(store, subject.head, fact, runtime.trace.cause);
-          return c("Noted", fact, subject);
+          let id = subject.head;
+          if (fresh) {
+            id = store.mint("Someone");
+            store.addRelation(id, c("IsA", c("Person")), undefined, runtime.trace.cause);
+            for (const t of store.asSubject(nameOf(doer.text))) if (t.predicate === "PointsAt" && t.object !== undefined && isCall(t.object) && t.object.head !== "Someone") store.addRelation(id, c("IsA", t.object), undefined, runtime.trace.cause);
+          }
+          replacing(store, id, fact, runtime.trace.cause);
+          return c("Noted", fact, c(id));
         },
       }];
     }

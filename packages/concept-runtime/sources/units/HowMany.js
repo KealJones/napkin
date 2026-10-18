@@ -14,6 +14,25 @@ async (args, bindings, api) => {
     a = said[0];
     b = said[1].args[0]?.value;
   }
+  // How long until a day ("how many days until christmas", Days(Until(Christmas()))): from today to it, in that unit.
+  const until = isCall(said[0]) && said[0].args.length === 1 && isCall(said[0].args[0].value) && said[0].args[0].value.head === "Until" ? said[0].args[0].value : isCall(said[1]) && said[1].head === "Until" ? said[1] : undefined;
+  if (until && isCall(said[0])) {
+    const unit = { head: said[0].head, args: [] };
+    const day = await api.evaluate(until.args[0]?.value);
+    const today = await api.evaluate(api.call("Today"));
+    const field = (d, n) => (isCall(d) ? d.args.find((x) => x.name === n)?.value : undefined);
+    const at = (d) => Date.UTC(field(d, "year"), field(d, "month") - 1, field(d, "day"));
+    if (isCall(day) && day.head === "Date" && typeof field(day, "day") === "number" && isCall(today)) {
+      const days = Math.round((at(day) - at(today)) / 86_400_000);
+      // Days in the unit asked, as the graph holds them (Week Holds(Day(), 7), Day Holds(Hour(), 24)).
+      const one = api.lemma(unit.head.toLowerCase());
+      const base = one ? one[0].toUpperCase() + one.slice(1) : unit.head;
+      const holds = (whole, part) => (api.store.get(whole)?.relations ?? []).map((r) => r.claim).find((x) => isCall(x) && x.head === "Holds" && isCall(x.args[0]?.value) && x.args[0].value.head === part && typeof x.args[1]?.value === "number")?.args[1].value;
+      const per = base === "Day" ? 1 : holds("Day", base) ?? (holds(base, "Day") ? 1 / holds(base, "Day") : undefined);
+      if (per === undefined) return api.call("HowMany", ...said);
+      return { head: "Quantity", args: [{ value: Math.round(days * per * 100) / 100 }, { name: "unit", value: unit }] };
+    }
+  }
   if (!isCall(a) || !isCall(b)) return api.call("HowMany", ...said);
   const inA = await api.evaluate(api.call("InSI", a));
   const inB = await api.evaluate(api.call("InSI", b));
