@@ -66,6 +66,22 @@ Concept(Add(), Adds())
 
 // How many of a smaller unit one of a larger holds: a year holds 12 months. Read when a situation
 // counts in one and asks in the other ("4 car washes a month ... in a year").
+// What a doing does to money said with it: buying pays it out, selling brings it in, whatever it
+// does to what is bought or sold.
+Concept(Buy(), Removes(Money()))
+
+Concept(Order(), Removes(Money()))
+
+Concept(Rent(), Removes(Money()))
+
+Concept(Put(), Removes(Money()))
+
+Concept(Sell(), Adds(Money()))
+
+Concept(Charge(), Adds(Money()))
+
+Concept(Make(), Adds(Money()))
+
 Concept(Holds(), IsA(Relation()))
 
 Concept(Year(),
@@ -326,6 +342,9 @@ Concept(Remaining(), Marks(Remaining()))
 
 Concept(Remainder(), Marks(Remaining()))
 
+// Had yet, after the rest is gone ("how many does he still have").
+Concept(Still(), Marks(Remaining()))
+
 Concept(Price(), Marks(Money()))
 
 Concept(Cost(), Marks(Money()))
@@ -344,7 +363,8 @@ Concept(Fee(), Marks(Money()))
 
 Concept(Money(), Marks(Money()))
 
-Concept(Profit(), Marks(Money()))
+// What is left of what came in once what went out is taken from it.
+Concept(Profit(), Marks(Money()), Marks(Remaining()))
 
 Concept(Income(), Marks(Money()))
 

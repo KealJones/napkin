@@ -173,7 +173,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         if (what && lex.per(what.text.toLowerCase())) return lex.per(what.text.toLowerCase());
       }
       // Said after it, of one ("500 movies a day", "$5 a month"): so many for each one.
-      const one = p.fills.find((f) => f.side === "after" && (f.hole === "Name" || f.hole === "Done") && !lex.marks(f.piece.text, "Whole") && !lex.marks(f.piece.text, "Remaining") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
+      const one = p.fills.find((f) => f.side === "after" && (p.role === "ReadThing" || lex.measures(base(f.piece.text)) === "Time") && (f.hole === "Name" || f.hole === "Done") && !lex.marks(f.piece.text, "Whole") && !lex.marks(f.piece.text, "Remaining") && filled(f.piece, "Determiner").some((x) => lex.marks(x.text, "Single") || lex.marks(x.text, "Each")));
       if (one) return lex.per(one.piece.text.toLowerCase()) ?? base(one.piece.text);
       // A span each one of which it is done in ("eaten each day"): what is done, determined by a word marking each.
       const spans = filled(p, "Done").find((d) => d.value === undefined && !filled(d, "Count").length && filled(d, "Determiner").some((x) => lex.marks(x.text, "Each")));
@@ -302,7 +302,7 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       // A count of times ("4 times as many", "3 times a week"): how often, or what multiplies, no thing of its own.
       const often = !!count && s.words[p.word]?.senses.some((x) => x.type === "op" && x.target === "Multiply");
       // Money said with what it is for each of ("$12 an hour", "$7 each"): dollars per that thing.
-      const each = money && count && filled(p, "Determiner").some((d) => lex.marks(d.text, "Single") || lex.marks(d.text, "Each"));
+      const each = money && count && p.fills.some((f) => f.hole === "Count" && f.side === "before") && filled(p, "Determiner").some((d) => lex.marks(d.text, "Single") || lex.marks(d.text, "Each"));
       // A number said alone where something uncounted is done ("sold clips to 48 of her friends"): so many of it.
       const doneThing = alone && clause && !lastUnit ? filled(clause, "Done").find((d) => d.role === "ReadThing" && d.value === undefined && !d.ask && !filled(d, "Count").length && !pointing(s, d)) : undefined;
       // Counted in a measure that names it ("an 8-ounce cup"): so much of the measure for each one.
@@ -332,11 +332,16 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
       }
       // A share said in hundredths ("40% of the way", "25% as many"): a ratio of what it is said of.
       if (new RegExp(`\\b${number.value}\\s*(%|percent)`, "i").test(s.text)) {
-        const whom = ofWhom(clause, lastUnit);
+        // Of someone's ("25% of Ann's"), else of the amount told with the things it is said of ("the value of the house").
+        const named = ofWhom(clause, lastUnit);
+        // Someone's, or the thing it is said to change from ("from the original price").
+        const before = (clause ? walk(clause) : []).find((x) => x.role === "ReadThing" && filled(x, "Describer").some((d) => lex.marks(d.text, "Before")));
+        const whom = named && names.has(named) ? named : before ? base(before.text) : undefined;
+        const about = (clause ? walk(clause) : []).filter((x) => x.role === "ReadThing" && x.value === undefined && !x.points && !x.ask).map((x) => base(x.text));
         const holder = holderOf(clause);
         // A share that changes what it is of ("a 25% discount", "a 10% raise"): up or down by it.
         const changing = (clause ? walk(clause) : []).map((x) => lex.changes(x.text)).find((d) => d !== 0);
-        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: { ...(whom ? { holder: whom } : { last: true }), ...(changing ? { change: changing } : {}) }, ...(holder ? { holder } : {}) });
+        put(number.word, { value: number.value / 100, unit: (lastUnit ? { [lastUnit]: 1 } : {}) as Unit, said: `${number.value}%`, sentence: at, sign: 0, ratio: true, of: { ...(whom ? { holder: whom } : { last: true, about }), ...(changing ? { change: changing } : {}) }, ...(holder ? { holder } : {}) });
         continue;
       }
       // A difference said of someone else's ("30 less apples than Martha").
@@ -356,12 +361,14 @@ export function situationFromSentences(store: ConceptStore, sentences: readonly 
         unit: unit as Unit,
         said: `${number.value}${thing ? ` ${thing}` : ""}${per ? ` per ${per}` : ""}`,
         sentence: at,
-        sign: doing ? lex.effect(doing) : 0,
+        // Money paid out or taken in by what is done ("buys a house for $80,000": paid out).
+        sign: doing ? (money ? lex.effectOnMoney(doing) ?? lex.effect(doing) : lex.effect(doing)) : 0,
         ...(holder ? { holder } : {}),
         ...(doing ? { doing } : {}),
         // Said as what can be had at most ("a budget of $200", "a limit of 5000 pounds"): a word marking it, just before.
         ...((clause ? walk(clause) : []).some((x) => x.word < number.word && x.word >= number.word - 3 && lex.marks(x.text, "Capacity")) ? { capacity: true } : {}),
-        near: walk(p).map((x) => base(x.text)),
+        // The things said with it: its own, or for a number said alone, its clause's ("buys a house for $80,000": house).
+        near: (alone && clause ? walk(clause).filter((x) => x.role === "ReadThing" && x.value === undefined) : walk(p)).map((x) => base(x.text)),
       });
     }
     amounts.splice(from, amounts.length - from, ...amounts.slice(from).sort((a, b) => (place.get(a) ?? 0) - (place.get(b) ?? 0)));

@@ -1721,6 +1721,8 @@ function tokens(store: ConceptStore, message: string): { tokens: string[]; quest
   const text = expandBare(message)
     .replace(/([+*/=×÷])/g, " $1 ")
     .replace(/(\d)\s*-\s*(\d)/g, "$1 - $2")
+    // "80,000": one number, its thousands marked.
+    .replace(/(\d),(?=\d{3}\b)/g, "$1")
     // "an 8-ounce cup": the count and what it counts.
     .replace(/(\d)-(\p{L})/gu, "$1 $2")
     // "what's", "he's": the word and "is", where the word asks or points (the graph says which).

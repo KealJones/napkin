@@ -1295,7 +1295,8 @@ export function resolveRatios(said: readonly Amount[]): Amount[] {
       // Said of another ("twice as many as Ben"), what it was worked from stays, not owed.
       // Someone else's ("as many as Ben"), or the same thing changed: what it was worked from is
       // counted in it. The same one's again ("he sold twice that many the year before") is more of theirs.
-      if (r.of.change !== undefined || !same(ref.holder, r.holder)) list[list.indexOf(ref)] = { ...ref, consumed: true };
+      // What was paid out stays paid when what it bought changes in value ("buys a house for $80,000 … increased its value by 150%").
+      if ((r.of.change !== undefined && ref.sign >= 0) || (r.of.change === undefined && !same(ref.holder, r.holder))) list[list.indexOf(ref)] = { ...ref, consumed: true };
       list[i] = {
         value,
         unit: ref.unit,
