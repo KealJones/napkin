@@ -1,6 +1,6 @@
 # Gold map review, case by case
 
-Decisions from walking `packages/concept-runtime/eval/ears/gold.md` with Keal. Applied to
+Decisions from walking `packages/concept-runtime/eval/ears/gold.md` with the owner. Applied to
 the gold in one pass once the review is done.
 
 ## Settled
@@ -58,7 +58,7 @@ the gold in one pass once the review is done.
 - `nonsense-riddle`: `Why(Is(Raven(), Like(WritingDesk())))`. `IsA` fuses only when the
   words make a category claim; here "a" belongs to "a raven". `LikeA`, if written, is
   `SynonymOf(Like())`.
-- `nonsense-angels` (Keal's shape): `HowMany(Angels(), Can(Dance(On(Head(Of(Pin()))))))`.
+- `nonsense-angels` (the owner's shape): `HowMany(Angels(), Can(Dance(On(Head(Of(Pin()))))))`.
   The interrogative takes what it counts first, then the predicate.
 - `fragment-one-word`: `Banana()` agreed.
 - `greeting`: `Emphasis(HeyThere())`. A fixed phrase whose parts do not carry their own
@@ -75,7 +75,7 @@ the gold in one pass once the review is done.
   per line (a wrapping `UnorderedList(...)` would lose the whole list to one slip).
 - `code-write-function`: agreed.
 
-- `markdown-product-brief` (Keal's version):
+- `markdown-product-brief` (the owner's version):
   ```
   $app = WebApp(Small(), For(My(JamBusiness())))
   Me(Building($app))
@@ -91,7 +91,7 @@ the gold in one pass once the review is done.
   (`code/import.ts`, `ir-spec.md` Part 10). Other languages need their own importer; until
   then the block stays verbatim.
 
-## Patterns in Keal's changes (applied to the drafts below)
+## Patterns in the owner's changes (applied to the drafts below)
 
 1. **Said order wins.** Interrogative first, subject first, arguments in the order said.
 2. **Fixed grammatical combinations fuse into one head** when they carry one meaning:
@@ -150,11 +150,11 @@ the gold in one pass once the review is done.
 
 ## Being measured
 
-- **Subject first for statements** (Keal): `Me(AllergicTo(Peanuts()))`,
+- **Subject first for statements** (the owner's proposal): `Me(AllergicTo(Peanuts()))`,
   `Colorless(Green(Ideas(Sleep(Furiously()))))`. Matches how facts are stored (a relation
   on its subject) and the question form. Costs: realization looks up the head, numbers
   and Refs cannot be heads. Full-set run: nested predicate-first vs subject-first.
-- ~~**Where the interrogative goes.**~~ settled above. Keal's position: first, as said, with the rest in the
+- ~~**Where the interrogative goes.**~~ settled above. Decided: first, as said, with the rest in the
   order it was said and every helper word kept. "who killed hamlet" is
   `Who(Killed(), Hamlet())`; "who did hamlet kill" is `Who(Did(Hamlet(), Kill()))` or
   `WhoDid(Hamlet(), Kill())`. Side-by-side run on the question cases: slot form vs nested
